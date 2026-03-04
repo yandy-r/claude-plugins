@@ -20,7 +20,7 @@ allowed-tools:
   - Bash(test:*)
   - Bash(mkdir:*)
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/feature-research/scripts/*.sh:*)'
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*.sh:*)'
+  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
 ---
 
 # Feature Research

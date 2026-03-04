@@ -14,7 +14,7 @@ allowed-tools:
   - Bash(test:*)
   - Bash(mkdir:*)
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/shared-context/scripts/*.sh:*)'
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*.sh:*)'
+  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
 ---
 
 # Shared Context Command

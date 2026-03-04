@@ -11,10 +11,10 @@ FEATURE_NAME="${1:-}"
 
 # Source the shared resolver to get PLANS_DIR
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SHARED_DIR="${SCRIPT_DIR}/../../../scripts"
+SHARED_DIR="${SCRIPT_DIR}/../../_shared/scripts"
 
 if [[ -f "${SHARED_DIR}/resolve-plans-dir.sh" ]]; then
-  # shellcheck source=../../../scripts/resolve-plans-dir.sh
+  # shellcheck source=../../_shared/scripts/resolve-plans-dir.sh
   source "${SHARED_DIR}/resolve-plans-dir.sh"
 else
   # Fallback if shared resolver not found

@@ -13,7 +13,7 @@ allowed-tools:
   - Bash(cat:*)
   - Bash(test:*)
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/*.sh:*)'
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*.sh:*)'
+  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/**/*.sh:*)'
 ---
 
@@ -73,7 +73,7 @@ If no feature name provided, abort with usage instructions.
 Use the shared resolver to determine the correct plans directory:
 
 ```bash
-source ${CLAUDE_PLUGIN_ROOT}/scripts/resolve-plans-dir.sh
+source ${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/resolve-plans-dir.sh
 feature_dir="$(get_feature_plan_dir "[feature-name]")"
 ```
 

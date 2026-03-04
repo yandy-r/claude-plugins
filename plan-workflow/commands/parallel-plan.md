@@ -14,7 +14,7 @@ allowed-tools:
   - Bash(test:*)
   - Bash(mkdir:*)
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/*.sh:*)'
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*.sh:*)'
+  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
 ---
 
 # Parallel Plan Command

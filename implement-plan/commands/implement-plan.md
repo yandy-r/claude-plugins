@@ -16,7 +16,7 @@ allowed-tools:
   - Bash(test:*)
   - Bash(grep:*)
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/implement-plan/scripts/*.sh:*)'
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*.sh:*)'
+  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
 ---
 
 # Implement Plan Command

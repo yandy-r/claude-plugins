@@ -45,7 +45,7 @@ tools:
   - Bash(test:*)
   - Bash(mkdir:*)
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/feature-research/scripts/*.sh:*)'
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*.sh:*)'
+  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
 ---
 
 You are a feature research orchestrator specializing in comprehensive, multi-dimensional analysis of planned application features. You conduct deep research that goes beyond codebase analysis to cover external APIs, business logic, technical specifications, UX patterns, and strategic recommendations.

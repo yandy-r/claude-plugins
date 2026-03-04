@@ -15,7 +15,7 @@ allowed-tools:
   - Bash(test:*)
   - Bash(mkdir:*)
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/scripts/*.sh:*)'
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/scripts/*.sh:*)'
+  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/**/*.sh:*)'
 ---
 
@@ -95,7 +95,7 @@ Validate the feature name:
 Use the shared resolver to determine the correct plans directory:
 
 ```bash
-source ${CLAUDE_PLUGIN_ROOT}/scripts/resolve-plans-dir.sh
+source ${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/resolve-plans-dir.sh
 feature_dir="$(get_feature_plan_dir "[feature-name]")"
 ```
 
