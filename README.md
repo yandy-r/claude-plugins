@@ -23,8 +23,8 @@ A collection of Claude Code plugins for workflow orchestration, parallel plannin
 /plugin marketplace add yandy-r/claude-plugins
 
 # Enable a specific plugin
-/plugin install ask@claude-plugins
-/plugin install plan-workflow@claude-plugins
+/plugin install ask@yandy-plugins
+/plugin install plan-workflow@yandy-plugins
 ```
 
 Or enable all plugins at once in `~/.claude/settings.json`:
@@ -32,15 +32,15 @@ Or enable all plugins at once in `~/.claude/settings.json`:
 ```json
 {
   "enabledPlugins": {
-    "ask@claude-plugins": true,
-    "plan-workflow@claude-plugins": true,
-    "implement-plan@claude-plugins": true,
-    "code-report@claude-plugins": true,
-    "git-workflow@claude-plugins": true,
-    "orchestrate@claude-plugins": true,
-    "deep-research@claude-plugins": true,
-    "write-docs@claude-plugins": true,
-    "project@claude-plugins": true
+    "ask@yandy-plugins": true,
+    "plan-workflow@yandy-plugins": true,
+    "implement-plan@yandy-plugins": true,
+    "code-report@yandy-plugins": true,
+    "git-workflow@yandy-plugins": true,
+    "orchestrate@yandy-plugins": true,
+    "deep-research@yandy-plugins": true,
+    "write-docs@yandy-plugins": true,
+    "project@yandy-plugins": true
   }
 }
 ```

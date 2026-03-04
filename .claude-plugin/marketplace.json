@@ -1,6 +1,6 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "claude-plugins",
+  "name": "yandy-plugins",
   "description": "A collection of Claude Code plugins for workflow orchestration, parallel planning, documentation, research, and project management.",
   "owner": {
     "name": "yandy-r"
