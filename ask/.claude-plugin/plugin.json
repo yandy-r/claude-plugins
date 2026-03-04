@@ -1,0 +1,8 @@
+{
+  "name": "ask",
+  "description": "Read-only codebase advisor that explores, explains, and guides without making changes. Supports Q&A, impact analysis, and comparison modes.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Yandy"
+  }
+}

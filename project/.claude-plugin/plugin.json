@@ -1,0 +1,8 @@
+{
+  "name": "project",
+  "description": "Project workspace management: initialize Claude CLI environments with agents/MCPs based on project analysis, and orchestrate parallel cleanup agents to identify and remove unnecessary files with comprehensive safety measures.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Yandy"
+  }
+}

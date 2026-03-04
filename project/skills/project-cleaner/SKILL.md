@@ -1,0 +1,106 @@
+---
+name: project-cleaner
+description: This skill should be used when the user asks to "clean project files", "remove unnecessary files", "clean up project", "find unused files", "project cleanup", or mentions removing build artifacts, temp files, or old code from a project directory. Orchestrates parallel cleanup agents with safety measures.
+argument-hint: '[target-directory] [--dry-run] [--report-only] [--safe-mode] [--include-git]'
+allowed-tools:
+  - Read
+  - Grep
+  - Glob
+  - Write
+  - Task
+  - TodoWrite
+  - AskUserQuestion
+  - Bash(ls:*)
+  - Bash(cat:*)
+  - Bash(test:*)
+  - Bash(mkdir:*)
+  - Bash(rm:*)
+  - Bash(git:*)
+  - Bash(du:*)
+  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/project-cleaner/scripts/*.sh:*)'
+---
+
+# Project File Cleaner
+
+Orchestrate 6 parallel cleanup agents to analyze and remove unnecessary files from project directories with comprehensive safety measures and user confirmation checkpoints.
+
+## Arguments
+
+Parse `$ARGUMENTS` for:
+
+- **target-directory**: First non-flag argument (default: `.`)
+- **--dry-run**: Preview only, no changes
+- **--report-only**: Generate report without deletions
+- **--safe-mode**: Extra confirmation per category
+- **--include-git**: Analyze git artifacts (large files, stale branches)
+
+## Phase 0: Setup
+
+1. **Validate target directory** exists
+2. **Detect project type** using: `${CLAUDE_PLUGIN_ROOT}/skills/project-cleaner/scripts/detect-project-type.sh "$TARGET_DIR"`
+3. **Read safety configuration** from `${CLAUDE_PLUGIN_ROOT}/skills/project-cleaner/references/safety-config.md`
+4. **Create working directory**: `$TARGET_DIR/.cleanup-analysis/findings/`
+5. **Initialize progress tracking** with TodoWrite for all phases
+6. **If --dry-run**: Display analysis plan and **STOP**
+
+## Phase 1: Parallel Agent Deployment
+
+Read agent prompts from `${CLAUDE_PLUGIN_ROOT}/skills/project-cleaner/references/agent-prompts.md`.
+
+Deploy all 6 agents in a **SINGLE message** with **MULTIPLE Task tool calls** using subagent type `project-file-cleaner`:
+
+| Agent      | Output File                 |
+| ---------- | --------------------------- |
+| Code Files | `findings/code-files.md`    |
+| Binaries   | `findings/binaries.md`      |
+| Assets     | `findings/assets.md`        |
+| Docs       | `findings/documentation.md` |
+| Config     | `findings/config.md`        |
+| Docker     | `findings/docker.md`        |
+
+Substitute `{{TARGET_DIR}}`, `{{PROJECT_TYPE}}`, and `{{OUTPUT_FILE}}` in each prompt. Each agent receives: target directory, project type, safety configuration, specific search patterns, and output file path.
+
+## Phase 2: Findings Consolidation
+
+After all agents complete:
+
+1. Read all findings files
+2. Deduplicate across agents
+3. Calculate space savings: `du -h "$filepath"` for each file
+4. Categorize by risk level (low/medium/high)
+
+## Phase 3: Report Generation and User Review
+
+1. Run: `${CLAUDE_PLUGIN_ROOT}/skills/project-cleaner/scripts/generate-report.sh "$TARGET_DIR"`
+2. Run safety validation: `${CLAUDE_PLUGIN_ROOT}/skills/project-cleaner/scripts/validate-safety.sh "$TARGET_DIR/.cleanup-analysis/cleanup-report.md"`
+3. Fix any violations before proceeding
+4. **If --report-only**: Display report summary and **STOP**
+5. Present findings to user with AskUserQuestion (show report / summary / proceed / cancel)
+6. **If --safe-mode**: Ask confirmation per category
+
+## Phase 4: Safe Execution
+
+1. Create backup list at `$TARGET_DIR/.cleanup-analysis/removal-list.txt`
+2. Final confirmation with AskUserQuestion before any deletions
+3. Execute removal, tracking success/failure counts
+4. Handle errors gracefully (continue on single file failure)
+
+## Phase 5: Verification
+
+1. Verify files removed, no broken symlinks, project integrity
+2. Calculate actual space recovered
+3. Generate final summary with results, analysis file locations, and next steps
+
+---
+
+## Quality Standards
+
+Each cleanup agent must: focus on specific category, execute 10+ diverse searches, include file sizes, check against safety config, flag uncertain cases for review. Each finding must include: full path, size, category, justification, risk level, confidence level.
+
+## Important Notes
+
+- Act as orchestrator - coordinate cleanup agents, don't analyze files directly
+- Deploy all 6 agents in parallel (single message with 6 Task calls)
+- Safety first - always validate before deletion
+- User confirmation required before any destructive operations
+- Preserve all cleanup reports and removal lists
