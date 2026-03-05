@@ -9,20 +9,10 @@ Apply this contract to every agent prompt in this file:
 - Write only your assigned output file under `{{FEATURE_DIR}}`.
 - Do not edit any other files.
 - After writing the file, verify it exists using the Read tool or equivalent.
-- **DUAL DELIVERY**: Also include the complete file content in your response
-  wrapped in your assigned XML tag (backup mechanism for file persistence).
 - After writing the file, return a short completion signal:
   - `STATUS: COMPLETE` or `STATUS: BLOCKED`
   - `OUTPUT: <path>`
   - `SECTIONS: <comma-separated headings>`
-
-### Response Tag Assignment
-
-| Agent                | Response Tag                               |
-| -------------------- | ------------------------------------------ |
-| Context Synthesizer  | `<ANALYSIS_CONTEXT>...</ANALYSIS_CONTEXT>` |
-| Code Analyzer        | `<ANALYSIS_CODE>...</ANALYSIS_CODE>`       |
-| Task Structure Agent | `<ANALYSIS_TASKS>...</ANALYSIS_TASKS>`     |
 
 ---
 
@@ -35,11 +25,17 @@ Apply this contract to every agent prompt in this file:
 **Prompt Template**:
 
 ````markdown
-## PRIMARY DELIVERABLE
+## Output Requirements
 
-**Output File**: {{FEATURE_DIR}}/analysis-context.md
+**CRITICAL**: You MUST write your findings to the specified file. This is not optional.
 
-You MUST write this file using the Write tool. This is your #1 job. Everything else is secondary.
+**Output File**: `{{FEATURE_DIR}}/analysis-context.md`
+
+Before completing this task:
+
+1. Create the output file using the Write tool
+2. Verify the file was created successfully
+3. Report completion status
 
 ---
 
@@ -123,9 +119,7 @@ You MUST complete ALL of these steps in order:
 
 1. **Write file**: Use the Write tool to create {{FEATURE_DIR}}/analysis-context.md
 2. **Verify file**: Use the Read tool to confirm the file exists and has content
-3. **Tag content in response**: Include the COMPLETE file content in your response wrapped in:
-   `<ANALYSIS_CONTEXT>` ... `</ANALYSIS_CONTEXT>`
-4. **Report status**: STATUS: COMPLETE, OUTPUT: {{FEATURE_DIR}}/analysis-context.md, SECTIONS: [headings]
+3. **Report status**: STATUS: COMPLETE, OUTPUT: {{FEATURE_DIR}}/analysis-context.md, SECTIONS: [headings]
 ````
 
 ---
@@ -139,11 +133,17 @@ You MUST complete ALL of these steps in order:
 **Prompt Template**:
 
 ````markdown
-## PRIMARY DELIVERABLE
+## Output Requirements
 
-**Output File**: {{FEATURE_DIR}}/analysis-code.md
+**CRITICAL**: You MUST write your findings to the specified file. This is not optional.
 
-You MUST write this file using the Write tool. This is your #1 job. Everything else is secondary.
+**Output File**: `{{FEATURE_DIR}}/analysis-code.md`
+
+Before completing this task:
+
+1. Create the output file using the Write tool
+2. Verify the file was created successfully
+3. Report completion status
 
 ---
 
@@ -269,9 +269,7 @@ You MUST complete ALL of these steps in order:
 
 1. **Write file**: Use the Write tool to create {{FEATURE_DIR}}/analysis-code.md
 2. **Verify file**: Use the Read tool to confirm the file exists and has content
-3. **Tag content in response**: Include the COMPLETE file content in your response wrapped in:
-   `<ANALYSIS_CODE>` ... `</ANALYSIS_CODE>`
-4. **Report status**: STATUS: COMPLETE, OUTPUT: {{FEATURE_DIR}}/analysis-code.md, SECTIONS: [headings]
+3. **Report status**: STATUS: COMPLETE, OUTPUT: {{FEATURE_DIR}}/analysis-code.md, SECTIONS: [headings]
 ````
 
 ---
@@ -285,11 +283,17 @@ You MUST complete ALL of these steps in order:
 **Prompt Template**:
 
 ````markdown
-## PRIMARY DELIVERABLE
+## Output Requirements
 
-**Output File**: {{FEATURE_DIR}}/analysis-tasks.md
+**CRITICAL**: You MUST write your findings to the specified file. This is not optional.
 
-You MUST write this file using the Write tool. This is your #1 job. Everything else is secondary.
+**Output File**: `{{FEATURE_DIR}}/analysis-tasks.md`
+
+Before completing this task:
+
+1. Create the output file using the Write tool
+2. Verify the file was created successfully
+3. Report completion status
 
 ---
 
@@ -431,9 +435,7 @@ You MUST complete ALL of these steps in order:
 
 1. **Write file**: Use the Write tool to create {{FEATURE_DIR}}/analysis-tasks.md
 2. **Verify file**: Use the Read tool to confirm the file exists and has content
-3. **Tag content in response**: Include the COMPLETE file content in your response wrapped in:
-   `<ANALYSIS_TASKS>` ... `</ANALYSIS_TASKS>`
-4. **Report status**: STATUS: COMPLETE, OUTPUT: {{FEATURE_DIR}}/analysis-tasks.md, SECTIONS: [headings]
+3. **Report status**: STATUS: COMPLETE, OUTPUT: {{FEATURE_DIR}}/analysis-tasks.md, SECTIONS: [headings]
 ````
 
 ---
@@ -460,11 +462,11 @@ When deploying analysis agents:
 
 ## Agent Configuration
 
-| Agent                | Type                        | Output File         | Response Tag         | Model   |
-| -------------------- | --------------------------- | ------------------- | -------------------- | ------- |
-| Context Synthesizer  | `codebase-research-analyst` | analysis-context.md | `<ANALYSIS_CONTEXT>` | Default |
-| Code Analyzer        | `codebase-research-analyst` | analysis-code.md    | `<ANALYSIS_CODE>`    | Default |
-| Task Structure Agent | `codebase-research-analyst` | analysis-tasks.md   | `<ANALYSIS_TASKS>`   | Default |
+| Agent                | Type                        | Output File         |
+| -------------------- | --------------------------- | ------------------- |
+| Context Synthesizer  | `codebase-research-analyst` | analysis-context.md |
+| Code Analyzer        | `codebase-research-analyst` | analysis-code.md    |
+| Task Structure Agent | `codebase-research-analyst` | analysis-tasks.md   |
 
 ## Expected Output Size
 

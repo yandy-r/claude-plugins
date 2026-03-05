@@ -186,7 +186,7 @@ Each agent will:
 
 ## Phase 2: Validate and Persist Analysis Artifacts
 
-### Step 7: First Validation Check
+### Step 7: Validate Analysis Artifacts
 
 After agents complete, validate all analysis files:
 
@@ -194,45 +194,22 @@ After agents complete, validate all analysis files:
 ${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/validate-analysis-artifacts.sh "${feature_dir}"
 ```
 
-If validation passes, proceed to Step 7a (mandatory persistence check).
+If validation passes, proceed to Step 9.
 If validation fails, proceed to Step 8.
 
-### Step 7a: Mandatory Agent Response Persistence
+### Step 8: Re-deploy Failed Agents (only if Step 7 failed)
 
-To avoid any agent-level write tool variance, persist all analysis output directly from agent responses:
+For each missing or invalid file reported by the validation script:
 
-1. For each deployed analysis agent response, extract its assigned tag:
-   - `<ANALYSIS_CONTEXT>...</ANALYSIS_CONTEXT>` from Agent 1
-   - `<ANALYSIS_CODE>...</ANALYSIS_CODE>` from Agent 2
-   - `<ANALYSIS_TASKS>...</ANALYSIS_TASKS>` from Agent 3
-2. Write each extracted body to the target file using the Write tool, even if the file already exists:
-   - `${feature_dir}/analysis-context.md`
-   - `${feature_dir}/analysis-code.md`
-   - `${feature_dir}/analysis-tasks.md`
-3. Immediately re-run `validate-analysis-artifacts.sh` after writing to ensure all files are present.
-4. If validation succeeds after writing, proceed to Step 9.
-5. If validation still fails, proceed to Step 8.
-
-If a required tag is missing in a response, re-deploy ONLY that specific agent with its original prompt and re-run this step.
-
-### Step 8: Fallback Write (only if Step 7 or Step 7a failed)
-
-For each missing file reported by the validation script:
-
-1. Find the corresponding `<ANALYSIS_*>` tag content from the agent's response:
-   - Missing `analysis-context.md` → look for `<ANALYSIS_CONTEXT>...</ANALYSIS_CONTEXT>` in Agent 1's response
-   - Missing `analysis-code.md` → look for `<ANALYSIS_CODE>...</ANALYSIS_CODE>` in Agent 2's response
-   - Missing `analysis-tasks.md` → look for `<ANALYSIS_TASKS>...</ANALYSIS_TASKS>` in Agent 3's response
-2. Write the tagged content to `${feature_dir}/[filename]` using the Write tool
-3. If no tagged content is available for a missing file, re-deploy ONLY that specific agent with its original prompt
-
-After writing fallback files, re-run validation:
+1. Re-deploy ONLY the failed agents with their original prompts
+2. Wait for corrected outputs
+3. Re-run validation:
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/validate-analysis-artifacts.sh "${feature_dir}"
 ```
 
-If validation still fails after re-deployment, stop and report what is missing.
+Repeat until validation passes. If agents repeatedly fail, stop and report what is missing.
 
 ### Step 9: Pre-Generation Gate (MANDATORY — cannot be skipped)
 
@@ -243,9 +220,9 @@ ${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/persist-or-fail.sh "${feature
 ```
 
 - **Exit 0** → proceed to Phase 3
-- **Exit 1** → the script prints `MISSING_FILES` and `ACTION_REQUIRED`. Write the missing files NOW (from response tags or by re-deploying agents), then re-run this gate until it passes (exit 0)
+- **Exit 1** → the script prints `MISSING_FILES` and `ACTION_REQUIRED`. Re-deploy the failed agents, then re-run this gate until it passes (exit 0)
 
-- **Do not** attempt to generate `parallel-plan.md` if Step 7, 7a, or Step 8 have not passed.
+- **Do not** attempt to generate `parallel-plan.md` if Step 7 or Step 8 have not passed.
 
 **Do NOT proceed to plan generation until `persist-or-fail.sh` exits 0.**
 
@@ -522,12 +499,11 @@ All files are written to `${feature_dir}/` (resolved via `resolve-plans-dir.sh`)
 
 **Contract Rules**:
 
-1. Each agent MUST write its own output file using the Write tool AND include content in its assigned `<ANALYSIS_*>` response tag
+1. Each agent MUST write its own output file using the Write tool
 2. The orchestrator MUST run `validate-analysis-artifacts.sh` after agents complete (Step 7)
-3. The orchestrator MUST persist all analysis outputs from `<ANALYSIS_*>` response tags with the Write tool (Step 7a)
-4. If validation still fails after persistence, the orchestrator MUST write/repair missing files from `<ANALYSIS_*>` response tags or re-deploy failed agents (Step 8)
-5. The orchestrator MUST run `persist-or-fail.sh` as a mandatory pre-generation gate (Step 9)
-6. No file may be skipped or deferred — `persist-or-fail.sh` must exit 0 before plan generation
+3. If validation fails, the orchestrator MUST re-deploy ONLY the failed agents with their original prompts (Step 8)
+4. The orchestrator MUST run `persist-or-fail.sh` as a mandatory pre-generation gate (Step 9)
+5. No file may be skipped or deferred — `persist-or-fail.sh` must exit 0 before plan generation
 
 ## Monorepo Support
 
