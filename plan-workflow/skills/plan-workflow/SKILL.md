@@ -122,11 +122,14 @@ Based on flags and detected state:
 
 | State                | --plan-only | --research-only | Action                         |
 | -------------------- | ----------- | --------------- | ------------------------------ |
-| No shared.md         | N/A         | N/A             | Full workflow or research-only |
-| Has shared.md        | Yes         | N/A             | Skip to planning               |
+| No shared.md         | N/A         | N/A             | Full workflow from Phase 1; if --research-only, stop after Phase 4 |
+| Has shared.md        | Yes         | N/A             | Skip to Phase 5 (Analysis)     |
 | Has shared.md        | No          | Yes             | Skip (already done)            |
-| Has shared.md        | No          | No              | Full workflow (regenerates)    |
+| Has shared.md        | No          | No              | Full workflow from Phase 1 (regenerates shared.md) |
 | Has parallel-plan.md | Any         | Any             | Warn about overwrite           |
+
+**Note**: "Planning" in this workflow = Phase 8 (Plan Generation). "Analysis" = Phase 5.
+The `--plan-only` flag skips Research + Checkpoint (Phases 1-4) but NOT Analysis (Phase 5).
 
 ### Step 5: Create Directory
 
@@ -263,6 +266,10 @@ If user chooses "Stop here":
 
 ## Phase 5: Analysis (unless --research-only or --optimized)
 
+> **MANDATORY**: This phase MUST run in standard mode, including when `--plan-only` is used.
+> The `--plan-only` flag skips Research (Phases 1-4), NOT Analysis. Analysis agents produce
+> the `analysis-*.md` files required by Phase 8 (Plan Generation).
+
 ### Step 14: Read Analysis Prompts
 
 In standard mode (not --optimized), read analysis prompts:
@@ -338,6 +345,9 @@ ${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/persist-or-fail.sh "${feature
 ---
 
 ## Phase 7: Read Analysis Results
+
+> **PRE-CHECK**: If `analysis-context.md`, `analysis-code.md`, or `analysis-tasks.md` do not
+> exist in `${feature_dir}/`, Phase 5 was skipped in error. Go back and run Phase 5 now.
 
 ### Step 17: Read Analysis Results
 
