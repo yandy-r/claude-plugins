@@ -77,7 +77,7 @@ After completing the task, provide:
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `{{FEATURE_NAME}}` | Feature directory name | `user-authentication` |
-| `{{TASK_ID}}` | Task identifier | `1.1`, `2.3` |
+| `{{TASK_ID}}` | Task identifier | `1.1`, `2.3` or `T0`, `T1` |
 | `{{TASK_TITLE}}` | Task title from plan | `Create user model` |
 | `{{FILES_TO_READ}}` | Files from "READ THESE BEFORE TASK" | `- /src/models/base.ts` |
 | `{{FILES_TO_CREATE}}` | Files from "Files to Create" | `- /src/models/user.ts` |

@@ -5,9 +5,15 @@
 # Output format (one task per line):
 #   TASK_ID|TASK_TITLE|DEPENDENCIES
 #
+# Supports two task ID formats:
+#   Format A (decimal):  #### Task 1.1: Title Depends on [none]
+#   Format B (T-prefix): #### Task T0: Title
+#                         - **Dependencies**: None
+#
 # Examples:
 #   1.1|Create user model|none
-#   1.2|Add validation|1.1
+#   T0|Create user model|none
+#   T1|Add validation|T0
 #   2.1|Setup routes|1.1,1.2
 #
 # Supports monorepo configurations via .plans-config file.
@@ -36,11 +42,40 @@ if [[ ! -f "$PLAN_FILE" ]]; then
   exit 1
 fi
 
-# Extract tasks and their dependencies
-# Pattern: #### Task X.Y: [Title] Depends on [deps]
+# Extract tasks and their dependencies using a state machine.
+# Handles both inline deps (Format A) and multi-line deps (Format B).
+#
+# State machine:
+#   - On task header: flush any pending task, start new pending task
+#   - On dependency line: attach deps to pending task, flush it
+#   - On EOF: flush any remaining pending task
 
 awk '
-/^#### Task [0-9]+\.[0-9]+:/ {
+function flush_pending() {
+  if (pending_id != "") {
+    # Normalize "None" -> "none" (case-insensitive)
+    if (tolower(pending_deps) == "none" || pending_deps == "") {
+      pending_deps = "none"
+    }
+    gsub(/, */, ",", pending_deps)
+    gsub(/ /, "", pending_deps)
+    print pending_id "|" pending_title "|" pending_deps
+    pending_id = ""
+    pending_title = ""
+    pending_deps = ""
+  }
+}
+
+BEGIN {
+  pending_id = ""
+  pending_title = ""
+  pending_deps = ""
+}
+
+/^#### Task ([0-9]+\.[0-9]+|T[0-9]+):/ {
+  # Flush any previous pending task (had no inline or multi-line deps)
+  flush_pending()
+
   line = $0
 
   # Extract task ID
@@ -52,18 +87,17 @@ awk '
     if (colon_pos > 0) {
       task_id = substr(task_id, 1, colon_pos - 1)
     }
-  } else {
-    gsub(/.*Task /, "", task_id)
-    gsub(/:.*/, "", task_id)
   }
   gsub(/[[:space:]]/, "", task_id)
 
-  # Extract title (between : and Depends)
+  # Extract title (between "Task ID: " and either "Depends on" or end of line)
   title = line
-  gsub(/.*Task [0-9]+\.[0-9]+: /, "", title)
+  sub(".*Task " task_id ": *", "", title)
   gsub(/ Depends on.*/, "", title)
+  # Trim whitespace
+  gsub(/^[[:space:]]+|[[:space:]]+$/, "", title)
 
-  # Extract dependencies
+  # Check for inline dependencies (Format A)
   deps = "none"
   depends_pos = index(line, "Depends on [")
   if (depends_pos > 0) {
@@ -73,34 +107,39 @@ awk '
       deps = substr(deps, 1, bracket_pos - 1)
     }
     if (deps == "") deps = "none"
+    # Inline deps found — emit immediately
+    gsub(/, */, ",", deps)
+    if (tolower(deps) == "none") deps = "none"
+    print task_id "|" title "|" deps
+    next
   }
 
-  gsub(/, */, ",", deps)
+  # No inline deps — store as pending for multi-line resolution
+  pending_id = task_id
+  pending_title = title
+  pending_deps = ""
+  next
+}
 
-  print task_id "|" title "|" deps
+# Multi-line dependency pattern: - **Dependencies**: T0, T1
+pending_id != "" && /^- \*\*Dependencies\*\*:/ {
+  dep_line = $0
+  sub(/.*\*\*Dependencies\*\*: */, "", dep_line)
+  gsub(/^[[:space:]]+|[[:space:]]+$/, "", dep_line)
+  pending_deps = dep_line
+  flush_pending()
+  next
+}
+
+END {
+  flush_pending()
 }
 ' "$PLAN_FILE" | while IFS='|' read -r task_id title deps; do
   task_id=$(echo "$task_id" | tr -d ' ')
   title=$(echo "$title" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
   deps=$(echo "$deps" | tr -d ' ')
 
-  if [[ -n "$task_id" && "$task_id" =~ ^[0-9]+\.[0-9]+$ ]]; then
+  if [[ -n "$task_id" && "$task_id" =~ ^([0-9]+\.[0-9]+|T[0-9]+)$ ]]; then
     echo "${task_id}|${title}|${deps}"
   fi
 done
-
-# Fallback parsing if awk doesn't work well
-if [[ $(grep -c "^#### Task" "$PLAN_FILE") -gt 0 ]] && [[ -z "$(awk '/^#### Task/ {print}' "$PLAN_FILE" 2>/dev/null)" ]]; then
-  grep "^#### Task" "$PLAN_FILE" | while read -r line; do
-    task_id=$(echo "$line" | sed -E 's/.*Task ([0-9]+\.[0-9]+):.*/\1/')
-    title=$(echo "$line" | sed -E 's/.*Task [0-9]+\.[0-9]+: ([^D]*) Depends.*/\1/' | sed 's/[[:space:]]*$//')
-
-    if echo "$line" | grep -q "Depends on \[none\]"; then
-      deps="none"
-    else
-      deps=$(echo "$line" | sed -E 's/.*Depends on \[([^\]]*)\].*/\1/' | tr -d ' ')
-    fi
-
-    echo "${task_id}|${title}|${deps}"
-  done
-fi

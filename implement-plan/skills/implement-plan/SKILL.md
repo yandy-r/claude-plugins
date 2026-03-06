@@ -84,9 +84,9 @@ ${CLAUDE_PLUGIN_ROOT}/skills/implement-plan/scripts/parse-dependencies.sh docs/p
 
 For each task, extract:
 
-- **Task ID**: e.g., 1.1, 2.3, 3.1
+- **Task ID**: e.g., 1.1, 2.3, 3.1 (or T0, T1, T2)
 - **Task Title**: Descriptive name
-- **Dependencies**: List from `Depends on [...]`
+- **Dependencies**: List from `Depends on [...]` or `- **Dependencies**: ...`
 - **Files to Read**: From "READ THESE BEFORE TASK"
 - **Files to Create**: From "Files to Create"
 - **Files to Modify**: From "Files to Modify"

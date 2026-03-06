@@ -68,11 +68,11 @@ TASK_COUNT=$(grep -c "^#### Task" "${PLAN_DIR}/parallel-plan.md" 2>/dev/null || 
 echo "  Tasks in plan: ${TASK_COUNT}"
 
 # Count phases
-PHASE_COUNT=$(grep -c "^### Phase" "${PLAN_DIR}/parallel-plan.md" 2>/dev/null || echo "0")
-echo "  Phases in plan: ${PHASE_COUNT}"
+PHASE_COUNT=$(grep -cE "^### (Phase|Batch)" "${PLAN_DIR}/parallel-plan.md" 2>/dev/null || echo "0")
+echo "  Phases/Batches in plan: ${PHASE_COUNT}"
 
 # Count independent tasks
-INDEPENDENT_COUNT=$(grep -c "Depends on \[none\]" "${PLAN_DIR}/parallel-plan.md" 2>/dev/null || echo "0")
+INDEPENDENT_COUNT=$(grep -cE "(Depends on \[none\]|\*\*Dependencies\*\*: *[Nn]one)" "${PLAN_DIR}/parallel-plan.md" 2>/dev/null || echo "0")
 echo "  Independent tasks: ${INDEPENDENT_COUNT}"
 
 exit 0
