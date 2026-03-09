@@ -48,8 +48,8 @@
     },
     {
       "name": "git-workflow",
-      "description": "Git commit and documentation workflow manager. Analyzes changes, determines commit strategy (direct vs agents), writes conventional commit messages, coordinates documentation updates, and creates pull requests.",
-      "version": "1.0.0",
+      "description": "Git commit and documentation workflow manager. Analyzes changes, determines commit strategy (direct vs agents), writes conventional commit messages, coordinates documentation updates, creates pull requests, and converts deep-research output into structured GitHub issues.",
+      "version": "1.1.0",
       "author": {
         "name": "yandy-r"
       },
