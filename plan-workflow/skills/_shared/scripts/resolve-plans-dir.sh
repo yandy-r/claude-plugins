@@ -220,7 +220,7 @@ get_feature_plan_dir() {
 }
 
 # If script is executed directly (not sourced), run resolution and print result
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]:-}" == "${0:-}" ]]; then
   # Running as script
   case "${1:-}" in
     --help|-h)
