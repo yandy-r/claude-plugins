@@ -22,6 +22,20 @@ allowed-tools:
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
 ---
 
+## MANDATORY — AGENT TEAMS REQUIRED
+
+**You MUST use agent teams for this skill. Do NOT use standalone sub-agents.**
+
+1. **TeamCreate** FIRST — before spawning any agents
+2. **TaskCreate** — register all tasks in the shared task list
+3. **Agent with `team_name`** — every agent spawn MUST include the `team_name` parameter
+4. **SendMessage** — shut down teammates between batches
+5. **TeamDelete** — clean up when done
+
+If you spawn an agent WITHOUT `team_name`, you are doing it wrong. Stop and fix it.
+
+---
+
 # Parallel Plan Executor
 
 Execute a parallel implementation plan by deploying implementor agent teams in dependency-resolved batches. This is **Step 3** of the planning workflow, transforming the plan into working code.
@@ -220,117 +234,70 @@ Remove --dry-run flag to execute the plan.
 
 **STOP HERE** - do not deploy agents. Clean up the team with `TeamDelete`.
 
-### Step 10: Execute Batch Loop
+### Step 10: Read Agent Prompt Template
 
-For each batch of ready tasks, repeat the following cycle:
-
-#### 10a: Read Agent Prompt Template
+Read the template once before entering the batch loop:
 
 ```bash
 cat ${CLAUDE_PLUGIN_ROOT}/skills/implement-plan/templates/agent-task-prompt.md
 ```
 
-#### 10b: Build Batch Teammate List
+### Step 11: Execute Batch
 
-For the current batch, build a teammate list showing all tasks being worked on in parallel. This is substituted into `{{BATCH_TEAMMATES}}` so each teammate knows who else is in their batch.
+For each batch, do the following **in order**:
 
-Example for batch 1 with tasks 1.1, 1.3, 2.2:
+**1. Build the teammate list** for this batch — list each task's name and title so teammates know who else is working in parallel. Substitute into `{{BATCH_TEAMMATES}}`.
 
-```
-- **task-1-1**: Create user model
-- **task-1-3**: Setup routes
-- **task-2-2**: Create middleware
-```
-
-#### 10c: Spawn Batch Teammates
-
-**CRITICAL**: Deploy all teammates in the batch in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="ip-[feature-name]"`.
-
-For each task in the batch:
-
-| Field         | Value                                              |
-| ------------- | -------------------------------------------------- |
-| team_name     | `ip-[feature-name]`                                |
-| name          | `task-[task-id]` (e.g., `task-1-1`, `task-T0`)    |
-| subagent_type | `implementor`                                      |
-| description   | `"Implement [Task ID]: [Title]"`                   |
-| prompt        | Template with task details + batch info substituted |
-
-Substitute these variables in the template:
-
-- `{{FEATURE_NAME}}` - The feature directory name
-- `{{TASK_ID}}` - Task identifier
-- `{{TASK_TITLE}}` - Task name
-- `{{FILES_TO_READ}}` - Files from "READ THESE BEFORE TASK"
-- `{{FILES_TO_CREATE}}` - Files from "Files to Create"
-- `{{FILES_TO_MODIFY}}` - Files from "Files to Modify"
-- `{{TASK_INSTRUCTIONS}}` - Implementation details
-- `{{BATCH_NUMBER}}` - Current batch number
-- `{{BATCH_TEAMMATES}}` - List of other teammates in this batch
-
-#### 10d: Monitor Batch Progress
-
-Wait for all teammates in the batch to complete. Teammates will:
-
-1. Claim their task from the shared list via TaskUpdate
-2. Read all required context files
-3. Implement their assigned task
-4. Share key findings with batch teammates via SendMessage
-5. Validate their changes
-6. Mark their task complete via TaskUpdate
-7. Go idle
-
-Use **TaskList** to check progress. When all tasks in the batch are marked complete, proceed.
-
-If a teammate reports an issue (via SendMessage), respond with corrective guidance.
-
-#### 10e: Handle Failures
-
-If a task fails:
-
-1. Note the failure
-2. Mark any tasks that depend on the failed task as skipped (they cannot proceed)
-3. Continue with remaining independent tasks
-
-#### 10f: Shut Down Batch Teammates
-
-After all batch tasks are complete (or failed), send shutdown requests to each teammate:
+**2. Spawn ALL batch teammates in a SINGLE message** using MULTIPLE Agent tool calls. Every call MUST include `team_name="ip-[feature-name]"`:
 
 ```
-SendMessage to each batch teammate: message={type: "shutdown_request"}
+Agent(
+  team_name = "ip-[feature-name]",
+  name = "task-1-1",
+  subagent_type = "implementor",
+  description = "Implement 1.1: Create user model",
+  prompt = [substituted template]
+)
+Agent(
+  team_name = "ip-[feature-name]",
+  name = "task-1-3",
+  subagent_type = "implementor",
+  description = "Implement 1.3: Setup routes",
+  prompt = [substituted template]
+)
 ```
 
-Wait for all shutdowns before proceeding to the next batch.
+Template variables to substitute:
 
-#### 10g: Identify Next Batch
+| Variable               | Source                          |
+| ---------------------- | ------------------------------- |
+| `{{FEATURE_NAME}}`     | Feature directory name          |
+| `{{TASK_ID}}`          | Task identifier (1.1, T0, etc) |
+| `{{TASK_TITLE}}`       | Task name from plan             |
+| `{{FILES_TO_READ}}`    | "READ THESE BEFORE TASK" files  |
+| `{{FILES_TO_CREATE}}`  | "Files to Create" list          |
+| `{{FILES_TO_MODIFY}}`  | "Files to Modify" list          |
+| `{{TASK_INSTRUCTIONS}}`| Implementation instructions     |
+| `{{BATCH_NUMBER}}`     | Current batch number            |
+| `{{BATCH_TEAMMATES}}`  | Other teammates in this batch   |
 
-Check **TaskList** for tasks that are:
+**3. Monitor progress** — use `TaskList` to check when all batch tasks are complete. If a teammate messages you with an issue, respond with guidance.
 
-- Status: `pending`
-- No unresolved `blockedBy` dependencies (all blockers are `completed`)
+**4. Handle failures** — if a task fails, mark dependent tasks as skipped (they cannot proceed). Continue with remaining independent tasks.
 
-These form the next batch. If tasks remain but none are unblocked, report a deadlock (likely circular dependency or cascading failure) and stop.
+**5. Shut down batch teammates** — send `SendMessage(to="task-[id]", message={type: "shutdown_request"})` to each teammate. Wait for shutdowns before next batch.
 
-### Step 11: Repeat Until Complete
+**6. Identify next batch** — check `TaskList` for pending tasks with all blockers completed. If tasks remain but none are unblocked, report deadlock and stop.
 
-Continue the batch loop (Steps 10a-10g) until all tasks are completed or no more tasks can be unblocked.
+### Step 12: Repeat Until Complete
 
-```
-While uncompleted tasks remain:
-  1. Find tasks with no unresolved blockers
-  2. If none found but tasks remain → deadlock, stop and report
-  3. Spawn teammates for ready tasks (single message, multiple Agent calls)
-  4. Monitor via TaskList until batch complete
-  5. Handle failures, mark dependent tasks as skipped
-  6. Shut down batch teammates
-  7. Identify next batch
-```
+Repeat Step 11 for each subsequent batch until all tasks are completed or no more can be unblocked.
 
 ---
 
 ## Phase 4: Final Verification & Summary
 
-### Step 12: Verify Implementation
+### Step 13: Verify Implementation
 
 After all tasks complete:
 
@@ -338,7 +305,7 @@ After all tasks complete:
 2. **Verify file creation**: Ensure all "Files to Create" exist
 3. **Review changes**: Quick sanity check of modifications
 
-### Step 13: Clean Up Team
+### Step 14: Clean Up Team
 
 Delete the team and its resources:
 
@@ -346,7 +313,7 @@ Delete the team and its resources:
 TeamDelete
 ```
 
-### Step 14: Display Summary
+### Step 15: Display Summary
 
 Provide completion summary:
 
