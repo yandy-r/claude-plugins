@@ -210,7 +210,7 @@ get_feature_plan_dir() {
 }
 
 # If script is executed directly (not sourced), run resolution and print result
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]:-}" == "${0:-}" ]]; then
   case "${1:-}" in
     --help|-h)
       echo "Usage: resolve-plans-dir.sh [start-dir]"

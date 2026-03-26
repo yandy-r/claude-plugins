@@ -10,7 +10,7 @@ set -euo pipefail
 FEATURE_NAME="${1:-}"
 
 # Source the shared resolver to get PLANS_DIR
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 SHARED_DIR="${SCRIPT_DIR}/../../_shared/scripts"
 
 if [[ -f "${SHARED_DIR}/resolve-plans-dir.sh" ]]; then
