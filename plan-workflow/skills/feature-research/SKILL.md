@@ -11,8 +11,14 @@ allowed-tools:
   - Grep
   - Glob
   - Write
-  - Task
-  - TodoWrite
+  - Agent
+  - TeamCreate
+  - TeamDelete
+  - TaskCreate
+  - TaskUpdate
+  - TaskList
+  - TaskGet
+  - SendMessage
   - WebSearch
   - WebFetch
   - Bash(ls:*)
@@ -25,7 +31,7 @@ allowed-tools:
 
 # Feature Research
 
-Deep research skill for application features. Goes beyond codebase analysis to research external APIs, business logic, technical specifications, UX considerations, and generate actionable recommendations.
+Deep research skill for application features. Goes beyond codebase analysis to research external APIs, business logic, technical specifications, UX considerations, and generate actionable recommendations. Uses a coordinated research team where agents share findings with each other.
 
 ## Workflow Integration
 
@@ -88,13 +94,66 @@ List any existing files. If `feature-spec.md` exists, read it and ask user if th
 
 ### Step 4: Handle Dry Run
 
-If `--dry-run` is present, display the execution plan (agents, output files, directory) and **STOP** without creating files or deploying agents.
+If `--dry-run` is present:
+
+Display:
+
+```markdown
+# Dry Run: Feature Research for [feature-name]
+
+## Research Team
+
+Team Name: fr-[feature-name]
+Teammates: 5 research agents (share findings with each other)
+
+1. api-researcher - External APIs, libraries, integration patterns
+2. business-analyzer - Requirements, user stories, business rules
+3. tech-designer - Architecture, data models, API design
+4. ux-researcher - User experience, workflows, best practices
+5. recommendations-agent - Ideas, improvements, risks
+
+## Files That Would Be Created
+
+- docs/plans/[feature-name]/research-external.md
+- docs/plans/[feature-name]/research-business.md
+- docs/plans/[feature-name]/research-technical.md
+- docs/plans/[feature-name]/research-ux.md
+- docs/plans/[feature-name]/research-recommendations.md
+- docs/plans/[feature-name]/feature-spec.md
+
+## Execution Model
+
+- Create agent team with 5 research teammates
+- Teammates claim tasks and share findings with each other
+- Team lead validates and synthesizes feature-spec.md
+- Team cleanup
+```
+
+**STOP** without creating files or deploying agents.
 
 ---
 
-## Phase 1: Research (Parallel Deployment)
+## Phase 1: Research Team
 
-### Step 5: Read Research Prompts
+### Step 5: Create the Team
+
+Create an agent team for feature research:
+
+```
+TeamCreate: team_name="fr-[feature-name]", description="Feature research team for [feature-name]"
+```
+
+### Step 6: Create Research Tasks
+
+Create 5 tasks in the shared task list:
+
+1. **"Research external APIs for [feature-name]"** — APIs, libraries, integration patterns
+2. **"Analyze business logic for [feature-name]"** — Requirements, user stories, business rules
+3. **"Design technical specs for [feature-name]"** — Architecture, data models, API design
+4. **"Research UX patterns for [feature-name]"** — User experience, workflows, accessibility
+5. **"Generate recommendations for [feature-name]"** — Ideas, improvements, risks
+
+### Step 7: Read Research Prompts
 
 Read the research prompts template:
 
@@ -102,17 +161,17 @@ Read the research prompts template:
 cat ${CLAUDE_PLUGIN_ROOT}/skills/feature-research/templates/research-agents.md
 ```
 
-### Step 6: Deploy Research Agents
+### Step 8: Spawn Research Teammates
 
-**CRITICAL**: Deploy all 5 agents in a **SINGLE message** with **MULTIPLE Task tool calls**.
+**CRITICAL**: Spawn all 5 teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="fr-[feature-name]"`.
 
-| Agent                   | Subagent Type               | Output File                   | Focus                                                         |
+| Teammate Name           | Subagent Type               | Output File                   | Focus                                                         |
 | ----------------------- | --------------------------- | ----------------------------- | ------------------------------------------------------------- |
-| External API Researcher | `research-specialist`       | `research-external.md`        | External APIs, libraries, documentation, integration patterns |
-| Business Logic Analyzer | `codebase-research-analyst` | `research-business.md`        | Requirements, user stories, business rules, domain logic      |
-| Technical Spec Designer | `codebase-research-analyst` | `research-technical.md`       | Architecture, data models, API design, system constraints     |
-| UX Researcher           | `research-specialist`       | `research-ux.md`              | User experience, workflows, best practices, accessibility     |
-| Recommendations Agent   | `codebase-research-analyst` | `research-recommendations.md` | Ideas, improvements, related features, risks                  |
+| `api-researcher`        | `research-specialist`       | `research-external.md`        | External APIs, libraries, documentation, integration patterns |
+| `business-analyzer`     | `codebase-research-analyst` | `research-business.md`        | Requirements, user stories, business rules, domain logic      |
+| `tech-designer`         | `codebase-research-analyst` | `research-technical.md`       | Architecture, data models, API design, system constraints     |
+| `ux-researcher`         | `research-specialist`       | `research-ux.md`              | User experience, workflows, best practices, accessibility     |
+| `recommendations-agent` | `codebase-research-analyst` | `research-recommendations.md` | Ideas, improvements, related features, risks                  |
 
 Use the prompts from `research-agents.md` with variables substituted:
 
@@ -120,31 +179,51 @@ Use the prompts from `research-agents.md` with variables substituted:
 - `{{FEATURE_DIR}}` - Full output directory path (`docs/plans/[feature-name]`)
 - `{{FEATURE_DESCRIPTION}}` - The description provided (or feature name if none)
 
+### Step 9: Monitor Team Progress
+
+Wait for all 5 teammates to complete their tasks. Use `TaskList` to check progress.
+
+Teammates will share findings with each other:
+- `api-researcher` tells `tech-designer` about discovered API endpoints and auth patterns
+- `tech-designer` tells `business-analyzer` about data model constraints
+- `ux-researcher` tells `business-analyzer` about user workflow requirements
+- `recommendations-agent` synthesizes insights from all teammates
+
+If a teammate gets stuck, send them guidance via SendMessage.
+
 ---
 
 ## Phase 2: Consolidate Research
 
-### Step 7: Validate Research Artifacts
+### Step 10: Validate Research Artifacts
 
-After agents complete, validate all `research-*.md` files:
+After all teammates complete, validate all `research-*.md` files:
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/skills/feature-research/scripts/validate-research.sh docs/plans/[feature-name]
 ```
 
-If validation fails: identify failed workstream files, send targeted corrective follow-up only to owning agents, wait for corrected outputs, rerun validation until pass.
+If validation fails: message the relevant teammate to fix their output, wait for correction, rerun validation until pass.
 
-### Step 8: Read Research Results
+### Step 11: Shut Down Research Teammates
+
+Send shutdown requests to all teammates:
+
+```
+SendMessage to each teammate: message={type: "shutdown_request"}
+```
+
+### Step 12: Read Research Results
 
 Read all 5 research files from `docs/plans/[feature-name]/`.
 
-### Step 9: Read Spec Template
+### Step 13: Read Spec Template
 
 ```bash
 cat ${CLAUDE_PLUGIN_ROOT}/skills/feature-research/templates/spec-structure.md
 ```
 
-### Step 10: Generate feature-spec.md
+### Step 14: Generate feature-spec.md
 
 Create `docs/plans/[feature-name]/feature-spec.md` following the template.
 
@@ -160,7 +239,7 @@ Create `docs/plans/[feature-name]/feature-spec.md` following the template.
 
 ## Phase 3: Validate and Complete
 
-### Step 11: Validate Spec
+### Step 15: Validate Spec
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/skills/feature-research/scripts/validate-spec.sh docs/plans/[feature-name]/feature-spec.md
@@ -168,9 +247,17 @@ ${CLAUDE_PLUGIN_ROOT}/skills/feature-research/scripts/validate-spec.sh docs/plan
 
 Fix any issues reported (missing sections, empty content, formatting).
 
-### Step 12: Display Summary
+### Step 16: Clean Up Team
 
-Provide completion summary with: feature name, description, files created, research summary counts, key findings, decisions needed, and next steps (review spec, proceed to `/plan-workflow`, or add requirements).
+Delete the team and its resources:
+
+```
+TeamDelete
+```
+
+### Step 17: Display Summary
+
+Provide completion summary with: feature name, description, files created, team summary, research summary counts, key findings, decisions needed, and next steps (review spec, proceed to `/plan-workflow`, or add requirements).
 
 ---
 
@@ -192,10 +279,14 @@ Each research file should: focus on its specific domain, include concrete exampl
 
 ## Important Notes
 
-- Deploy agents in parallel - single message with multiple Task calls
-- Use single-owner research files - each agent writes only its assigned artifact
-- Gate synthesis with research validation - do not generate `feature-spec.md` before validator pass
-- Use web search - external APIs require current documentation
-- Be thorough but focused - quality over quantity
-- Enable plan-workflow - this spec is the foundation for implementation planning
-- Preserve uncertainty - mark areas needing clarification rather than guessing
+- **You are the team lead** - coordinate the research team
+- **Create team first** - use TeamCreate before spawning teammates
+- **Spawn teammates in parallel** - single message with multiple Agent calls
+- **Teammates share findings** - they communicate with each other via SendMessage
+- **Use single-owner research files** - each teammate writes only its assigned artifact
+- **Gate synthesis with validation** - do not generate `feature-spec.md` before validator pass
+- **Use web search** - external APIs require current documentation
+- **Be thorough but focused** - quality over quantity
+- **Enable plan-workflow** - this spec is the foundation for implementation planning
+- **Preserve uncertainty** - mark areas needing clarification rather than guessing
+- **Clean up team** - always TeamDelete before completing

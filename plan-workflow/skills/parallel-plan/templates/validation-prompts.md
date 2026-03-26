@@ -1,10 +1,12 @@
 # Validation Agent Prompts
 
-These prompts are used to deploy parallel validation agents after creating a parallel plan.
+These prompts are used to spawn validation teammates after creating a parallel plan. Validators cross-check each other's findings via messages.
 
 ---
 
 ## Agent 1: File Path Validator
+
+**Teammate Name**: `path-validator`
 
 **Subagent Type**: `explore`
 
@@ -35,19 +37,39 @@ Scan the plan and check:
 3. **Documentation References**
    - Check any /docs/ references are valid
 
+## Team Communication
+
+You are part of a validation team. Your teammates are:
+
+- **dependency-validator**: Checking the task dependency graph
+- **completeness-validator**: Evaluating task quality and completeness
+
+**Share these findings via SendMessage:**
+
+- Message `dependency-validator` with: any tasks that reference files that don't exist (this may indicate dependency issues)
+- Message `completeness-validator` with: any tasks with placeholder file paths or ambiguous references
+
+## Task Coordination
+
+1. Check TaskList for your assigned task
+2. Claim your task with TaskUpdate (set status to in_progress, owner to your name)
+3. Do your validation
+4. Share findings with teammates
+5. Mark your task complete with TaskUpdate
+
 ## Output Format
 
 Provide a report with:
 
-**Valid Paths** (✓)
+**Valid Paths** (checkmark)
 - /path/to/file.ext
 - /path/to/another.ext
 
-**Missing Paths** (✗)
+**Missing Paths** (X)
 - /path/to/nonexistent.ext - File not found
 - /path/to/missing.ext - File not found
 
-**Potential Issues** (⚠)
+**Potential Issues** (warning)
 - /path/to/file.ext - Listed in "Files to Create" but already exists
 - /path/to/ambiguous - Multiple files match pattern
 
@@ -61,6 +83,8 @@ Focus on accuracy - verify each path exists before marking valid.
 ---
 
 ## Agent 2: Dependency Graph Validator
+
+**Teammate Name**: `dependency-validator`
 
 **Subagent Type**: `explore`
 
@@ -94,19 +118,41 @@ Extract all tasks and their dependencies, then check for:
    - Tasks marked as dependent that could actually run in parallel
    - Tasks that share no file modifications or data dependencies
 
+## Team Communication
+
+You are part of a validation team. Your teammates are:
+
+- **path-validator**: Verifying file paths exist
+- **completeness-validator**: Evaluating task quality and completeness
+
+**Share these findings via SendMessage:**
+
+- Message `path-validator` with: any tasks that create files used by dependent tasks (so path-validator can verify those files don't already exist)
+- Message `completeness-validator` with: any orphaned tasks or bottleneck tasks that may need scope adjustment
+
+**Listen for messages from teammates** — `path-validator` may report missing files that indicate dependency issues.
+
+## Task Coordination
+
+1. Check TaskList for your assigned task
+2. Claim your task with TaskUpdate (set status to in_progress, owner to your name)
+3. Do your validation
+4. Share findings with teammates
+5. Mark your task complete with TaskUpdate
+
 ## Output Format
 
 **Dependency Graph** (text visualization)
 ```
 
 Phase 1:
-1.1 [none] ────┐
-1.2 [none] ────┼──> Phase 2
-1.3 [1.1] ────┘
+1.1 [none] ----+
+1.2 [none] ----+--> Phase 2
+1.3 [1.1] ----+
 
 Phase 2:
-2.1 [1.1, 1.2] ───> 2.3
-2.2 [none] ───> 2.3
+2.1 [1.1, 1.2] ---> 2.3
+2.2 [none] ---> 2.3
 2.3 [2.1, 2.2]
 
 ```
@@ -114,7 +160,7 @@ Phase 2:
 **Issues Found**
 
 Circular Dependencies: [count]
-- Task 2.1 → 3.1 → 2.1 (circular)
+- Task 2.1 -> 3.1 -> 2.1 (circular)
 
 Missing Dependencies: [count]
 - Task 3.1 modifies file created in 2.2 but doesn't depend on it
@@ -137,6 +183,8 @@ Potential additional parallel tasks: [count]
 ---
 
 ## Agent 3: Task Completeness Validator
+
+**Teammate Name**: `completeness-validator`
 
 **Subagent Type**: `codebase-research-analyst`
 
@@ -179,29 +227,51 @@ For each task, evaluate:
    - Is the task small enough (1-3 files)?
    - Should it be broken into subtasks?
 
+## Team Communication
+
+You are part of a validation team. Your teammates are:
+
+- **path-validator**: Verifying file paths exist
+- **dependency-validator**: Checking the task dependency graph
+
+**Share these findings via SendMessage:**
+
+- Message `path-validator` with: any tasks you find with placeholder or suspicious file paths
+- Message `dependency-validator` with: any tasks whose scope suggests they should have additional dependencies
+
+**Listen for messages from teammates** — `path-validator` may report tasks with missing file references, and `dependency-validator` may report orphaned tasks that need scope review.
+
+## Task Coordination
+
+1. Check TaskList for your assigned task
+2. Claim your task with TaskUpdate (set status to in_progress, owner to your name)
+3. Do your validation
+4. Share findings with teammates
+5. Mark your task complete with TaskUpdate
+
 ## Output Format
 
 **Task Quality Summary**
 
 Total Tasks: [count]
-High Quality: [count] ✓
-Needs Minor Improvements: [count] ⚠
-Needs Significant Work: [count] ✗
+High Quality: [count] (checkmark)
+Needs Minor Improvements: [count] (warning)
+Needs Significant Work: [count] (X)
 
 **Detailed Findings**
 
-✓ Task 1.1: [Title] - Well-defined and actionable
-✓ Task 1.2: [Title] - Clear purpose and instructions
+(checkmark) Task 1.1: [Title] - Well-defined and actionable
+(checkmark) Task 1.2: [Title] - Clear purpose and instructions
 
-⚠ Task 2.1: [Title]
+(warning) Task 2.1: [Title]
   - Missing: Gotchas or edge cases
   - Suggestion: Mention how this integrates with existing auth system
 
-⚠ Task 2.3: [Title]
+(warning) Task 2.3: [Title]
   - Issue: Scope too large (modifies 5 files)
   - Suggestion: Split into 2.3a and 2.3b
 
-✗ Task 3.1: [Title]
+(X) Task 3.1: [Title]
   - Missing: Specific file paths (uses placeholders)
   - Missing: Clear instructions for implementation
   - Missing: Pattern to follow
@@ -222,14 +292,16 @@ Overall Assessment:
 
 ## Usage Instructions
 
-When deploying validation agents:
+When spawning validation teammates:
 
 1. **Read this file** to get the prompt templates
 2. **Substitute variables**:
    - `{{FEATURE_NAME}}` - The feature directory name
    - `{{FEATURE_DIR}}` - Full output directory path (`${feature_dir}`, resolved in Step 1)
-3. **Deploy in parallel** - Use a single message with 3 Task tool calls
-4. **Review results** - Address issues found before finalizing plan
+3. **Create tasks** - Use TaskCreate to create 3 validation tasks
+4. **Spawn in parallel** - Use a single message with 3 Agent tool calls, each with `team_name` and `name`
+5. **Monitor progress** - Use TaskList to check when all tasks complete
+6. **Review results** - Address issues found before finalizing plan
 
 ## Variable Reference
 
@@ -237,3 +309,13 @@ When deploying validation agents:
 | ------------------ | -------------------------- | -------------------------------- |
 | `{{FEATURE_NAME}}` | Feature directory name     | `user-authentication`            |
 | `{{FEATURE_DIR}}`  | Full output directory path | `docs/plans/user-authentication` |
+
+## Teammate Configuration
+
+### Standard Mode
+
+| Teammate                | Type                        | Focus             | Model   |
+| ----------------------- | --------------------------- | ----------------- | ------- |
+| path-validator          | `explore`                   | Path verification | haiku   |
+| dependency-validator    | `explore`                   | Dependency graph  | haiku   |
+| completeness-validator  | `codebase-research-analyst` | Task quality      | Default |

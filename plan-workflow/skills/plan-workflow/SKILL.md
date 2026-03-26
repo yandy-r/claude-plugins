@@ -1,14 +1,20 @@
 ---
 name: plan-workflow
-description: Unified planning workflow - research, analyze, and generate parallel implementation plans in one command. Combines shared-context and parallel-plan with checkpoint support and optimized agent deployment.
+description: Unified planning workflow - research, analyze, and generate parallel implementation plans in one command. Combines shared-context and parallel-plan with checkpoint support and agent team coordination.
 argument-hint: '[feature-name] [--research-only] [--plan-only] [--no-checkpoint] [--optimized] [--dry-run]'
 allowed-tools:
   - Read
   - Grep
   - Glob
   - Write
-  - Task
-  - TodoWrite
+  - Agent
+  - TeamCreate
+  - TeamDelete
+  - TaskCreate
+  - TaskUpdate
+  - TaskList
+  - TaskGet
+  - SendMessage
   - AskUserQuestion
   - Bash(ls:*)
   - Bash(cat:*)
@@ -21,7 +27,7 @@ allowed-tools:
 
 # Unified Planning Workflow
 
-Single command to research, analyze, and plan feature implementation. This skill combines the functionality of `shared-context` and `parallel-plan` with optimizations and checkpoint support.
+Single command to research, analyze, and plan feature implementation using coordinated agent teams. This skill combines the functionality of `shared-context` and `parallel-plan` with optimizations and checkpoint support.
 
 ## Workflow Overview
 
@@ -32,7 +38,7 @@ Single command to research, analyze, and plan feature implementation. This skill
 |                                                               |
 |  +-----------+   +----------+   +---------------------+      |
 |  | Research  |-->|Checkpoint|-->| Planning + Validate |      |
-|  | (Wave 1)  |   | (Review) |   | (Waves 2-3)         |      |
+|  | Team      |   | (Review) |   | Team                |      |
 |  +-----------+   +----------+   +---------------------+      |
 |       |                                     |                 |
 |   shared.md                         parallel-plan.md         |
@@ -151,9 +157,17 @@ Display the "Dry Run" section from the template with appropriate values substitu
 
 ---
 
-## Phase 1: Research (unless --plan-only)
+## Phase 1: Create Team and Research (unless --plan-only)
 
-### Step 7: Read Research Prompts
+### Step 7: Create the Team
+
+Create an agent team for the entire workflow:
+
+```
+TeamCreate: team_name="pw-[feature-name]", description="Planning workflow team for [feature-name]"
+```
+
+### Step 8: Read Research Prompts
 
 Read the research prompts template:
 
@@ -161,20 +175,27 @@ Read the research prompts template:
 cat ${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/templates/research-agents.md
 ```
 
-### Step 8: Deploy Research Agents
+### Step 9: Create Research Tasks
 
-**CRITICAL**: Deploy all 4 agents in a **SINGLE message** with **MULTIPLE Task tool calls**.
+Create 4 tasks in the shared task list:
 
-Each agent MUST write its findings to the specified output file. The orchestrator MUST verify file persistence after agents complete.
+1. **"Research architecture for [feature-name]"**
+2. **"Research patterns for [feature-name]"**
+3. **"Research integrations for [feature-name]"**
+4. **"Research documentation for [feature-name]"**
 
-| Agent                    | Subagent Type               | Output File                | Focus                                    |
+### Step 10: Spawn Research Teammates
+
+**CRITICAL**: Spawn all 4 teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="pw-[feature-name]"`.
+
+| Teammate Name            | Subagent Type               | Output File                | Focus                                    |
 | ------------------------ | --------------------------- | -------------------------- | ---------------------------------------- |
-| Architecture Researcher  | `codebase-research-analyst` | `research-architecture.md` | System structure, components, data flow  |
-| Pattern Researcher       | `codebase-research-analyst` | `research-patterns.md`     | Existing patterns, conventions, examples |
-| Integration Researcher   | `codebase-research-analyst` | `research-integration.md`  | APIs, databases, external systems        |
-| Documentation Researcher | `codebase-research-analyst` | `research-docs.md`         | Relevant documentation files             |
+| `architecture-researcher`| `codebase-research-analyst` | `research-architecture.md` | System structure, components, data flow  |
+| `patterns-researcher`    | `codebase-research-analyst` | `research-patterns.md`     | Existing patterns, conventions, examples |
+| `integration-researcher` | `codebase-research-analyst` | `research-integration.md`  | APIs, databases, external systems        |
+| `docs-researcher`        | `codebase-research-analyst` | `research-docs.md`         | Relevant documentation files             |
 
-Each agent writes findings to `${feature_dir}/[output-file]`.
+Each teammate writes findings to `${feature_dir}/[output-file]`.
 
 Use the prompts from `research-agents.md` with variables substituted:
 
@@ -185,23 +206,31 @@ Use the prompts from `research-agents.md` with variables substituted:
 
 ## Phase 2: Validate Research Artifacts
 
-### Step 9: Validate Research Artifacts
+### Step 11: Validate Research Artifacts
 
-After agents complete, validate all research files:
+After all research teammates complete (check via TaskList), validate all research files:
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/skills/shared-context/scripts/validate-research-artifacts.sh "${feature_dir}"
 ```
 
-If validation fails: identify which files are missing or invalid from the script output, re-deploy ONLY the failed agents with their original prompts, wait for corrected outputs, then rerun validation until pass.
+If validation fails: message the relevant teammate to fix their output, wait for correction, rerun validation until pass.
 
 **Do not proceed to shared.md synthesis until validation passes.**
+
+### Step 12: Shut Down Research Teammates
+
+Send shutdown requests to all research teammates:
+
+```
+SendMessage to each teammate: message={type: "shutdown_request"}
+```
 
 ---
 
 ## Phase 3: Consolidate Research
 
-### Step 10: Read Research Results
+### Step 13: Read Research Results
 
 After verifying all files exist, read all research files:
 
@@ -210,7 +239,7 @@ After verifying all files exist, read all research files:
 3. `${feature_dir}/research-integration.md`
 4. `${feature_dir}/research-docs.md`
 
-### Step 11: Generate shared.md
+### Step 14: Generate shared.md
 
 Read the shared structure template:
 
@@ -220,7 +249,7 @@ cat ${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/templates/shared-structure.md
 
 Create `${feature_dir}/shared.md` following the template exactly.
 
-### Step 12: Validate shared.md
+### Step 15: Validate shared.md
 
 Run the validation script:
 
@@ -234,7 +263,7 @@ Fix any errors before proceeding.
 
 ## Phase 4: Checkpoint (unless --no-checkpoint or --research-only)
 
-### Step 13: Pause for User Review
+### Step 16: Pause for User Review
 
 If checkpoint is enabled, use **AskUserQuestion** with these options:
 
@@ -259,18 +288,27 @@ If user chooses "Review shared.md first":
 
 If user chooses "Stop here":
 
+- Clean up team (TeamDelete)
 - Display completion summary for research phase only
 - **STOP** - do not proceed to planning
 
 ---
 
-## Phase 5: Analysis (unless --research-only or --optimized)
+## Phase 5: Analysis Team (unless --research-only or --optimized)
 
 > **MANDATORY**: This phase MUST run in standard mode, including when `--plan-only` is used.
-> The `--plan-only` flag skips Research (Phases 1-4), NOT Analysis. Analysis agents produce
+> The `--plan-only` flag skips Research (Phases 1-4), NOT Analysis. Analysis teammates produce
 > the `analysis-*.md` files required by Phase 8 (Plan Generation).
 
-### Step 14: Read Analysis Prompts
+### Step 17: Create Team (if --plan-only)
+
+If `--plan-only` was used (team doesn't exist yet):
+
+```
+TeamCreate: team_name="pw-[feature-name]", description="Planning workflow team for [feature-name]"
+```
+
+### Step 18: Read Analysis Prompts
 
 In standard mode (not --optimized), read analysis prompts:
 
@@ -278,19 +316,25 @@ In standard mode (not --optimized), read analysis prompts:
 cat ${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/templates/planning-agents.md
 ```
 
-### Step 15: Deploy Analysis Agents
+### Step 19: Create Analysis Tasks
 
-**CRITICAL**: Deploy all 3 agents in a **SINGLE message** with **MULTIPLE Task tool calls**.
+Create 3 analysis tasks in the shared task list:
 
-Each agent MUST write its findings to the specified output file. The orchestrator MUST verify file persistence after agents complete.
+1. **"Synthesize planning context for [feature-name]"**
+2. **"Analyze code patterns for [feature-name]"**
+3. **"Suggest task structure for [feature-name]"**
 
-| Agent                | Subagent Type               | Output File           | Focus                  |
-| -------------------- | --------------------------- | --------------------- | ---------------------- |
-| Context Synthesizer  | `codebase-research-analyst` | `analysis-context.md` | Condense planning docs |
-| Code Analyzer        | `codebase-research-analyst` | `analysis-code.md`    | Extract code patterns  |
-| Task Structure Agent | `codebase-research-analyst` | `analysis-tasks.md`   | Suggest task breakdown |
+### Step 20: Spawn Analysis Teammates
 
-Each agent writes to `${feature_dir}/[output-file]`.
+**CRITICAL**: Spawn all 3 teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="pw-[feature-name]"`.
+
+| Teammate Name         | Subagent Type               | Output File           | Focus                  |
+| --------------------- | --------------------------- | --------------------- | ---------------------- |
+| `context-synthesizer` | `codebase-research-analyst` | `analysis-context.md` | Condense planning docs |
+| `code-analyzer`       | `codebase-research-analyst` | `analysis-code.md`    | Extract code patterns  |
+| `task-structurer`     | `codebase-research-analyst` | `analysis-tasks.md`   | Suggest task breakdown |
+
+Each teammate writes to `${feature_dir}/[output-file]`.
 
 Use the prompts from `planning-agents.md` with variables substituted:
 
@@ -301,35 +345,18 @@ Use the prompts from `planning-agents.md` with variables substituted:
 
 ## Phase 6: Validate and Persist Analysis Artifacts
 
-### Step 16: First Validation Check
+### Step 21: First Validation Check
 
-After agents complete, validate all analysis files:
-
-```bash
-${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/validate-analysis-artifacts.sh "${feature_dir}"
-```
-
-If validation passes → skip to Step 16b (Pre-Generation Gate).
-If validation fails → proceed to Step 16a.
-
-### Step 16a: Fallback Write (only if Step 16 failed)
-
-For each missing file reported by the validation script:
-
-1. Find the corresponding `<ANALYSIS_*>` tag content from the agent's response:
-   - Missing `analysis-context.md` → look for `<ANALYSIS_CONTEXT>...</ANALYSIS_CONTEXT>` in Agent 1's response
-   - Missing `analysis-code.md` → look for `<ANALYSIS_CODE>...</ANALYSIS_CODE>` in Agent 2's response
-   - Missing `analysis-tasks.md` → look for `<ANALYSIS_TASKS>...</ANALYSIS_TASKS>` in Agent 3's response
-2. Write the tagged content to `${feature_dir}/[filename]` using the Write tool
-3. If no tagged content is available for a missing file, re-deploy ONLY that specific agent with its original prompt
-
-After writing fallback files, re-run validation:
+After analysis teammates complete (check via TaskList), validate all analysis files:
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/validate-analysis-artifacts.sh "${feature_dir}"
 ```
 
-### Step 16b: Pre-Generation Gate (MANDATORY — cannot be skipped)
+If validation passes → skip to Step 22 (Pre-Generation Gate).
+If validation fails → message the relevant teammate to fix their output, wait, re-validate.
+
+### Step 22: Pre-Generation Gate (MANDATORY — cannot be skipped)
 
 Run the pre-generation gate script:
 
@@ -338,9 +365,13 @@ ${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/persist-or-fail.sh "${feature
 ```
 
 - **Exit 0** → proceed to Phase 7
-- **Exit 1** → the script prints `MISSING_FILES` and `ACTION_REQUIRED`. Write the missing files NOW (from response tags or by re-deploying agents), then re-run this gate until it passes (exit 0)
+- **Exit 1** → the script prints `MISSING_FILES` and `ACTION_REQUIRED`. Message the failing teammate to re-write, then re-run this gate until it passes (exit 0)
 
 **Do NOT proceed to plan generation until `persist-or-fail.sh` exits 0.**
+
+### Step 23: Shut Down Analysis Teammates
+
+Send shutdown requests to all analysis teammates.
 
 ---
 
@@ -349,7 +380,7 @@ ${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/persist-or-fail.sh "${feature
 > **PRE-CHECK**: If `analysis-context.md`, `analysis-code.md`, or `analysis-tasks.md` do not
 > exist in `${feature_dir}/`, Phase 5 was skipped in error. Go back and run Phase 5 now.
 
-### Step 17: Read Analysis Results
+### Step 24: Read Analysis Results
 
 After verifying all files exist, read all analysis files:
 
@@ -361,21 +392,13 @@ After verifying all files exist, read all analysis files:
 
 ## Phase 8: Plan Generation
 
-### Step 18: Create Task List
-
-Using **TodoWrite**, create a comprehensive task list tracking:
-
-- Major tasks from the emerging plan
-- Current progress through the workflow
-- In_progress status for current work
-
-### Step 19: Read Plan Template
+### Step 25: Read Plan Template
 
 ```bash
 cat ${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/templates/plan-structure.md
 ```
 
-### Step 20: Generate parallel-plan.md
+### Step 26: Generate parallel-plan.md
 
 Create `${feature_dir}/parallel-plan.md` following the template exactly.
 
@@ -386,7 +409,7 @@ Required sections:
 - Implementation Plan with Phases and Tasks
 - Advice section
 
-### Step 21: Validate Plan Structure
+### Step 27: Validate Plan Structure
 
 Run the validation script:
 
@@ -398,34 +421,47 @@ Fix any structural issues found.
 
 ---
 
-## Phase 9: Validation
+## Phase 9: Validation Team
 
-### Step 22: Read Validation Prompts
+### Step 28: Read Validation Prompts
 
 ```bash
 cat ${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/templates/validation-agents.md
 ```
 
-### Step 23: Deploy Validation Agents
+### Step 29: Create Validation Tasks
 
-**Standard Mode**: Deploy 3 agents in parallel:
+**Standard Mode**: Create 3 validation tasks:
 
-| Agent                       | Subagent Type               | Focus                                   |
-| --------------------------- | --------------------------- | --------------------------------------- |
-| File Path Validator         | `explore`                   | Verify all referenced files exist       |
-| Dependency Validator        | `explore`                   | Check for circular/invalid dependencies |
-| Task Completeness Validator | `codebase-research-analyst` | Ensure tasks are actionable             |
+1. **"Validate file paths in [feature-name] plan"**
+2. **"Validate dependency graph in [feature-name] plan"**
+3. **"Validate task completeness in [feature-name] plan"**
 
-**Optimized Mode**: Deploy 2 agents in parallel:
+**Optimized Mode**: Create 2 validation tasks:
 
-| Agent                  | Subagent Type               | Focus                           |
-| ---------------------- | --------------------------- | ------------------------------- |
-| Path Validator         | `explore`                   | Verify paths + dependency graph |
-| Completeness Validator | `codebase-research-analyst` | Task quality + completeness     |
+1. **"Validate paths and dependencies in [feature-name] plan"**
+2. **"Validate task completeness in [feature-name] plan"**
 
-### Step 24: Review and Fix Issues
+### Step 30: Spawn Validation Teammates
 
-After validators complete:
+**Standard Mode**: Spawn 3 teammates:
+
+| Teammate Name             | Subagent Type               | Focus                                   |
+| ------------------------- | --------------------------- | --------------------------------------- |
+| `path-validator`          | `explore`                   | Verify all referenced files exist       |
+| `dependency-validator`    | `explore`                   | Check for circular/invalid dependencies |
+| `completeness-validator`  | `codebase-research-analyst` | Ensure tasks are actionable             |
+
+**Optimized Mode**: Spawn 2 teammates:
+
+| Teammate Name             | Subagent Type               | Focus                           |
+| ------------------------- | --------------------------- | ------------------------------- |
+| `path-dep-validator`      | `explore`                   | Verify paths + dependency graph |
+| `completeness-validator`  | `codebase-research-analyst` | Task quality + completeness     |
+
+### Step 31: Review and Fix Issues
+
+After validators complete (check via TaskList):
 
 - Review findings from each validator
 - Fix any issues identified:
@@ -434,11 +470,23 @@ After validators complete:
   - Add missing details to incomplete tasks
 - Re-run validation if significant changes made
 
+### Step 32: Shut Down Validation Teammates
+
+Send shutdown requests to all validation teammates.
+
 ---
 
 ## Phase 10: Summary
 
-### Step 25: Display Completion Summary
+### Step 33: Clean Up Team
+
+Delete the team and its resources:
+
+```
+TeamDelete
+```
+
+### Step 34: Display Completion Summary
 
 Provide a comprehensive summary:
 
@@ -469,13 +517,15 @@ Provide a comprehensive summary:
 
 - ${feature_dir}/parallel-plan.md
 
-## Agent Deployment Summary
+## Team Summary
 
+- Team: pw-[feature-name]
 - Mode: [standard/optimized]
-- Research agents: 4
-- Analysis agents: [3/0 depending on mode]
-- Validation agents: [3/2 depending on mode]
-- Total agents: [10/7]
+- Research teammates: 4
+- Analysis teammates: [3/0 depending on mode]
+- Validation teammates: [3/2 depending on mode]
+- Total teammates: [10/7]
+- Inter-agent sharing: Enabled (teammates shared findings within each phase)
 
 ## Plan Overview
 
@@ -507,21 +557,21 @@ When `--optimized` flag is used, the workflow changes:
 
 ### Optimized Agent Architecture
 
-Instead of separate research (4) + analysis (3) agents, deploy 5 unified agents:
+Instead of separate research (4) + analysis (3) teammates, deploy 5 unified teammates:
 
-| Unified Agent         | Combines                            | Output                     |
+| Unified Teammate      | Combines                            | Output                     |
 | --------------------- | ----------------------------------- | -------------------------- |
-| Architecture Analyst  | Arch Research + Context Synthesizer | `analysis-architecture.md` |
-| Pattern Analyst       | Pattern Research + Code Analyzer    | `analysis-patterns.md`     |
-| Integration Analyst   | Integration Research                | `analysis-integration.md`  |
-| Documentation Analyst | Doc Research                        | `analysis-docs.md`         |
-| Task Planner          | Task Structure Agent                | `analysis-tasks.md`        |
+| `arch-analyst`        | Arch Research + Context Synthesizer | `analysis-architecture.md` |
+| `pattern-analyst`     | Pattern Research + Code Analyzer    | `analysis-patterns.md`     |
+| `integration-analyst` | Integration Research                | `analysis-integration.md`  |
+| `docs-analyst`        | Doc Research                        | `analysis-docs.md`         |
+| `task-planner`        | Task Structure Agent                | `analysis-tasks.md`        |
 
-These agents produce combined research+analysis output, skipping Phase 5 entirely.
+These teammates produce combined research+analysis output, skipping Phase 5 entirely.
 
-Validation uses 2 agents instead of 3 (Path + Completeness merged).
+Validation uses 2 teammates instead of 3 (Path + Dependency merged).
 
-**Total**: 7 agents instead of 10, 2 waves instead of 3.
+**Total**: 7 teammates instead of 10, 2 phases instead of 3.
 
 ---
 
@@ -564,36 +614,38 @@ All files are written to `${feature_dir}/` (resolved via `resolve-plans-dir.sh`)
 
 ### Research Phase Artifacts
 
-| File                       | Producer                       | Required Before     |
-| -------------------------- | ------------------------------ | ------------------- |
-| `research-architecture.md` | Architecture Researcher agent  | shared.md synthesis |
-| `research-patterns.md`     | Pattern Researcher agent       | shared.md synthesis |
-| `research-integration.md`  | Integration Researcher agent   | shared.md synthesis |
-| `research-docs.md`         | Documentation Researcher agent | shared.md synthesis |
-| `shared.md`                | Orchestrator (this skill)      | Analysis phase      |
+| File                       | Producer                           | Required Before     |
+| -------------------------- | ---------------------------------- | ------------------- |
+| `research-architecture.md` | architecture-researcher teammate   | shared.md synthesis |
+| `research-patterns.md`     | patterns-researcher teammate       | shared.md synthesis |
+| `research-integration.md`  | integration-researcher teammate    | shared.md synthesis |
+| `research-docs.md`         | docs-researcher teammate           | shared.md synthesis |
+| `shared.md`                | Team lead (this skill)             | Analysis phase      |
 
 ### Analysis Phase Artifacts (Standard Mode)
 
-| File                  | Producer                  | Required Before             |
-| --------------------- | ------------------------- | --------------------------- |
-| `analysis-context.md` | Context Synthesizer agent | parallel-plan.md generation |
-| `analysis-code.md`    | Code Analyzer agent       | parallel-plan.md generation |
-| `analysis-tasks.md`   | Task Structure Agent      | parallel-plan.md generation |
+| File                  | Producer                       | Required Before             |
+| --------------------- | ------------------------------ | --------------------------- |
+| `analysis-context.md` | context-synthesizer teammate   | parallel-plan.md generation |
+| `analysis-code.md`    | code-analyzer teammate         | parallel-plan.md generation |
+| `analysis-tasks.md`   | task-structurer teammate       | parallel-plan.md generation |
 
 ### Planning Phase Artifacts
 
 | File               | Producer                  | Required Before  |
 | ------------------ | ------------------------- | ---------------- |
-| `parallel-plan.md` | Orchestrator (this skill) | Skill completion |
+| `parallel-plan.md` | Team lead (this skill)    | Skill completion |
 
 **Contract Rules**:
 
-1. Each agent MUST write its own output file using the Write tool AND include content in its assigned response tag (research agents: no tags; analysis agents: `<ANALYSIS_*>` tags)
-2. The orchestrator MUST run `validate-research-artifacts.sh` before generating shared.md (Step 9)
-3. The orchestrator MUST run `validate-analysis-artifacts.sh` after analysis agents complete (Step 16)
-4. If analysis validation fails, the orchestrator MUST write missing files from `<ANALYSIS_*>` response tags (Step 16a)
-5. The orchestrator MUST run `persist-or-fail.sh` as a mandatory pre-generation gate (Step 16b)
-6. No file may be skipped or deferred — `persist-or-fail.sh` must exit 0 before plan generation
+1. Each teammate MUST write its own output file using the Write tool
+2. Each teammate MUST share key findings with relevant teammates via SendMessage
+3. The team lead MUST run `validate-research-artifacts.sh` before generating shared.md (Step 11)
+4. The team lead MUST run `validate-analysis-artifacts.sh` after analysis teammates complete (Step 21)
+5. The team lead MUST run `persist-or-fail.sh` as a mandatory pre-generation gate (Step 22)
+6. If validation fails, the team lead MUST message the failing teammate to fix their output
+7. No file may be skipped or deferred — `persist-or-fail.sh` must exit 0 before plan generation
+8. The team MUST be cleaned up (TeamDelete) before skill completion
 
 ---
 
@@ -604,7 +656,7 @@ The skill automatically detects and uses the correct plans directory in monorepo
 ### Default Behavior
 
 - Plans are created at the **git repository root** in `docs/plans/`
-- Running the skill from any subdirectory (e.g., `packages/app1/`) will still create plans at the root
+- Running the skill from any subdirectory still creates plans at the root
 
 ### Configuration
 
@@ -625,34 +677,18 @@ plans_dir: docs/plans
 scope: local
 ```
 
-With `scope: local`, plans created from that directory use the local `docs/plans/` instead of the root.
-
-### Example: Monorepo Structure
-
-```
-monorepo/
-  .plans-config          # plans_dir: docs/plans
-  docs/plans/            # Centralized plans (default)
-    feature-a/
-    feature-b/
-  packages/
-    app1/
-      .plans-config      # plans_dir: docs/plans, scope: local (optional)
-      docs/plans/        # App1-specific plans (only if configured)
-    app2/
-```
-
 ---
 
 ## Important Notes
 
-- **Unified workflow** - One command replaces two separate skills
-- **Checkpoint by default** - Users review research before planning
-- **Agent optimization available** - Use `--optimized` to reduce agent count
-- **Backwards compatible** - Works alongside individual skills
-- **Deploy agents in parallel** - Single message with multiple Task calls
-- **Validate with scripts** - Run validation scripts after agents complete
-- **Re-deploy on failure** - If validation fails, re-deploy only the failed agents
-- **Preserve context** - Read condensed analysis, not raw files
-- **Validate thoroughly** - Multiple validation passes ensure quality
-- **Monorepo aware** - Automatically resolves correct plans directory via `resolve-plans-dir.sh`
+- **You are the team lead** - coordinate all phases of the workflow
+- **One team for entire workflow** - create once, use across all phases
+- **Spawn teammates in parallel** - single message with multiple Agent calls per phase
+- **Teammates share findings** - they communicate with each other via SendMessage
+- **Shut down between phases** - shut down teammates before spawning new ones for next phase
+- **Validate with scripts** - run validation scripts after teammates complete
+- **Message on failure** - if validation fails, message the relevant teammate
+- **Preserve context** - read condensed analysis, not raw files
+- **Validate thoroughly** - multiple validation passes ensure quality
+- **Clean up team** - always TeamDelete before completing
+- **Monorepo aware** - automatically resolves correct plans directory via `resolve-plans-dir.sh`

@@ -1,22 +1,22 @@
 # Analysis Agent Prompts
 
-These prompts are used to deploy parallel analysis agents for condensing planning context before generating the parallel implementation plan.
+These prompts are used to spawn analysis teammates for condensing planning context before generating the parallel implementation plan. Teammates share findings with each other via messages.
 
 ## Global Output Contract
 
-Apply this contract to every agent prompt in this file:
+Apply this contract to every teammate prompt in this file:
 
 - Write only your assigned output file under `{{FEATURE_DIR}}`.
 - Do not edit any other files.
 - After writing the file, verify it exists using the Read tool or equivalent.
-- After writing the file, return a short completion signal:
-  - `STATUS: COMPLETE` or `STATUS: BLOCKED`
-  - `OUTPUT: <path>`
-  - `SECTIONS: <comma-separated headings>`
+- **Share key findings** with relevant teammates using SendMessage.
+- After writing the file and sharing findings, mark your task as complete using TaskUpdate.
 
 ---
 
 ## Agent 1: Context Synthesizer
+
+**Teammate Name**: `context-synthesizer`
 
 **Subagent Type**: `codebase-research-analyst`
 
@@ -25,17 +25,11 @@ Apply this contract to every agent prompt in this file:
 **Prompt Template**:
 
 ````markdown
-## Output Requirements
+## PRIMARY DELIVERABLE
 
-**CRITICAL**: You MUST write your findings to the specified file. This is not optional.
+**Output File**: {{FEATURE_DIR}}/analysis-context.md
 
-**Output File**: `{{FEATURE_DIR}}/analysis-context.md`
-
-Before completing this task:
-
-1. Create the output file using the Write tool
-2. Verify the file was created successfully
-3. Report completion status
+You MUST write this file using the Write tool. This is your #1 job. Everything else is secondary.
 
 ---
 
@@ -62,6 +56,29 @@ Read and analyze all planning documentation:
    - Extract actionable insights, not just descriptions
    - Identify cross-cutting concerns
    - Highlight potential parallelization opportunities
+
+## Team Communication
+
+You are part of an analysis team. Your teammates are:
+
+- **code-analyzer**: Extracting code patterns from relevant files
+- **task-structurer**: Suggesting task breakdown and phases
+
+**Share these findings via SendMessage:**
+
+- Message `code-analyzer` with: critical files you identify that they should prioritize reading, and any architectural patterns or conventions that affect code analysis
+- Message `task-structurer` with: cross-cutting concerns, parallelization opportunities, and constraints that should influence task breakdown
+
+**Listen for messages from teammates** — `code-analyzer` may share patterns that affect your synthesis, and `task-structurer` may ask for clarification on scope.
+
+## Task Coordination
+
+1. Check TaskList for your assigned task
+2. Claim your task with TaskUpdate (set status to in_progress, owner to your name)
+3. Do your analysis
+4. Share findings with teammates
+5. Write your output file
+6. Mark your task complete with TaskUpdate
 
 ## Output Format
 
@@ -119,12 +136,15 @@ You MUST complete ALL of these steps in order:
 
 1. **Write file**: Use the Write tool to create {{FEATURE_DIR}}/analysis-context.md
 2. **Verify file**: Use the Read tool to confirm the file exists and has content
-3. **Report status**: STATUS: COMPLETE, OUTPUT: {{FEATURE_DIR}}/analysis-context.md, SECTIONS: [headings]
+3. **Share findings**: Message teammates with key insights
+4. **Mark complete**: Update your task status to completed
 ````
 
 ---
 
 ## Agent 2: Code Analyzer
+
+**Teammate Name**: `code-analyzer`
 
 **Subagent Type**: `codebase-research-analyst`
 
@@ -133,17 +153,11 @@ You MUST complete ALL of these steps in order:
 **Prompt Template**:
 
 ````markdown
-## Output Requirements
+## PRIMARY DELIVERABLE
 
-**CRITICAL**: You MUST write your findings to the specified file. This is not optional.
+**Output File**: {{FEATURE_DIR}}/analysis-code.md
 
-**Output File**: `{{FEATURE_DIR}}/analysis-code.md`
-
-Before completing this task:
-
-1. Create the output file using the Write tool
-2. Verify the file was created successfully
-3. Report completion status
+You MUST write this file using the Write tool. This is your #1 job. Everything else is secondary.
 
 ---
 
@@ -154,7 +168,7 @@ Analyze the critically relevant code files for implementing "{{FEATURE_NAME}}" a
 Read and analyze code files identified in the planning documents:
 
 1. **Read Source Files**
-   - First, read {{FEATURE_DIR}}/shared.md to find "Critically Relevant Files"
+   - First, read {{FEATURE_DIR}}/shared.md to find "Relevant Files"
    - Read each file listed in that section
    - Note: Focus on files that inform implementation patterns, not every possible file
 
@@ -176,6 +190,29 @@ Read and analyze code files identified in the planning documents:
    - Module boundaries
    - Import/export patterns
    - Configuration patterns
+
+## Team Communication
+
+You are part of an analysis team. Your teammates are:
+
+- **context-synthesizer**: Condensing planning documentation into actionable context
+- **task-structurer**: Suggesting task breakdown and phases
+
+**Share these findings via SendMessage:**
+
+- Message `context-synthesizer` with: any patterns or architectural insights that should be reflected in the context synthesis
+- Message `task-structurer` with: file-to-task mapping suggestions, files that should be grouped together, and any dependency relationships between code modules
+
+**Listen for messages from teammates** — especially from `context-synthesizer` who may point you to critical files to prioritize.
+
+## Task Coordination
+
+1. Check TaskList for your assigned task
+2. Claim your task with TaskUpdate (set status to in_progress, owner to your name)
+3. Do your analysis
+4. Share findings with teammates
+5. Write your output file
+6. Mark your task complete with TaskUpdate
 
 ## Output Format
 
@@ -269,12 +306,15 @@ You MUST complete ALL of these steps in order:
 
 1. **Write file**: Use the Write tool to create {{FEATURE_DIR}}/analysis-code.md
 2. **Verify file**: Use the Read tool to confirm the file exists and has content
-3. **Report status**: STATUS: COMPLETE, OUTPUT: {{FEATURE_DIR}}/analysis-code.md, SECTIONS: [headings]
+3. **Share findings**: Message teammates with key insights
+4. **Mark complete**: Update your task status to completed
 ````
 
 ---
 
 ## Agent 3: Task Structure Agent
+
+**Teammate Name**: `task-structurer`
 
 **Subagent Type**: `codebase-research-analyst`
 
@@ -283,17 +323,11 @@ You MUST complete ALL of these steps in order:
 **Prompt Template**:
 
 ````markdown
-## Output Requirements
+## PRIMARY DELIVERABLE
 
-**CRITICAL**: You MUST write your findings to the specified file. This is not optional.
+**Output File**: {{FEATURE_DIR}}/analysis-tasks.md
 
-**Output File**: `{{FEATURE_DIR}}/analysis-tasks.md`
-
-Before completing this task:
-
-1. Create the output file using the Write tool
-2. Verify the file was created successfully
-3. Report completion status
+You MUST write this file using the Write tool. This is your #1 job. Everything else is secondary.
 
 ---
 
@@ -326,6 +360,29 @@ Based on the codebase structure and planning context:
    - Core logic tasks (services, handlers)
    - Integration tasks (API, UI, tests)
    - Documentation tasks
+
+## Team Communication
+
+You are part of an analysis team. Your teammates are:
+
+- **context-synthesizer**: Condensing planning documentation into actionable context
+- **code-analyzer**: Extracting code patterns from relevant files
+
+**Share these findings via SendMessage:**
+
+- Message `context-synthesizer` with: any scope clarifications or missing context you identify while analyzing the codebase
+- Message `code-analyzer` with: specific files you think are important for pattern analysis that they may not have found yet
+
+**Listen for messages from teammates** — especially from `code-analyzer` who may share file-to-task mapping insights, and from `context-synthesizer` who may share parallelization opportunities and constraints.
+
+## Task Coordination
+
+1. Check TaskList for your assigned task
+2. Claim your task with TaskUpdate (set status to in_progress, owner to your name)
+3. Do your analysis
+4. Share findings with teammates
+5. Write your output file
+6. Mark your task complete with TaskUpdate
 
 ## Output Format
 
@@ -435,23 +492,26 @@ You MUST complete ALL of these steps in order:
 
 1. **Write file**: Use the Write tool to create {{FEATURE_DIR}}/analysis-tasks.md
 2. **Verify file**: Use the Read tool to confirm the file exists and has content
-3. **Report status**: STATUS: COMPLETE, OUTPUT: {{FEATURE_DIR}}/analysis-tasks.md, SECTIONS: [headings]
+3. **Share findings**: Message teammates with key insights
+4. **Mark complete**: Update your task status to completed
 ````
 
 ---
 
 ## Usage Instructions
 
-When deploying analysis agents:
+When spawning analysis teammates:
 
 1. **Read this file** to get the prompt templates
 2. **Substitute variables**:
    - `{{FEATURE_NAME}}` - The feature directory name (e.g., `user-authentication`)
    - `{{FEATURE_DIR}}` - Full output directory (e.g., `docs/plans/user-authentication`)
-3. **Deploy in parallel** - Use a single message with 3 Task tool calls
-4. **Wait for completion** - All agents must finish before generating the plan
-5. **Verify artifacts** - Check all analysis files exist on disk before proceeding
-6. **Read condensed outputs** - Review the 3 analysis files before creating parallel-plan.md
+3. **Create tasks** - Use TaskCreate to create 3 analysis tasks
+4. **Spawn in parallel** - Use a single message with 3 Agent tool calls, each with `team_name` and `name`
+5. **Monitor progress** - Use TaskList to check when all tasks complete
+6. **Verify artifacts** - Check all analysis files exist on disk before proceeding
+7. **Shut down teammates** - Send shutdown requests via SendMessage
+8. **Read condensed outputs** - Review the 3 analysis files before creating parallel-plan.md
 
 ## Variable Reference
 
@@ -460,13 +520,13 @@ When deploying analysis agents:
 | `{{FEATURE_NAME}}` | Feature directory name         | `user-authentication`            |
 | `{{FEATURE_DIR}}`  | Full analysis output directory | `docs/plans/user-authentication` |
 
-## Agent Configuration
+## Teammate Configuration
 
-| Agent                | Type                        | Output File         |
+| Teammate             | Type                        | Output File         |
 | -------------------- | --------------------------- | ------------------- |
-| Context Synthesizer  | `codebase-research-analyst` | analysis-context.md |
-| Code Analyzer        | `codebase-research-analyst` | analysis-code.md    |
-| Task Structure Agent | `codebase-research-analyst` | analysis-tasks.md   |
+| context-synthesizer  | `codebase-research-analyst` | analysis-context.md |
+| code-analyzer        | `codebase-research-analyst` | analysis-code.md    |
+| task-structurer      | `codebase-research-analyst` | analysis-tasks.md   |
 
 ## Expected Output Size
 

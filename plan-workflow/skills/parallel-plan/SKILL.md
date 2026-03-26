@@ -1,14 +1,20 @@
 ---
 name: parallel-plan
-description: Create detailed parallel implementation plans by orchestrating analysis agents and validation, then synthesizing dependency-aware tasks into parallel-plan.md. Use after shared-context to prepare implementation-ready planning artifacts.
+description: Create detailed parallel implementation plans by orchestrating analysis and validation agent teams, then synthesizing dependency-aware tasks into parallel-plan.md. Use after shared-context to prepare implementation-ready planning artifacts.
 argument-hint: '[feature-name] [--dry-run]'
 allowed-tools:
   - Read
   - Grep
   - Glob
   - Write
-  - Task
-  - TodoWrite
+  - Agent
+  - TeamCreate
+  - TeamDelete
+  - TaskCreate
+  - TaskUpdate
+  - TaskList
+  - TaskGet
+  - SendMessage
   - Bash(ls:*)
   - Bash(cat:*)
   - Bash(test:*)
@@ -39,7 +45,7 @@ After creating planning artifacts and displaying the summary, **STOP COMPLETELY*
 
 # Parallel Implementation Plan Creator
 
-Create `parallel-plan.md` by orchestrating parallel analysis agents, synthesizing implementation tasks, and validating plan quality.
+Create `parallel-plan.md` by orchestrating analysis and validation agent teams, synthesizing implementation tasks, and validating plan quality.
 
 ## Workflow Integration
 
@@ -109,32 +115,36 @@ Display:
 ```markdown
 # Dry Run: Parallel Plan for [feature-name]
 
-## Analysis Agents That Would Run (Phase 1)
+## Team: pp-[feature-name]
 
-1. Context Synthesizer - Condense planning documentation
-2. Code Analyzer - Extract code patterns from relevant files
-3. Task Structure Agent - Suggest task breakdown and phases
+### Phase 1: Analysis Teammates (3 agents)
+
+1. context-synthesizer - Condense planning documentation
+2. code-analyzer - Extract code patterns from relevant files
+3. task-structurer - Suggest task breakdown and phases
+
+### Phase 2: Validation Teammates (3 agents)
+
+1. path-validator - Verify all paths exist
+2. dependency-validator - Check dependency graph
+3. completeness-validator - Ensure tasks are actionable
 
 ## Files That Would Be Created
 
-- ${PLANS_DIR}/[feature-name]/analysis-context.md (by Context Synthesizer)
-- ${PLANS_DIR}/[feature-name]/analysis-code.md (by Code Analyzer)
-- ${PLANS_DIR}/[feature-name]/analysis-tasks.md (by Task Structure Agent)
+- ${PLANS_DIR}/[feature-name]/analysis-context.md (by context-synthesizer)
+- ${PLANS_DIR}/[feature-name]/analysis-code.md (by code-analyzer)
+- ${PLANS_DIR}/[feature-name]/analysis-tasks.md (by task-structurer)
 - ${PLANS_DIR}/[feature-name]/parallel-plan.md (final plan)
-
-## Validation Agents That Would Run (Phase 5)
-
-1. File Path Validator - Verify all paths exist
-2. Dependency Validator - Check dependency graph
-3. Task Completeness Validator - Ensure tasks are actionable
 
 ## Execution Model
 
-- Deploy analysis agents in parallel
-- Persist analysis artifacts
+- Create agent team with analysis teammates (Phase 1)
+- Teammates share findings and cross-reference
+- Validate analysis artifacts
 - Generate plan from condensed analysis
-- Validate with parallel validation agents
+- Spawn validation teammates (Phase 2)
 - Fix issues and finalize
+- Team cleanup
 
 ## Next Steps
 
@@ -145,9 +155,25 @@ Remove --dry-run flag to create the plan.
 
 ---
 
-## Phase 1: Agent-Based Context Analysis
+## Phase 1: Analysis Team
 
-### Step 5: Read Analysis Prompt Templates
+### Step 5: Create the Team
+
+Create an agent team for the planning workflow:
+
+```
+TeamCreate: team_name="pp-[feature-name]", description="Planning team for [feature-name] parallel plan"
+```
+
+### Step 6: Create Analysis Tasks
+
+Create 3 tasks in the shared task list:
+
+1. **"Synthesize planning context for [feature-name]"** — Condense planning docs into actionable summary
+2. **"Analyze code patterns for [feature-name]"** — Extract code patterns from relevant files
+3. **"Suggest task structure for [feature-name]"** — Propose task breakdown and phases
+
+### Step 7: Read Analysis Prompt Templates
 
 Read the analysis prompt templates:
 
@@ -155,63 +181,42 @@ Read the analysis prompt templates:
 cat ${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/templates/analysis-prompts.md
 ```
 
-This provides prompts for 3 parallel analysis agents that will condense planning context.
+### Step 8: Spawn Analysis Teammates
 
-### Step 6: Deploy Analysis Agents
+**CRITICAL**: Spawn all 3 teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="pp-[feature-name]"`.
 
-**CRITICAL**: Deploy all 3 agents in a **SINGLE message** with **MULTIPLE Task tool calls**.
-
-Each agent MUST write its findings to the specified output file. The orchestrator MUST verify file persistence after agents complete.
-
-| Agent                | Subagent Type               | Focus                  | Output File           |
-| -------------------- | --------------------------- | ---------------------- | --------------------- |
-| Context Synthesizer  | `codebase-research-analyst` | Condense planning docs | `analysis-context.md` |
-| Code Analyzer        | `codebase-research-analyst` | Extract code patterns  | `analysis-code.md`    |
-| Task Structure Agent | `codebase-research-analyst` | Suggest task breakdown | `analysis-tasks.md`   |
+| Teammate Name         | Subagent Type               | Focus                  | Output File           |
+| --------------------- | --------------------------- | ---------------------- | --------------------- |
+| `context-synthesizer` | `codebase-research-analyst` | Condense planning docs | `analysis-context.md` |
+| `code-analyzer`       | `codebase-research-analyst` | Extract code patterns  | `analysis-code.md`    |
+| `task-structurer`     | `codebase-research-analyst` | Suggest task breakdown | `analysis-tasks.md`   |
 
 Use the prompts from `analysis-prompts.md` with variables substituted:
 
 - `{{FEATURE_NAME}}` - The feature directory name
 - `{{FEATURE_DIR}}` - Full output directory path (`${feature_dir}`, resolved in Step 1)
 
-Each agent will:
+**Why use teammates**: This prevents loading 50-100K+ tokens of raw files into main context. Teammates read everything and return 5-10K tokens of condensed, actionable analysis.
 
-- Read relevant source files (planning docs, code files, codebase structure)
-- Extract actionable insights
-- Write condensed analysis to `${feature_dir}/[output-file]`
+### Step 9: Monitor Analysis Progress
 
-**Why use agents**: This prevents loading 50-100K+ tokens of raw files into main context. Agents read everything and return 5-10K tokens of condensed, actionable analysis.
+Wait for teammates to complete. Use `TaskList` to check progress. When all 3 analysis tasks are complete, proceed to validation.
 
 ---
 
 ## Phase 2: Validate and Persist Analysis Artifacts
 
-### Step 7: Validate Analysis Artifacts
+### Step 10: Validate Analysis Artifacts
 
-After agents complete, validate all analysis files:
-
-```bash
-${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/validate-analysis-artifacts.sh "${feature_dir}"
-```
-
-If validation passes, proceed to Step 9.
-If validation fails, proceed to Step 8.
-
-### Step 8: Re-deploy Failed Agents (only if Step 7 failed)
-
-For each missing or invalid file reported by the validation script:
-
-1. Re-deploy ONLY the failed agents with their original prompts
-2. Wait for corrected outputs
-3. Re-run validation:
+After teammates complete, validate all analysis files:
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/validate-analysis-artifacts.sh "${feature_dir}"
 ```
 
-Repeat until validation passes. If agents repeatedly fail, stop and report what is missing.
+If validation fails, message the relevant teammate to fix their output and retry.
 
-### Step 9: Pre-Generation Gate (MANDATORY — cannot be skipped)
+### Step 11: Pre-Generation Gate (MANDATORY — cannot be skipped)
 
 Run the pre-generation gate script:
 
@@ -220,17 +225,23 @@ ${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/persist-or-fail.sh "${feature
 ```
 
 - **Exit 0** → proceed to Phase 3
-- **Exit 1** → the script prints `MISSING_FILES` and `ACTION_REQUIRED`. Re-deploy the failed agents, then re-run this gate until it passes (exit 0)
-
-- **Do not** attempt to generate `parallel-plan.md` if Step 7 or Step 8 have not passed.
+- **Exit 1** → the script prints `MISSING_FILES` and `ACTION_REQUIRED`. Message the failing teammate to re-write, then re-run this gate until it passes (exit 0)
 
 **Do NOT proceed to plan generation until `persist-or-fail.sh` exits 0.**
+
+### Step 12: Shut Down Analysis Teammates
+
+Send shutdown requests to all analysis teammates:
+
+```
+SendMessage to each teammate: message={type: "shutdown_request"}
+```
 
 ---
 
 ## Phase 3: Read Analysis
 
-### Step 10: Read Condensed Analysis Files
+### Step 13: Read Condensed Analysis Files
 
 After verifying all files exist, read only the condensed analysis outputs:
 
@@ -244,15 +255,7 @@ These files contain 60-80% compressed insights versus reading all source files d
 
 ## Phase 4: Plan Generation
 
-### Step 11: Create Task List
-
-Using **TodoWrite**, create a comprehensive task list with:
-
-- Each major task from the plan
-- Task dependencies tracked
-- In_progress status for current work
-
-### Step 12: Generate Implementation Plan
+### Step 14: Generate Implementation Plan
 
 Read the plan template structure:
 
@@ -316,7 +319,7 @@ Files to Modify
 - Specific warnings about code dependencies
 ```
 
-### Step 13: Task Breakdown Guidelines
+### Step 15: Task Breakdown Guidelines
 
 For each task ensure:
 
@@ -342,42 +345,52 @@ For each task ensure:
 
 ---
 
-## Phase 5: Validation (Parallel Agents)
+## Phase 5: Validation Team
 
-### Step 14: Deploy Validation Agents
+### Step 16: Create Validation Tasks
 
-Read the validation prompts:
+Create 3 validation tasks in the shared task list:
+
+1. **"Validate file paths in [feature-name] plan"** — Verify all referenced files exist
+2. **"Validate dependency graph in [feature-name] plan"** — Check for circular/invalid dependencies
+3. **"Validate task completeness in [feature-name] plan"** — Ensure tasks are actionable
+
+### Step 17: Read Validation Prompts
 
 ```bash
 cat ${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/templates/validation-prompts.md
 ```
 
-**CRITICAL**: Deploy all 3 agents in a **SINGLE message** with **MULTIPLE Task tool calls**.
+### Step 18: Spawn Validation Teammates
 
-| Agent                       | Subagent Type               | Focus                                   |
-| --------------------------- | --------------------------- | --------------------------------------- |
-| File Path Validator         | `explore`                   | Verify all referenced files exist       |
-| Dependency Validator        | `explore`                   | Check for circular/invalid dependencies |
-| Task Completeness Validator | `codebase-research-analyst` | Ensure tasks are actionable             |
+**CRITICAL**: Spawn all 3 validation teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="pp-[feature-name]"`.
 
-Use the prompts from `validation-prompts.md` with the feature name substituted.
+| Teammate Name             | Subagent Type               | Focus                                   |
+| ------------------------- | --------------------------- | --------------------------------------- |
+| `path-validator`          | `explore`                   | Verify all referenced files exist       |
+| `dependency-validator`    | `explore`                   | Check for circular/invalid dependencies |
+| `completeness-validator`  | `codebase-research-analyst` | Ensure tasks are actionable             |
 
-### Step 15: Review Validation Results
+### Step 19: Review Validation Results
 
-After agents complete:
+After validators complete:
 
-- Review findings from each validator
+- Review findings from each validator (check their messages and task completions)
 - Fix any issues identified:
   - Correct invalid file paths
   - Resolve circular dependencies
   - Add missing details to incomplete tasks
 - Re-run validation if significant changes made
 
+### Step 20: Shut Down Validation Teammates
+
+Send shutdown requests to all validation teammates.
+
 ---
 
 ## Phase 6: Output & Summary
 
-### Step 16: Validate Plan Structure
+### Step 21: Validate Plan Structure
 
 Run the validation script:
 
@@ -387,7 +400,15 @@ ${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/validate-parallel-plan.sh "${
 
 Report any structural issues found.
 
-### Step 17: Display Summary
+### Step 22: Clean Up Team
+
+Delete the team and its resources:
+
+```
+TeamDelete
+```
+
+### Step 23: Display Summary
 
 Provide completion summary:
 
@@ -403,6 +424,12 @@ ${feature_dir}/parallel-plan.md
 - ${feature_dir}/analysis-context.md (Planning context synthesis)
 - ${feature_dir}/analysis-code.md (Code pattern analysis)
 - ${feature_dir}/analysis-tasks.md (Task structure suggestions)
+
+## Team Summary
+
+- Team: pp-[feature-name]
+- Phase 1: 3 analysis teammates (shared findings with each other)
+- Phase 2: 3 validation teammates (cross-checked each other)
 
 ## Plan Overview
 
@@ -425,7 +452,7 @@ Phase 2: [count] tasks ([X] independent)
 
 ## Context Efficiency
 
-- Analysis agents condensed context from ~50-100K tokens to ~5-10K tokens
+- Analysis teammates condensed context from ~50-100K tokens to ~5-10K tokens
 - Main context preserved for plan generation and validation
 
 ## Next Steps (FOR USER - NOT FOR THIS SKILL)
@@ -485,25 +512,28 @@ The overall plan must have:
 - **STOP AFTER SUMMARY** - After displaying the completion summary, stop completely
 - **DO NOT CHAIN** - Do not automatically proceed to implement-plan
 - **PERSIST ARTIFACTS** - All 3 analysis files must exist before plan generation
+- **CLEAN UP TEAM** - Always delete the team before completing
 
 ## Output Contract
 
 All files are written to `${feature_dir}/` (resolved via `resolve-plans-dir.sh`).
 
-| File                  | Producer                  | Required Before             |
-| --------------------- | ------------------------- | --------------------------- |
-| `analysis-context.md` | Context Synthesizer agent | parallel-plan.md generation |
-| `analysis-code.md`    | Code Analyzer agent       | parallel-plan.md generation |
-| `analysis-tasks.md`   | Task Structure Agent      | parallel-plan.md generation |
-| `parallel-plan.md`    | Orchestrator (this skill) | Skill completion            |
+| File                  | Producer                       | Required Before             |
+| --------------------- | ------------------------------ | --------------------------- |
+| `analysis-context.md` | context-synthesizer teammate   | parallel-plan.md generation |
+| `analysis-code.md`    | code-analyzer teammate         | parallel-plan.md generation |
+| `analysis-tasks.md`   | task-structurer teammate       | parallel-plan.md generation |
+| `parallel-plan.md`    | Team lead (this skill)         | Skill completion            |
 
 **Contract Rules**:
 
-1. Each agent MUST write its own output file using the Write tool
-2. The orchestrator MUST run `validate-analysis-artifacts.sh` after agents complete (Step 7)
-3. If validation fails, the orchestrator MUST re-deploy ONLY the failed agents with their original prompts (Step 8)
-4. The orchestrator MUST run `persist-or-fail.sh` as a mandatory pre-generation gate (Step 9)
-5. No file may be skipped or deferred — `persist-or-fail.sh` must exit 0 before plan generation
+1. Each teammate MUST write its own output file using the Write tool
+2. Each teammate MUST share key findings with relevant teammates via SendMessage
+3. The team lead MUST run `validate-analysis-artifacts.sh` after teammates complete (Step 10)
+4. The team lead MUST run `persist-or-fail.sh` as a mandatory pre-generation gate (Step 11)
+5. If validation fails, the team lead MUST message the failing teammate to fix their output
+6. No file may be skipped or deferred — `persist-or-fail.sh` must exit 0 before plan generation
+7. The team MUST be cleaned up (TeamDelete) before skill completion
 
 ## Monorepo Support
 
@@ -522,13 +552,17 @@ scope: local
 
 ## Important Notes
 
-- **You are the planner** - break down the feature systematically
-- **Use agents for context gathering** - deploy analysis agents to condense large amounts of information
-- **Validate with script** - run `validate-analysis-artifacts.sh` after agents complete
-- **Re-deploy on failure** - if validation fails, re-deploy only the failed agents
+- **You are the team lead** - coordinate analysis and validation teams
+- **Create team first** - use TeamCreate before spawning teammates
+- **Spawn teammates in parallel** - single message with multiple Agent calls
+- **Teammates share findings** - they communicate with each other via SendMessage
+- **Two phases** - analysis teammates first, then validation teammates
+- **Shut down between phases** - shut down analysis teammates before spawning validators
+- **Validate with scripts** - run validation scripts after teammates complete
+- **Message on failure** - if validation fails, message the relevant teammate
 - **Preserve main context** - read condensed analysis files (~5-10K tokens) instead of raw source files (~50-100K+ tokens)
 - **Maximize parallelism** - prefer independent tasks over sequential chains
 - **Be specific** - include exact file paths and clear instructions
-- **Validate thoroughly** - use all three validation agents
 - **Quality over speed** - a well-structured plan saves time during implementation
+- **Clean up team** - always TeamDelete before completing
 - **Monorepo aware** - automatically resolves correct plans directory

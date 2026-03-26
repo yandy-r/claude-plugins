@@ -1,14 +1,20 @@
 ---
 name: shared-context
-description: Create shared context documentation for a feature by orchestrating parallel research agents, writing research artifacts, and synthesizing verified architecture, patterns, integrations, and docs into shared.md. Use as Step 1 before parallel-plan when preparing implementation context.
+description: Create shared context documentation for a feature by orchestrating a research agent team, writing research artifacts, and synthesizing verified architecture, patterns, integrations, and docs into shared.md. Use as Step 1 before parallel-plan when preparing implementation context.
 argument-hint: '[feature-name] [--dry-run]'
 allowed-tools:
   - Read
   - Grep
   - Glob
   - Write
-  - Task
-  - TodoWrite
+  - Agent
+  - TeamCreate
+  - TeamDelete
+  - TaskCreate
+  - TaskUpdate
+  - TaskList
+  - TaskGet
+  - SendMessage
   - Bash(ls:*)
   - Bash(cat:*)
   - Bash(test:*)
@@ -40,7 +46,7 @@ After creating the shared context files and displaying the summary, **STOP COMPL
 
 # Shared Context Creator
 
-Create planning context for a feature by orchestrating parallel research agents, persisting workstream reports, and synthesizing `shared.md`.
+Create planning context for a feature by orchestrating a research agent team, persisting workstream reports, and synthesizing `shared.md`.
 
 ## Workflow Integration
 
@@ -125,12 +131,15 @@ Display:
 
 - ${PLANS_DIR}/[feature-name]/
 
-## Research Agents That Would Run
+## Research Team
 
-1. Architecture Researcher - System structure and components
-2. Pattern Researcher - Existing patterns to follow
-3. Integration Researcher - APIs, databases, external systems
-4. Documentation Researcher - Relevant docs and guides
+Team Name: sc-[feature-name]
+Teammates: 4 research agents (can share findings with each other)
+
+1. architecture-researcher - System structure and components
+2. patterns-researcher - Existing patterns to follow
+3. integration-researcher - APIs, databases, external systems
+4. docs-researcher - Relevant docs and guides
 
 ## Files That Would Be Created
 
@@ -142,11 +151,12 @@ Display:
 
 ## Execution Model
 
-- Deploy one `codebase-research-analyst` agent per workstream
-- Wait for all workstreams to complete
-- Persist each workstream as a research artifact
-- Synthesize results into shared.md
-- Validate shared.md
+- Create agent team with 4 research teammates
+- Teammates claim tasks from shared task list
+- Teammates share findings with each other via messages
+- Team lead validates research artifacts
+- Team lead synthesizes results into shared.md
+- Team cleanup
 
 ## Next Steps
 
@@ -157,9 +167,26 @@ Remove --dry-run flag to execute research.
 
 ---
 
-## Phase 2: Parallel Research Deployment
+## Phase 2: Create Research Team
 
-### Step 6: Read Research Prompts
+### Step 6: Create the Team
+
+Create an agent team for the research phase:
+
+```
+TeamCreate: team_name="sc-[feature-name]", description="Research team for [feature-name] shared context"
+```
+
+### Step 7: Create Research Tasks
+
+Create 4 tasks in the shared task list — one per research domain:
+
+1. **"Research architecture for [feature-name]"** — System structure, components, data flow, integration points
+2. **"Research patterns for [feature-name]"** — Architectural patterns, code conventions, error handling, testing
+3. **"Research integrations for [feature-name]"** — APIs, databases, external services, configuration
+4. **"Research documentation for [feature-name]"** — Docs, READMEs, code comments, external references
+
+### Step 8: Read Research Prompts
 
 Read the research prompts template:
 
@@ -167,47 +194,70 @@ Read the research prompts template:
 cat ${CLAUDE_PLUGIN_ROOT}/skills/shared-context/templates/research-prompts.md
 ```
 
-### Step 7: Deploy Research Agents
+### Step 9: Spawn Research Teammates
 
-**CRITICAL**: Deploy all 4 agents in a **SINGLE message** with **MULTIPLE Task tool calls**.
+**CRITICAL**: Spawn all 4 teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="sc-[feature-name]"`.
 
-Each agent MUST write its findings to the specified output file. The orchestrator MUST verify file persistence after agents complete.
-
-| Agent                    | Subagent Type               | Output File                | Focus                                    |
+| Teammate Name            | Subagent Type               | Output File                | Focus                                    |
 | ------------------------ | --------------------------- | -------------------------- | ---------------------------------------- |
-| Architecture Researcher  | `codebase-research-analyst` | `research-architecture.md` | System structure, components, data flow  |
-| Pattern Researcher       | `codebase-research-analyst` | `research-patterns.md`     | Existing patterns, conventions, examples |
-| Integration Researcher   | `codebase-research-analyst` | `research-integration.md`  | APIs, databases, external systems        |
-| Documentation Researcher | `codebase-research-analyst` | `research-docs.md`         | Relevant documentation files             |
+| `architecture-researcher`| `codebase-research-analyst` | `research-architecture.md` | System structure, components, data flow  |
+| `patterns-researcher`    | `codebase-research-analyst` | `research-patterns.md`     | Existing patterns, conventions, examples |
+| `integration-researcher` | `codebase-research-analyst` | `research-integration.md`  | APIs, databases, external systems        |
+| `docs-researcher`        | `codebase-research-analyst` | `research-docs.md`         | Relevant documentation files             |
 
-Each agent writes findings to `${feature_dir}/[output-file]`.
+Each teammate writes findings to `${feature_dir}/[output-file]`.
 
 Use the prompts from `research-prompts.md` with variables substituted:
 
 - `{{FEATURE_NAME}}` - The feature directory name
 - `{{FEATURE_DIR}}` - Full output directory path (`${feature_dir}`, resolved in Step 2)
 
+### Step 10: Monitor Team Progress
+
+Wait for teammates to complete their tasks. Teammates will:
+
+1. Claim their task from the shared list
+2. Research their domain
+3. Share key findings with relevant teammates via SendMessage
+4. Write their output file
+5. Mark their task complete
+6. Go idle
+
+Use `TaskList` to check progress. When all 4 tasks are complete, proceed to validation.
+
+If a teammate gets stuck, send them a message with guidance or additional context.
+
 ---
 
 ## Phase 3: Validate Research Artifacts
 
-### Step 8: Validate Research Artifacts
+### Step 11: Validate Research Artifacts
 
-After agents complete, validate all research files:
+After all teammates complete, validate all research files:
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/skills/shared-context/scripts/validate-research-artifacts.sh "${feature_dir}"
 ```
 
-If validation fails: identify which files are missing or invalid from the script output, re-deploy ONLY the failed agents with their original prompts, wait for corrected outputs, then rerun validation until pass.
+If validation fails: identify which files are missing or invalid from the script output, send a message to the relevant teammate asking them to fix their output, wait for correction, then rerun validation until pass.
 
 **Do not proceed to synthesis until validation passes.**
+
+### Step 12: Shut Down Research Teammates
+
+Send shutdown requests to all teammates:
+
+```
+SendMessage to each teammate: message={type: "shutdown_request"}
+```
+
+Wait for all teammates to shut down before proceeding.
 
 ---
 
 ## Phase 4: Consolidate Research
 
-### Step 9: Read Research Reports
+### Step 13: Read Research Reports
 
 Read all research files:
 
@@ -216,7 +266,7 @@ Read all research files:
 3. `${feature_dir}/research-integration.md`
 4. `${feature_dir}/research-docs.md`
 
-### Step 10: Generate shared.md
+### Step 14: Generate shared.md
 
 Read the shared structure template:
 
@@ -237,7 +287,7 @@ Quality rules:
 
 ## Phase 5: Validation & Summary
 
-### Step 11: Validate shared.md
+### Step 15: Validate shared.md
 
 Run the validation script:
 
@@ -247,7 +297,15 @@ ${CLAUDE_PLUGIN_ROOT}/skills/shared-context/scripts/validate-shared.sh "${featur
 
 Fix any issues reported, then re-run until validation passes or only warnings remain.
 
-### Step 12: Display Summary
+### Step 16: Clean Up Team
+
+Delete the team and its resources:
+
+```
+TeamDelete
+```
+
+### Step 17: Display Summary
 
 Provide completion summary:
 
@@ -264,6 +322,12 @@ ${feature_dir}/shared.md
 - ${feature_dir}/research-patterns.md
 - ${feature_dir}/research-integration.md
 - ${feature_dir}/research-docs.md
+
+## Team Summary
+
+- Team: sc-[feature-name]
+- Teammates: 4 research agents
+- Inter-agent sharing: Enabled (teammates shared findings with each other)
 
 ## Summary
 
@@ -299,25 +363,28 @@ ${feature_dir}/shared.md
 - **STOP AFTER SUMMARY** - After displaying the completion summary, stop completely
 - **DO NOT CHAIN** - Do not automatically proceed to parallel-plan or implement-plan
 - **PERSIST ARTIFACTS** - All 4 research files must exist before synthesis
+- **CLEAN UP TEAM** - Always delete the team before completing
 
 ## Output Contract
 
 All files are written to `${feature_dir}/` (resolved via `resolve-plans-dir.sh`).
 
-| File                       | Producer                       | Required Before     |
-| -------------------------- | ------------------------------ | ------------------- |
-| `research-architecture.md` | Architecture Researcher agent  | shared.md synthesis |
-| `research-patterns.md`     | Pattern Researcher agent       | shared.md synthesis |
-| `research-integration.md`  | Integration Researcher agent   | shared.md synthesis |
-| `research-docs.md`         | Documentation Researcher agent | shared.md synthesis |
-| `shared.md`                | Orchestrator (this skill)      | Skill completion    |
+| File                       | Producer                           | Required Before     |
+| -------------------------- | ---------------------------------- | ------------------- |
+| `research-architecture.md` | architecture-researcher teammate   | shared.md synthesis |
+| `research-patterns.md`     | patterns-researcher teammate       | shared.md synthesis |
+| `research-integration.md`  | integration-researcher teammate    | shared.md synthesis |
+| `research-docs.md`         | docs-researcher teammate           | shared.md synthesis |
+| `shared.md`                | Team lead (this skill)             | Skill completion    |
 
 **Contract Rules**:
 
-1. Each agent MUST write its own output file using the Write tool
-2. The orchestrator MUST run `validate-research-artifacts.sh` before generating shared.md
-3. If validation fails, the orchestrator MUST re-deploy the failed agents
-4. No file may be skipped or deferred
+1. Each teammate MUST write its own output file using the Write tool
+2. Each teammate MUST share key findings with relevant teammates via SendMessage
+3. The team lead MUST run `validate-research-artifacts.sh` before generating shared.md
+4. If validation fails, the team lead MUST message the failing teammate to fix their output
+5. No file may be skipped or deferred
+6. The team MUST be cleaned up (TeamDelete) before skill completion
 
 ## Monorepo Support
 
@@ -337,10 +404,13 @@ scope: local
 
 ## Important Notes
 
-- **You are the researcher** - gather comprehensive context
-- **Deploy agents in parallel** - single message with multiple Task calls
-- **Validate with script** - run `validate-research-artifacts.sh` after agents complete
-- **Re-deploy on failure** - if validation fails, re-deploy only the failed agents
+- **You are the team lead** - coordinate the research team
+- **Create team first** - use TeamCreate before spawning teammates
+- **Spawn teammates in parallel** - single message with multiple Agent calls
+- **Teammates share findings** - they communicate with each other via SendMessage
+- **Validate with script** - run `validate-research-artifacts.sh` after teammates complete
+- **Message on failure** - if validation fails, message the relevant teammate
+- **Clean up team** - always TeamDelete before completing
 - **Be thorough but concise** - quality over quantity
 - **Verify file paths** - all referenced files must exist
 - **Foundation for planning** - this document will be used by parallel-plan (run separately by user)
