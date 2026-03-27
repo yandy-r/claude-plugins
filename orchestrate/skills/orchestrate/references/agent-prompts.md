@@ -8,16 +8,16 @@ Standard prompt templates for common orchestration patterns. Use these to ensure
 
 All templates support these variables:
 
-| Variable             | Description                             | Example                                    |
-| -------------------- | --------------------------------------- | ------------------------------------------ |
-| `{{TASK}}`           | The main task being orchestrated        | "Implement user authentication"            |
-| `{{SUBTASK}}`        | Specific subtask for this agent         | "Create user model and schema"             |
-| `{{CONTEXT_FILES}}`  | Files agent should read first           | "src/models/base.ts, docs/architecture.md" |
-| `{{OUTPUT_FILES}}`   | Files agent should create/modify        | "src/models/user.ts"                       |
-| `{{CONSTRAINTS}}`    | What agent should NOT do                | "Don't modify authentication middleware"   |
-| `{{DEPENDENCIES}}`   | What must be complete first             | "User model (Task 1.1)"                    |
-| `{{BATCH_NUMBER}}`   | Current execution batch number          | "1", "2", "3"                              |
-| `{{BATCH_TEAMMATES}}`| Other teammates in this batch           | "- **subtask-2**: Create test plan"        |
+| Variable              | Description                      | Example                                    |
+| --------------------- | -------------------------------- | ------------------------------------------ |
+| `{{TASK}}`            | The main task being orchestrated | "Implement user authentication"            |
+| `{{SUBTASK}}`         | Specific subtask for this agent  | "Create user model and schema"             |
+| `{{CONTEXT_FILES}}`   | Files agent should read first    | "src/models/base.ts, docs/architecture.md" |
+| `{{OUTPUT_FILES}}`    | Files agent should create/modify | "src/models/user.ts"                       |
+| `{{CONSTRAINTS}}`     | What agent should NOT do         | "Don't modify authentication middleware"   |
+| `{{DEPENDENCIES}}`    | What must be complete first      | "User model (Task 1.1)"                    |
+| `{{BATCH_NUMBER}}`    | Current execution batch number   | "1", "2", "3"                              |
+| `{{BATCH_TEAMMATES}}` | Other teammates in this batch    | "- **subtask-2**: Create test plan"        |
 
 ---
 
@@ -685,4 +685,4 @@ When adapting templates:
 
 ---
 
-*These templates should be customized for your specific project, technology stack, and team conventions.*
+_These templates should be customized for your specific project, technology stack, and team conventions._

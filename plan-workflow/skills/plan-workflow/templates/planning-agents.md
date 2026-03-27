@@ -89,29 +89,37 @@ Structure your report as:
 # Context Analysis: {{FEATURE_NAME}}
 
 ## Executive Summary
+
 [2-3 sentences: What is being built and the core architectural approach]
 
 ## Architecture Context
+
 - **System Structure**: [How the relevant components are organized]
 - **Data Flow**: [Key data flow patterns relevant to this feature]
 - **Integration Points**: [Where new code plugs into existing system]
 
 ## Critical Files Reference
+
 - /path/to/file: [Why critical - 1 sentence]
 
 ## Patterns to Follow
+
 - **Pattern Name**: [Description with example file path]
 
 ## Cross-Cutting Concerns
+
 - [Security, performance, testing, or other concerns that affect multiple tasks]
 
 ## Parallelization Opportunities
+
 - [Areas where work can be done independently]
 
 ## Implementation Constraints
+
 - [Technical and business constraints]
 
 ## Key Recommendations
+
 - [Specific advice for task breakdown]
 ```
 
@@ -137,7 +145,7 @@ Be concise. Each bullet should be information-dense. Aim for 60-80% compression.
 
 **Prompt Template**:
 
-````markdown
+```markdown
 ## PRIMARY DELIVERABLE
 
 **Output File**: {{FEATURE_DIR}}/analysis-code.md
@@ -191,7 +199,7 @@ Focus on patterns that inform implementation. Extract actual code patterns, not 
 2. **Verify file**: Use the Read tool to confirm the file exists
 3. **Share findings**: Message teammates with key insights
 4. **Mark complete**: Update your task status to completed
-````
+```
 
 ---
 
@@ -205,7 +213,7 @@ Focus on patterns that inform implementation. Extract actual code patterns, not 
 
 **Prompt Template**:
 
-````markdown
+```markdown
 ## PRIMARY DELIVERABLE
 
 **Output File**: {{FEATURE_DIR}}/analysis-tasks.md
@@ -259,7 +267,7 @@ Focus on actionable structure suggestions. The goal is to help organize the para
 2. **Verify file**: Use the Read tool to confirm the file exists
 3. **Share findings**: Message teammates with key insights
 4. **Mark complete**: Update your task status to completed
-````
+```
 
 ---
 
@@ -280,11 +288,11 @@ When spawning analysis teammates:
 
 ## Teammate Configuration
 
-| Teammate             | Type                        | Output File         |
-| -------------------- | --------------------------- | ------------------- |
-| context-synthesizer  | `codebase-research-analyst` | analysis-context.md |
-| code-analyzer        | `codebase-research-analyst` | analysis-code.md    |
-| task-structurer      | `codebase-research-analyst` | analysis-tasks.md   |
+| Teammate            | Type                        | Output File         |
+| ------------------- | --------------------------- | ------------------- |
+| context-synthesizer | `codebase-research-analyst` | analysis-context.md |
+| code-analyzer       | `codebase-research-analyst` | analysis-code.md    |
+| task-structurer     | `codebase-research-analyst` | analysis-tasks.md   |
 
 ## Expected Output Size
 

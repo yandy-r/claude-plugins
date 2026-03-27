@@ -314,8 +314,8 @@ When spawning validation teammates:
 
 ### Standard Mode
 
-| Teammate                | Type                        | Focus             | Model   |
-| ----------------------- | --------------------------- | ----------------- | ------- |
-| path-validator          | `explore`                   | Path verification | haiku   |
-| dependency-validator    | `explore`                   | Dependency graph  | haiku   |
-| completeness-validator  | `codebase-research-analyst` | Task quality      | Default |
+| Teammate               | Type                        | Focus             | Model   |
+| ---------------------- | --------------------------- | ----------------- | ------- |
+| path-validator         | `explore`                   | Path verification | haiku   |
+| dependency-validator   | `explore`                   | Dependency graph  | haiku   |
+| completeness-validator | `codebase-research-analyst` | Task quality      | Default |

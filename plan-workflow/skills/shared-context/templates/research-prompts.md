@@ -486,9 +486,9 @@ When spawning research teammates:
 
 ## Teammate Configuration
 
-| Teammate                 | Type                        | Can Write | Model   |
-| ------------------------ | --------------------------- | --------- | ------- |
-| architecture-researcher  | `codebase-research-analyst` | Yes       | Default |
-| patterns-researcher      | `codebase-research-analyst` | Yes       | Default |
-| integration-researcher   | `codebase-research-analyst` | Yes       | Default |
-| docs-researcher          | `codebase-research-analyst` | Yes       | Default |
+| Teammate                | Type                        | Can Write | Model   |
+| ----------------------- | --------------------------- | --------- | ------- |
+| architecture-researcher | `codebase-research-analyst` | Yes       | Default |
+| patterns-researcher     | `codebase-research-analyst` | Yes       | Default |
+| integration-researcher  | `codebase-research-analyst` | Yes       | Default |
+| docs-researcher         | `codebase-research-analyst` | Yes       | Default |

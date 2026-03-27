@@ -269,17 +269,17 @@ Agent(
 
 Template variables to substitute:
 
-| Variable               | Source                          |
-| ---------------------- | ------------------------------- |
-| `{{FEATURE_NAME}}`     | Feature directory name          |
-| `{{TASK_ID}}`          | Task identifier (1.1, T0, etc) |
-| `{{TASK_TITLE}}`       | Task name from plan             |
-| `{{FILES_TO_READ}}`    | "READ THESE BEFORE TASK" files  |
-| `{{FILES_TO_CREATE}}`  | "Files to Create" list          |
-| `{{FILES_TO_MODIFY}}`  | "Files to Modify" list          |
-| `{{TASK_INSTRUCTIONS}}`| Implementation instructions     |
-| `{{BATCH_NUMBER}}`     | Current batch number            |
-| `{{BATCH_TEAMMATES}}`  | Other teammates in this batch   |
+| Variable                | Source                         |
+| ----------------------- | ------------------------------ |
+| `{{FEATURE_NAME}}`      | Feature directory name         |
+| `{{TASK_ID}}`           | Task identifier (1.1, T0, etc) |
+| `{{TASK_TITLE}}`        | Task name from plan            |
+| `{{FILES_TO_READ}}`     | "READ THESE BEFORE TASK" files |
+| `{{FILES_TO_CREATE}}`   | "Files to Create" list         |
+| `{{FILES_TO_MODIFY}}`   | "Files to Modify" list         |
+| `{{TASK_INSTRUCTIONS}}` | Implementation instructions    |
+| `{{BATCH_NUMBER}}`      | Current batch number           |
+| `{{BATCH_TEAMMATES}}`   | Other teammates in this batch  |
 
 **3. Monitor progress** — use `TaskList` to check when all batch tasks are complete. If a teammate messages you with an issue, respond with guidance.
 

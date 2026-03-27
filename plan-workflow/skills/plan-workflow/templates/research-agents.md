@@ -171,6 +171,7 @@ Structure your report as:
 ## Architectural Patterns
 
 **Pattern Name**: Description of how it's used
+
 - Example: /path/to/example.ext
 
 ## Code Conventions
@@ -205,7 +206,7 @@ Find concrete examples for each pattern. Include file paths.
 
 **Prompt Template**:
 
-````markdown
+```markdown
 Research the APIs, databases, and external integrations relevant to implementing "{{FEATURE_NAME}}".
 
 ## Your Task
@@ -251,7 +252,7 @@ You are part of a research team. Your teammates are:
 Structure your report following the integration research format with API endpoints, database schema, external/internal services, and configuration sections.
 
 Be thorough with database schema - this informs data modeling decisions.
-````
+```
 
 ---
 
@@ -265,7 +266,7 @@ Be thorough with database schema - this informs data modeling decisions.
 
 **Prompt Template**:
 
-````markdown
+```markdown
 Find all documentation files relevant to implementing "{{FEATURE_NAME}}".
 
 ## Your Task
@@ -312,7 +313,7 @@ Structure your report with Architecture Docs, API Docs, Development Guides, READ
 
 Focus on documents that would help someone implement {{FEATURE_NAME}}.
 Identify which documents are REQUIRED reading vs nice-to-have.
-````
+```
 
 ---
 
@@ -328,7 +329,7 @@ When `--optimized` flag is used, deploy these 5 unified teammates instead:
 
 **Prompt Template**:
 
-````markdown
+```markdown
 Analyze the codebase architecture for implementing "{{FEATURE_NAME}}" and synthesize actionable context.
 
 ## Combined Task
@@ -349,7 +350,7 @@ Share architectural patterns with `pattern-analyst`, integration points with `in
 **Output File**: {{FEATURE_DIR}}/analysis-architecture.md
 
 Write a combined architecture research + context synthesis report. Be concise but comprehensive.
-````
+```
 
 ### Agent 2: Pattern Analyst (Unified)
 
@@ -359,7 +360,7 @@ Write a combined architecture research + context synthesis report. Be concise bu
 
 **Prompt Template**:
 
-````markdown
+```markdown
 Analyze coding patterns for implementing "{{FEATURE_NAME}}" and extract implementation guidance.
 
 ## Combined Task
@@ -380,7 +381,7 @@ Share pattern insights with `arch-analyst`, API patterns with `integration-analy
 **Output File**: {{FEATURE_DIR}}/analysis-patterns.md
 
 Write a combined pattern research + code analysis report with concrete examples and file paths.
-````
+```
 
 ### Agent 3: Integration Analyst
 
@@ -480,9 +481,9 @@ When spawning research teammates:
 
 ## Teammate Configuration
 
-| Teammate                 | Type                        | Output File              | Model   |
-| ------------------------ | --------------------------- | ------------------------ | ------- |
-| architecture-researcher  | `codebase-research-analyst` | research-architecture.md | Default |
-| patterns-researcher      | `codebase-research-analyst` | research-patterns.md     | Default |
-| integration-researcher   | `codebase-research-analyst` | research-integration.md  | Default |
-| docs-researcher          | `codebase-research-analyst` | research-docs.md         | Default |
+| Teammate                | Type                        | Output File              | Model   |
+| ----------------------- | --------------------------- | ------------------------ | ------- |
+| architecture-researcher | `codebase-research-analyst` | research-architecture.md | Default |
+| patterns-researcher     | `codebase-research-analyst` | research-patterns.md     | Default |
+| integration-researcher  | `codebase-research-analyst` | research-integration.md  | Default |
+| docs-researcher         | `codebase-research-analyst` | research-docs.md         | Default |

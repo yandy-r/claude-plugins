@@ -522,11 +522,11 @@ When spawning analysis teammates:
 
 ## Teammate Configuration
 
-| Teammate             | Type                        | Output File         |
-| -------------------- | --------------------------- | ------------------- |
-| context-synthesizer  | `codebase-research-analyst` | analysis-context.md |
-| code-analyzer        | `codebase-research-analyst` | analysis-code.md    |
-| task-structurer      | `codebase-research-analyst` | analysis-tasks.md   |
+| Teammate            | Type                        | Output File         |
+| ------------------- | --------------------------- | ------------------- |
+| context-synthesizer | `codebase-research-analyst` | analysis-context.md |
+| code-analyzer       | `codebase-research-analyst` | analysis-code.md    |
+| task-structurer     | `codebase-research-analyst` | analysis-tasks.md   |
 
 ## Expected Output Size
 

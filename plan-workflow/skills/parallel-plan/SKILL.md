@@ -365,11 +365,11 @@ cat ${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/templates/validation-prompts.md
 
 **CRITICAL**: Spawn all 3 validation teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="pp-[feature-name]"`.
 
-| Teammate Name             | Subagent Type               | Focus                                   |
-| ------------------------- | --------------------------- | --------------------------------------- |
-| `path-validator`          | `explore`                   | Verify all referenced files exist       |
-| `dependency-validator`    | `explore`                   | Check for circular/invalid dependencies |
-| `completeness-validator`  | `codebase-research-analyst` | Ensure tasks are actionable             |
+| Teammate Name            | Subagent Type               | Focus                                   |
+| ------------------------ | --------------------------- | --------------------------------------- |
+| `path-validator`         | `explore`                   | Verify all referenced files exist       |
+| `dependency-validator`   | `explore`                   | Check for circular/invalid dependencies |
+| `completeness-validator` | `codebase-research-analyst` | Ensure tasks are actionable             |
 
 ### Step 19: Review Validation Results
 
@@ -518,12 +518,12 @@ The overall plan must have:
 
 All files are written to `${feature_dir}/` (resolved via `resolve-plans-dir.sh`).
 
-| File                  | Producer                       | Required Before             |
-| --------------------- | ------------------------------ | --------------------------- |
-| `analysis-context.md` | context-synthesizer teammate   | parallel-plan.md generation |
-| `analysis-code.md`    | code-analyzer teammate         | parallel-plan.md generation |
-| `analysis-tasks.md`   | task-structurer teammate       | parallel-plan.md generation |
-| `parallel-plan.md`    | Team lead (this skill)         | Skill completion            |
+| File                  | Producer                     | Required Before             |
+| --------------------- | ---------------------------- | --------------------------- |
+| `analysis-context.md` | context-synthesizer teammate | parallel-plan.md generation |
+| `analysis-code.md`    | code-analyzer teammate       | parallel-plan.md generation |
+| `analysis-tasks.md`   | task-structurer teammate     | parallel-plan.md generation |
+| `parallel-plan.md`    | Team lead (this skill)       | Skill completion            |
 
 **Contract Rules**:
 

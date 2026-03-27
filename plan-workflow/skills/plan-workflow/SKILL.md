@@ -126,13 +126,13 @@ This script reports:
 
 Based on flags and detected state:
 
-| State                | --plan-only | --research-only | Action                         |
-| -------------------- | ----------- | --------------- | ------------------------------ |
+| State                | --plan-only | --research-only | Action                                                             |
+| -------------------- | ----------- | --------------- | ------------------------------------------------------------------ |
 | No shared.md         | N/A         | N/A             | Full workflow from Phase 1; if --research-only, stop after Phase 4 |
-| Has shared.md        | Yes         | N/A             | Skip to Phase 5 (Analysis)     |
-| Has shared.md        | No          | Yes             | Skip (already done)            |
-| Has shared.md        | No          | No              | Full workflow from Phase 1 (regenerates shared.md) |
-| Has parallel-plan.md | Any         | Any             | Warn about overwrite           |
+| Has shared.md        | Yes         | N/A             | Skip to Phase 5 (Analysis)                                         |
+| Has shared.md        | No          | Yes             | Skip (already done)                                                |
+| Has shared.md        | No          | No              | Full workflow from Phase 1 (regenerates shared.md)                 |
+| Has parallel-plan.md | Any         | Any             | Warn about overwrite                                               |
 
 **Note**: "Planning" in this workflow = Phase 8 (Plan Generation). "Analysis" = Phase 5.
 The `--plan-only` flag skips Research + Checkpoint (Phases 1-4) but NOT Analysis (Phase 5).
@@ -188,12 +188,12 @@ Create 4 tasks in the shared task list:
 
 **CRITICAL**: Spawn all 4 teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="pw-[feature-name]"`.
 
-| Teammate Name            | Subagent Type               | Output File                | Focus                                    |
-| ------------------------ | --------------------------- | -------------------------- | ---------------------------------------- |
-| `architecture-researcher`| `codebase-research-analyst` | `research-architecture.md` | System structure, components, data flow  |
-| `patterns-researcher`    | `codebase-research-analyst` | `research-patterns.md`     | Existing patterns, conventions, examples |
-| `integration-researcher` | `codebase-research-analyst` | `research-integration.md`  | APIs, databases, external systems        |
-| `docs-researcher`        | `codebase-research-analyst` | `research-docs.md`         | Relevant documentation files             |
+| Teammate Name             | Subagent Type               | Output File                | Focus                                    |
+| ------------------------- | --------------------------- | -------------------------- | ---------------------------------------- |
+| `architecture-researcher` | `codebase-research-analyst` | `research-architecture.md` | System structure, components, data flow  |
+| `patterns-researcher`     | `codebase-research-analyst` | `research-patterns.md`     | Existing patterns, conventions, examples |
+| `integration-researcher`  | `codebase-research-analyst` | `research-integration.md`  | APIs, databases, external systems        |
+| `docs-researcher`         | `codebase-research-analyst` | `research-docs.md`         | Relevant documentation files             |
 
 Each teammate writes findings to `${feature_dir}/[output-file]`.
 
@@ -446,18 +446,18 @@ cat ${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/templates/validation-agents.md
 
 **Standard Mode**: Spawn 3 teammates:
 
-| Teammate Name             | Subagent Type               | Focus                                   |
-| ------------------------- | --------------------------- | --------------------------------------- |
-| `path-validator`          | `explore`                   | Verify all referenced files exist       |
-| `dependency-validator`    | `explore`                   | Check for circular/invalid dependencies |
-| `completeness-validator`  | `codebase-research-analyst` | Ensure tasks are actionable             |
+| Teammate Name            | Subagent Type               | Focus                                   |
+| ------------------------ | --------------------------- | --------------------------------------- |
+| `path-validator`         | `explore`                   | Verify all referenced files exist       |
+| `dependency-validator`   | `explore`                   | Check for circular/invalid dependencies |
+| `completeness-validator` | `codebase-research-analyst` | Ensure tasks are actionable             |
 
 **Optimized Mode**: Spawn 2 teammates:
 
-| Teammate Name             | Subagent Type               | Focus                           |
-| ------------------------- | --------------------------- | ------------------------------- |
-| `path-dep-validator`      | `explore`                   | Verify paths + dependency graph |
-| `completeness-validator`  | `codebase-research-analyst` | Task quality + completeness     |
+| Teammate Name            | Subagent Type               | Focus                           |
+| ------------------------ | --------------------------- | ------------------------------- |
+| `path-dep-validator`     | `explore`                   | Verify paths + dependency graph |
+| `completeness-validator` | `codebase-research-analyst` | Task quality + completeness     |
 
 ### Step 31: Review and Fix Issues
 
@@ -614,27 +614,27 @@ All files are written to `${feature_dir}/` (resolved via `resolve-plans-dir.sh`)
 
 ### Research Phase Artifacts
 
-| File                       | Producer                           | Required Before     |
-| -------------------------- | ---------------------------------- | ------------------- |
-| `research-architecture.md` | architecture-researcher teammate   | shared.md synthesis |
-| `research-patterns.md`     | patterns-researcher teammate       | shared.md synthesis |
-| `research-integration.md`  | integration-researcher teammate    | shared.md synthesis |
-| `research-docs.md`         | docs-researcher teammate           | shared.md synthesis |
-| `shared.md`                | Team lead (this skill)             | Analysis phase      |
+| File                       | Producer                         | Required Before     |
+| -------------------------- | -------------------------------- | ------------------- |
+| `research-architecture.md` | architecture-researcher teammate | shared.md synthesis |
+| `research-patterns.md`     | patterns-researcher teammate     | shared.md synthesis |
+| `research-integration.md`  | integration-researcher teammate  | shared.md synthesis |
+| `research-docs.md`         | docs-researcher teammate         | shared.md synthesis |
+| `shared.md`                | Team lead (this skill)           | Analysis phase      |
 
 ### Analysis Phase Artifacts (Standard Mode)
 
-| File                  | Producer                       | Required Before             |
-| --------------------- | ------------------------------ | --------------------------- |
-| `analysis-context.md` | context-synthesizer teammate   | parallel-plan.md generation |
-| `analysis-code.md`    | code-analyzer teammate         | parallel-plan.md generation |
-| `analysis-tasks.md`   | task-structurer teammate       | parallel-plan.md generation |
+| File                  | Producer                     | Required Before             |
+| --------------------- | ---------------------------- | --------------------------- |
+| `analysis-context.md` | context-synthesizer teammate | parallel-plan.md generation |
+| `analysis-code.md`    | code-analyzer teammate       | parallel-plan.md generation |
+| `analysis-tasks.md`   | task-structurer teammate     | parallel-plan.md generation |
 
 ### Planning Phase Artifacts
 
-| File               | Producer                  | Required Before  |
-| ------------------ | ------------------------- | ---------------- |
-| `parallel-plan.md` | Team lead (this skill)    | Skill completion |
+| File               | Producer               | Required Before  |
+| ------------------ | ---------------------- | ---------------- |
+| `parallel-plan.md` | Team lead (this skill) | Skill completion |
 
 **Contract Rules**:
 

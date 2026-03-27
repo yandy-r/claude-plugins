@@ -31,6 +31,7 @@ ${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/scripts/validate-prerequisites.s
 ```
 
 If validation fails, display the error and stop. Do not proceed without:
+
 - `gh` CLI installed and authenticated
 - A GitHub-connected git repository
 - A valid research directory with expected structure
@@ -38,6 +39,7 @@ If validation fails, display the error and stop. Do not proceed without:
 ### Step 2: Identify Research Directory
 
 Determine the research directory:
+
 1. If `--research-dir PATH` is specified, use that path
 2. Otherwise, search for common locations: `docs/research/`, `research/`
 3. If not found, ask the user to specify the path
@@ -52,13 +54,13 @@ Verify the directory contains at minimum `RESEARCH-REPORT.md`.
 
 Read all markdown files in the research directory. Identify which documents contain extractable items:
 
-| Document | What to Extract |
-|----------|----------------|
-| `RESEARCH-REPORT.md` | Research date, project name, key findings with confidence levels |
-| `synthesis/strategic-recommendations.md` | MVP features (§4), anti-scope items (§7) |
-| `synthesis/implementation-roadmap.md` | Phase definitions, deliverables per phase, success criteria |
-| `analysis/convergence.md` | Confidence levels for cross-cutting concerns |
-| `analysis/gaps-and-risks.md` | Research gaps with severity |
+| Document                                 | What to Extract                                                  |
+| ---------------------------------------- | ---------------------------------------------------------------- |
+| `RESEARCH-REPORT.md`                     | Research date, project name, key findings with confidence levels |
+| `synthesis/strategic-recommendations.md` | MVP features (§4), anti-scope items (§7)                         |
+| `synthesis/implementation-roadmap.md`    | Phase definitions, deliverables per phase, success criteria      |
+| `analysis/convergence.md`                | Confidence levels for cross-cutting concerns                     |
+| `analysis/gaps-and-risks.md`             | Research gaps with severity                                      |
 
 Read each file and extract the structured data. Not all files may exist — adapt to whatever is present.
 
@@ -99,13 +101,13 @@ Unless `--skip-gaps` is specified, extract from gaps-and-risks analysis (§1 "Re
 
 Apply priority mapping based on confidence:
 
-| Confidence | Priority Label | Extra Labels |
-|-----------|---------------|-------------|
-| High (7-8/8 personas, or "High") | `priority:high` | — |
-| Medium-High (5-6/8 personas) | `priority:medium` | — |
-| Medium or lower | `priority:low` | `under-review` |
-| Anti-scope items | `priority:low` | `under-review`, `deferred` |
-| Research gaps | `priority:medium` | `under-review`, `research-gap` |
+| Confidence                       | Priority Label    | Extra Labels                   |
+| -------------------------------- | ----------------- | ------------------------------ |
+| High (7-8/8 personas, or "High") | `priority:high`   | —                              |
+| Medium-High (5-6/8 personas)     | `priority:medium` | —                              |
+| Medium or lower                  | `priority:low`    | `under-review`                 |
+| Anti-scope items                 | `priority:low`    | `under-review`, `deferred`     |
+| Research gaps                    | `priority:medium` | `under-review`, `research-gap` |
 
 ---
 
@@ -116,10 +118,12 @@ Apply priority mapping based on confidence:
 Construct a complete plan of all issues to create. Structure:
 
 **For each phase** → 1 tracking issue containing:
+
 - Phase title, description, metadata
 - Checkbox list of child feature issues
 
 **For each feature/deliverable** → 1 feature issue containing:
+
 - Title, body from template, labels
 
 **For anti-scope items** → 1 issue each (grouped under a "Deferred / Under Review" tracking issue)
@@ -156,44 +160,48 @@ Before creating anything, display the full plan:
 ## Tracking Issues ({count})
 
 ### Phase 0: {title}
+
 - Labels: tracking, phase:0, priority:high
 - Child issues: {count}
 
 ### Phase 1: {title}
+
 - Labels: tracking, phase:1, priority:high
 - Child issues: {count}
 
 {... more phases ...}
 
 ### Deferred / Under Review
+
 - Labels: tracking, under-review
 - Child issues: {count}
 
 ### Research Gaps
+
 - Labels: tracking, research-gap
 - Child issues: {count}
 
 ## Feature Issues ({total count})
 
-| # | Title | Phase | Labels | Priority |
-|---|-------|-------|--------|----------|
-| 1 | Multi-Tenant Data Model | 0-1 | feat:multi-tenant-data-model | high |
-| 2 | Credential Vault | 1 | feat:credential-vault | high |
-| ... | ... | ... | ... | ... |
+| #   | Title                   | Phase | Labels                       | Priority |
+| --- | ----------------------- | ----- | ---------------------------- | -------- |
+| 1   | Multi-Tenant Data Model | 0-1   | feat:multi-tenant-data-model | high     |
+| 2   | Credential Vault        | 1     | feat:credential-vault        | high     |
+| ... | ...                     | ...   | ...                          | ...      |
 
 ## Anti-Scope Issues ({count})
 
-| # | Title | Labels |
-|---|-------|--------|
-| 1 | Path Analysis | under-review, deferred |
-| ... | ... | ... |
+| #   | Title         | Labels                 |
+| --- | ------------- | ---------------------- |
+| 1   | Path Analysis | under-review, deferred |
+| ... | ...           | ...                    |
 
 ## Research Gap Issues ({count})
 
-| # | Title | Severity | Labels |
-|---|-------|----------|--------|
-| 1 | Testing Strategy | High | under-review, research-gap |
-| ... | ... | ... | ... |
+| #   | Title            | Severity | Labels                     |
+| --- | ---------------- | -------- | -------------------------- |
+| 1   | Testing Strategy | High     | under-review, research-gap |
+| ... | ...              | ...      | ...                        |
 
 **Total issues to create**: {total}
 ```
@@ -220,17 +228,17 @@ gh label create "<label-name>" --description "<description>" --color "<hex-color
 
 Label color scheme:
 
-| Label Pattern | Color | Description |
-|--------------|-------|-------------|
-| `tracking` | `0075ca` (blue) | Tracking/epic issue |
-| `phase:*` | `6f42c1` (purple) | Development phase |
-| `feat:*` | `1d76db` (medium blue) | Feature area |
-| `priority:high` | `d73a4a` (red) | High priority |
-| `priority:medium` | `fbca04` (yellow) | Medium priority |
-| `priority:low` | `0e8a16` (green) | Low priority |
-| `under-review` | `e4e669` (light yellow) | Needs decision |
-| `deferred` | `d4c5f9` (light purple) | Explicitly deferred |
-| `research-gap` | `f9d0c4` (light orange) | Research gap |
+| Label Pattern     | Color                   | Description         |
+| ----------------- | ----------------------- | ------------------- |
+| `tracking`        | `0075ca` (blue)         | Tracking/epic issue |
+| `phase:*`         | `6f42c1` (purple)       | Development phase   |
+| `feat:*`          | `1d76db` (medium blue)  | Feature area        |
+| `priority:high`   | `d73a4a` (red)          | High priority       |
+| `priority:medium` | `fbca04` (yellow)       | Medium priority     |
+| `priority:low`    | `0e8a16` (green)        | Low priority        |
+| `under-review`    | `e4e669` (light yellow) | Needs decision      |
+| `deferred`        | `d4c5f9` (light purple) | Explicitly deferred |
+| `research-gap`    | `f9d0c4` (light orange) | Research gap        |
 
 Use `--force` to avoid errors if a label already exists.
 
@@ -291,18 +299,18 @@ After all issues are created, display a summary:
 
 ## Tracking Issues
 
-| Phase | Title | Issue | Child Issues |
-|-------|-------|-------|-------------|
-| 0 | Foundation | #XX | {count} |
-| 1 | Core Platform | #XX | {count} |
-| ... | ... | ... | ... |
+| Phase | Title         | Issue | Child Issues |
+| ----- | ------------- | ----- | ------------ |
+| 0     | Foundation    | #XX   | {count}      |
+| 1     | Core Platform | #XX   | {count}      |
+| ...   | ...           | ...   | ...          |
 
 ## All Issues
 
-| # | Issue | Title | Labels |
-|---|-------|-------|--------|
-| 1 | #XX | Multi-Tenant Data Model | feat:multi-tenant-data-model, phase:1, priority:high |
-| ... | ... | ... | ... |
+| #   | Issue | Title                   | Labels                                               |
+| --- | ----- | ----------------------- | ---------------------------------------------------- |
+| 1   | #XX   | Multi-Tenant Data Model | feat:multi-tenant-data-model, phase:1, priority:high |
+| ... | ...   | ...                     | ...                                                  |
 
 ## Next Steps
 
@@ -371,6 +379,7 @@ After all issues are created, display a summary:
 ### Templates
 
 Issue body templates for consistent formatting:
+
 - **`templates/tracking-issue.md`** — Tracking issue body structure and field descriptions
 - **`templates/feature-issue.md`** — Feature, anti-scope, and research gap issue templates with label assignment rules
 

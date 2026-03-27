@@ -168,14 +168,14 @@ cat ${CLAUDE_PLUGIN_ROOT}/skills/feature-research/templates/research-agents.md
 
 **CRITICAL**: Spawn all 6 teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="fr-[feature-name]"`.
 
-| Teammate Name           | Subagent Type               | Output File                   | Focus                                                                  |
-| ----------------------- | --------------------------- | ----------------------------- | ---------------------------------------------------------------------- |
-| `api-researcher`        | `research-specialist`       | `research-external.md`        | External APIs, libraries, documentation, integration patterns          |
-| `business-analyzer`     | `codebase-research-analyst` | `research-business.md`        | Requirements, user stories, business rules, domain logic               |
-| `tech-designer`         | `codebase-research-analyst` | `research-technical.md`       | Architecture, data models, API design, system constraints              |
-| `ux-researcher`         | `research-specialist`       | `research-ux.md`              | User experience, workflows, best practices, accessibility              |
-| `security-researcher`   | `research-specialist`       | `research-security.md`        | Security analysis, dependency risks, secure coding (severity-leveled)  |
-| `recommendations-agent` | `codebase-research-analyst` | `research-recommendations.md` | Ideas, improvements, related features, risks                           |
+| Teammate Name           | Subagent Type               | Output File                   | Focus                                                                 |
+| ----------------------- | --------------------------- | ----------------------------- | --------------------------------------------------------------------- |
+| `api-researcher`        | `research-specialist`       | `research-external.md`        | External APIs, libraries, documentation, integration patterns         |
+| `business-analyzer`     | `codebase-research-analyst` | `research-business.md`        | Requirements, user stories, business rules, domain logic              |
+| `tech-designer`         | `codebase-research-analyst` | `research-technical.md`       | Architecture, data models, API design, system constraints             |
+| `ux-researcher`         | `research-specialist`       | `research-ux.md`              | User experience, workflows, best practices, accessibility             |
+| `security-researcher`   | `research-specialist`       | `research-security.md`        | Security analysis, dependency risks, secure coding (severity-leveled) |
+| `recommendations-agent` | `codebase-research-analyst` | `research-recommendations.md` | Ideas, improvements, related features, risks                          |
 
 Use the prompts from `research-agents.md` with variables substituted:
 
@@ -188,6 +188,7 @@ Use the prompts from `research-agents.md` with variables substituted:
 Wait for all 6 teammates to complete their tasks. Use `TaskList` to check progress.
 
 Teammates will share findings with each other:
+
 - `api-researcher` tells `tech-designer` about discovered API endpoints and auth patterns
 - `api-researcher` tells `security-researcher` about dependency versions and auth methods
 - `tech-designer` tells `business-analyzer` about data model constraints

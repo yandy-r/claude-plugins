@@ -23,7 +23,7 @@ Apply this contract to every teammate prompt in this file:
 
 **Prompt Template**:
 
-````
+```
 Research external APIs, libraries, and integration patterns for implementing "{{FEATURE_NAME}}".
 
 ## Feature Description
@@ -72,7 +72,7 @@ Write your findings to: {{FEATURE_DIR}}/research-external.md
 Structure with: Executive Summary, Primary APIs (with docs URLs, auth, endpoints, rate limits, pricing), Libraries and SDKs, Integration Patterns, Constraints and Gotchas, Code Examples, Open Questions.
 
 **Critical**: Include actual documentation URLs and working code examples where possible.
-````
+```
 
 ---
 
@@ -86,7 +86,7 @@ Structure with: Executive Summary, Primary APIs (with docs URLs, auth, endpoints
 
 **Prompt Template**:
 
-````
+```
 Analyze the business logic and requirements for implementing "{{FEATURE_NAME}}".
 
 ## Feature Description
@@ -137,7 +137,7 @@ Write your findings to: {{FEATURE_DIR}}/research-business.md
 Structure with: Executive Summary, User Stories, Business Rules (core rules + edge cases), Workflows (primary + error recovery), Domain Model (entities + state transitions), Existing Codebase Integration, Success Criteria, Open Questions.
 
 **Critical**: Focus on business value and user needs, not implementation details.
-````
+```
 
 ---
 
@@ -151,7 +151,7 @@ Structure with: Executive Summary, User Stories, Business Rules (core rules + ed
 
 **Prompt Template**:
 
-````
+```
 Design technical specifications for implementing "{{FEATURE_NAME}}".
 
 ## Feature Description
@@ -203,7 +203,7 @@ Write your findings to: {{FEATURE_DIR}}/research-technical.md
 Structure with: Executive Summary, Architecture Design (component diagram, new components, integration points), Data Models (tables with columns/types/constraints, indexes, migrations), API Design (endpoints with request/response/errors), System Constraints (performance, security, scalability), Codebase Changes (files to create/modify, dependencies), Technical Decisions (options + recommendation + rationale), Open Questions.
 
 **Critical**: Be specific about data models and API contracts. Include actual schemas and examples.
-````
+```
 
 ---
 
@@ -217,7 +217,7 @@ Structure with: Executive Summary, Architecture Design (component diagram, new c
 
 **Prompt Template**:
 
-````
+```
 Research user experience patterns and best practices for "{{FEATURE_NAME}}".
 
 ## Feature Description
@@ -268,7 +268,7 @@ Write your findings to: {{FEATURE_DIR}}/research-ux.md
 Structure with: Executive Summary, User Workflows (primary + alternative flows), UI/UX Best Practices (industry standards, accessibility, responsive), Error Handling (error states table, validation patterns), Performance UX (loading states, optimistic updates, offline), Competitive Analysis, Recommendations (must have, should have, nice to have), Open Questions.
 
 **Critical**: Include specific, actionable UX patterns. Reference industry standards and real examples.
-````
+```
 
 ---
 
@@ -454,7 +454,7 @@ Structure with:
 
 **Prompt Template**:
 
-````
+```
 Generate recommendations, improvement ideas, and identify risks for "{{FEATURE_NAME}}".
 
 ## Feature Description
@@ -508,7 +508,7 @@ You are part of a research team. Your teammates are:
 Structure with: Executive Summary, Implementation Recommendations (approach, technology choices, phasing, quick wins), Improvement Ideas (related features, enhancements, integrations), Risk Assessment (technical risks table, integration challenges, performance, security), Alternative Approaches (options with pros/cons/effort, recommendation), Task Breakdown Preview (phases with task groups, estimated complexity), Key Decisions Needed, Open Questions.
 
 **Critical**: Be creative but realistic. Ground recommendations in codebase analysis and practical constraints.
-````
+```
 
 ---
 
@@ -532,26 +532,27 @@ When spawning research teammates:
 
 ## Variable Reference
 
-| Variable                 | Description                          | Example                                                                 |
-| ------------------------ | ------------------------------------ | ----------------------------------------------------------------------- |
-| `{{FEATURE_NAME}}`       | Feature directory name               | `plex-integration`                                                      |
-| `{{FEATURE_DIR}}`        | Full research output directory       | `docs/plans/plex-integration`                                           |
-| `{{FEATURE_DESCRIPTION}}`| User-provided description            | `Advanced Plex media library integration with filters and playlists`    |
+| Variable                  | Description                    | Example                                                              |
+| ------------------------- | ------------------------------ | -------------------------------------------------------------------- |
+| `{{FEATURE_NAME}}`        | Feature directory name         | `plex-integration`                                                   |
+| `{{FEATURE_DIR}}`         | Full research output directory | `docs/plans/plex-integration`                                        |
+| `{{FEATURE_DESCRIPTION}}` | User-provided description      | `Advanced Plex media library integration with filters and playlists` |
 
 ## Teammate Configuration
 
-| Teammate              | Type                        | Can Write | Output File                   | Model   |
-| --------------------- | --------------------------- | --------- | ----------------------------- | ------- |
-| api-researcher        | `research-specialist`       | Yes       | research-external.md          | Default |
-| business-analyzer     | `codebase-research-analyst` | Yes       | research-business.md          | Default |
-| tech-designer         | `codebase-research-analyst` | Yes       | research-technical.md         | Default |
-| ux-researcher         | `research-specialist`       | Yes       | research-ux.md                | Default |
-| security-researcher   | `research-specialist`       | Yes       | research-security.md          | Default |
-| recommendations-agent | `codebase-research-analyst` | Yes       | research-recommendations.md   | Default |
+| Teammate              | Type                        | Can Write | Output File                 | Model   |
+| --------------------- | --------------------------- | --------- | --------------------------- | ------- |
+| api-researcher        | `research-specialist`       | Yes       | research-external.md        | Default |
+| business-analyzer     | `codebase-research-analyst` | Yes       | research-business.md        | Default |
+| tech-designer         | `codebase-research-analyst` | Yes       | research-technical.md       | Default |
+| ux-researcher         | `research-specialist`       | Yes       | research-ux.md              | Default |
+| security-researcher   | `research-specialist`       | Yes       | research-security.md        | Default |
+| recommendations-agent | `codebase-research-analyst` | Yes       | research-recommendations.md | Default |
 
 ## Expected Output
 
 Each research file should be:
+
 - **Comprehensive**: Cover all aspects of its domain
 - **Actionable**: Include specific recommendations
 - **Referenced**: Link to sources and documentation
