@@ -44,6 +44,7 @@ SUBSECTION_CHECKS=(
     "Technical Specifications:### Architecture|### Data Models|### API Design"
     "UX Considerations:### User Workflows|### UI Patterns"
     "Recommendations:### Implementation|### Technology"
+    "Risk Assessment:### Security Considerations|### Technical Risks"
 )
 
 errors=0

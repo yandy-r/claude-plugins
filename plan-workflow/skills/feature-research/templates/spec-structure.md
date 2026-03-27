@@ -238,7 +238,21 @@ This template defines the structure for `feature-spec.md` - the consolidated res
 
 ### Security Considerations
 
-- [Consideration]: [Required approach]
+#### Critical — Hard Stops
+
+| Finding | Risk | Required Mitigation |
+|---------|------|---------------------|
+| [Finding or "None identified"] | [Impact] | [Required action] |
+
+#### Warnings — Must Address
+
+| Finding | Risk | Mitigation | Alternatives |
+|---------|------|-----------|--------------|
+| [Finding or "None identified"] | [Impact] | [Recommended fix] | [Other options] |
+
+#### Advisories — Best Practices
+
+- [Advisory]: [Recommendation] (deferral justification: [when OK to skip])
 
 ## Task Breakdown Preview
 
@@ -289,6 +303,7 @@ For detailed findings, see:
 - [research-business.md](./research-business.md): Business logic analysis
 - [research-technical.md](./research-technical.md): Technical specifications
 - [research-ux.md](./research-ux.md): UX research
+- [research-security.md](./research-security.md): Security analysis (severity-leveled findings)
 - [research-recommendations.md](./research-recommendations.md): Full recommendations
 
 ````

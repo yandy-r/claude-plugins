@@ -88,6 +88,7 @@ declare -a files=(
     "research-business.md"
     "research-technical.md"
     "research-ux.md"
+    "research-security.md"
     "research-recommendations.md"
 )
 
@@ -130,6 +131,10 @@ for file in "${files[@]}"; do
         research-ux.md)
             require_any_heading "$path" "workflow section" "### Core User Workflows" "## User Workflows"
             require_any_heading "$path" "state/feedback section" "### Feedback and State Design" "## Performance UX"
+            ;;
+        research-security.md)
+            require_any_heading "$path" "severity findings section" "## Findings by Severity" "### CRITICAL"
+            require_any_heading "$path" "dependency section" "## Dependency Security" "### Dependency Security"
             ;;
         research-recommendations.md)
             require_any_heading "$path" "recommendation strategy section" "### Recommended Implementation Strategy" "## Implementation Recommendations" "### Recommended Approach"
