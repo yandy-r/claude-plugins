@@ -304,6 +304,7 @@ For detailed findings, see:
 - [research-technical.md](./research-technical.md): Technical specifications
 - [research-ux.md](./research-ux.md): UX research
 - [research-security.md](./research-security.md): Security analysis (severity-leveled findings)
+- [research-practices.md](./research-practices.md): Engineering practices (modularity, reuse, KISS)
 - [research-recommendations.md](./research-recommendations.md): Full recommendations
 
 ````

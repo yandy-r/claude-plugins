@@ -46,6 +46,7 @@ You are part of a research team. Your teammates are:
 - **tech-designer**: Designing technical specifications
 - **ux-researcher**: Researching user experience patterns
 - **security-researcher**: Evaluating security implications and dependency risks
+- **practices-researcher**: Evaluating modularity, code reuse, and engineering best practices
 - **recommendations-agent**: Generating recommendations and risk assessment
 
 **Share these findings via SendMessage:**
@@ -54,6 +55,7 @@ You are part of a research team. Your teammates are:
 - Message `business-analyzer` with: API pricing tiers, rate limits, and feature availability that affect business requirements
 - Message `ux-researcher` with: any API-provided UI components, widgets, or UX patterns from the service
 - Message `security-researcher` with: authentication methods, token handling patterns, dependency versions, and any security-related documentation for discovered APIs
+- Message `practices-researcher` with: discovered libraries, SDKs, and their version/maintenance status for build-vs-depend analysis
 - Message `recommendations-agent` with: alternative APIs or libraries you evaluated, with pros/cons
 
 ## Task Coordination
@@ -110,6 +112,7 @@ You are part of a research team. Your teammates are:
 - **tech-designer**: Designing technical specifications
 - **ux-researcher**: Researching user experience patterns
 - **security-researcher**: Evaluating security implications and dependency risks
+- **practices-researcher**: Evaluating modularity, code reuse, and engineering best practices
 - **recommendations-agent**: Generating recommendations and risk assessment
 
 **Share these findings via SendMessage:**
@@ -117,9 +120,10 @@ You are part of a research team. Your teammates are:
 - Message `tech-designer` with: key business rules and validation requirements that affect data model design
 - Message `ux-researcher` with: user workflows and decision points that need UI representation
 - Message `security-researcher` with: compliance requirements, data sensitivity classifications, and user data handling rules
+- Message `practices-researcher` with: existing domain patterns and shared components discovered during business analysis
 - Message `recommendations-agent` with: domain complexity insights and potential business risks
 
-**Listen for messages from teammates** — `api-researcher` may share pricing/feature constraints that affect requirements, `ux-researcher` may share workflow patterns that influence business rules, and `security-researcher` may share compliance constraints that affect data handling.
+**Listen for messages from teammates** — `api-researcher` may share pricing/feature constraints that affect requirements, `ux-researcher` may share workflow patterns that influence business rules, `security-researcher` may share compliance constraints that affect data handling, and `practices-researcher` may share existing reusable code relevant to business workflows.
 
 ## Task Coordination
 
@@ -175,6 +179,7 @@ You are part of a research team. Your teammates are:
 - **business-analyzer**: Analyzing business requirements and logic
 - **ux-researcher**: Researching user experience patterns
 - **security-researcher**: Evaluating security implications and dependency risks
+- **practices-researcher**: Evaluating modularity, code reuse, and engineering best practices
 - **recommendations-agent**: Generating recommendations and risk assessment
 
 **Share these findings via SendMessage:**
@@ -182,10 +187,11 @@ You are part of a research team. Your teammates are:
 - Message `business-analyzer` with: data model constraints and API limitations that affect business rules
 - Message `ux-researcher` with: API response formats and loading patterns that affect UX design
 - Message `security-researcher` with: proposed data models, auth architecture, and API surface area for security review
+- Message `practices-researcher` with: proposed component structure, module boundaries, and files to create/modify for modularity review
 - Message `recommendations-agent` with: architectural trade-offs and technical decision points
 - Message `api-researcher` with: specific technical requirements that may need additional API research
 
-**Listen for messages from teammates** — `api-researcher` will share discovered API endpoints and auth flows, `business-analyzer` will share validation requirements affecting your data model, and `security-researcher` may share security constraints that affect architecture decisions.
+**Listen for messages from teammates** — `api-researcher` will share discovered API endpoints and auth flows, `business-analyzer` will share validation requirements affecting your data model, `security-researcher` may share security constraints that affect architecture decisions, and `practices-researcher` may share reusable code discoveries and simplification suggestions.
 
 ## Task Coordination
 
@@ -241,6 +247,7 @@ You are part of a research team. Your teammates are:
 - **business-analyzer**: Analyzing business requirements and logic
 - **tech-designer**: Designing technical specifications
 - **security-researcher**: Evaluating security implications and dependency risks
+- **practices-researcher**: Evaluating modularity, code reuse, and engineering best practices
 - **recommendations-agent**: Generating recommendations and risk assessment
 
 **Share these findings via SendMessage:**
@@ -248,9 +255,10 @@ You are part of a research team. Your teammates are:
 - Message `business-analyzer` with: user workflow patterns and decision points that should map to business rules
 - Message `tech-designer` with: loading state requirements, real-time update needs, and data display patterns that affect API design
 - Message `security-researcher` with: authentication UX patterns, consent flows, and error message designs that may have security implications
+- Message `practices-researcher` with: UI component patterns and reusable design patterns discovered during competitive analysis
 - Message `recommendations-agent` with: competitive analysis highlights and UX best practices worth adopting
 
-**Listen for messages from teammates** — `business-analyzer` may share workflow requirements, `tech-designer` may share API response formats, `api-researcher` may share UI components provided by the service, and `security-researcher` may share security UX requirements (error messages that don't leak info, MFA flows, etc.).
+**Listen for messages from teammates** — `business-analyzer` may share workflow requirements, `tech-designer` may share API response formats, `api-researcher` may share UI components provided by the service, `security-researcher` may share security UX requirements (error messages that don't leak info, MFA flows, etc.), and `practices-researcher` may share existing reusable UI components in the codebase.
 
 ## Task Coordination
 
@@ -346,6 +354,7 @@ You are part of a research team. Your teammates are:
 - **business-analyzer**: Analyzing business requirements and logic
 - **tech-designer**: Designing technical specifications
 - **ux-researcher**: Researching user experience patterns
+- **practices-researcher**: Evaluating modularity, code reuse, and engineering best practices
 - **recommendations-agent**: Generating recommendations and risk assessment
 
 **Share these findings via SendMessage:**
@@ -353,10 +362,11 @@ You are part of a research team. Your teammates are:
 - Message `tech-designer` with: CRITICAL and WARNING findings that affect architecture decisions, required auth patterns, and data protection requirements — include severity level and suggested mitigations
 - Message `api-researcher` with: dependency vulnerability findings, insecure library alternatives, and auth flow requirements for external APIs
 - Message `business-analyzer` with: compliance requirements (GDPR, PCI-DSS, etc.) that affect business rules, and data handling constraints
+- Message `practices-researcher` with: security patterns that should be standardized as shared utilities (input sanitization, auth helpers, encryption wrappers)
 - Message `recommendations-agent` with: full security risk summary organized by severity level, so they can incorporate it into the overall risk assessment
 - Message `ux-researcher` with: security UX requirements (password policies, MFA flows, consent screens, error messages that don't leak info)
 
-**Listen for messages from ALL teammates** — `api-researcher` may share API auth patterns to evaluate, `tech-designer` may share data models that need security review, and `business-analyzer` may share compliance requirements.
+**Listen for messages from ALL teammates** — `api-researcher` may share API auth patterns to evaluate, `tech-designer` may share data models that need security review, `business-analyzer` may share compliance requirements, and `practices-researcher` may share shared utility patterns that have security implications.
 
 ## Task Coordination
 
@@ -444,7 +454,159 @@ Structure with:
 
 ---
 
-## Agent 6: Recommendations Agent
+## Agent 6: Practices Researcher
+
+**Teammate Name**: `practices-researcher`
+
+**Subagent Type**: `codebase-research-analyst`
+
+**Task Description**: Evaluate modularity, code reuse, and engineering best practices
+
+**Prompt Template**:
+
+````
+Evaluate the engineering practices, modularity, and code reuse opportunities for implementing "{{FEATURE_NAME}}".
+
+## Feature Description
+{{FEATURE_DESCRIPTION}}
+
+## Your Task
+
+Analyze the codebase and research:
+
+1. **Existing Reusable Code** - Scan for utilities, helpers, shared modules, base classes, and common patterns that the new feature should leverage instead of reinventing
+2. **Modularity Design** - How to structure the new code into composable, single-responsibility modules with clean boundaries
+3. **KISS Assessment** - Identify over-engineering risks in proposed approaches. Flag unnecessary abstractions and suggest simpler alternatives
+4. **Abstraction vs. Repetition** - Apply the "rule of three" — don't extract shared code until the pattern appears three times. Identify where duplication is acceptable vs. where extraction is warranted
+5. **Interface Design** - Evaluate API surfaces and extension points so the new code is reusable by future features
+6. **Testability Patterns** - Assess whether the proposed structure supports natural testing (dependency injection, pure functions, testable seams)
+7. **Build vs. Depend** - When to write custom code vs. using existing libraries, weighing maintenance burden, dependency risk, and fit
+
+## Philosophy
+
+You are a pragmatic engineering advisor, not a theory purist. Your job is to:
+
+1. **Reuse first** — always check what already exists before recommending new code. The best code is code you don't write
+2. **KISS first** — the simplest solution that works is the right one until proven otherwise. Three similar lines of code is better than a premature abstraction
+3. **Rule of three** — don't abstract until you've seen the same pattern in three places. Two occurrences might be coincidence
+4. **Context-aware** — follow the codebase's existing patterns before introducing new ones. Consistency beats theoretical perfection
+5. **Honest trade-offs** — every abstraction has a cost. Name the cost alongside the benefit
+
+When recommending modularity changes, always explain the concrete benefit. "This should be a separate module because..." not just "separation of concerns."
+
+## Team Communication
+
+You are part of a research team. Your teammates are:
+
+- **api-researcher**: Researching external APIs and libraries
+- **business-analyzer**: Analyzing business requirements and logic
+- **tech-designer**: Designing technical specifications
+- **ux-researcher**: Researching user experience patterns
+- **security-researcher**: Evaluating security implications and dependency risks
+- **recommendations-agent**: Generating recommendations and risk assessment
+
+**Share these findings via SendMessage:**
+
+- Message `tech-designer` with: existing reusable code discoveries, module boundary suggestions, simplification opportunities for proposed architecture
+- Message `security-researcher` with: shared utility patterns that may have security implications (e.g., shared auth helpers, input validators)
+- Message `recommendations-agent` with: full practices summary — reuse opportunities, KISS findings, build-vs-depend recommendations, and modularity assessment for synthesis into overall recommendations
+- Message `api-researcher` with: existing internal libraries or wrappers that may already handle discovered API patterns
+
+**Listen for messages from ALL teammates** — `tech-designer` will share proposed architecture for modularity review, `api-researcher` will share discovered libraries for build-vs-depend analysis, `business-analyzer` may share existing domain patterns, and `security-researcher` may share security utilities that should be standardized.
+
+## Task Coordination
+
+1. Check TaskList for your assigned task
+2. Claim your task with TaskUpdate (set status to in_progress, owner to your name)
+3. Do your research
+4. Share findings with teammates
+5. Write your output file
+6. Mark your task complete with TaskUpdate
+
+## Output Format
+
+Write your findings to: {{FEATURE_DIR}}/research-practices.md
+
+Structure with:
+
+```markdown
+# Practices Research: {{FEATURE_NAME}}
+
+## Executive Summary
+
+[2-3 sentences on code quality approach and key reuse opportunities]
+
+## Existing Reusable Code
+
+| Module/Utility | Location | Purpose | How to Reuse for This Feature |
+|----------------|----------|---------|-------------------------------|
+| [name] | [file path] | [what it does] | [how to apply it here] |
+
+## Modularity Design
+
+### Recommended Module Boundaries
+
+[Proposed module structure with rationale for each boundary]
+
+### Shared vs. Feature-Specific Code
+
+| Component | Shared or Feature-Specific | Rationale |
+|-----------|---------------------------|-----------|
+| [component] | [shared/feature] | [why] |
+
+## KISS Assessment
+
+| Area | Current Proposal | Simpler Alternative | Trade-off |
+|------|-----------------|---------------------|-----------|
+| [area] | [what's proposed] | [simpler approach] | [what you gain/lose] |
+
+## Abstraction vs. Repetition
+
+### Extract (Worth Abstracting)
+
+- [Pattern]: appears in [locations], extract to [suggested location]
+
+### Repeat (Acceptable Duplication)
+
+- [Pattern]: only [N] occurrences, duplication is simpler than abstraction because [reason]
+
+## Interface Design
+
+### Public API Surfaces
+
+[Recommended interfaces, function signatures, and extension points]
+
+### Extension Points
+
+[Where future features could plug in without modifying this code]
+
+## Testability Patterns
+
+### Recommended Patterns
+
+- [Pattern]: [how it helps testing]
+
+### Anti-patterns to Avoid
+
+- [Anti-pattern]: [why it hurts testing, what to do instead]
+
+## Build vs. Depend
+
+| Need | Build Custom | Use Library | Recommendation | Rationale |
+|------|-------------|-------------|----------------|-----------|
+| [need] | [effort/risk] | [library + risk] | [choice] | [why] |
+
+## Open Questions
+
+[Areas needing team discussion or clarification]
+```
+
+**Critical**: Be specific — name files, functions, and modules. Ground every recommendation in what the codebase actually does. Don't give abstract advice; show the concrete before/after.
+````
+
+---
+
+## Agent 7: Recommendations Agent
 
 **Teammate Name**: `recommendations-agent`
 
@@ -479,6 +641,7 @@ You are part of a research team. Your teammates are:
 - **tech-designer**: Designing technical specifications
 - **ux-researcher**: Researching user experience patterns
 - **security-researcher**: Evaluating security implications and dependency risks
+- **practices-researcher**: Evaluating modularity, code reuse, and engineering best practices
 
 **This is a synthesis role** — you should actively listen for messages from all teammates and incorporate their findings into your recommendations.
 
@@ -487,8 +650,9 @@ You are part of a research team. Your teammates are:
 - Message `tech-designer` with: alternative architectural approaches you identify that they should consider
 - Message `business-analyzer` with: risk factors that may require business rule adjustments
 - Message `security-researcher` with: any risk areas you identify that need security evaluation
+- Message `practices-researcher` with: any areas where you see over-engineering risk or reuse opportunities
 
-**Listen for messages from ALL teammates** — incorporate API evaluation results from `api-researcher`, domain complexity from `business-analyzer`, architectural trade-offs from `tech-designer`, competitive insights from `ux-researcher`, and security findings (organized by severity) from `security-researcher` into your recommendations. Give special attention to CRITICAL security findings — these must be prominently reflected in risk assessment.
+**Listen for messages from ALL teammates** — incorporate API evaluation results from `api-researcher`, domain complexity from `business-analyzer`, architectural trade-offs from `tech-designer`, competitive insights from `ux-researcher`, security findings (organized by severity) from `security-researcher`, and modularity/reuse findings from `practices-researcher` into your recommendations. Give special attention to CRITICAL security findings — these must be prominently reflected in risk assessment. Incorporate practices findings into implementation phasing recommendations.
 
 ## Task Coordination
 
@@ -522,8 +686,8 @@ When spawning research teammates:
    - `{{FEATURE_DIR}}` - Full output directory (e.g., `docs/plans/plex-integration`)
    - `{{FEATURE_DESCRIPTION}}` - Description provided by user (or feature name if none)
 3. **Create team** - Use TeamCreate with name `fr-[feature-name]`
-4. **Create tasks** - Use TaskCreate to create 6 research tasks
-5. **Spawn in parallel** - Use a single message with 6 Agent tool calls, each with `team_name` and `name`
+4. **Create tasks** - Use TaskCreate to create 7 research tasks
+5. **Spawn in parallel** - Use a single message with 7 Agent tool calls, each with `team_name` and `name`
 6. **Monitor progress** - Use TaskList to check when all tasks complete
 7. **Validate results** - Run research validator before synthesis
 8. **Shut down teammates** - Send shutdown requests via SendMessage
@@ -547,6 +711,7 @@ When spawning research teammates:
 | tech-designer         | `codebase-research-analyst` | Yes       | research-technical.md       | Default |
 | ux-researcher         | `research-specialist`       | Yes       | research-ux.md              | Default |
 | security-researcher   | `research-specialist`       | Yes       | research-security.md        | Default |
+| practices-researcher  | `codebase-research-analyst` | Yes       | research-practices.md       | Default |
 | recommendations-agent | `codebase-research-analyst` | Yes       | research-recommendations.md | Default |
 
 ## Expected Output

@@ -89,6 +89,7 @@ declare -a files=(
     "research-technical.md"
     "research-ux.md"
     "research-security.md"
+    "research-practices.md"
     "research-recommendations.md"
 )
 
@@ -135,6 +136,10 @@ for file in "${files[@]}"; do
         research-security.md)
             require_any_heading "$path" "severity findings section" "## Findings by Severity" "### CRITICAL"
             require_any_heading "$path" "dependency section" "## Dependency Security" "### Dependency Security"
+            ;;
+        research-practices.md)
+            require_any_heading "$path" "reusable code section" "## Existing Reusable Code"
+            require_any_heading "$path" "modularity section" "## Modularity Design" "## Modularity"
             ;;
         research-recommendations.md)
             require_any_heading "$path" "recommendation strategy section" "### Recommended Implementation Strategy" "## Implementation Recommendations" "### Recommended Approach"

@@ -104,14 +104,15 @@ Display:
 ## Research Team
 
 Team Name: fr-[feature-name]
-Teammates: 6 research agents (share findings with each other)
+Teammates: 7 research agents (share findings with each other)
 
 1. api-researcher - External APIs, libraries, integration patterns
 2. business-analyzer - Requirements, user stories, business rules
 3. tech-designer - Architecture, data models, API design
 4. ux-researcher - User experience, workflows, best practices
 5. security-researcher - Security analysis, dependency risks, secure coding (severity-leveled)
-6. recommendations-agent - Ideas, improvements, risks
+6. practices-researcher - Modularity, code reuse, KISS, engineering best practices
+7. recommendations-agent - Ideas, improvements, risks
 
 ## Files That Would Be Created
 
@@ -120,12 +121,13 @@ Teammates: 6 research agents (share findings with each other)
 - docs/plans/[feature-name]/research-technical.md
 - docs/plans/[feature-name]/research-ux.md
 - docs/plans/[feature-name]/research-security.md
+- docs/plans/[feature-name]/research-practices.md
 - docs/plans/[feature-name]/research-recommendations.md
 - docs/plans/[feature-name]/feature-spec.md
 
 ## Execution Model
 
-- Create agent team with 6 research teammates
+- Create agent team with 7 research teammates
 - Teammates claim tasks and share findings with each other
 - Team lead validates and synthesizes feature-spec.md
 - Team cleanup
@@ -147,14 +149,15 @@ TeamCreate: team_name="fr-[feature-name]", description="Feature research team fo
 
 ### Step 6: Create Research Tasks
 
-Create 6 tasks in the shared task list:
+Create 7 tasks in the shared task list:
 
 1. **"Research external APIs for [feature-name]"** — APIs, libraries, integration patterns
 2. **"Analyze business logic for [feature-name]"** — Requirements, user stories, business rules
 3. **"Design technical specs for [feature-name]"** — Architecture, data models, API design
 4. **"Research UX patterns for [feature-name]"** — User experience, workflows, accessibility
 5. **"Evaluate security for [feature-name]"** — Security implications, dependency risks, secure coding
-6. **"Generate recommendations for [feature-name]"** — Ideas, improvements, risks
+6. **"Evaluate engineering practices for [feature-name]"** — Modularity, code reuse, KISS, testability
+7. **"Generate recommendations for [feature-name]"** — Ideas, improvements, risks
 
 ### Step 7: Read Research Prompts
 
@@ -166,7 +169,7 @@ cat ${CLAUDE_PLUGIN_ROOT}/skills/feature-research/templates/research-agents.md
 
 ### Step 8: Spawn Research Teammates
 
-**CRITICAL**: Spawn all 6 teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="fr-[feature-name]"`.
+**CRITICAL**: Spawn all 7 teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="fr-[feature-name]"`.
 
 | Teammate Name           | Subagent Type               | Output File                   | Focus                                                                 |
 | ----------------------- | --------------------------- | ----------------------------- | --------------------------------------------------------------------- |
@@ -175,6 +178,7 @@ cat ${CLAUDE_PLUGIN_ROOT}/skills/feature-research/templates/research-agents.md
 | `tech-designer`         | `codebase-research-analyst` | `research-technical.md`       | Architecture, data models, API design, system constraints             |
 | `ux-researcher`         | `research-specialist`       | `research-ux.md`              | User experience, workflows, best practices, accessibility             |
 | `security-researcher`   | `research-specialist`       | `research-security.md`        | Security analysis, dependency risks, secure coding (severity-leveled) |
+| `practices-researcher`  | `codebase-research-analyst` | `research-practices.md`       | Modularity, code reuse, KISS, engineering best practices              |
 | `recommendations-agent` | `codebase-research-analyst` | `research-recommendations.md` | Ideas, improvements, related features, risks                          |
 
 Use the prompts from `research-agents.md` with variables substituted:
@@ -185,18 +189,22 @@ Use the prompts from `research-agents.md` with variables substituted:
 
 ### Step 9: Monitor Team Progress
 
-Wait for all 6 teammates to complete their tasks. Use `TaskList` to check progress.
+Wait for all 7 teammates to complete their tasks. Use `TaskList` to check progress.
 
 Teammates will share findings with each other:
 
 - `api-researcher` tells `tech-designer` about discovered API endpoints and auth patterns
 - `api-researcher` tells `security-researcher` about dependency versions and auth methods
+- `api-researcher` tells `practices-researcher` about discovered libraries for build-vs-depend analysis
 - `tech-designer` tells `business-analyzer` about data model constraints
 - `tech-designer` tells `security-researcher` about proposed architecture for review
+- `tech-designer` tells `practices-researcher` about proposed component structure for modularity review
 - `ux-researcher` tells `business-analyzer` about user workflow requirements
 - `security-researcher` tells `tech-designer` about security constraints (with severity levels)
 - `security-researcher` tells `recommendations-agent` about full risk summary by severity
-- `recommendations-agent` synthesizes insights from all teammates including security findings
+- `practices-researcher` tells `tech-designer` about reusable code discoveries and simplification opportunities
+- `practices-researcher` tells `recommendations-agent` about modularity and reuse findings
+- `recommendations-agent` synthesizes insights from all teammates including security and practices findings
 
 If a teammate gets stuck, send them guidance via SendMessage.
 
@@ -206,7 +214,7 @@ If a teammate gets stuck, send them guidance via SendMessage.
 
 ### Step 10: Validate Research Artifacts
 
-After all 6 teammates complete, validate all `research-*.md` files:
+After all 7 teammates complete, validate all `research-*.md` files:
 
 ```bash
 ${CLAUDE_PLUGIN_ROOT}/skills/feature-research/scripts/validate-research.sh docs/plans/[feature-name]
@@ -224,7 +232,7 @@ SendMessage to each teammate: message={type: "shutdown_request"}
 
 ### Step 12: Read Research Results
 
-Read all 6 research files from `docs/plans/[feature-name]/`.
+Read all 7 research files from `docs/plans/[feature-name]/`.
 
 ### Step 13: Read Spec Template
 
