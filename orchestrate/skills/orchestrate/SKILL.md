@@ -1,6 +1,39 @@
 ---
 name: orchestrate
 description: Orchestrate multiple specialized agents to accomplish complex tasks efficiently through intelligent task decomposition, parallel execution, and result synthesis.
+argument-hint: '[task-description] [--dry-run] [--plan-only] [--sequential]'
+allowed-tools:
+  - Read
+  - Grep
+  - Glob
+  - Write
+  - Task
+  - TeamCreate
+  - TeamDelete
+  - TaskCreate
+  - TaskUpdate
+  - TaskList
+  - TaskGet
+  - SendMessage
+  - Bash(ls:*)
+  - Bash(cat:*)
+  - Bash(test:*)
+  - Bash(mkdir:*)
+  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/scripts/*.sh:*)'
+---
+
+## MANDATORY — AGENT TEAMS REQUIRED
+
+**You MUST use agent teams for this skill. Do NOT use standalone sub-agents.**
+
+1. **TeamCreate** FIRST — before spawning any agents
+2. **TaskCreate** — register all subtasks in the shared task list
+3. **Agent with `team_name`** — every agent spawn MUST include the `team_name` parameter
+4. **SendMessage** — shut down teammates between batches
+5. **TeamDelete** — clean up when done
+
+If you spawn an agent WITHOUT `team_name`, you are doing it wrong. Stop and fix it.
+
 ---
 
 # Multi-Agent Orchestration Skill
@@ -72,7 +105,7 @@ Analyze the task to determine:
 
 ---
 
-## Phase 1: Task Decomposition
+## Phase 1: Task Decomposition & Team Creation
 
 ### Step 4: Read Decomposition Template
 
@@ -80,28 +113,32 @@ Analyze the task to determine:
 cat ${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/references/task-breakdown.md
 ```
 
-This template provides patterns for breaking down tasks by:
+This template provides patterns for breaking down tasks by feature area, technical layer, cross-cutting concerns, and dependencies.
 
-- Feature area
-- Technical layer (frontend, backend, database, etc.)
-- Cross-cutting concerns (testing, documentation, etc.)
-- Dependencies and execution order
+### Step 5: Create Team and Register Subtasks
 
-### Step 5: Break Down the Task
+**5a: Create the orchestration team:**
 
-Using **TodoWrite**, create a comprehensive task list showing:
-
-- Each subtask with clear, specific description
-- Which agent type will handle each subtask
-- Dependencies between subtasks (or "independent")
-- Expected outputs from each subtask
-
-Task breakdown format:
+Sanitize the task description to create a team name (lowercase, hyphens, max 20 chars):
 
 ```
-- subtask-1: "[Description] - Agent: [agent-type] - Dependencies: [none/list]"
-- subtask-2: "[Description] - Agent: [agent-type] - Dependencies: [subtask-1]"
-- subtask-3: "[Description] - Agent: [agent-type] - Dependencies: [none]"
+TeamCreate: team_name="orch-[sanitized-task]", description="Orchestration team for: [task description]"
+```
+
+**5b: Create subtasks in the shared task list:**
+
+Using **TaskCreate**, register each subtask:
+
+```
+TaskCreate: subject="[subtask-N]: [Description]", description="Agent: [agent-type]. Dependencies: [none/list]. Scope: [details]. Expected output: [deliverables]."
+```
+
+**5c: Set up dependencies:**
+
+For subtasks with dependencies, use **TaskUpdate** with `addBlockedBy`:
+
+```
+TaskUpdate: taskId="[subtask-2-id]", addBlockedBy=["[subtask-1-id]"]
 ```
 
 ### Step 6: Validate Task Decomposition
@@ -113,17 +150,15 @@ Ensure each subtask meets quality standards:
 - [ ] Appropriate size (completable in one focused session)
 - [ ] Dependencies explicitly stated
 - [ ] Success criteria clear
+- [ ] Agent type assignment justified
 
-Optionally run validation script if available:
+Optionally run validation script:
 
 ```bash
-# Optional: validate subtask list structure (if script exists)
 if [[ -f "${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/scripts/validate-agents.sh" ]]; then
   ${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/scripts/validate-agents.sh
 fi
 ```
-
-**Note**: The `validate-agents.sh` script is optional for automated validation of subtask format (JSON/YAML structure, required fields, agent existence, etc.). Manual review of the quality standards checklist above is always required.
 
 ---
 
@@ -176,6 +211,11 @@ Display:
 ```markdown
 # Dry Run: Orchestration Plan for [Task]
 
+## Team
+
+- Name: orch-[sanitized-task]
+- Teammates share findings within each batch
+
 ## Task Analysis
 
 - Complexity: [Simple/Medium/Complex]
@@ -215,14 +255,15 @@ Display:
 Remove --dry-run flag to execute the orchestration.
 ```
 
-**STOP HERE** - do not deploy agents.
+Clean up the team with `TeamDelete`, then **STOP HERE** — do not deploy agents.
 
 If `--plan-only` is present:
 
 - Create the plan as `docs/orchestration/[sanitized-task-name].md`
 - Save the complete orchestration plan for later execution
 - Display the plan location and summary
-- **STOP HERE** - do not deploy agents
+- Clean up the team with `TeamDelete`
+- **STOP HERE** — do not deploy agents
 
 ---
 
@@ -239,72 +280,57 @@ Group subtasks by dependencies:
 
 If `--sequential` flag is present, create single-task batches.
 
-### Step 12: Deploy First Batch
+### Step 12: Deploy Batch
 
-**CRITICAL**: Deploy all agents in the batch in a **SINGLE message** with **MULTIPLE Task tool calls**.
+For each batch, do the following **in order**:
 
-For each agent in the batch:
+**1. Build the teammate list** for this batch — list each subtask's name and description so teammates know who else is working in parallel. Substitute into `{{BATCH_TEAMMATES}}`.
 
-| Field         | Value                                                        |
-| ------------- | ------------------------------------------------------------ |
-| subagent_type | Determined in Phase 2                                        |
-| description   | "[Agent Type]: [Subtask Summary]" (3-5 words)                |
-| prompt        | Complete instructions including context, scope, deliverables |
-
-Example deployment:
+**2. Spawn ALL batch teammates in a SINGLE message** using MULTIPLE Agent tool calls. Every call MUST include `team_name`:
 
 ```
-Deploy 3 agents in parallel for user authentication implementation:
-
-1. nodejs-backend-architect: Implement auth system
-   - Create user model, authentication service, JWT handling
-   - Files: src/models/user.ts, src/services/auth.ts, src/middleware/auth.ts
-
-2. test-strategy-planner: Create auth test plan
-   - Unit tests for auth service
-   - Integration tests for login flow
-   - Security test cases
-
-3. documentation-writer: Document auth API
-   - API endpoints documentation
-   - Authentication flow diagrams
-   - Usage examples
+Agent(
+  team_name = "orch-[sanitized-task]",
+  name = "subtask-1",
+  subagent_type = "nodejs-backend-architect",
+  description = "Implement auth system",
+  prompt = [substituted template with team communication section]
+)
+Agent(
+  team_name = "orch-[sanitized-task]",
+  name = "subtask-2",
+  subagent_type = "test-strategy-planner",
+  description = "Create auth test plan",
+  prompt = [substituted template with team communication section]
+)
+Agent(
+  team_name = "orch-[sanitized-task]",
+  name = "subtask-3",
+  subagent_type = "documentation-writer",
+  description = "Document auth API",
+  prompt = [substituted template with team communication section]
+)
 ```
 
-### Step 13: Monitor Batch Progress
+Each agent's prompt MUST include the Team Communication section from the agent-prompts.md templates, with `{{BATCH_NUMBER}}` and `{{BATCH_TEAMMATES}}` substituted.
 
-After deploying a batch:
+**3. Monitor progress** — use `TaskList` to check when all batch tasks are complete. If a teammate messages you with an issue, respond with guidance.
 
-1. Update todos: Mark deployed subtasks as `in_progress`
-2. Wait for all agents in batch to complete
-3. Review outputs from each agent
-4. Check for errors or issues
+**4. Handle failures** — if a subtask fails, note the failure, determine if dependent subtasks can proceed, and continue with independent subtasks.
 
-### Step 14: Process Batch Results
+**5. Shut down batch teammates** — send `SendMessage(to="subtask-[N]", message={type: "shutdown_request"})` to each teammate. Wait for shutdowns before next batch.
 
-After batch completes:
+**6. Identify next batch** — check `TaskList` for pending tasks with all blockers completed. If tasks remain but none are unblocked, report deadlock and stop.
 
-1. **Update todos**: Mark completed subtasks as `completed`
-2. **Review outputs**: Verify each agent completed their assignment
-3. **Identify issues**: Note any failures or partial completions
-4. **Prepare next batch**: Identify subtasks ready for next batch
+### Step 13: Repeat Until Complete
 
-### Step 15: Continue with Next Batch
-
-Repeat Steps 12-14 for each subsequent batch until all subtasks are complete.
-
-If a subtask fails:
-
-- Note the failure
-- Determine if dependent subtasks can proceed
-- Continue with independent subtasks
-- Report failed subtasks in final summary
+Repeat Step 12 for each subsequent batch until all subtasks are completed or no more can be unblocked.
 
 ---
 
 ## Phase 5: Result Synthesis & Summary
 
-### Step 16: Consolidate Agent Outputs
+### Step 14: Consolidate Agent Outputs
 
 Run the summarization script:
 
@@ -320,7 +346,7 @@ Collect outputs from all agents and organize by:
 - Tests created
 - Issues encountered
 
-### Step 17: Integration Check
+### Step 15: Integration Check
 
 Verify that agent outputs work together:
 
@@ -329,12 +355,27 @@ Verify that agent outputs work together:
 - [ ] Cross-references between components valid
 - [ ] Consistent patterns and conventions used
 
-### Step 18: Final Summary
+### Step 16: Clean Up Team
+
+Delete the team and its resources:
+
+```
+TeamDelete
+```
+
+### Step 17: Final Summary
 
 Provide comprehensive completion summary:
 
 ```markdown
 # Orchestration Complete: [Task]
+
+## Team Summary
+
+- Team: orch-[sanitized-task]
+- Total teammates spawned: [count across all batches]
+- Batches executed: [count]
+- Inter-agent sharing: Enabled (teammates shared findings within batches)
 
 ## Execution Summary
 
@@ -342,7 +383,6 @@ Provide comprehensive completion summary:
 - **Completed**: [count]
 - **Failed**: [count]
 - **Execution Batches**: [count]
-- **Total Agents Deployed**: [count]
 
 ## Results by Agent
 
@@ -363,12 +403,6 @@ Provide comprehensive completion summary:
 - Created: [files]
 - Modified: [files]
 - Notes: [key points]
-
-### [Agent Type 3] - [Subtask 3]
-
-**Status**: Failed
-**Issue**: [error description]
-**Impact**: [what couldn't be completed]
 
 ## Files Changed
 
@@ -431,12 +465,16 @@ Each agent assignment must have:
 
 The orchestration must:
 
-- [ ] Deploy independent tasks in parallel (single message, multiple Task calls)
+- [ ] Create team before spawning any agents
+- [ ] Register all subtasks in shared task list
+- [ ] Deploy independent tasks as teammates (single message, multiple Agent calls with team_name)
 - [ ] Respect dependency ordering between batches
-- [ ] Track progress with todo updates
+- [ ] Track progress via TaskList
+- [ ] Shut down teammates between batches via SendMessage
 - [ ] Handle failures gracefully
 - [ ] Synthesize results on completion
 - [ ] Verify integration between agent outputs
+- [ ] Clean up team with TeamDelete
 
 ### Result Quality Checklist
 
@@ -456,11 +494,14 @@ The final result must have:
 ### Coordination Principles
 
 1. **Delegate Everything**: Only coordinate; don't implement yourself
-2. **Maximize Parallelism**: Run independent tasks simultaneously
-3. **Clear Boundaries**: Ensure no overlap between agents
-4. **Single Goal**: Keep all agents aligned to the main objective
-5. **Monitor Progress**: Update todos as work progresses
-6. **Synthesize Results**: Integrate outputs into coherent whole
+2. **Create Team First**: Always TeamCreate before spawning agents
+3. **Maximize Parallelism**: Run independent tasks simultaneously
+4. **Clear Boundaries**: Ensure no overlap between agents
+5. **Single Goal**: Keep all agents aligned to the main objective
+6. **Monitor via TaskList**: Track progress through the shared task list
+7. **Shut Down Between Batches**: Clean up teammates before spawning new ones
+8. **Synthesize Results**: Integrate outputs into coherent whole
+9. **Clean Up Team**: Always TeamDelete before completing
 
 ### When to Use Sequential Mode
 
@@ -502,14 +543,17 @@ Use `--plan-only` flag when:
 
 ## Important Notes
 
-- **You are the orchestrator** - coordinate agents, don't implement
-- **Deploy in batches** - single message with multiple Task calls per batch
-- **Respect dependencies** - never start a subtask before its dependencies complete
-- **Maximize parallelism** - run all independent subtasks simultaneously
-- **Track progress** - update todos as subtasks complete
-- **Handle failures** - continue with independent subtasks if one fails
-- **Synthesize results** - integrate agent outputs into coherent whole
-- **Quality over speed** - ensure proper coordination and integration
+- **You are the orchestrator** — coordinate agents, don't implement
+- **Create team first** — TeamCreate before spawning any agents
+- **Deploy as teammates** — single message with multiple Agent calls, each with team_name
+- **Teammates share findings** — they communicate within batches via SendMessage
+- **Respect dependencies** — never start a subtask before its dependencies complete
+- **Maximize parallelism** — run all independent subtasks simultaneously
+- **Shut down between batches** — shut down teammates before spawning next batch
+- **Handle failures** — continue with independent subtasks if one fails
+- **Track via TaskList** — monitor teammate progress through shared task list
+- **Clean up team** — always TeamDelete before completing
+- **Quality over speed** — ensure proper coordination and integration
 
 ---
 

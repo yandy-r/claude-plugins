@@ -1,6 +1,6 @@
 # Agent Prompt Templates
 
-Standard prompt templates for common orchestration patterns. Use these to ensure consistent, high-quality agent instructions.
+Standard prompt templates for common orchestration patterns. Use these to ensure consistent, high-quality agent instructions. All templates include a Team Communication section for agent team coordination.
 
 ---
 
@@ -8,14 +8,63 @@ Standard prompt templates for common orchestration patterns. Use these to ensure
 
 All templates support these variables:
 
-| Variable            | Description                      | Example                                    |
-| ------------------- | -------------------------------- | ------------------------------------------ |
-| `{{TASK}}`          | The main task being orchestrated | "Implement user authentication"            |
-| `{{SUBTASK}}`       | Specific subtask for this agent  | "Create user model and schema"             |
-| `{{CONTEXT_FILES}}` | Files agent should read first    | "src/models/base.ts, docs/architecture.md" |
-| `{{OUTPUT_FILES}}`  | Files agent should create/modify | "src/models/user.ts"                       |
-| `{{CONSTRAINTS}}`   | What agent should NOT do         | "Don't modify authentication middleware"   |
-| `{{DEPENDENCIES}}`  | What must be complete first      | "User model (Task 1.1)"                    |
+| Variable             | Description                             | Example                                    |
+| -------------------- | --------------------------------------- | ------------------------------------------ |
+| `{{TASK}}`           | The main task being orchestrated        | "Implement user authentication"            |
+| `{{SUBTASK}}`        | Specific subtask for this agent         | "Create user model and schema"             |
+| `{{CONTEXT_FILES}}`  | Files agent should read first           | "src/models/base.ts, docs/architecture.md" |
+| `{{OUTPUT_FILES}}`   | Files agent should create/modify        | "src/models/user.ts"                       |
+| `{{CONSTRAINTS}}`    | What agent should NOT do                | "Don't modify authentication middleware"   |
+| `{{DEPENDENCIES}}`   | What must be complete first             | "User model (Task 1.1)"                    |
+| `{{BATCH_NUMBER}}`   | Current execution batch number          | "1", "2", "3"                              |
+| `{{BATCH_TEAMMATES}}`| Other teammates in this batch           | "- **subtask-2**: Create test plan"        |
+
+---
+
+## Team Communication Section (Include in ALL Prompts)
+
+Insert this section into every agent prompt template:
+
+```markdown
+## Team Communication
+
+You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
+
+### Your Teammates (This Batch)
+
+{{BATCH_TEAMMATES}}
+
+### What to Share (via SendMessage)
+
+After completing your work, share relevant findings with teammates:
+
+- **Utility functions, helpers, or shared code** you created that teammates might need
+- **API patterns, interfaces, or contracts** you established
+- **Unexpected findings or breaking changes** discovered during implementation
+- **Integration points** other teammates should know about
+
+Only share findings that are genuinely useful to specific teammates. Use targeted messages.
+
+### What to Listen For
+
+Your teammates may message you with:
+
+- Shared code or utilities they created
+- Interface contracts or API patterns
+- Warnings about unexpected codebase state
+
+Integrate any relevant information from teammate messages into your work.
+
+### Task Coordination
+
+1. Check TaskList for your assigned task
+2. Claim your task with TaskUpdate (set status to in_progress, owner to your name)
+3. Read all context files
+4. Implement your subtask
+5. Share key findings with relevant teammates via SendMessage
+6. Validate your work
+7. Mark your task complete with TaskUpdate (set status to completed)
+```
 
 ---
 
@@ -64,13 +113,27 @@ Create/modify these files:
 
 {{CONSTRAINTS}}
 
-## Success Criteria
+## Team Communication
 
-Your implementation is complete when:
+You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
 
-- [Specific criterion 1]
-- [Specific criterion 2]
-- [Specific criterion 3]
+### Your Teammates (This Batch)
+
+{{BATCH_TEAMMATES}}
+
+### What to Share (via SendMessage)
+
+- New utility functions or shared code you created
+- API patterns or interfaces you established
+- Unexpected findings or breaking changes
+- Integration points other teammates should know about
+
+### Task Coordination
+
+1. Check TaskList for your assigned task
+2. Claim with TaskUpdate (status=in_progress, owner=your name)
+3. Read context files, implement, share findings, validate
+4. Mark complete with TaskUpdate (status=completed)
 
 ## Output Format
 
@@ -115,41 +178,32 @@ Perform systematic root cause analysis to identify WHY this bug is occurring.
 
 {{CONTEXT_FILES}}
 
+## Team Communication
+
+You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
+
+### Your Teammates (This Batch)
+
+{{BATCH_TEAMMATES}}
+
+### What to Share (via SendMessage)
+
+- Root cause findings that affect other teammates' work
+- Files in unexpected state that teammates should know about
+- Related bugs or issues you discovered during investigation
+
+### Task Coordination
+
+1. Check TaskList for your assigned task
+2. Claim with TaskUpdate (status=in_progress, owner=your name)
+3. Investigate, share findings, write report
+4. Mark complete with TaskUpdate (status=completed)
+
 ## Output Format
 
-Provide a diagnostic report:
+Provide a diagnostic report with: Bug Summary, Reproduction Steps, Root Cause Analysis (hypotheses with evidence and likelihood), Conclusion, Recommended Fix, Files That Need Changes.
 
-### Bug Summary
-
-[Concise description of the issue]
-
-### Reproduction Steps
-
-[How to reproduce the bug]
-
-### Root Cause Analysis
-
-#### Hypothesis 1: [Name]
-
-- **Evidence**: [Supporting evidence]
-- **Likelihood**: High/Medium/Low
-
-#### Hypothesis 2: [Name]
-
-- **Evidence**: [Supporting evidence]
-- **Likelihood**: High/Medium/Low
-
-### Conclusion
-
-The root cause is: [Most likely cause]
-
-### Recommended Fix
-
-[High-level approach to fixing, but DO NOT implement]
-
-### Files That Need Changes
-
-[List files that would need modification]
+**Important**: Diagnose only — DO NOT implement the fix.
 ```
 
 ### Phase 2: Fix Implementation Agent
@@ -182,21 +236,30 @@ Read the diagnostic report: {{DIAGNOSTIC_REPORT_PATH}}
 3. **Add Safety**: Include validation or checks to prevent recurrence
 4. **Follow Patterns**: Match existing error handling patterns
 
-## Testing Considerations
+## Team Communication
 
-After implementing the fix:
+You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
 
-- [Test case 1 to verify fix]
-- [Test case 2 to ensure no regression]
+### Your Teammates (This Batch)
+
+{{BATCH_TEAMMATES}}
+
+### What to Share (via SendMessage)
+
+- Details of the fix that affect other teammates' testing or documentation work
+- Any additional issues found during fix implementation
+- Files modified that teammates may also be working with
+
+### Task Coordination
+
+1. Check TaskList for your assigned task
+2. Claim with TaskUpdate (status=in_progress, owner=your name)
+3. Implement fix, share findings, validate
+4. Mark complete with TaskUpdate (status=completed)
 
 ## Output Format
 
-Provide:
-
-- Files modified
-- Description of fix
-- How it addresses the root cause
-- Regression test suggestions
+Provide: Files modified, description of fix, how it addresses root cause, regression test suggestions.
 ```
 
 ---
@@ -228,32 +291,30 @@ Analyze the current implementation for refactoring: {{TASK}}
 4. **Risks**: Identify risks in refactoring
 5. **Approach**: Recommend refactoring strategy
 
+## Team Communication
+
+You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
+
+### Your Teammates (This Batch)
+
+{{BATCH_TEAMMATES}}
+
+### What to Share (via SendMessage)
+
+- Architectural insights that affect other analysis teammates
+- Risk factors that other teammates should consider
+- Patterns or conventions discovered that should be preserved
+
+### Task Coordination
+
+1. Check TaskList for your assigned task
+2. Claim with TaskUpdate (status=in_progress, owner=your name)
+3. Analyze, share findings, write report
+4. Mark complete with TaskUpdate (status=completed)
+
 ## Output Format
 
-Create analysis document: {{OUTPUT_PATH}}
-
-### Current Architecture
-
-[Describe how it currently works]
-
-### Issues Identified
-
-1. [Issue 1]
-2. [Issue 2]
-3. [Issue 3]
-
-### Recommended Refactoring Approach
-
-[Step-by-step refactoring strategy]
-
-### Risks & Mitigation
-
-- **Risk 1**: [Description] - Mitigation: [Strategy]
-- **Risk 2**: [Description] - Mitigation: [Strategy]
-
-### Files to Refactor
-
-[Prioritized list with rationale]
+Create analysis document with: Current Architecture, Issues Identified, Recommended Refactoring Approach, Risks & Mitigation, Files to Refactor (prioritized).
 ```
 
 ### Phase 2: Refactoring Implementation Agent
@@ -287,21 +348,30 @@ The recommended approach is: [Summary from analysis]
 
 {{CONSTRAINTS}}
 
-## Success Criteria
+## Team Communication
 
-- Improved code structure
-- All existing tests pass
-- No behavior changes
-- Better maintainability
+You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
+
+### Your Teammates (This Batch)
+
+{{BATCH_TEAMMATES}}
+
+### What to Share (via SendMessage)
+
+- Files you modified that other refactoring teammates may depend on
+- Shared utilities or patterns you extracted during refactoring
+- Breaking changes that affect other teammates' work areas
+
+### Task Coordination
+
+1. Check TaskList for your assigned task
+2. Claim with TaskUpdate (status=in_progress, owner=your name)
+3. Refactor, share findings, validate
+4. Mark complete with TaskUpdate (status=completed)
 
 ## Output Format
 
-Provide:
-
-- Files refactored
-- Key changes made
-- Any test updates needed
-- Before/after comparison for complex changes
+Provide: Files refactored, key changes made, test updates needed, before/after for complex changes.
 ```
 
 ---
@@ -347,48 +417,30 @@ Create/update:
 4. **Structure**: Use clear headings and organization
 5. **Cross-References**: Link to related documentation
 
-## Style Guidelines
+## Team Communication
 
-- Use clear, concise language
-- Include code examples from the actual codebase
-- Use Mermaid syntax for diagrams
-- Provide both quick-start and detailed sections
-- Add troubleshooting tips where relevant
+You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
 
-## Documentation Structure
+### Your Teammates (This Batch)
 
-### Overview
+{{BATCH_TEAMMATES}}
 
-[What this component/feature does]
+### What to Share (via SendMessage)
 
-### Getting Started
+- Documentation structure decisions that affect cross-linking
+- Undocumented features or APIs you discovered
+- Naming conventions or terminology you established
 
-[Quick start example]
+### Task Coordination
 
-### Detailed Usage
-
-[Comprehensive usage guide]
-
-### API Reference
-
-[If applicable - detailed API documentation]
-
-### Examples
-
-[Real-world use cases]
-
-### Troubleshooting
-
-[Common issues and solutions]
+1. Check TaskList for your assigned task
+2. Claim with TaskUpdate (status=in_progress, owner=your name)
+3. Document, share findings, validate
+4. Mark complete with TaskUpdate (status=completed)
 
 ## Output Format
 
-After completing documentation:
-
-- Files created/updated
-- Sections added
-- Examples included
-- Cross-references made
+After completing documentation: files created/updated, sections added, examples included, cross-references made.
 ```
 
 ---
@@ -423,68 +475,30 @@ Create a comprehensive test plan covering:
 4. **Edge Cases**: Boundary conditions and error scenarios
 5. **Performance Tests**: If applicable
 
-## Test Plan Requirements
+## Team Communication
 
-For each test category, provide:
+You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
 
-- What needs testing
-- Test cases (specific scenarios)
-- Expected behavior
-- Test data requirements
-- Priority (High/Medium/Low)
+### Your Teammates (This Batch)
 
-## Output File
+{{BATCH_TEAMMATES}}
 
-Create test plan: {{OUTPUT_PATH}}
+### What to Share (via SendMessage)
 
-## Test Plan Structure
+- Test coverage gaps you identified that affect other teammates
+- Shared test utilities or fixtures you created
+- Integration test requirements that depend on other teammates' implementations
 
-### Unit Tests
+### Task Coordination
 
-#### Component/Function 1
-
-- Test case 1: [Description]
-  - Input: [Test input]
-  - Expected: [Expected output]
-  - Priority: [H/M/L]
-
-### Integration Tests
-
-#### Integration Point 1
-
-- Test case 1: [Description]
-  - Setup: [Test setup]
-  - Action: [What to test]
-  - Expected: [Expected result]
-
-### End-to-End Tests
-
-#### User Flow 1
-
-- Scenario: [Description]
-- Steps: [User actions]
-- Expected: [End result]
-
-### Edge Cases & Error Scenarios
-
-[List critical edge cases to test]
-
-### Performance Tests
-
-[If applicable]
-
-### Test Data Requirements
-
-[Data needed for testing]
+1. Check TaskList for your assigned task
+2. Claim with TaskUpdate (status=in_progress, owner=your name)
+3. Create test plan, share findings
+4. Mark complete with TaskUpdate (status=completed)
 
 ## Output Format
 
-Provide:
-
-- Complete test plan document
-- Total test cases by category
-- Priority breakdown
-- Estimated effort
+Provide: Complete test plan with Unit Tests, Integration Tests, End-to-End Tests, Edge Cases, Performance Tests (if applicable), Test Data Requirements. Include priority (H/M/L) for each test case.
 ```
 
 ---
@@ -532,48 +546,34 @@ For each endpoint:
 5. **Response Format**: Consistent JSON structure
 6. **Status Codes**: Use appropriate HTTP status codes
 
-## API Conventions
+## Team Communication
 
-Follow these patterns from existing code:
+You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
 
-- [Convention 1]
-- [Convention 2]
-- [Convention 3]
+### Your Teammates (This Batch)
 
-## Example Request/Response
+{{BATCH_TEAMMATES}}
 
-For each endpoint, document:
-```
+### What to Share (via SendMessage)
 
-POST /api/resource
-Content-Type: application/json
+- API contracts and response formats you established
+- Shared middleware or validation utilities you created
+- Authentication patterns teammates should follow
 
-{
-"field": "value"
-}
+### Task Coordination
 
-Response 201:
-{
-"data": {...},
-"message": "Success"
-}
-
-Response 400:
-{
-"error": "Error description"
-}
-
-```
+1. Check TaskList for your assigned task
+2. Claim with TaskUpdate (status=in_progress, owner=your name)
+3. Implement endpoints, share findings, validate
+4. Mark complete with TaskUpdate (status=completed)
 
 ## Constraints
+
 {{CONSTRAINTS}}
 
 ## Output Format
-After implementation:
-- Endpoints implemented
-- Request/response examples
-- Authentication requirements
-- Error scenarios handled
+
+After implementation: endpoints implemented, request/response examples, authentication requirements, error scenarios handled.
 ```
 
 ---
@@ -625,41 +625,50 @@ Review existing schema:
 -- Migration Down
 -- [Rollback changes]
 ```
-````
+
+## Team Communication
+
+You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
+
+### Your Teammates (This Batch)
+
+{{BATCH_TEAMMATES}}
+
+### What to Share (via SendMessage)
+
+- Table names and column definitions teammates need for their code
+- Foreign key relationships that affect other teammates' models
+- Migration order dependencies
+
+### Task Coordination
+
+1. Check TaskList for your assigned task
+2. Claim with TaskUpdate (status=in_progress, owner=your name)
+3. Create schema/migrations, share findings, validate
+4. Mark complete with TaskUpdate (status=completed)
 
 ## Constraints
 
 {{CONSTRAINTS}}
 
-## Success Criteria
-
-- Schema changes implemented
-- Migration script created (up and down)
-- Indexes added for performance
-- Foreign keys maintain referential integrity
-
 ## Output Format
 
-Provide:
-
-- Migration file created
-- Tables/columns added
-- Indexes created
-- Rollback script included
-
-```
+Provide: Migration file created, tables/columns added, indexes created, rollback script included.
+````
 
 ---
 
 ## Best Practices for Using Templates
 
 1. **Always fill all variables**: Don't leave placeholders like {{TASK}} in the actual prompt
-2. **Add specific context**: Templates are starting points - add project-specific details
-3. **Adjust scope**: Narrow or expand based on subtask complexity
-4. **Include examples**: Reference actual files from the codebase
-5. **Set clear boundaries**: Explicitly state what NOT to do
-6. **Specify output format**: Be clear about expected deliverables
-7. **Link related work**: Help agents understand their place in the bigger picture
+2. **Always include Team Communication**: Every agent prompt MUST have the team section
+3. **Substitute BATCH_TEAMMATES**: List the other teammates in the same batch
+4. **Add specific context**: Templates are starting points — add project-specific details
+5. **Adjust scope**: Narrow or expand based on subtask complexity
+6. **Include examples**: Reference actual files from the codebase
+7. **Set clear boundaries**: Explicitly state what NOT to do
+8. **Specify output format**: Be clear about expected deliverables
+9. **Link related work**: Help agents understand their place in the bigger picture
 
 ---
 
@@ -672,8 +681,8 @@ When adapting templates:
 3. **Reference style guides**: Code style, naming conventions, formatting
 4. **Specify integration points**: How this connects to other components
 5. **Add validation criteria**: How to verify the work is complete and correct
+6. **Customize team communication**: Tailor what each agent should share based on their role
 
 ---
 
 *These templates should be customized for your specific project, technology stack, and team conventions.*
-```
