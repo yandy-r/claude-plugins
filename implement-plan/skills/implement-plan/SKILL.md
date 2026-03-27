@@ -255,6 +255,7 @@ Agent(
   team_name = "ip-[feature-name]",
   name = "task-1-1",
   subagent_type = "implementor",
+  model = "sonnet",
   description = "Implement 1.1: Create user model",
   prompt = [substituted template]
 )
@@ -262,6 +263,7 @@ Agent(
   team_name = "ip-[feature-name]",
   name = "task-1-3",
   subagent_type = "implementor",
+  model = "sonnet",
   description = "Implement 1.3: Setup routes",
   prompt = [substituted template]
 )
@@ -449,6 +451,7 @@ With `scope: local`, plans are read from the local `docs/plans/` instead of the 
 - **You are the team lead** - coordinate teammates, don't implement yourself
 - **Create team first** - use TeamCreate before spawning any teammates
 - **Spawn teammates in parallel** - single message with multiple Agent calls per batch
+- **Pass model parameters** - use `model: "sonnet"` for all implementor teammates
 - **Teammates share findings** - they communicate within batches via SendMessage
 - **Respect dependencies** - never start a task before its dependencies complete
 - **Maximize parallelism** - run all independent tasks simultaneously in each batch

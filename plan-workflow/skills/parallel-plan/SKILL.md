@@ -185,11 +185,13 @@ cat ${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/templates/analysis-prompts.md
 
 **CRITICAL**: Spawn all 3 teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="pp-[feature-name]"`.
 
-| Teammate Name         | Subagent Type               | Focus                  | Output File           |
-| --------------------- | --------------------------- | ---------------------- | --------------------- |
-| `context-synthesizer` | `codebase-research-analyst` | Condense planning docs | `analysis-context.md` |
-| `code-analyzer`       | `codebase-research-analyst` | Extract code patterns  | `analysis-code.md`    |
-| `task-structurer`     | `codebase-research-analyst` | Suggest task breakdown | `analysis-tasks.md`   |
+| Teammate Name         | Subagent Type               | Model  | Focus                  | Output File           |
+| --------------------- | --------------------------- | ------ | ---------------------- | --------------------- |
+| `context-synthesizer` | `codebase-research-analyst` | sonnet | Condense planning docs | `analysis-context.md` |
+| `code-analyzer`       | `codebase-research-analyst` | sonnet | Extract code patterns  | `analysis-code.md`    |
+| `task-structurer`     | `codebase-research-analyst` | sonnet | Suggest task breakdown | `analysis-tasks.md`   |
+
+**Model Assignment**: Pass `model: "sonnet"` for all analysis teammates.
 
 Use the prompts from `analysis-prompts.md` with variables substituted:
 
@@ -365,11 +367,13 @@ cat ${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/templates/validation-prompts.md
 
 **CRITICAL**: Spawn all 3 validation teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="pp-[feature-name]"`.
 
-| Teammate Name            | Subagent Type               | Focus                                   |
-| ------------------------ | --------------------------- | --------------------------------------- |
-| `path-validator`         | `explore`                   | Verify all referenced files exist       |
-| `dependency-validator`   | `explore`                   | Check for circular/invalid dependencies |
-| `completeness-validator` | `codebase-research-analyst` | Ensure tasks are actionable             |
+| Teammate Name            | Subagent Type               | Model  | Focus                                   |
+| ------------------------ | --------------------------- | ------ | --------------------------------------- |
+| `path-validator`         | `explore`                   | haiku  | Verify all referenced files exist       |
+| `dependency-validator`   | `explore`                   | haiku  | Check for circular/invalid dependencies |
+| `completeness-validator` | `codebase-research-analyst` | sonnet | Ensure tasks are actionable             |
+
+**Model Assignment**: Pass `model: "haiku"` for path-validator and dependency-validator, `model: "sonnet"` for completeness-validator.
 
 ### Step 19: Review Validation Results
 
@@ -555,6 +559,7 @@ scope: local
 - **You are the team lead** - coordinate analysis and validation teams
 - **Create team first** - use TeamCreate before spawning teammates
 - **Spawn teammates in parallel** - single message with multiple Agent calls
+- **Pass model parameters** - use `model: "sonnet"` for analysis agents, `model: "haiku"` for path/dependency validators, `model: "sonnet"` for completeness-validator
 - **Teammates share findings** - they communicate with each other via SendMessage
 - **Two phases** - analysis teammates first, then validation teammates
 - **Shut down between phases** - shut down analysis teammates before spawning validators

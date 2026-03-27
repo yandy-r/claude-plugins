@@ -188,12 +188,14 @@ Create 4 tasks in the shared task list:
 
 **CRITICAL**: Spawn all 4 teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="pw-[feature-name]"`.
 
-| Teammate Name             | Subagent Type               | Output File                | Focus                                    |
-| ------------------------- | --------------------------- | -------------------------- | ---------------------------------------- |
-| `architecture-researcher` | `codebase-research-analyst` | `research-architecture.md` | System structure, components, data flow  |
-| `patterns-researcher`     | `codebase-research-analyst` | `research-patterns.md`     | Existing patterns, conventions, examples |
-| `integration-researcher`  | `codebase-research-analyst` | `research-integration.md`  | APIs, databases, external systems        |
-| `docs-researcher`         | `codebase-research-analyst` | `research-docs.md`         | Relevant documentation files             |
+| Teammate Name             | Subagent Type               | Output File                | Model  | Focus                                    |
+| ------------------------- | --------------------------- | -------------------------- | ------ | ---------------------------------------- |
+| `architecture-researcher` | `codebase-research-analyst` | `research-architecture.md` | sonnet | System structure, components, data flow  |
+| `patterns-researcher`     | `codebase-research-analyst` | `research-patterns.md`     | sonnet | Existing patterns, conventions, examples |
+| `integration-researcher`  | `codebase-research-analyst` | `research-integration.md`  | sonnet | APIs, databases, external systems        |
+| `docs-researcher`         | `codebase-research-analyst` | `research-docs.md`         | sonnet | Relevant documentation files             |
+
+**Model Assignment**: Pass `model: "sonnet"` for all research teammates.
 
 Each teammate writes findings to `${feature_dir}/[output-file]`.
 
@@ -328,11 +330,13 @@ Create 3 analysis tasks in the shared task list:
 
 **CRITICAL**: Spawn all 3 teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="pw-[feature-name]"`.
 
-| Teammate Name         | Subagent Type               | Output File           | Focus                  |
-| --------------------- | --------------------------- | --------------------- | ---------------------- |
-| `context-synthesizer` | `codebase-research-analyst` | `analysis-context.md` | Condense planning docs |
-| `code-analyzer`       | `codebase-research-analyst` | `analysis-code.md`    | Extract code patterns  |
-| `task-structurer`     | `codebase-research-analyst` | `analysis-tasks.md`   | Suggest task breakdown |
+| Teammate Name         | Subagent Type               | Output File           | Model  | Focus                  |
+| --------------------- | --------------------------- | --------------------- | ------ | ---------------------- |
+| `context-synthesizer` | `codebase-research-analyst` | `analysis-context.md` | sonnet | Condense planning docs |
+| `code-analyzer`       | `codebase-research-analyst` | `analysis-code.md`    | sonnet | Extract code patterns  |
+| `task-structurer`     | `codebase-research-analyst` | `analysis-tasks.md`   | sonnet | Suggest task breakdown |
+
+**Model Assignment**: Pass `model: "sonnet"` for all analysis teammates.
 
 Each teammate writes to `${feature_dir}/[output-file]`.
 
@@ -446,18 +450,20 @@ cat ${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/templates/validation-agents.md
 
 **Standard Mode**: Spawn 3 teammates:
 
-| Teammate Name            | Subagent Type               | Focus                                   |
-| ------------------------ | --------------------------- | --------------------------------------- |
-| `path-validator`         | `explore`                   | Verify all referenced files exist       |
-| `dependency-validator`   | `explore`                   | Check for circular/invalid dependencies |
-| `completeness-validator` | `codebase-research-analyst` | Ensure tasks are actionable             |
+| Teammate Name            | Subagent Type               | Model  | Focus                                   |
+| ------------------------ | --------------------------- | ------ | --------------------------------------- |
+| `path-validator`         | `explore`                   | haiku  | Verify all referenced files exist       |
+| `dependency-validator`   | `explore`                   | haiku  | Check for circular/invalid dependencies |
+| `completeness-validator` | `codebase-research-analyst` | sonnet | Ensure tasks are actionable             |
 
 **Optimized Mode**: Spawn 2 teammates:
 
-| Teammate Name            | Subagent Type               | Focus                           |
-| ------------------------ | --------------------------- | ------------------------------- |
-| `path-dep-validator`     | `explore`                   | Verify paths + dependency graph |
-| `completeness-validator` | `codebase-research-analyst` | Task quality + completeness     |
+| Teammate Name            | Subagent Type               | Model  | Focus                           |
+| ------------------------ | --------------------------- | ------ | ------------------------------- |
+| `path-dep-validator`     | `explore`                   | haiku  | Verify paths + dependency graph |
+| `completeness-validator` | `codebase-research-analyst` | sonnet | Task quality + completeness     |
+
+**Model Assignment**: Pass `model: "haiku"` for path/dependency validators, `model: "sonnet"` for completeness-validator.
 
 ### Step 31: Review and Fix Issues
 
@@ -559,13 +565,15 @@ When `--optimized` flag is used, the workflow changes:
 
 Instead of separate research (4) + analysis (3) teammates, deploy 5 unified teammates:
 
-| Unified Teammate      | Combines                            | Output                     |
-| --------------------- | ----------------------------------- | -------------------------- |
-| `arch-analyst`        | Arch Research + Context Synthesizer | `analysis-architecture.md` |
-| `pattern-analyst`     | Pattern Research + Code Analyzer    | `analysis-patterns.md`     |
-| `integration-analyst` | Integration Research                | `analysis-integration.md`  |
-| `docs-analyst`        | Doc Research                        | `analysis-docs.md`         |
-| `task-planner`        | Task Structure Agent                | `analysis-tasks.md`        |
+| Unified Teammate      | Combines                            | Output                     | Model  |
+| --------------------- | ----------------------------------- | -------------------------- | ------ |
+| `arch-analyst`        | Arch Research + Context Synthesizer | `analysis-architecture.md` | sonnet |
+| `pattern-analyst`     | Pattern Research + Code Analyzer    | `analysis-patterns.md`     | sonnet |
+| `integration-analyst` | Integration Research                | `analysis-integration.md`  | sonnet |
+| `docs-analyst`        | Doc Research                        | `analysis-docs.md`         | sonnet |
+| `task-planner`        | Task Structure Agent                | `analysis-tasks.md`        | sonnet |
+
+**Model Assignment**: Pass `model: "sonnet"` for all unified teammates.
 
 These teammates produce combined research+analysis output, skipping Phase 5 entirely.
 
@@ -684,6 +692,7 @@ scope: local
 - **You are the team lead** - coordinate all phases of the workflow
 - **One team for entire workflow** - create once, use across all phases
 - **Spawn teammates in parallel** - single message with multiple Agent calls per phase
+- **Pass model parameters** - use `model: "sonnet"` for research/analysis agents, `model: "haiku"` for path/dependency validators, `model: "sonnet"` for completeness-validator
 - **Teammates share findings** - they communicate with each other via SendMessage
 - **Shut down between phases** - shut down teammates before spawning new ones for next phase
 - **Validate with scripts** - run validation scripts after teammates complete

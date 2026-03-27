@@ -198,12 +198,14 @@ cat ${CLAUDE_PLUGIN_ROOT}/skills/shared-context/templates/research-prompts.md
 
 **CRITICAL**: Spawn all 4 teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="sc-[feature-name]"`.
 
-| Teammate Name             | Subagent Type               | Output File                | Focus                                    |
-| ------------------------- | --------------------------- | -------------------------- | ---------------------------------------- |
-| `architecture-researcher` | `codebase-research-analyst` | `research-architecture.md` | System structure, components, data flow  |
-| `patterns-researcher`     | `codebase-research-analyst` | `research-patterns.md`     | Existing patterns, conventions, examples |
-| `integration-researcher`  | `codebase-research-analyst` | `research-integration.md`  | APIs, databases, external systems        |
-| `docs-researcher`         | `codebase-research-analyst` | `research-docs.md`         | Relevant documentation files             |
+| Teammate Name             | Subagent Type               | Output File                | Model  | Focus                                    |
+| ------------------------- | --------------------------- | -------------------------- | ------ | ---------------------------------------- |
+| `architecture-researcher` | `codebase-research-analyst` | `research-architecture.md` | sonnet | System structure, components, data flow  |
+| `patterns-researcher`     | `codebase-research-analyst` | `research-patterns.md`     | sonnet | Existing patterns, conventions, examples |
+| `integration-researcher`  | `codebase-research-analyst` | `research-integration.md`  | sonnet | APIs, databases, external systems        |
+| `docs-researcher`         | `codebase-research-analyst` | `research-docs.md`         | sonnet | Relevant documentation files             |
+
+**Model Assignment**: Pass `model: "sonnet"` for all shared-context researchers.
 
 Each teammate writes findings to `${feature_dir}/[output-file]`.
 

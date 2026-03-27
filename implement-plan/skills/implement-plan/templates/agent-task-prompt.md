@@ -274,7 +274,7 @@ Followed BaseModel pattern exactly. User model ready for validation task 1.2.
 | name          | `task-[task-id]` (e.g., `task-1-1`)           |
 | Subagent Type | `implementor`                                 |
 | Readonly      | No (must modify files)                        |
-| Model         | Default                                       |
+| Model         | sonnet                                        |
 
 ## Best Practices
 

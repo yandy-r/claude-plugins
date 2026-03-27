@@ -171,15 +171,17 @@ cat ${CLAUDE_PLUGIN_ROOT}/skills/feature-research/templates/research-agents.md
 
 **CRITICAL**: Spawn all 7 teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="fr-[feature-name]"`.
 
-| Teammate Name           | Subagent Type               | Output File                   | Focus                                                                 |
-| ----------------------- | --------------------------- | ----------------------------- | --------------------------------------------------------------------- |
-| `api-researcher`        | `research-specialist`       | `research-external.md`        | External APIs, libraries, documentation, integration patterns         |
-| `business-analyzer`     | `codebase-research-analyst` | `research-business.md`        | Requirements, user stories, business rules, domain logic              |
-| `tech-designer`         | `codebase-research-analyst` | `research-technical.md`       | Architecture, data models, API design, system constraints             |
-| `ux-researcher`         | `research-specialist`       | `research-ux.md`              | User experience, workflows, best practices, accessibility             |
-| `security-researcher`   | `research-specialist`       | `research-security.md`        | Security analysis, dependency risks, secure coding (severity-leveled) |
-| `practices-researcher`  | `codebase-research-analyst` | `research-practices.md`       | Modularity, code reuse, KISS, engineering best practices              |
-| `recommendations-agent` | `codebase-research-analyst` | `research-recommendations.md` | Ideas, improvements, related features, risks                          |
+| Teammate Name           | Subagent Type               | Output File                   | Model   | Focus                                                                 |
+| ----------------------- | --------------------------- | ----------------------------- | ------- | --------------------------------------------------------------------- |
+| `api-researcher`        | `research-specialist`       | `research-external.md`        | sonnet  | External APIs, libraries, documentation, integration patterns         |
+| `business-analyzer`     | `codebase-research-analyst` | `research-business.md`        | sonnet  | Requirements, user stories, business rules, domain logic              |
+| `tech-designer`         | `codebase-research-analyst` | `research-technical.md`       | Default | Architecture, data models, API design, system constraints             |
+| `ux-researcher`         | `research-specialist`       | `research-ux.md`              | sonnet  | User experience, workflows, best practices, accessibility             |
+| `security-researcher`   | `research-specialist`       | `research-security.md`        | sonnet  | Security analysis, dependency risks, secure coding (severity-leveled) |
+| `practices-researcher`  | `codebase-research-analyst` | `research-practices.md`       | sonnet  | Modularity, code reuse, KISS, engineering best practices              |
+| `recommendations-agent` | `codebase-research-analyst` | `research-recommendations.md` | Default | Ideas, improvements, related features, risks                          |
+
+**Model Assignment**: Pass the `model` parameter when spawning each teammate. Use `model: "sonnet"` for api-researcher, business-analyzer, ux-researcher, security-researcher, practices-researcher. Omit model (inherit default) for tech-designer and recommendations-agent.
 
 Use the prompts from `research-agents.md` with variables substituted:
 

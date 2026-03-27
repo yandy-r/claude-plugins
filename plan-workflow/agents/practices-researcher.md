@@ -33,7 +33,7 @@ description: >
   User needs a build-vs-depend decision with codebase context. The practices-researcher agent discovers existing code and recommends the pragmatic path.
   </commentary>
   </example>
-model: inherit
+model: sonnet
 tools:
   - Read
   - Grep

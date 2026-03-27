@@ -241,15 +241,15 @@ When spawning validation teammates:
 
 ### Standard Mode
 
-| Teammate               | Type                        | Focus             | Model   |
-| ---------------------- | --------------------------- | ----------------- | ------- |
-| path-validator         | `explore`                   | Path verification | haiku   |
-| dependency-validator   | `explore`                   | Dependency graph  | haiku   |
-| completeness-validator | `codebase-research-analyst` | Task quality      | Default |
+| Teammate               | Type                        | Focus             | Model  |
+| ---------------------- | --------------------------- | ----------------- | ------ |
+| path-validator         | `explore`                   | Path verification | haiku  |
+| dependency-validator   | `explore`                   | Dependency graph  | haiku  |
+| completeness-validator | `codebase-research-analyst` | Task quality      | sonnet |
 
 ### Optimized Mode
 
-| Teammate               | Type                        | Focus                  | Model   |
-| ---------------------- | --------------------------- | ---------------------- | ------- |
-| path-dep-validator     | `explore`                   | Paths and dependencies | haiku   |
-| completeness-validator | `codebase-research-analyst` | Completeness           | Default |
+| Teammate               | Type                        | Focus                  | Model  |
+| ---------------------- | --------------------------- | ---------------------- | ------ |
+| path-dep-validator     | `explore`                   | Paths and dependencies | haiku  |
+| completeness-validator | `codebase-research-analyst` | Completeness           | sonnet |

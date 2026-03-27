@@ -706,12 +706,12 @@ When spawning research teammates:
 
 | Teammate              | Type                        | Can Write | Output File                 | Model   |
 | --------------------- | --------------------------- | --------- | --------------------------- | ------- |
-| api-researcher        | `research-specialist`       | Yes       | research-external.md        | Default |
-| business-analyzer     | `codebase-research-analyst` | Yes       | research-business.md        | Default |
+| api-researcher        | `research-specialist`       | Yes       | research-external.md        | sonnet  |
+| business-analyzer     | `codebase-research-analyst` | Yes       | research-business.md        | sonnet  |
 | tech-designer         | `codebase-research-analyst` | Yes       | research-technical.md       | Default |
-| ux-researcher         | `research-specialist`       | Yes       | research-ux.md              | Default |
-| security-researcher   | `research-specialist`       | Yes       | research-security.md        | Default |
-| practices-researcher  | `codebase-research-analyst` | Yes       | research-practices.md       | Default |
+| ux-researcher         | `research-specialist`       | Yes       | research-ux.md              | sonnet  |
+| security-researcher   | `research-specialist`       | Yes       | research-security.md        | sonnet  |
+| practices-researcher  | `codebase-research-analyst` | Yes       | research-practices.md       | sonnet  |
 | recommendations-agent | `codebase-research-analyst` | Yes       | research-recommendations.md | Default |
 
 ## Expected Output

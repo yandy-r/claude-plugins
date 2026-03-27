@@ -481,9 +481,19 @@ When spawning research teammates:
 
 ## Teammate Configuration
 
-| Teammate                | Type                        | Output File              | Model   |
-| ----------------------- | --------------------------- | ------------------------ | ------- |
-| architecture-researcher | `codebase-research-analyst` | research-architecture.md | Default |
-| patterns-researcher     | `codebase-research-analyst` | research-patterns.md     | Default |
-| integration-researcher  | `codebase-research-analyst` | research-integration.md  | Default |
-| docs-researcher         | `codebase-research-analyst` | research-docs.md         | Default |
+| Teammate                | Type                        | Output File              | Model  |
+| ----------------------- | --------------------------- | ------------------------ | ------ |
+| architecture-researcher | `codebase-research-analyst` | research-architecture.md | sonnet |
+| patterns-researcher     | `codebase-research-analyst` | research-patterns.md     | sonnet |
+| integration-researcher  | `codebase-research-analyst` | research-integration.md  | sonnet |
+| docs-researcher         | `codebase-research-analyst` | research-docs.md         | sonnet |
+
+## Optimized Mode Teammate Configuration
+
+| Teammate            | Type                        | Output File              | Model  |
+| ------------------- | --------------------------- | ------------------------ | ------ |
+| arch-analyst        | `codebase-research-analyst` | analysis-architecture.md | sonnet |
+| pattern-analyst     | `codebase-research-analyst` | analysis-patterns.md     | sonnet |
+| integration-analyst | `codebase-research-analyst` | analysis-integration.md  | sonnet |
+| docs-analyst        | `codebase-research-analyst` | analysis-docs.md         | sonnet |
+| task-planner        | `codebase-research-analyst` | analysis-tasks.md        | sonnet |
