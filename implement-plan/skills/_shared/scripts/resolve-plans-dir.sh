@@ -93,7 +93,7 @@ _find_git_root() {
   local depth=0
 
   while [[ "$dir" != "/" && $depth -lt $max_depth ]]; do
-    if [[ -d "${dir}/.git" ]]; then
+    if [[ -d "${dir}/.git" ]] || [[ -f "${dir}/.git" ]]; then
       echo "$dir"
       return 0
     fi
