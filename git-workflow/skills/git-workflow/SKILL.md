@@ -48,6 +48,35 @@ Check if GitHub MCP tools are available in your current tool list by looking for
 
 ---
 
+## Conventional Commits Requirement
+
+**ALL commits produced by this workflow MUST use the Conventional Commits format.** This is a hard requirement, not a suggestion.
+
+**Format**: `<type>(<scope>): <subject>`
+
+**Valid types**: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`, `revert`
+
+**Rules** (enforced by `validate-commit.sh`):
+
+- Subject line: imperative mood, lowercase start, no trailing period, ≤50 chars (≤72 max)
+- Scope: optional, lowercase alphanumeric with hyphens
+- Breaking changes: use `!` suffix and/or `BREAKING CHANGE:` footer
+- Body: optional, wrap at 72 chars
+
+**This applies to:**
+
+- Direct commits (Phase 3a) — validated before committing
+- Agent commits (Phase 3b) — validated after agents complete, amended if non-conformant
+- PR titles (Phase 5) — must follow `<type>(<scope>): <description>` format
+
+Load the full reference before crafting any commit message:
+
+```bash
+cat ${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/templates/commit-types.md
+```
+
+---
+
 ## Phase 0: Analyze Changes
 
 ### Step 1: Check Git Status
@@ -392,14 +421,29 @@ Monitor agent execution:
 - Each creates its own commit
 - Wait for all to finish before proceeding
 
-### Step 18: Review Agent Results
+### Step 18: Review and Validate Agent Results
 
 After agents complete:
 
 - Update todos to "completed"
-- Review each agent's commit message
+- **Validate each agent's commit message** against conventional commit format:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh "$(git log -1 --format=%s <commit-hash>)"
+```
+
+- If any commit message fails validation, amend it:
+
+```bash
+git rebase -x '${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh "$(git log -1 --format=%s HEAD)" || echo "NEEDS FIX"' <merge-base>..HEAD
+```
+
+  Or for a single commit, use `git commit --amend -m "<corrected-message>"` to fix it.
+
 - Check for conflicts or issues
 - Verify documentation quality
+
+**CRITICAL**: Do not proceed to Phase 4 until all agent commits pass conventional commit validation.
 
 ---
 
@@ -530,13 +574,21 @@ This provides:
 
 ### Step 25: Generate PR Title
 
+PR titles **MUST** follow the conventional commit format: `<type>(<scope>): <description>`
+
 Based on commits made, create a PR title:
 
-**Single commit**: Use the commit subject line
+**Single commit**: Use the commit subject line directly (already validated)
 
-**Multiple related commits**: Create descriptive title
+**Multiple related commits**: Create a descriptive title that follows the same conventional format
 
-**Format**: `<type>(<scope>): <description>`
+Validate the PR title with the same rules as commit messages:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh "<pr-title>"
+```
+
+If validation fails, revise the title until it passes.
 
 **Examples**:
 

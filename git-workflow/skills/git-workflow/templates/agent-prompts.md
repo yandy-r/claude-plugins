@@ -41,7 +41,13 @@ Read these templates BEFORE creating documentation:
 
 ## Important Constraints
 
-- Use conventional commit format (see commit-types.md)
+- **ALWAYS use conventional commit format** — this is mandatory, not optional
+- Read the reference BEFORE writing your commit message: ${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/templates/commit-types.md
+- Validate your commit message BEFORE committing:
+  ```bash
+  ${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh "<your-commit-message>"
+  ```
+  If validation fails, revise the message and re-validate until it passes.
 - Combine source + docs in ONE commit
 - Use git add + commit in single command (avoid race conditions)
 - Use only git CLI commands for version control (git add, git commit)
