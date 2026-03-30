@@ -1,44 +1,11 @@
 ---
 name: implement-plan
-description: Execute a parallel implementation plan by deploying implementor agent teams in dependency-resolved batches. Use as Step 3 after parallel-plan to implement features from the generated plan.
-argument-hint: '[feature-name] [--dry-run]'
-allowed-tools:
-  - Read
-  - Grep
-  - Glob
-  - Agent
-  - TeamCreate
-  - TeamDelete
-  - TaskCreate
-  - TaskUpdate
-  - TaskList
-  - TaskGet
-  - SendMessage
-  - Bash(ls:*)
-  - Bash(cat:*)
-  - Bash(test:*)
-  - Bash(grep:*)
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/implement-plan/scripts/*.sh:*)'
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
----
-
-## MANDATORY — AGENT TEAMS REQUIRED
-
-**You MUST use agent teams for this skill. Do NOT use standalone sub-agents.**
-
-1. **TeamCreate** FIRST — before spawning any agents
-2. **TaskCreate** — register all tasks in the shared task list
-3. **Agent with `team_name`** — every agent spawn MUST include the `team_name` parameter
-4. **SendMessage** — shut down teammates between batches
-5. **TeamDelete** — clean up when done
-
-If you spawn an agent WITHOUT `team_name`, you are doing it wrong. Stop and fix it.
-
+description: Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Use as Step 3 after parallel-plan to implement features from the generated plan.
 ---
 
 # Parallel Plan Executor
 
-Execute a parallel implementation plan by deploying implementor agent teams in dependency-resolved batches. This is **Step 3** of the planning workflow, transforming the plan into working code.
+Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. This is **Step 3** of the planning workflow, transforming the plan into working code.
 
 ## Workflow Integration
 
@@ -144,52 +111,37 @@ Dependent Tasks:
 
 ---
 
-## Phase 2: Create Team and Tasks
+## Phase 2: Create Todo List
 
-### Step 5: Create Implementation Team
+### Step 5: Generate Comprehensive Todos
 
-Create an agent team for the implementation:
+Using **TodoWrite**, create a todo item for each task in the plan:
 
-```
-TeamCreate: team_name="ip-[feature-name]", description="Implementation team for [feature-name]"
-```
+Format each todo as:
 
-### Step 6: Create Shared Task List
-
-Using **TaskCreate**, create a task for each implementation task in the plan:
-
-Format each task as:
-
-- **subject**: `"[Task ID]: [Task Title]"`
-- **description**: Include dependencies, files to read/create/modify, and instructions
+- `id`: Task ID (e.g., "task-1-1")
+- `content`: "[Task ID] [Task Title] - Depends on: [dependencies]"
+- `status`: "pending"
 
 Example:
 
 ```
-TaskCreate: subject="1.1: Create user model", description="Depends on: none. Files to create: /src/models/user.ts. Files to modify: /src/models/index.ts."
-TaskCreate: subject="1.2: Add validation", description="Depends on: 1.1. Files to modify: /src/models/user.ts."
+- task-1-1: "1.1 Create user model - Depends on: none"
+- task-1-2: "1.2 Add validation - Depends on: 1.1"
+- task-1-3: "1.3 Setup routes - Depends on: none"
 ```
 
-### Step 7: Set Up Dependency Relationships
+### Step 6: Identify First Batch
 
-For each task with dependencies, use **TaskUpdate** with `addBlockedBy` to encode the dependency graph:
+Identify all tasks with `Depends on [none]` - these form the first batch.
 
-```
-TaskUpdate: taskId="[task-1-2-id]", addBlockedBy=["[task-1-1-id]"]
-TaskUpdate: taskId="[task-2-1-id]", addBlockedBy=["[task-1-1-id]", "[task-1-2-id]"]
-```
-
-This ensures the shared task list itself tracks which tasks are ready (unblocked) vs waiting.
-
-### Step 8: Identify First Batch
-
-Identify all tasks with no `blockedBy` dependencies — these form the first batch.
+Mark these as ready for execution.
 
 ---
 
 ## Phase 3: Execute in Batches
 
-### Step 9: Check for Dry Run Mode
+### Step 7: Check for Dry Run Mode
 
 If `--dry-run` is present in `$ARGUMENTS`:
 
@@ -197,11 +149,6 @@ Display:
 
 ```markdown
 # Dry Run: Implementation Plan for [feature-name]
-
-## Team
-
-- Name: ip-[feature-name]
-- Teammates share findings within each batch
 
 ## Execution Batches
 
@@ -232,74 +179,78 @@ Display:
 Remove --dry-run flag to execute the plan.
 ```
 
-**STOP HERE** - do not deploy agents. Clean up the team with `TeamDelete`.
+**STOP HERE** - do not deploy agents.
 
-### Step 10: Read Agent Prompt Template
+### Step 8: Execute Batch
 
-Read the template once before entering the batch loop:
+For each batch of ready tasks:
+
+**CRITICAL**: Deploy all agents in the batch in a **SINGLE message** with **MULTIPLE Task tool calls**.
+
+Read the agent task prompt template:
 
 ```bash
 cat ${CLAUDE_PLUGIN_ROOT}/skills/implement-plan/templates/agent-task-prompt.md
 ```
 
-### Step 11: Execute Batch
+For each task in the batch, deploy an `implementor` agent with:
 
-For each batch, do the following **in order**:
+| Field         | Value                                      |
+| ------------- | ------------------------------------------ |
+| subagent_type | `implementor`                              |
+| description   | "Implement [Task ID]: [Title]"             |
+| prompt        | Use template with task details substituted |
 
-**1. Build the teammate list** for this batch — list each task's name and title so teammates know who else is working in parallel. Substitute into `{{BATCH_TEAMMATES}}`.
+### Step 9: Agent Task Requirements
 
-**2. Spawn ALL batch teammates in a SINGLE message** using MULTIPLE Agent tool calls. Every call MUST include `team_name="ip-[feature-name]"`:
+Each implementor agent must:
+
+1. **Read context first**:
+   - `docs/plans/[feature-name]/parallel-plan.md`
+   - `docs/plans/[feature-name]/shared.md`
+   - Files listed in "READ THESE BEFORE TASK"
+
+2. **Implement the specific task**:
+   - Create files listed in "Files to Create"
+   - Modify files listed in "Files to Modify"
+   - Follow the instructions exactly
+
+3. **Validate changes**:
+   - Check for linting errors on modified files
+   - Ensure code compiles/parses correctly
+
+4. **Return summary**:
+   - List of files created
+   - List of files modified
+   - Any issues encountered
+
+### Step 10: Process Batch Results
+
+After batch completes:
+
+1. **Update todos**: Mark completed tasks as `completed`
+2. **Review agent outputs**: Check for errors or issues
+3. **Identify next batch**: Find tasks whose dependencies are now satisfied
+4. **Handle failures**: If a task failed, note it and continue with independent tasks
+
+### Step 11: Repeat Until Complete
+
+Continue executing batches until all tasks are completed:
 
 ```
-Agent(
-  team_name = "ip-[feature-name]",
-  name = "task-1-1",
-  subagent_type = "implementor",
-  model = "sonnet",
-  description = "Implement 1.1: Create user model",
-  prompt = [substituted template]
-)
-Agent(
-  team_name = "ip-[feature-name]",
-  name = "task-1-3",
-  subagent_type = "implementor",
-  model = "sonnet",
-  description = "Implement 1.3: Setup routes",
-  prompt = [substituted template]
-)
+While tasks remain:
+  1. Find tasks where all dependencies are completed
+  2. Deploy agents for those tasks in parallel
+  3. Wait for batch to complete
+  4. Update task status
+  5. Identify next batch
 ```
-
-Template variables to substitute:
-
-| Variable                | Source                         |
-| ----------------------- | ------------------------------ |
-| `{{FEATURE_NAME}}`      | Feature directory name         |
-| `{{TASK_ID}}`           | Task identifier (1.1, T0, etc) |
-| `{{TASK_TITLE}}`        | Task name from plan            |
-| `{{FILES_TO_READ}}`     | "READ THESE BEFORE TASK" files |
-| `{{FILES_TO_CREATE}}`   | "Files to Create" list         |
-| `{{FILES_TO_MODIFY}}`   | "Files to Modify" list         |
-| `{{TASK_INSTRUCTIONS}}` | Implementation instructions    |
-| `{{BATCH_NUMBER}}`      | Current batch number           |
-| `{{BATCH_TEAMMATES}}`   | Other teammates in this batch  |
-
-**3. Monitor progress** — use `TaskList` to check when all batch tasks are complete. If a teammate messages you with an issue, respond with guidance.
-
-**4. Handle failures** — if a task fails, mark dependent tasks as skipped (they cannot proceed). Continue with remaining independent tasks.
-
-**5. Shut down batch teammates** — send `SendMessage(to="task-[id]", message={type: "shutdown_request"})` to each teammate. Wait for shutdowns before next batch.
-
-**6. Identify next batch** — check `TaskList` for pending tasks with all blockers completed. If tasks remain but none are unblocked, report deadlock and stop.
-
-### Step 12: Repeat Until Complete
-
-Repeat Step 11 for each subsequent batch until all tasks are completed or no more can be unblocked.
 
 ---
 
 ## Phase 4: Final Verification & Summary
 
-### Step 13: Verify Implementation
+### Step 12: Verify Implementation
 
 After all tasks complete:
 
@@ -307,15 +258,7 @@ After all tasks complete:
 2. **Verify file creation**: Ensure all "Files to Create" exist
 3. **Review changes**: Quick sanity check of modifications
 
-### Step 14: Clean Up Team
-
-Delete the team and its resources:
-
-```
-TeamDelete
-```
-
-### Step 15: Display Summary
+### Step 13: Display Summary
 
 Provide completion summary:
 
@@ -326,19 +269,12 @@ Provide completion summary:
 
 [feature-name]
 
-## Team Summary
-
-- Team: ip-[feature-name]
-- Total teammates spawned: [count across all batches]
-- Batches executed: [count]
-- Inter-agent sharing: Enabled (teammates shared findings within batches)
-
 ## Execution Summary
 
 - **Total Tasks**: [count]
 - **Completed**: [count]
 - **Failed**: [count]
-- **Skipped**: [count] (blocked by failed dependencies)
+- **Batches Executed**: [count]
 
 ## Files Changed
 
@@ -374,8 +310,12 @@ Provide completion summary:
 2. Run tests to verify functionality
 3. Commit the changes when satisfied
 4. **Optional**: Generate implementation report:
+```
 
 /code-report [feature-name]
+
+```
+
 ```
 
 ---
@@ -386,31 +326,28 @@ Provide completion summary:
 
 Each batch must:
 
-- [ ] Deploy all ready tasks as teammates in parallel (single message, multiple Agent calls)
-- [ ] Wait for all teammates to complete before next batch
-- [ ] Update task status via TaskList monitoring
-- [ ] Handle failures gracefully (skip dependent tasks)
-- [ ] Shut down batch teammates before spawning next batch
+- [ ] Deploy all ready tasks in parallel (single message, multiple Task calls)
+- [ ] Wait for all agents to complete before next batch
+- [ ] Update todo status after completion
+- [ ] Handle failures gracefully
 
-### Teammate Quality Checklist
+### Agent Quality Checklist
 
-Each teammate must:
+Each agent must:
 
 - [ ] Read all required context files first
 - [ ] Implement only the assigned task
-- [ ] Share relevant findings with batch teammates
-- [ ] Validate changes before completing
-- [ ] Mark task complete via TaskUpdate
+- [ ] Validate changes before returning
+- [ ] Return clear summary of changes
 
 ### Overall Quality Checklist
 
 The implementation must:
 
-- [ ] Complete all tasks in the plan (or report failures clearly)
+- [ ] Complete all tasks in the plan
 - [ ] Respect dependency ordering
-- [ ] Maximize parallel execution within batches
-- [ ] Report any failures and skipped tasks clearly
-- [ ] Clean up team before completing
+- [ ] Maximize parallel execution
+- [ ] Report any failures clearly
 
 ---
 
@@ -421,7 +358,7 @@ The skill automatically detects and uses the correct plans directory in monorepo
 ### Default Behavior
 
 - Plans are read from the **git repository root** in `docs/plans/`
-- Running the skill from any subdirectory still reads plans from the root
+- Running the skill from any subdirectory (e.g., `packages/app1/`) will still read plans from the root
 
 ### Configuration
 
@@ -444,19 +381,30 @@ scope: local
 
 With `scope: local`, plans are read from the local `docs/plans/` instead of the root.
 
+### Example: Monorepo Structure
+
+```
+monorepo/
+  .plans-config          # plans_dir: docs/plans
+  docs/plans/            # Centralized plans (default)
+    feature-a/
+      shared.md
+      parallel-plan.md   # Read by this skill
+  packages/
+    app1/
+    app2/
+```
+
+Running `/implement-plan feature-a` from anywhere executes `monorepo/docs/plans/feature-a/parallel-plan.md`.
+
 ---
 
 ## Important Notes
 
-- **You are the team lead** - coordinate teammates, don't implement yourself
-- **Create team first** - use TeamCreate before spawning any teammates
-- **Spawn teammates in parallel** - single message with multiple Agent calls per batch
-- **Pass model parameters** - use `model: "sonnet"` for all implementor teammates
-- **Teammates share findings** - they communicate within batches via SendMessage
+- **You are the orchestrator** - coordinate agents, don't implement yourself
+- **Deploy in batches** - single message with multiple Task calls per batch
 - **Respect dependencies** - never start a task before its dependencies complete
-- **Maximize parallelism** - run all independent tasks simultaneously in each batch
-- **Shut down between batches** - shut down teammates before spawning next batch
-- **Handle failures** - skip dependent tasks if a task fails, continue with independent ones
-- **Detect deadlocks** - if no tasks can be unblocked, report and stop
-- **Clean up team** - always TeamDelete before completing
+- **Maximize parallelism** - run all independent tasks simultaneously
+- **Track progress** - update todos as tasks complete
+- **Handle failures** - continue with independent tasks if one fails
 - **Monorepo aware** - automatically resolves correct plans directory

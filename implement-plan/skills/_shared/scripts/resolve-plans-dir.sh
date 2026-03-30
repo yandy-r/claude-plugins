@@ -210,34 +210,34 @@ get_feature_plan_dir() {
 }
 
 # If script is executed directly (not sourced), run resolution and print result
-if [[ "${BASH_SOURCE[0]:-}" == "${0:-}" ]]; then
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
   case "${1:-}" in
-    --help|-h)
-      echo "Usage: resolve-plans-dir.sh [start-dir]"
-      echo ""
-      echo "Resolves the plans directory for the current project."
-      echo ""
-      echo "Options:"
-      echo "  --help, -h     Show this help message"
-      echo "  --debug        Enable debug output"
-      echo ""
-      echo "Environment:"
-      echo "  PLANS_DEBUG=1  Enable debug output"
-      echo ""
-      echo "Output:"
-      echo "  Prints the resolved plans directory path"
-      exit 0
-      ;;
-    --debug)
-      export PLANS_DEBUG=1
-      shift
-      resolve_plans_dir "${1:-}"
-      echo "$PLANS_DIR"
-      ;;
-    *)
-      resolve_plans_dir "${1:-}"
-      echo "$PLANS_DIR"
-      ;;
+  --help | -h)
+    echo "Usage: resolve-plans-dir.sh [start-dir]"
+    echo ""
+    echo "Resolves the plans directory for the current project."
+    echo ""
+    echo "Options:"
+    echo "  --help, -h     Show this help message"
+    echo "  --debug        Enable debug output"
+    echo ""
+    echo "Environment:"
+    echo "  PLANS_DEBUG=1  Enable debug output"
+    echo ""
+    echo "Output:"
+    echo "  Prints the resolved plans directory path"
+    exit 0
+    ;;
+  --debug)
+    export PLANS_DEBUG=1
+    shift
+    resolve_plans_dir "${1:-}"
+    echo "$PLANS_DIR"
+    ;;
+  *)
+    resolve_plans_dir "${1:-}"
+    echo "$PLANS_DIR"
+    ;;
   esac
 else
   # Being sourced - automatically resolve
