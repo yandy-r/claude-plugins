@@ -8,6 +8,7 @@ Apply this contract to every teammate prompt in this file:
 
 - Write only your assigned output file under `{{FEATURE_DIR}}`.
 - Do not edit any other files.
+- **Do NOT invoke any skills or slash commands** (e.g., `/deep-research`, `/feature-research`, or any other skill). Perform all research directly using your own tools: WebSearch, WebFetch, Read, Grep, Glob. You are a focused research agent — do your work yourself, do not delegate to other workflows.
 - **Share key findings** with relevant teammates using SendMessage.
 - After writing the file and sharing findings, mark your task as complete using TaskUpdate.
 
@@ -30,6 +31,8 @@ Research external APIs, libraries, and integration patterns for implementing "{{
 {{FEATURE_DESCRIPTION}}
 
 ## Your Task
+
+**IMPORTANT**: Do your research directly using WebSearch and WebFetch. Do NOT invoke the /deep-research skill or any other skills — you are a focused research agent with a specific deliverable.
 
 Use web search and documentation to research:
 
@@ -231,6 +234,8 @@ Research user experience patterns and best practices for "{{FEATURE_NAME}}".
 
 ## Your Task
 
+**IMPORTANT**: Do your research directly using WebSearch and WebFetch. Do NOT invoke the /deep-research skill or any other skills — you are a focused research agent with a specific deliverable.
+
 Research and document:
 
 1. **User Workflows** - Optimal journeys, interaction patterns, decision points
@@ -297,6 +302,8 @@ Evaluate the security implications, dependency risks, and secure coding requirem
 {{FEATURE_DESCRIPTION}}
 
 ## Your Task
+
+**IMPORTANT**: Do your research directly using WebSearch and WebFetch. Do NOT invoke the /deep-research skill or any other skills — you are a focused research agent with a specific deliverable.
 
 Research and evaluate:
 
