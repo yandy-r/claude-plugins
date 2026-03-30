@@ -5,7 +5,7 @@ description: This skill should be used when the user asks to "create issues from
 
 # Research to GitHub Issues
 
-Convert deep-research output into structured GitHub issues with tracking hierarchy, labels, and priority classification. Parse research documents to extract features, deliverables, anti-scope items, and research gaps, then create well-organized GitHub issues via `gh` CLI.
+Convert deep-research output into structured GitHub issues with tracking hierarchy, labels, and priority classification. Parse research documents to extract features, deliverables, anti-scope items, and research gaps, then create well-organized GitHub issues via GitHub MCP server (preferred) or `gh` CLI (fallback).
 
 ## Current Task
 
@@ -20,6 +20,31 @@ Parse arguments:
 
 ---
 
+## Tool Preference Strategy
+
+Before beginning Phase 0, determine which tools are available for GitHub operations.
+
+### Step 0: Detect GitHub MCP Server
+
+Check if GitHub MCP tools are available in your current tool list by looking for tools matching the pattern `mcp__github__*` (e.g., `mcp__github__create_issue`, `mcp__github__create_label`).
+
+**Set your tool preference for this session:**
+
+| MCP Tools Available?                  | GitHub Operations Strategy                                                         |
+| ------------------------------------- | ---------------------------------------------------------------------------------- |
+| Yes (`mcp__github__*` tools found)    | **Use MCP tools** for issue creation, label creation, and repository queries       |
+| No (no `mcp__github__*` tools found)  | **Use `gh` CLI** via Bash for all GitHub operations (current behavior)             |
+
+**What stays as CLI regardless:**
+
+- All `git` operations — always use Bash `git` commands
+- Validation script (`validate-prerequisites.sh`) — always run via Bash
+- File reading and analysis — always use Read/Grep/Glob tools
+
+**Important**: Lack of MCP tools must NEVER block the workflow. If MCP tools are detected but a specific MCP call fails, fall back to the equivalent `gh` CLI command for that operation.
+
+---
+
 ## Phase 0: Validate Prerequisites
 
 **WARNING: This skill does NOT check for existing issues. Running it twice creates duplicates. Warn the user before proceeding if issues may have already been created from this research.**
@@ -30,11 +55,21 @@ Parse arguments:
 ${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/scripts/validate-prerequisites.sh "<research-dir>"
 ```
 
-If validation fails, display the error and stop. Do not proceed without:
+If validation fails, evaluate the failure:
 
-- `gh` CLI installed and authenticated
+- **If `gh` CLI is missing/unauthenticated BUT MCP tools are available**: Proceed — MCP tools will handle GitHub operations
+- **If `gh` CLI fails AND no MCP tools available**: Display the error and stop
+- **If research directory or git repo validation fails**: Display the error and stop regardless of MCP availability
+
+Hard prerequisites (always required):
+
 - A GitHub-connected git repository
 - A valid research directory with expected structure
+
+Soft prerequisites (one of these must be available):
+
+- `gh` CLI installed and authenticated, OR
+- GitHub MCP server (`mcp__github__*` tools)
 
 ### Step 2: Identify Research Directory
 
@@ -220,7 +255,17 @@ Output: "Dry run complete. Remove --dry-run to create these issues."
 
 ### Step 11: Create Missing Labels
 
-For each label that does not already exist in the repo, create it:
+For each label that does not already exist in the repo:
+
+**If GitHub MCP tools are available (preferred)**, use `mcp__github__create_label` with:
+
+- `owner`: Repository owner (extract from `git remote get-url origin`)
+- `repo`: Repository name (extract from `git remote get-url origin`)
+- `name`: Label name
+- `color`: Hex color (without `#` prefix)
+- `description`: Label description
+
+**If MCP is unavailable or fails**, fall back to CLI:
 
 ```bash
 gh label create "<label-name>" --description "<description>" --color "<hex-color>" --force
@@ -248,6 +293,18 @@ Create all feature issues before tracking issues (tracking issues need the child
 
 For each feature issue, use the template from `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/templates/feature-issue.md` to compose the body.
 
+**If GitHub MCP tools are available (preferred)**, use `mcp__github__create_issue` with:
+
+- `owner`: Repository owner
+- `repo`: Repository name
+- `title`: Issue title
+- `body`: Composed body from template
+- `labels`: Array of label name strings
+
+The MCP tool returns the issue number in structured response data.
+
+**If MCP is unavailable or fails**, fall back to CLI:
+
 ```bash
 gh issue create \
   --title "<title>" \
@@ -269,6 +326,16 @@ Same process as Step 12, using the anti-scope and research gap template variants
 For each phase tracking issue, compose the body using the template from `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/templates/tracking-issue.md`. Populate the checkbox list with links to child issue numbers created in Steps 12-13 (e.g., `- [ ] #42 Multi-Tenant Data Model`).
 
 Create the tracking issue:
+
+**If GitHub MCP tools are available (preferred)**, use `mcp__github__create_issue` with:
+
+- `owner`: Repository owner
+- `repo`: Repository name
+- `title`: `"Phase {N}: {phase_title}"`
+- `body`: Composed body from template with child issue checkbox links
+- `labels`: `["tracking", "phase:{N}", "priority:high"]`
+
+**If MCP is unavailable or fails**, fall back to CLI:
 
 ```bash
 gh issue create \
@@ -328,6 +395,8 @@ After all issues are created, display a summary:
 - **Dry-run is safe** — encourage using `--dry-run` on first invocation
 - **Labels are created with --force** — safe to run multiple times
 - **Issue order matters** — create child issues before tracking issues (need issue numbers)
+- **MCP-first** — GitHub operations (issues, labels) prefer MCP tools (`mcp__github__*`) when available, with automatic `gh` CLI fallback
+- **Validation adaptation** — if `gh` CLI is missing but MCP tools are available, the workflow can still proceed
 - **No implementation** — this skill creates issues only. It does not write code or create plans.
 - **Templates are guides** — adapt template fields to whatever is actually present in the research. Not all research output will have every field.
 

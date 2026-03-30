@@ -10,6 +10,7 @@ allowed-tools:
   - Task
   - TodoWrite
   - Bash(gh:*)
+  - 'mcp__github__*'
   - Bash(git:*)
   - Bash(ls:*)
   - Bash(cat:*)

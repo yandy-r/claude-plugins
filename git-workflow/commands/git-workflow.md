@@ -11,6 +11,7 @@ allowed-tools:
   - TodoWrite
   - Bash(git:*)
   - Bash(gh:*)
+  - 'mcp__github__*'
   - Bash(ls:*)
   - Bash(cat:*)
   - Bash(test:*)

@@ -23,6 +23,31 @@ If no arguments needed, proceed with analysis.
 
 ---
 
+## Tool Preference Strategy
+
+Before beginning Phase 0, determine which tools are available for GitHub operations.
+
+### Step 0: Detect GitHub MCP Server
+
+Check if GitHub MCP tools are available in your current tool list by looking for tools matching the pattern `mcp__github__*` (e.g., `mcp__github__create_pull_request`, `mcp__github__get_pull_request`).
+
+**Set your tool preference for this session:**
+
+| MCP Tools Available?                  | GitHub Operations Strategy                                              |
+| ------------------------------------- | ----------------------------------------------------------------------- |
+| Yes (`mcp__github__*` tools found)    | **Use MCP tools** for all GitHub operations (PR creation, PR viewing)   |
+| No (no `mcp__github__*` tools found)  | **Use `gh` CLI** via Bash for all GitHub operations (current behavior)  |
+
+**What stays as CLI regardless:**
+
+- All `git` operations (status, diff, add, commit, push) — always use Bash `git` commands
+- All bash scripts (analyze-changes.sh, create-pr.sh, validate-commit.sh) — always run via Bash
+- File reading and analysis — always use Read/Grep/Glob tools
+
+**Important**: Lack of MCP tools must NEVER block the workflow. If MCP tools are detected but a specific MCP call fails, fall back to the equivalent `gh` CLI command for that operation.
+
+---
+
 ## Phase 0: Analyze Changes
 
 ### Step 1: Check Git Status
@@ -465,7 +490,9 @@ If `--pr` flag is present in `$ARGUMENTS`:
 **Prerequisites**:
 
 - Branch must be pushed to remote
-- GitHub CLI (`gh`) must be installed and authenticated
+- GitHub MCP server OR GitHub CLI (`gh`) must be available:
+  - If MCP tools available (`mcp__github__*`): no additional prerequisites
+  - If using CLI fallback: `gh` must be installed and authenticated
 - If `--pr` but not pushed, automatically push first
 
 ### Step 23: Load PR Template
@@ -617,7 +644,21 @@ Decide between regular PR and draft PR:
 
 ### Step 28: Create Pull Request
 
-Execute PR creation using GitHub CLI:
+#### If GitHub MCP tools are available (preferred)
+
+Use `mcp__github__create_pull_request` with:
+
+- `owner`: Repository owner (extract from `git remote get-url origin`)
+- `repo`: Repository name (extract from `git remote get-url origin`)
+- `title`: PR title from Step 25
+- `body`: PR description from Step 26
+- `head`: Current branch name
+- `base`: Default branch (main/master)
+- `draft`: `true` if `--draft` flag is set, `false` otherwise
+
+The MCP tool returns the PR number and URL in structured data.
+
+#### If MCP is unavailable or fails — fall back to GitHub CLI
 
 **For regular PR**:
 
@@ -660,9 +701,10 @@ After PR creation:
 
 1. **No upstream branch**: Offer to push with `-u origin [branch]`
 2. **Branch not pushed**: Automatically push and retry
-3. **gh CLI not installed**: Provide installation instructions
-4. **Not authenticated**: Guide to run `gh auth login`
+3. **gh CLI not installed**: If MCP tools are available, use those instead; otherwise provide installation instructions
+4. **Not authenticated**: If MCP tools are available, use those instead; otherwise guide to run `gh auth login`
 5. **PR already exists**: Offer to update or view existing PR
+6. **MCP tool failed**: Fall back to `gh` CLI and retry the operation
 
 ### Step 30: Post-PR Summary
 
@@ -839,7 +881,8 @@ If repository has `.github/PULL_REQUEST_TEMPLATE.md`:
 - **No premature push**: Only push when explicitly requested or with `--push` flag
 - **Pull requests**: Use `--pr` flag to automatically create PR after pushing
 - **Draft PRs**: Use `--draft` with `--pr` for work-in-progress or early feedback
-- **GitHub CLI required**: PR creation requires `gh` CLI tool installed and authenticated
+- **MCP-first**: GitHub operations prefer MCP tools (`mcp__github__*`) when available, with automatic `gh` CLI fallback
+- **GitHub tools required**: PR creation requires GitHub MCP server or `gh` CLI tool installed and authenticated
 
 ---
 
@@ -972,9 +1015,18 @@ docs(api): update authentication endpoint examples
 
 **Solution**: When in doubt, skip documentation for minor changes, create it for substantial features
 
+### Issue: MCP tools detected but GitHub operation fails via MCP
+
+**Solution**: The workflow automatically falls back to `gh` CLI. If both fail, check:
+
+- Repository permissions
+- Authentication status (`gh auth status`)
+- Branch is pushed to remote
+- MCP server configuration is correct
+
 ### Issue: PR creation fails - gh CLI not installed
 
-**Solution**: Install GitHub CLI:
+**Solution**: If GitHub MCP tools are available, the workflow will use those instead. Otherwise, install GitHub CLI:
 
 ```bash
 # macOS

@@ -44,6 +44,8 @@ Read these templates BEFORE creating documentation:
 - Use conventional commit format (see commit-types.md)
 - Combine source + docs in ONE commit
 - Use git add + commit in single command (avoid race conditions)
+- Use only git CLI commands for version control (git add, git commit)
+- GitHub operations (PRs, issues) are NOT your responsibility — the main skill handles those
 - Do NOT push (main skill handles that)
 - Focus ONLY on your assigned scope
 - Read templates BEFORE creating documentation
