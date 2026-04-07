@@ -1,95 +1,23 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "yandy-plugins",
-  "description": "A collection of Claude Code plugins for workflow orchestration, parallel planning, documentation, research, and project management.",
+  "description": "Yandy's Claude Code plugin bundle, consolidated under the ycc: namespace.",
   "owner": {
     "name": "yandy-r"
   },
   "metadata": {
-    "version": "1.0.0",
+    "version": "2.0.0",
     "repository": "https://github.com/yandy-r/claude-plugins"
   },
   "plugins": [
     {
-      "name": "ask",
-      "description": "Read-only codebase advisor that explores, explains, and guides without making changes. Supports Q&A, impact analysis, and comparison modes.",
-      "version": "1.0.0",
-      "author": {
-        "name": "yandy-r"
-      },
-      "source": "./ask"
-    },
-    {
-      "name": "plan-workflow",
-      "description": "Unified planning pipeline: feature research, shared context creation, parallel plan generation, and validation. Uses coordinated agent teams with inter-agent communication for comprehensive implementation planning.",
+      "name": "ycc",
+      "description": "Yandy's Claude Code plugin bundle: planning, implementation, git workflow, research, docs, orchestration, ask, and project utilities — all under the ycc: namespace.",
       "version": "2.0.0",
       "author": {
         "name": "yandy-r"
       },
-      "source": "./plan-workflow"
-    },
-    {
-      "name": "code-report",
-      "description": "Generate structured implementation reports documenting changes made during plan execution. Creates reports with overview, files changed, features, and test guidance.",
-      "version": "1.0.0",
-      "author": {
-        "name": "yandy-r"
-      },
-      "source": "./code-report"
-    },
-    {
-      "name": "implement-plan",
-      "description": "Execute parallel implementation plans using coordinated implementor agent teams in dependency-resolved batches with inter-agent communication. Step 3 of the planning workflow.",
-      "version": "2.0.0",
-      "author": {
-        "name": "yandy-r"
-      },
-      "source": "./implement-plan"
-    },
-    {
-      "name": "git-workflow",
-      "description": "Git commit and documentation workflow manager. Analyzes changes, determines commit strategy (direct vs agents), writes conventional commit messages, coordinates documentation updates, creates pull requests, and converts deep-research output into structured GitHub issues.",
-      "version": "1.1.0",
-      "author": {
-        "name": "yandy-r"
-      },
-      "source": "./git-workflow"
-    },
-    {
-      "name": "orchestrate",
-      "description": "Orchestrate multiple specialized agents using coordinated agent teams to accomplish complex tasks through intelligent task decomposition, parallel execution with inter-agent communication, and result synthesis.",
-      "version": "2.0.0",
-      "author": {
-        "name": "yandy-r"
-      },
-      "source": "./orchestrate"
-    },
-    {
-      "name": "deep-research",
-      "description": "Conduct strategic multi-perspective research using the Asymmetric Research Squad methodology with 8 specialized personas. Deploys parallel research agents covering historical, contrarian, analogical, systems, journalistic, archaeological, futurist, and negative-space perspectives.",
-      "version": "1.0.0",
-      "author": {
-        "name": "yandy-r"
-      },
-      "source": "./deep-research"
-    },
-    {
-      "name": "write-docs",
-      "description": "Orchestrate 5 specialized documentation agents in parallel to analyze codebase and create comprehensive documentation. Includes audit, gap analysis, parallel agent deployment, and quality assurance.",
-      "version": "1.0.0",
-      "author": {
-        "name": "yandy-r"
-      },
-      "source": "./write-docs"
-    },
-    {
-      "name": "project",
-      "description": "Project workspace management: initialize Claude CLI environments with agents/MCPs based on project analysis, and orchestrate parallel cleanup agents to identify and remove unnecessary files with comprehensive safety measures.",
-      "version": "1.0.0",
-      "author": {
-        "name": "yandy-r"
-      },
-      "source": "./project"
+      "source": "./ycc"
     }
   ]
 }
