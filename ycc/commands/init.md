@@ -1,5 +1,4 @@
 ---
-name: init
 description: Initialize Claude CLI workspace with agents and MCPs based on project analysis
 argument-hint: '[--dry-run]'
 ---

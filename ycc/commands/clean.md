@@ -1,5 +1,4 @@
 ---
-name: clean
 description: Orchestrate parallel cleanup agents to find and remove unnecessary project files
 argument-hint: '[target-directory] [--dry-run] [--report-only] [--safe-mode] [--include-git]'
 ---

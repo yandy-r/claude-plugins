@@ -1,5 +1,4 @@
 ---
-name: implement-plan
 description: Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Step 3 of the planning workflow, requires parallel-plan.md from plan-workflow plugin.
 argument-hint: '[feature-name] [--dry-run]'
 allowed-tools:
