@@ -36,7 +36,7 @@ The `ycc` plugin ships **12 skills**, **9 slash commands**, and **9 agents**:
 /plugin marketplace add yandy-r/claude-plugins
 
 # Install the bundle
-/plugin install ycc@yandy-plugins
+/plugin install ycc@ycc
 ```
 
 Or enable in `~/.claude/settings.json`:
@@ -44,7 +44,7 @@ Or enable in `~/.claude/settings.json`:
 ```json
 {
   "enabledPlugins": {
-    "ycc@yandy-plugins": true
+    "ycc@ycc": true
   }
 }
 ```

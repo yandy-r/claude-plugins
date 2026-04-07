@@ -215,7 +215,7 @@ Replace `.claude-plugin/marketplace.json` with a single `ycc` entry. Bump market
 ```json
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "yandy-plugins",
+  "name": "ycc",
   "description": "Yandy's Claude Code plugin bundle, consolidated under the ycc: namespace.",
   "owner": { "name": "yandy-r" },
   "metadata": {
