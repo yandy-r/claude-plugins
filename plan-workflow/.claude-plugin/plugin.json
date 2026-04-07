@@ -1,8 +1,0 @@
-{
-  "name": "plan-workflow",
-  "version": "2.0.0",
-  "description": "Unified planning pipeline: feature research, shared context creation, parallel plan generation, and validation. Uses coordinated agent teams with inter-agent communication for comprehensive implementation planning.",
-  "author": {
-    "name": "Yandy"
-  }
-}

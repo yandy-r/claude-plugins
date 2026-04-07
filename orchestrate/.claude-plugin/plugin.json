@@ -1,8 +1,0 @@
-{
-  "name": "orchestrate",
-  "description": "Orchestrate multiple specialized agents using coordinated agent teams to accomplish complex tasks through intelligent task decomposition, parallel execution with inter-agent communication, and result synthesis.",
-  "version": "2.0.0",
-  "author": {
-    "name": "Yandy"
-  }
-}
