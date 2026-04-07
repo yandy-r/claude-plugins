@@ -50,12 +50,12 @@ $ARGUMENTS
 If no arguments provided, proceed with default research directory (`docs/research`).
 
 ```
-Usage: /git-workflow:research-to-issues [--dry-run] [--research-dir PATH] [--skip-anti-scope] [--skip-gaps]
+Usage: /ycc:research-to-issues [--dry-run] [--research-dir PATH] [--skip-anti-scope] [--skip-gaps]
 
 Examples:
-  /git-workflow:research-to-issues --dry-run                        # Preview what would be created
-  /git-workflow:research-to-issues                                  # Create all issues
-  /git-workflow:research-to-issues --research-dir ./docs/research   # Specify research path
-  /git-workflow:research-to-issues --skip-anti-scope --skip-gaps    # Only core features
-  /git-workflow:research-to-issues --dry-run --skip-gaps            # Preview without gaps
+  /ycc:research-to-issues --dry-run                        # Preview what would be created
+  /ycc:research-to-issues                                  # Create all issues
+  /ycc:research-to-issues --research-dir ./docs/research   # Specify research path
+  /ycc:research-to-issues --skip-anti-scope --skip-gaps    # Only core features
+  /ycc:research-to-issues --dry-run --skip-gaps            # Preview without gaps
 ```

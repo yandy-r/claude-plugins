@@ -30,4 +30,4 @@ allowed-tools:
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/write-docs/scripts/*.sh:*)'
 ---
 
-Invoke the `write-docs:write-docs` skill with the provided arguments.
+Invoke the `ycc:write-docs` skill with the provided arguments.

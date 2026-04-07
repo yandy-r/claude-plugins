@@ -18,7 +18,7 @@ $ARGUMENTS
    - **Impact Analysis**: What breaks if I change X? What depends on X?
    - **Comparison**: How does A handle X vs B?
 
-2. **Launch the plugin's codebase-advisor agent** using the Task tool with **`subagent_type: "ask:codebase-advisor"`**. Include the user's full question and specify what to focus on. **CRITICAL: Always use `subagent_type: "ask:codebase-advisor"` — never use `codebase-research-analyst` or any other agent type.** The `ask:codebase-advisor` agent is read-only and cannot modify files.
+2. **Launch the plugin's codebase-advisor agent** using the Task tool with **`subagent_type: "ycc:codebase-advisor"`**. Include the user's full question and specify what to focus on. **CRITICAL: Always use `subagent_type: "ycc:codebase-advisor"` — never use `codebase-research-analyst` or any other agent type.** The `ycc:codebase-advisor` agent is read-only and cannot modify files.
 
 3. **Present the findings** with structured formatting and file:line references.
 

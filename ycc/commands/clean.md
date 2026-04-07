@@ -24,9 +24,9 @@ Pass `$ARGUMENTS` through to the skill. Supported flags:
 Examples:
 
 ```
-/project:clean                           # Clean current directory
-/project:clean /path/to/project          # Clean specific directory
-/project:clean --dry-run                 # Preview cleanup
-/project:clean --report-only             # Report only, no deletions
-/project:clean --safe-mode --include-git # Thorough with confirmations
+/ycc:clean                           # Clean current directory
+/ycc:clean /path/to/project          # Clean specific directory
+/ycc:clean --dry-run                 # Preview cleanup
+/ycc:clean --report-only             # Report only, no deletions
+/ycc:clean --safe-mode --include-git # Thorough with confirmations
 ```
