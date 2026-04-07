@@ -1,8 +1,0 @@
-{
-  "name": "plan-workflow",
-  "version": "1.0.0",
-  "description": "Unified planning pipeline: feature research, shared context creation, parallel plan generation, and validation. Orchestrates parallel research and analysis agents for comprehensive implementation planning.",
-  "author": {
-    "name": "Yandy"
-  }
-}

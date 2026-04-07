@@ -1,8 +1,0 @@
-{
-  "name": "code-report",
-  "version": "1.0.0",
-  "description": "Generate structured implementation reports documenting changes made during plan execution. Creates reports with overview, files changed, features, and test guidance.",
-  "author": {
-    "name": "Yandy"
-  }
-}

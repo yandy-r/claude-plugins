@@ -1,8 +1,0 @@
-{
-  "name": "implement-plan",
-  "version": "1.0.0",
-  "description": "Execute parallel implementation plans by deploying implementor agents in dependency-resolved batches. Step 3 of the planning workflow, requires parallel-plan.md from plan-workflow plugin.",
-  "author": {
-    "name": "Yandy"
-  }
-}
