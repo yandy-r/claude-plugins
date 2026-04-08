@@ -5,6 +5,7 @@ allowed-tools:
   - Read
   - Grep
   - Glob
+  - Agent
   - TodoWrite
   - AskUserQuestion
   - Bash(ls:*)

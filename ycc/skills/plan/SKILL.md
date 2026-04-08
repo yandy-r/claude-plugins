@@ -1,11 +1,12 @@
 ---
 name: plan
-description: Lightweight conversational planner that restates requirements, identifies risks, and creates a step-by-step implementation plan — then WAITS for explicit user confirmation before any code is written. Use for quick planning on a new feature, architectural change, or complex refactor when you do NOT need the heavier parallel-agent plan-workflow or the PRD-driven prp-plan. Use when the user asks to "plan this", "outline an approach", "break this down before I code", or says "/plan".
+description: Lightweight conversational planner that dispatches the ycc:planner agent to produce a specific, phased implementation plan with file paths, dependencies, risks, and a testing strategy — then WAITS for explicit user confirmation before any code is written. Use for quick planning on a new feature, architectural change, or complex refactor when you do NOT need the heavier parallel-agent plan-workflow or the PRD-driven prp-plan. Use when the user asks to "plan this", "outline an approach", "break this down before I code", or says "/plan".
 argument-hint: '<what you want to plan>'
 allowed-tools:
   - Read
   - Grep
   - Glob
+  - Agent
   - TodoWrite
   - AskUserQuestion
   - Bash(ls:*)
@@ -24,10 +25,10 @@ Create a comprehensive implementation plan before writing any code. This is the 
 
 ## What This Skill Does
 
-1. **Restate Requirements** — Clarify what needs to be built in your own words
-2. **Identify Risks** — Surface potential issues and blockers
-3. **Create Step Plan** — Break down implementation into phases
-4. **Wait for Confirmation** — MUST receive explicit user approval before proceeding
+1. **Analyze the request** — Read the user input and any referenced files
+2. **Dispatch `ycc:planner`** — Delegate plan construction to the planning specialist agent
+3. **Relay the plan** — Present the agent's plan to the user verbatim
+4. **Wait for confirmation** — MUST receive explicit user approval before proceeding
 
 ## When to Use
 
@@ -43,64 +44,33 @@ Use this skill when:
 
 ## Process
 
-### Step 1 — Analyze the request
+### Step 1 — Parse the user's request
 
-Read the user's input and any referenced files. Check the codebase briefly to confirm feasibility — but do not do deep pattern extraction here (that's `prp-plan`'s job).
+Read `$ARGUMENTS`. If it references a file path, read that file for context. If the request is ambiguous, ask a single focused clarifying question **before** dispatching the agent.
 
-### Step 2 — Restate requirements
+### Step 2 — Dispatch the `ycc:planner` agent
 
-Paraphrase what the user wants in clear, testable terms. If anything is ambiguous, ask a focused question before drafting the plan.
+Use the Agent tool with `subagent_type: "ycc:planner"`. In the prompt, include:
 
-### Step 3 — Draft the plan
+- The user's original request (verbatim)
+- Any file paths or context they referenced
+- A note that the agent should follow its Plan Format and end with `**WAITING FOR CONFIRMATION**: Proceed with this plan? (yes / no / modify)`
 
-Produce output in this exact format:
+Example prompt to the agent:
 
-```markdown
-# Implementation Plan: {Feature Name}
-
-## Requirements Restatement
-
-- {Restated requirement 1}
-- {Restated requirement 2}
-- {Restated requirement 3}
-
-## Implementation Phases
-
-### Phase 1: {Name}
-
-- {Specific, actionable step}
-- {Specific, actionable step}
-- {Specific, actionable step}
-
-### Phase 2: {Name}
-
-- {Specific, actionable step}
-- {Specific, actionable step}
-
-### Phase 3: {Name}
-
-- {Specific, actionable step}
-
-{Continue as needed — keep phases small and independent where possible}
-
-## Dependencies
-
-- {External library, service, or internal module required}
-- {Another dependency}
-
-## Risks
-
-- **HIGH**: {risk and why it matters}
-- **MEDIUM**: {risk and why it matters}
-- **LOW**: {risk and why it matters}
-
-## Estimated Complexity: {HIGH | MEDIUM | LOW}
-
-- {Subsystem}: rough effort
-- {Subsystem}: rough effort
-
-**WAITING FOR CONFIRMATION**: Proceed with this plan? (yes / no / modify)
 ```
+The user asked: "<user's request>"
+
+Related context they pointed to: <files, URLs, or "none">
+
+Produce a full implementation plan following your Plan Format. Use the
+Read/Grep/Glob tools to analyze the codebase and include concrete file
+paths. End with your standard confirmation prompt.
+```
+
+### Step 3 — Relay the plan
+
+Present the agent's plan to the user verbatim. Do not summarize, do not shorten, do not add your own commentary above it.
 
 ### Step 4 — WAIT
 
@@ -109,9 +79,9 @@ Do not touch any code until the user responds.
 Valid user responses:
 
 - **"yes" / "proceed" / "approved"** → proceed to implement
-- **"modify: ..."** → adjust the plan and re-present
-- **"different approach: ..."** → discard and draft a new approach
-- **"skip phase N and do phase M first"** → reorder and re-present
+- **"modify: ..."** → re-dispatch `ycc:planner` with the modification request and the previous plan as context
+- **"different approach: ..."** → discard and re-dispatch `ycc:planner` with the new direction
+- **"skip phase N and do phase M first"** → re-dispatch with the reorder request
 - **"no"** → stop, do not implement
 
 ---
@@ -122,7 +92,9 @@ Valid user responses:
 
 Do not summarize, do not touch files, do not run commands beyond read-only analysis. Wait.
 
-If the user's instructions are unclear after you draft the plan, ask a focused clarifying question rather than guessing.
+If the user's instructions are unclear after the planner produces a draft, ask a focused clarifying question rather than guessing, then re-dispatch the planner with the clarification.
+
+The `ycc:planner` agent owns the plan format, worked examples, sizing/phasing guidance, and red-flag checks. This skill is an orchestration layer — it decides *when* to plan and *what* to do with the plan, not *how* a plan should be structured.
 
 ---
 
@@ -141,7 +113,7 @@ After planning, depending on what the user approves:
 
 | Track                   | When to use                                                                 |
 | ----------------------- | --------------------------------------------------------------------------- |
-| `/ycc:plan` (this one)  | Quick conversational plan. No artifact file. Output is inline.             |
+| `/ycc:plan` (this one)  | Quick conversational plan via `ycc:planner` agent. No artifact file.       |
 | `/ycc:prp-plan`         | Artifact-producing plan with codebase pattern extraction. Single-pass.     |
 | `/ycc:prp-prd`          | Interactive PRD first, then prp-plan. Problem-first hypothesis workflow.   |
 | `/ycc:plan-workflow`    | Heavyweight parallel-agent planning. Multi-task features. Artifact output. |
