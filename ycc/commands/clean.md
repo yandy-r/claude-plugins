@@ -5,7 +5,7 @@ argument-hint: '[target-directory] [--dry-run] [--report-only] [--safe-mode] [--
 
 Clean unnecessary files from a project directory using parallel analysis agents.
 
-Invoke the **project-cleaner** skill to:
+Invoke the **clean** skill to:
 
 1. Detect project type and load safety configuration
 2. Deploy 6 parallel cleanup agents (code files, binaries, assets, docs, config, Docker)

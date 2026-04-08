@@ -1,5 +1,5 @@
 ---
-name: ask-codebase
+name: ask
 description: This skill should be used when the user asks questions about the codebase without requesting changes, such as "how does X work?", "where is Y implemented?", "explain this code", "walk me through X", "what does this do?", "what would I need to change for X?", "if I change X what breaks?", "compare how A and B handle X", or any exploratory question about code structure, architecture, or implementation. Also triggered by the /ask command.
 ---
 

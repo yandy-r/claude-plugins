@@ -5,7 +5,7 @@ argument-hint: '[--dry-run]'
 
 Initialize the current workspace with the optimal Claude CLI configuration.
 
-Invoke the **init-workspace** skill to:
+Invoke the **init** skill to:
 
 1. Analyze the project type, language, and development needs
 2. Generate catalogs of available agents and MCP servers

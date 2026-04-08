@@ -1,5 +1,5 @@
 ---
-name: init-workspace
+name: init
 description: This skill should be used when the user asks to "initialize workspace", "set up Claude CLI environment", "configure agents and MCPs for project", "init workspace", "set up project with Claude tools", or mentions workspace initialization. Analyzes project type and presents available agents/MCPs for selection.
 argument-hint: '[--dry-run]'
 disable-model-invocation: true
@@ -13,7 +13,7 @@ allowed-tools:
   - Bash(mkdir:*)
   - Bash(jq:*)
   - 'Bash(${HOME}/.claude/mcp-library/generate-mcp-config.sh:*)'
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/init-workspace/scripts/*.sh:*)'
+  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/init/scripts/*.sh:*)'
 ---
 
 # Claude CLI Workspace Initialization
@@ -58,9 +58,9 @@ Read these files if they exist: `README.md`, `CLAUDE.md`, `package.json`, `go.mo
 Run the catalog generator scripts:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/init-workspace/scripts/generate-mcp-catalog.sh
+${CLAUDE_PLUGIN_ROOT}/skills/init/scripts/generate-mcp-catalog.sh
 
-${CLAUDE_PLUGIN_ROOT}/skills/init-workspace/scripts/generate-agent-catalog.sh
+${CLAUDE_PLUGIN_ROOT}/skills/init/scripts/generate-agent-catalog.sh
 ```
 
 ### Phase 3: Present Full Selection List
@@ -83,7 +83,7 @@ For selected agents: create `.claude/agents/` directory if needed and copy selec
 
 ### Phase 6: Generate Summary Report
 
-Output a summary using the template at `${CLAUDE_PLUGIN_ROOT}/skills/init-workspace/templates/workspace-report.md` with project analysis, configured MCPs/agents tables, and next steps.
+Output a summary using the template at `${CLAUDE_PLUGIN_ROOT}/skills/init/templates/workspace-report.md` with project analysis, configured MCPs/agents tables, and next steps.
 
 ---
 
