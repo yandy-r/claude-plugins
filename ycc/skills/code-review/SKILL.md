@@ -111,10 +111,10 @@ Detect whether GitHub MCP tools are available (look for `mcp__github__*`). If th
 
 Parse input to determine PR:
 
-| Input                          | Action                               |
-| ------------------------------ | ------------------------------------ |
-| Number (e.g. `42`)             | Use as PR number                     |
-| URL (`github.com/.../pull/42`) | Extract PR number                    |
+| Input                          | Action                                   |
+| ------------------------------ | ---------------------------------------- |
+| Number (e.g. `42`)             | Use as PR number                         |
+| URL (`github.com/.../pull/42`) | Extract PR number                        |
 | Branch name                    | Find PR via `gh pr list --head <branch>` |
 
 ```bash
@@ -159,12 +159,12 @@ Apply the review checklist across 7 categories:
 
 Assign severity to each finding:
 
-| Severity     | Meaning                                         | Action                        |
-| ------------ | ----------------------------------------------- | ----------------------------- |
-| **CRITICAL** | Security vulnerability or data loss risk        | Must fix before merge         |
-| **HIGH**     | Bug or logic error likely to cause issues       | Should fix before merge       |
-| **MEDIUM**   | Code quality issue or missing best practice     | Fix recommended               |
-| **LOW**      | Style nit or minor suggestion                   | Optional                      |
+| Severity     | Meaning                                     | Action                  |
+| ------------ | ------------------------------------------- | ----------------------- |
+| **CRITICAL** | Security vulnerability or data loss risk    | Must fix before merge   |
+| **HIGH**     | Bug or logic error likely to cause issues   | Should fix before merge |
+| **MEDIUM**   | Code quality issue or missing best practice | Fix recommended         |
+| **LOW**      | Style nit or minor suggestion               | Optional                |
 
 ### Phase 4 — VALIDATE
 
@@ -209,12 +209,12 @@ Run only the commands that apply to the detected project type. Record pass/fail 
 
 Form recommendation based on findings:
 
-| Condition                                      | Decision                         |
-| ---------------------------------------------- | -------------------------------- |
-| Zero CRITICAL/HIGH issues, validation passes   | **APPROVE**                      |
-| Only MEDIUM/LOW issues, validation passes      | **APPROVE** with comments        |
-| Any HIGH issues or validation failures         | **REQUEST CHANGES**              |
-| Any CRITICAL issues                            | **BLOCK** — must fix before merge |
+| Condition                                    | Decision                          |
+| -------------------------------------------- | --------------------------------- |
+| Zero CRITICAL/HIGH issues, validation passes | **APPROVE**                       |
+| Only MEDIUM/LOW issues, validation passes    | **APPROVE** with comments         |
+| Any HIGH issues or validation failures       | **REQUEST CHANGES**               |
+| Any CRITICAL issues                          | **BLOCK** — must fix before merge |
 
 Special cases:
 

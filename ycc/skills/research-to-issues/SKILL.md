@@ -30,10 +30,10 @@ Check if GitHub MCP tools are available in your current tool list by looking for
 
 **Set your tool preference for this session:**
 
-| MCP Tools Available?                  | GitHub Operations Strategy                                                         |
-| ------------------------------------- | ---------------------------------------------------------------------------------- |
-| Yes (`mcp__github__*` tools found)    | **Use MCP tools** for issue creation, label creation, and repository queries       |
-| No (no `mcp__github__*` tools found)  | **Use `gh` CLI** via Bash for all GitHub operations (current behavior)             |
+| MCP Tools Available?                 | GitHub Operations Strategy                                                   |
+| ------------------------------------ | ---------------------------------------------------------------------------- |
+| Yes (`mcp__github__*` tools found)   | **Use MCP tools** for issue creation, label creation, and repository queries |
+| No (no `mcp__github__*` tools found) | **Use `gh` CLI** via Bash for all GitHub operations (current behavior)       |
 
 **What stays as CLI regardless:**
 

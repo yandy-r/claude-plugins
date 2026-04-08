@@ -94,7 +94,7 @@ Do not summarize, do not touch files, do not run commands beyond read-only analy
 
 If the user's instructions are unclear after the planner produces a draft, ask a focused clarifying question rather than guessing, then re-dispatch the planner with the clarification.
 
-The `ycc:planner` agent owns the plan format, worked examples, sizing/phasing guidance, and red-flag checks. This skill is an orchestration layer — it decides *when* to plan and *what* to do with the plan, not *how* a plan should be structured.
+The `ycc:planner` agent owns the plan format, worked examples, sizing/phasing guidance, and red-flag checks. This skill is an orchestration layer — it decides _when_ to plan and _what_ to do with the plan, not _how_ a plan should be structured.
 
 ---
 
@@ -111,10 +111,10 @@ After planning, depending on what the user approves:
 
 ## Comparison with other ycc planning tracks
 
-| Track                   | When to use                                                                 |
-| ----------------------- | --------------------------------------------------------------------------- |
-| `/ycc:plan` (this one)  | Quick conversational plan via `ycc:planner` agent. No artifact file.       |
-| `/ycc:prp-plan`         | Artifact-producing plan with codebase pattern extraction. Single-pass.     |
-| `/ycc:prp-prd`          | Interactive PRD first, then prp-plan. Problem-first hypothesis workflow.   |
-| `/ycc:plan-workflow`    | Heavyweight parallel-agent planning. Multi-task features. Artifact output. |
-| `/ycc:parallel-plan`    | Lower-level component of `/ycc:plan-workflow` for dependency-aware plans.  |
+| Track                  | When to use                                                                |
+| ---------------------- | -------------------------------------------------------------------------- |
+| `/ycc:plan` (this one) | Quick conversational plan via `ycc:planner` agent. No artifact file.       |
+| `/ycc:prp-plan`        | Artifact-producing plan with codebase pattern extraction. Single-pass.     |
+| `/ycc:prp-prd`         | Interactive PRD first, then prp-plan. Problem-first hypothesis workflow.   |
+| `/ycc:plan-workflow`   | Heavyweight parallel-agent planning. Multi-task features. Artifact output. |
+| `/ycc:parallel-plan`   | Lower-level component of `/ycc:plan-workflow` for dependency-aware plans.  |

@@ -8,7 +8,7 @@ This document provides standardized prompt templates for deploying `docs-git-com
 
 All docs-git-committer agents should receive prompts following this structure:
 
-```
+````
 You are handling the git commit and documentation for: [FEATURE SCOPE]
 
 ## Changed Files in Your Scope
@@ -46,8 +46,10 @@ Read these templates BEFORE creating documentation:
 - Validate your commit message BEFORE committing:
   ```bash
   ${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh "<your-commit-message>"
-  ```
-  If validation fails, revise the message and re-validate until it passes.
+````
+
+If validation fails, revise the message and re-validate until it passes.
+
 - Combine source + docs in ONE commit
 - Use git add + commit in single command (avoid race conditions)
 - Use only git CLI commands for version control (git add, git commit)
@@ -61,6 +63,7 @@ Read these templates BEFORE creating documentation:
 Refer to: ${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/templates/documentation-decision.md
 
 Quick reminders:
+
 - Feature docs: For new user-facing features or significant API changes
 - CLAUDE.md: RARELY needed, only for critical directory-specific patterns
 - Architecture docs: For system-wide architectural changes
@@ -69,10 +72,12 @@ Quick reminders:
 ## Expected Output
 
 Return a summary including:
+
 - Commit hash and message
 - Files committed (source + docs)
 - Documentation created/updated (if any)
 - Reasoning for documentation decisions
+
 ```
 
 ---
@@ -82,6 +87,7 @@ Return a summary including:
 ### New Feature Implementation
 
 ```
+
 You are handling the git commit and documentation for: [FEATURE NAME]
 
 ## Changed Files in Your Scope
@@ -93,6 +99,7 @@ You are handling the git commit and documentation for: [FEATURE NAME]
 This is a NEW FEATURE that [description of what it does].
 
 Key changes:
+
 - [File 1]: [what was added/changed]
 - [File 2]: [what was added/changed]
 - [File 3]: [what was added/changed]
@@ -100,6 +107,7 @@ Key changes:
 ## Documentation Templates
 
 Read BEFORE documenting:
+
 - Feature docs: ~/.claude/file-templates/feature-doc.template.md
 
 ## Your Tasks
@@ -120,11 +128,13 @@ Read BEFORE documenting:
 - Keep docs concise and user-focused
 - Use the feature-doc.template.md format
 - Commit message should use "feat" type
+
 ```
 
 ### Bug Fix
 
 ```
+
 You are handling the git commit and documentation for: [BUG DESCRIPTION]
 
 ## Changed Files in Your Scope
@@ -149,11 +159,13 @@ This fixes a bug where [description of the problem and solution].
 - Use "fix" type in commit message
 - Explain the fix in commit body if complex
 - Do NOT create feature docs for simple bug fixes
+
 ```
 
 ### API Changes
 
 ```
+
 You are handling the git commit and documentation for: [API CHANGES]
 
 ## Changed Files in Your Scope
@@ -163,12 +175,14 @@ You are handling the git commit and documentation for: [API CHANGES]
 ## Context
 
 This changes the following APIs:
+
 - [Endpoint 1]: [what changed]
 - [Endpoint 2]: [what changed]
 
 ## Documentation Templates
 
 Read BEFORE documenting:
+
 - API docs: ~/.claude/file-templates/api.template.md
 - Feature docs: ~/.claude/file-templates/feature-doc.template.md (if needed)
 
@@ -190,11 +204,13 @@ Read BEFORE documenting:
 - Breaking changes need BREAKING CHANGE footer
 - Include before/after examples for changed APIs
 - Use "feat" or "fix" type depending on change nature
+
 ```
 
 ### Refactoring
 
 ```
+
 You are handling the git commit and documentation for: [REFACTORING DESCRIPTION]
 
 ## Changed Files in Your Scope
@@ -221,11 +237,13 @@ No functional changes - purely organizational/quality improvements.
 - Use "refactor" type in commit message
 - Emphasize "no functional changes" in commit body
 - Do NOT create feature docs or CLAUDE.md updates
+
 ```
 
 ### Security Pattern Introduction
 
 ```
+
 You are handling the git commit and documentation for: [SECURITY FEATURE]
 
 ## Changed Files in Your Scope
@@ -241,6 +259,7 @@ This is a CRITICAL security pattern that must be followed consistently.
 ## Documentation Templates
 
 Read BEFORE documenting:
+
 - CLAUDE.md: ~/.claude/file-templates/claude.template.md
 - Architecture docs: ~/.claude/file-templates/arch.template.md
 
@@ -266,6 +285,7 @@ Read BEFORE documenting:
 - Always create architecture docs for security measures
 - Be very clear about requirements
 - Use "feat" type for new security features
+
 ```
 
 ---
@@ -279,6 +299,7 @@ Read BEFORE documenting:
 **Agent Deployment**:
 
 ```
+
 Deploy 1 docs-git-committer agent:
 
 Agent 1 - Authentication Feature
@@ -286,6 +307,7 @@ Scope: auth system implementation
 Files: src/auth/, src/middleware/auth.ts, tests/auth.test.ts
 Instructions: [Use "New Feature Implementation" template]
 Expected: Feature docs + commit
+
 ```
 
 ### Example 2: Multiple Independent Features
@@ -295,6 +317,7 @@ Expected: Feature docs + commit
 **Agent Deployment** (in parallel):
 
 ```
+
 Deploy 2 docs-git-committer agents IN SINGLE MESSAGE:
 
 Agent 1 - Authentication Feature
@@ -306,6 +329,7 @@ Agent 2 - Payment Integration
 Scope: payment processing
 Files: src/payments/, src/api/payments.ts
 Instructions: [Use "New Feature Implementation" template]
+
 ```
 
 ### Example 3: Feature + Tests + Docs
@@ -315,6 +339,7 @@ Instructions: [Use "New Feature Implementation" template]
 **Agent Deployment** (in parallel):
 
 ```
+
 Deploy 3 docs-git-committer agents IN SINGLE MESSAGE:
 
 Agent 1 - Core Feature
@@ -334,6 +359,7 @@ Scope: profile API docs
 Files: docs/api/profile.md (existing file to update)
 Instructions: [Use "API Changes" template]
 Expected: API docs update + commit
+
 ```
 
 ---
@@ -406,11 +432,13 @@ Use when:
 **Example**:
 
 ```
+
 [Single message with 3 Task tool calls]
 
 Task 1: docs-git-committer for auth system
 Task 2: docs-git-committer for payment integration
 Task 3: docs-git-committer for profile feature
+
 ```
 
 ### Sequential Agent Deployment
@@ -487,3 +515,4 @@ Each agent prompt should have:
 7. Specify expected output format
 
 **Remember**: The goal is parallel, coordinated work where each agent handles complete commit (source + docs) for their scope.
+```

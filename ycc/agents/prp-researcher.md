@@ -59,11 +59,11 @@ You are a dual-mode research specialist for the PRP (Product Requirements Prompt
 
 When invoked, determine which mode(s) apply from the task prompt:
 
-| Mode | When to run |
-|---|---|
-| **Codebase** | Task mentions "in this codebase", "similar features", "existing patterns", "Patterns to Mirror", or the 8 discovery categories |
-| **Market/External** | Task mentions "competitors", "how others solve this", "library docs", "external APIs", "best practices", or Phase 3 GROUNDING |
-| **Both (default for prp-prd grounding)** | Task references prp-prd Phase 3 or prp-plan EXPLORE |
+| Mode                                     | When to run                                                                                                                    |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| **Codebase**                             | Task mentions "in this codebase", "similar features", "existing patterns", "Patterns to Mirror", or the 8 discovery categories |
+| **Market/External**                      | Task mentions "competitors", "how others solve this", "library docs", "external APIs", "best practices", or Phase 3 GROUNDING  |
+| **Both (default for prp-prd grounding)** | Task references prp-prd Phase 3 or prp-plan EXPLORE                                                                            |
 
 ---
 
@@ -97,16 +97,16 @@ Return a unified discovery table:
 ```markdown
 ## Codebase Discovery
 
-| Category | File:Lines | Pattern | Key Snippet |
-|---|---|---|---|
-| Similar Impl | `src/services/notificationService.ts:1-80` | Pub/sub via EventEmitter | `emitter.emit('notify', payload)` |
-| Naming | `src/services/userService.ts:1-5` | camelCase services, PascalCase types | `export class UserService` |
-| Error | `src/middleware/errorHandler.ts:10-25` | Custom AppError class, thrown early | `throw new AppError('NOT_FOUND', 404)` |
-| Logging | `src/lib/logger.ts:1-30` | Pino with request correlation id | `logger.info({ reqId }, 'msg')` |
-| Types | `src/types/domain.ts:15-40` | Zod schemas → inferred TS types | `const X = z.object({ ... })` |
-| Tests | `src/services/__tests__/user.test.ts:1-50` | Vitest, factory fixtures | `describe('UserService', ...)` |
-| Config | `src/config/env.ts:1-20` | Envalid, fail-fast on missing vars | `cleanEnv(process.env, { ... })` |
-| Deps | `package.json` | Pino, Zod, Vitest, Envalid | — |
+| Category     | File:Lines                                 | Pattern                              | Key Snippet                            |
+| ------------ | ------------------------------------------ | ------------------------------------ | -------------------------------------- |
+| Similar Impl | `src/services/notificationService.ts:1-80` | Pub/sub via EventEmitter             | `emitter.emit('notify', payload)`      |
+| Naming       | `src/services/userService.ts:1-5`          | camelCase services, PascalCase types | `export class UserService`             |
+| Error        | `src/middleware/errorHandler.ts:10-25`     | Custom AppError class, thrown early  | `throw new AppError('NOT_FOUND', 404)` |
+| Logging      | `src/lib/logger.ts:1-30`                   | Pino with request correlation id     | `logger.info({ reqId }, 'msg')`        |
+| Types        | `src/types/domain.ts:15-40`                | Zod schemas → inferred TS types      | `const X = z.object({ ... })`          |
+| Tests        | `src/services/__tests__/user.test.ts:1-50` | Vitest, factory fixtures             | `describe('UserService', ...)`         |
+| Config       | `src/config/env.ts:1-20`                   | Envalid, fail-fast on missing vars   | `cleanEnv(process.env, { ... })`       |
+| Deps         | `package.json`                             | Pino, Zod, Vitest, Envalid           | —                                      |
 
 ## Traces
 
@@ -150,10 +150,10 @@ Each finding structured as:
 
 ### Market Context
 
-| Source | Approach | Strengths | Weaknesses | URL |
-|---|---|---|---|---|
-| Stripe Webhooks | HMAC-signed delivery + replay buffer | Proven, well-documented | Requires secret rotation | https://stripe.com/docs/webhooks |
-| GitHub Webhooks | At-least-once delivery with redelivery UI | Observable failures | No built-in backoff | https://docs.github.com/... |
+| Source          | Approach                                  | Strengths               | Weaknesses               | URL                              |
+| --------------- | ----------------------------------------- | ----------------------- | ------------------------ | -------------------------------- |
+| Stripe Webhooks | HMAC-signed delivery + replay buffer      | Proven, well-documented | Requires secret rotation | https://stripe.com/docs/webhooks |
+| GitHub Webhooks | At-least-once delivery with redelivery UI | Observable failures     | No built-in backoff      | https://docs.github.com/...      |
 
 ### Technical Insights
 
@@ -216,6 +216,7 @@ Each finding structured as:
 ## Integration
 
 Your output feeds directly into:
+
 - `/ycc:prp-prd` Phase 3 (market grounding) and Phase 5 (technical feasibility)
 - `/ycc:prp-plan` Phase 2 (EXPLORE) and Phase 3 (RESEARCH)
 

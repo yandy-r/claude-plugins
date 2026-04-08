@@ -89,7 +89,7 @@ Create detailed steps with:
 
 Use this exact structure for your output:
 
-````markdown
+```markdown
 # Implementation Plan: [Feature Name]
 
 ## Overview
@@ -140,7 +140,7 @@ Use this exact structure for your output:
 - [ ] Criterion 2
 
 **WAITING FOR CONFIRMATION**: Proceed with this plan? (yes / no / modify)
-````
+```
 
 ---
 
@@ -160,7 +160,7 @@ Use this exact structure for your output:
 
 Here is a complete plan showing the level of detail expected:
 
-````markdown
+```markdown
 # Implementation Plan: Stripe Subscription Billing
 
 ## Overview
@@ -244,7 +244,7 @@ Stripe Checkout, and webhook events keep subscription status in sync.
 - [ ] All tests pass with 80%+ coverage
 
 **WAITING FOR CONFIRMATION**: Proceed with this plan? (yes / no / modify)
-````
+```
 
 ---
 

@@ -46,15 +46,15 @@ Execute a plan file step-by-step with continuous validation. Every change is ver
 
 ### Package Manager Detection
 
-| File Exists                              | Package Manager | Runner              |
-| ---------------------------------------- | --------------- | ------------------- |
-| `bun.lockb`                              | bun             | `bun run`           |
-| `pnpm-lock.yaml`                         | pnpm            | `pnpm run`          |
-| `yarn.lock`                              | yarn            | `yarn`              |
-| `package-lock.json`                      | npm             | `npm run`           |
-| `pyproject.toml` or `requirements.txt`   | uv / pip        | `uv run` or `python -m` |
-| `Cargo.toml`                             | cargo           | `cargo`             |
-| `go.mod`                                 | go              | `go`                |
+| File Exists                            | Package Manager | Runner                  |
+| -------------------------------------- | --------------- | ----------------------- |
+| `bun.lockb`                            | bun             | `bun run`               |
+| `pnpm-lock.yaml`                       | pnpm            | `pnpm run`              |
+| `yarn.lock`                            | yarn            | `yarn`                  |
+| `package-lock.json`                    | npm             | `npm run`               |
+| `pyproject.toml` or `requirements.txt` | uv / pip        | `uv run` or `python -m` |
+| `Cargo.toml`                           | cargo           | `cargo`                 |
+| `go.mod`                               | go              | `go`                    |
 
 ### Validation Scripts
 
@@ -107,12 +107,12 @@ git status --porcelain
 
 ### Branch Decision
 
-| Current State                       | Action                                                                |
-| ----------------------------------- | --------------------------------------------------------------------- |
-| On feature branch                   | Use current branch                                                    |
-| On main, clean working tree         | Create feature branch: `git checkout -b feat/{plan-name}`             |
-| On main, dirty working tree         | **STOP** — Ask user to stash or commit first                          |
-| In a git worktree for this feature  | Use the worktree                                                      |
+| Current State                      | Action                                                    |
+| ---------------------------------- | --------------------------------------------------------- |
+| On feature branch                  | Use current branch                                        |
+| On main, clean working tree        | Create feature branch: `git checkout -b feat/{plan-name}` |
+| On main, dirty working tree        | **STOP** — Ask user to stash or commit first              |
+| In a git worktree for this feature | Use the worktree                                          |
 
 ### Sync Remote
 
@@ -262,27 +262,27 @@ Write report to `docs/prps/reports/{plan-name}-report.md`:
 
 ## Tasks Completed
 
-| # | Task        | Status       | Notes                   |
-| - | ----------- | ------------ | ----------------------- |
-| 1 | [task name] | [done] Complete |                         |
-| 2 | [task name] | [done] Complete | Deviated — [reason]    |
+| #   | Task        | Status          | Notes               |
+| --- | ----------- | --------------- | ------------------- |
+| 1   | [task name] | [done] Complete |                     |
+| 2   | [task name] | [done] Complete | Deviated — [reason] |
 
 ## Validation Results
 
-| Level           | Status     | Notes              |
-| --------------- | ---------- | ------------------ |
-| Static Analysis | [done] Pass |                    |
-| Unit Tests      | [done] Pass | N tests written    |
-| Build           | [done] Pass |                    |
-| Integration     | [done] Pass | or N/A             |
-| Edge Cases      | [done] Pass |                    |
+| Level           | Status      | Notes           |
+| --------------- | ----------- | --------------- |
+| Static Analysis | [done] Pass |                 |
+| Unit Tests      | [done] Pass | N tests written |
+| Build           | [done] Pass |                 |
+| Integration     | [done] Pass | or N/A          |
+| Edge Cases      | [done] Pass |                 |
 
 ## Files Changed
 
-| File             | Action  | Lines      |
-| ---------------- | ------- | ---------- |
-| `path/to/file`   | CREATED | +N         |
-| `path/to/file`   | UPDATED | +N / -M    |
+| File           | Action  | Lines   |
+| -------------- | ------- | ------- |
+| `path/to/file` | CREATED | +N      |
+| `path/to/file` | UPDATED | +N / -M |
 
 ## Deviations from Plan
 
@@ -294,9 +294,9 @@ Write report to `docs/prps/reports/{plan-name}-report.md`:
 
 ## Tests Written
 
-| Test File        | Tests    | Coverage        |
-| ---------------- | -------- | --------------- |
-| `path/to/test`   | N tests  | [area covered]  |
+| Test File      | Tests   | Coverage       |
+| -------------- | ------- | -------------- |
+| `path/to/test` | N tests | [area covered] |
 
 ## Next Steps
 

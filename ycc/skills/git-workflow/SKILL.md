@@ -33,10 +33,10 @@ Check if GitHub MCP tools are available in your current tool list by looking for
 
 **Set your tool preference for this session:**
 
-| MCP Tools Available?                  | GitHub Operations Strategy                                              |
-| ------------------------------------- | ----------------------------------------------------------------------- |
-| Yes (`mcp__github__*` tools found)    | **Use MCP tools** for all GitHub operations (PR creation, PR viewing)   |
-| No (no `mcp__github__*` tools found)  | **Use `gh` CLI** via Bash for all GitHub operations (current behavior)  |
+| MCP Tools Available?                 | GitHub Operations Strategy                                             |
+| ------------------------------------ | ---------------------------------------------------------------------- |
+| Yes (`mcp__github__*` tools found)   | **Use MCP tools** for all GitHub operations (PR creation, PR viewing)  |
+| No (no `mcp__github__*` tools found) | **Use `gh` CLI** via Bash for all GitHub operations (current behavior) |
 
 **What stays as CLI regardless:**
 
@@ -438,7 +438,7 @@ ${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh "$(git log 
 git rebase -x '${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh "$(git log -1 --format=%s HEAD)" || echo "NEEDS FIX"' <merge-base>..HEAD
 ```
 
-  Or for a single commit, use `git commit --amend -m "<corrected-message>"` to fix it.
+Or for a single commit, use `git commit --amend -m "<corrected-message>"` to fix it.
 
 - Check for conflicts or issues
 - Verify documentation quality

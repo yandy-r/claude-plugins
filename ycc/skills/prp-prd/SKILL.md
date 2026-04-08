@@ -239,13 +239,13 @@ When {situation}, I want to {motivation}, so I can {outcome}.
 
 ### Core Capabilities (MoSCoW)
 
-| Priority | Capability | Rationale                    |
-| -------- | ---------- | ---------------------------- |
-| Must     | {Feature}  | {Why essential}              |
-| Must     | {Feature}  | {Why essential}              |
+| Priority | Capability | Rationale                        |
+| -------- | ---------- | -------------------------------- |
+| Must     | {Feature}  | {Why essential}                  |
+| Must     | {Feature}  | {Why essential}                  |
 | Should   | {Feature}  | {Why important but not blocking} |
-| Could    | {Feature}  | {Nice to have}               |
-| Won't    | {Feature}  | {Explicitly deferred and why} |
+| Could    | {Feature}  | {Nice to have}                   |
+| Won't    | {Feature}  | {Explicitly deferred and why}    |
 
 ### MVP Scope
 
@@ -268,9 +268,9 @@ When {situation}, I want to {motivation}, so I can {outcome}.
 
 **Technical Risks**
 
-| Risk   | Likelihood | Mitigation       |
-| ------ | ---------- | ---------------- |
-| {Risk} | {H/M/L}    | {How to handle}  |
+| Risk   | Likelihood | Mitigation      |
+| ------ | ---------- | --------------- |
+| {Risk} | {H/M/L}    | {How to handle} |
 
 ---
 
@@ -283,13 +283,13 @@ When {situation}, I want to {motivation}, so I can {outcome}.
   PRP: link to generated plan file once created
 -->
 
-| # | Phase          | Description                    | Status  | Parallel | Depends | PRP Plan |
-| - | -------------- | ------------------------------ | ------- | -------- | ------- | -------- |
-| 1 | {Phase name}   | {What this phase delivers}     | pending | -        | -       | -        |
-| 2 | {Phase name}   | {What this phase delivers}     | pending | -        | 1       | -        |
-| 3 | {Phase name}   | {What this phase delivers}     | pending | with 4   | 2       | -        |
-| 4 | {Phase name}   | {What this phase delivers}     | pending | with 3   | 2       | -        |
-| 5 | {Phase name}   | {What this phase delivers}     | pending | -        | 3, 4    | -        |
+| #   | Phase        | Description                | Status  | Parallel | Depends | PRP Plan |
+| --- | ------------ | -------------------------- | ------- | -------- | ------- | -------- |
+| 1   | {Phase name} | {What this phase delivers} | pending | -        | -       | -        |
+| 2   | {Phase name} | {What this phase delivers} | pending | -        | 1       | -        |
+| 3   | {Phase name} | {What this phase delivers} | pending | with 4   | 2       | -        |
+| 4   | {Phase name} | {What this phase delivers} | pending | with 3   | 2       | -        |
+| 5   | {Phase name} | {What this phase delivers} | pending | -        | 3, 4    | -        |
 
 ### Phase Details
 
@@ -315,8 +315,8 @@ When {situation}, I want to {motivation}, so I can {outcome}.
 
 ## Decisions Log
 
-| Decision   | Choice   | Alternatives         | Rationale     |
-| ---------- | -------- | -------------------- | ------------- |
+| Decision   | Choice   | Alternatives         | Rationale      |
+| ---------- | -------- | -------------------- | -------------- |
 | {Decision} | {Choice} | {Options considered} | {Why this one} |
 
 ---
@@ -354,12 +354,12 @@ After generating, report:
 
 ### Validation Status
 
-| Section               | Status                       |
-| --------------------- | ---------------------------- |
-| Problem Statement     | {Validated/Assumption}       |
-| User Research         | {Done/Needed}                |
-| Technical Feasibility | {Assessed/TBD}               |
-| Success Metrics       | {Defined/Needs refinement}   |
+| Section               | Status                     |
+| --------------------- | -------------------------- |
+| Problem Statement     | {Validated/Assumption}     |
+| User Research         | {Done/Needed}              |
+| Technical Feasibility | {Assessed/TBD}             |
+| Success Metrics       | {Defined/Needs refinement} |
 
 ### Open Questions ({count})
 
@@ -371,8 +371,8 @@ After generating, report:
 
 ### Implementation Phases
 
-| # | Phase | Status | Can Parallel |
-| - | ----- | ------ | ------------ |
+| #   | Phase | Status | Can Parallel |
+| --- | ----- | ------ | ------------ |
 
 {Table of phases from PRD}
 
