@@ -1,7 +1,7 @@
 ---
 name: prp-plan
-description: Create a comprehensive, self-contained feature implementation plan with codebase pattern extraction and optional external research. Detects whether the input is a PRD (selects next pending phase) or a free-form description, runs deep codebase discovery via ycc:prp-researcher, and writes a single-pass-ready plan to docs/prps/plans/{name}.plan.md. Use when the user asks for a "PRP plan", "implementation plan from PRD", "feature plan with patterns to mirror", or says "/prp-plan". Adapted from PRPs-agentic-eng by Wirasm.
-argument-hint: '<feature description | path/to/prd.md>'
+description: Create a comprehensive, self-contained feature implementation plan with codebase pattern extraction and optional external research. Detects whether the input is a PRD (selects next pending phase) or a free-form description, runs deep codebase discovery via ycc:prp-researcher, and writes a single-pass-ready plan to docs/prps/plans/{name}.plan.md. Pass `--parallel` to fan out research across 3 researcher agents and emit a dependency-batched task list ready for parallel execution by prp-implement. Use when the user asks for a "PRP plan", "implementation plan from PRD", "feature plan with patterns to mirror", "parallel PRP plan", or says "/prp-plan". Adapted from PRPs-agentic-eng by Wirasm.
+argument-hint: '<feature description | path/to/prd.md> [--parallel]'
 allowed-tools:
   - Read
   - Grep
@@ -34,7 +34,21 @@ Create a detailed, self-contained implementation plan that captures all codebase
 
 ## Phase 0 — DETECT
 
-Determine input type from `$ARGUMENTS`:
+### Flag Parsing
+
+Before detecting input type, extract flags from `$ARGUMENTS`:
+
+| Flag         | Effect                                                                                                                                                            |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel` | (1) Fan out codebase research into 3 parallel `ycc:prp-researcher` agents covering all 8 categories; (2) emit tasks with `Depends on [...]` annotations grouped into batches for downstream parallel execution via `/ycc:prp-implement --parallel` |
+
+Strip the flag from `$ARGUMENTS` and set `PARALLEL_MODE=true|false`. The remaining text is the feature description or PRD path.
+
+If no flag is provided, default behavior is unchanged (single researcher, sequential task list).
+
+### Input Detection
+
+Determine input type from the stripped `$ARGUMENTS`:
 
 | Input Pattern                              | Detection           | Action                                    |
 | ------------------------------------------ | ------------------- | ----------------------------------------- |
@@ -110,9 +124,9 @@ Do NOT guess. Ask. A plan built on assumptions fails during implementation.
 
 ## Phase 2 — EXPLORE
 
-Dispatch the **`ycc:prp-researcher`** agent in **codebase mode** to gather deep intelligence across the 8 discovery categories and the 5 traces. The researcher returns a unified discovery table with file:line references.
+Goal: gather deep codebase intelligence across 8 discovery categories and 5 traces. The shape of this phase depends on `PARALLEL_MODE`.
 
-The 8 categories it will cover:
+The 8 categories to cover:
 
 1. Similar Implementations
 2. Naming Conventions
@@ -123,7 +137,7 @@ The 8 categories it will cover:
 7. Configuration
 8. Dependencies
 
-The 5 traces it will return:
+The 5 traces to return:
 
 1. Entry Points
 2. Data Flow
@@ -131,7 +145,32 @@ The 5 traces it will return:
 4. Contracts
 5. Patterns
 
+### Path A — Sequential (default, `PARALLEL_MODE=false`)
+
+Dispatch a single **`ycc:prp-researcher`** agent in **codebase mode** to cover all 8 categories and 5 traces in one pass. The researcher returns a unified discovery table with file:line references.
+
 Use the discovery table verbatim for the plan's **Patterns to Mirror** section below.
+
+### Path B — Parallel Fan-Out (`PARALLEL_MODE=true`)
+
+Dispatch **3 `ycc:prp-researcher` agents in parallel** in a SINGLE message with MULTIPLE `Agent` tool calls. Each agent is assigned a slice of the 8 categories:
+
+| Researcher          | Categories                                          | Traces                     |
+| ------------------- | --------------------------------------------------- | -------------------------- |
+| `patterns-research` | 1. Similar Implementations, 2. Naming, 5. Types     | Entry Points, Contracts    |
+| `quality-research`  | 3. Error Handling, 4. Logging, 6. Tests             | State Changes, Patterns    |
+| `infra-research`    | 7. Configuration, 8. Dependencies                   | Data Flow                  |
+
+Each agent is instructed to return its slice as a discovery table with file:line references, in the same format as the sequential researcher.
+
+**After all 3 return**:
+
+1. Merge the three discovery tables into a single unified table
+2. De-duplicate overlapping findings (same file:line may appear in multiple slices)
+3. Verify all 8 categories are covered — if any are missing, dispatch a follow-up researcher for the gap
+4. Use the merged table verbatim for the plan's **Patterns to Mirror** section
+
+**Why 3 agents, not 8**: Keeps fan-out bounded and matches natural research groupings (code style, quality/observability, infrastructure). All 8 categories are still fully covered — just split across 3 workers instead of 1.
 
 ---
 
@@ -465,6 +504,69 @@ EXPECT: Feature works as designed
 [Any additional context, decisions, or observations]
 ````
 
+### Parallel Mode Additions (`PARALLEL_MODE=true` only)
+
+When `--parallel` is enabled, augment the template above with the following changes. **Do NOT apply these in sequential mode.**
+
+#### 1. Add a `Batches` section after `Metadata`
+
+```markdown
+## Batches
+
+Tasks grouped by dependency for parallel execution. Tasks within the same batch run concurrently; batches run in order.
+
+| Batch | Tasks         | Depends On | Parallel Width |
+| ----- | ------------- | ---------- | -------------- |
+| B1    | 1.1, 1.2, 1.3 | —          | 3              |
+| B2    | 2.1           | B1         | 1              |
+| B3    | 3.1, 3.2      | B2         | 2              |
+
+- **Total tasks**: [N]
+- **Total batches**: [M]
+- **Max parallel width**: [X]
+```
+
+#### 2. Use hierarchical task IDs and add `Depends on` annotations
+
+Replace the flat `Task 1`, `Task 2` format with hierarchical IDs matching the batch assignment. Add a `BATCH` field and a `Depends on` annotation in the task header.
+
+```markdown
+### Task 1.1: [Name] — Depends on [none]
+
+- **BATCH**: B1
+- **ACTION**: [What to do]
+- **IMPLEMENT**: [Specific code/logic]
+- **MIRROR**: [Pattern reference from Patterns to Mirror]
+- **IMPORTS**: [Required imports]
+- **GOTCHA**: [Known pitfall]
+- **VALIDATE**: [How to verify this task]
+
+### Task 2.1: [Name] — Depends on [1.1, 1.2]
+
+- **BATCH**: B2
+- **ACTION**: ...
+```
+
+#### 3. Batch Construction Rules
+
+When assigning tasks to batches, follow these rules:
+
+- Tasks with no dependencies go in **Batch 1**
+- A task joins the **earliest batch** where all its dependencies are already in prior batches
+- **Tasks modifying the same file MUST be in different batches** (no concurrent writes to the same file)
+- Cross-cutting changes (shared types, global config) get their own dedicated batch, typically **Batch 1** so downstream tasks can depend on them
+- Prefer **wide-shallow** dependency graphs (many independent tasks per batch) over **narrow-deep** chains — maximize parallel width
+
+#### 4. Safety Checks Before Finalizing
+
+Before writing the plan, verify:
+
+- [ ] Every task has exactly one `BATCH` assignment
+- [ ] Every `Depends on` reference points to a real prior task
+- [ ] No two tasks in the same batch touch the same file
+- [ ] The dependency graph has no cycles
+- [ ] The `Batches` table matches the task assignments exactly
+
 ---
 
 ## Output
@@ -498,8 +600,11 @@ If this plan was generated from a PRD phase:
 - **External Research**: [topics researched or "none needed"]
 - **Risks**: [top risk or "none identified"]
 - **Confidence Score**: [1-10] — likelihood of single-pass implementation
+- **Execution Mode**: [Sequential | Parallel (N batches, max width X)]
 
-> Next step: Run `/ycc:prp-implement docs/prps/plans/{name}.plan.md` to execute this plan.
+> Next step (sequential mode): Run `/ycc:prp-implement docs/prps/plans/{name}.plan.md` to execute this plan.
+>
+> Next step (parallel mode): Run `/ycc:prp-implement --parallel docs/prps/plans/{name}.plan.md` to execute batches in parallel.
 ```
 
 ---

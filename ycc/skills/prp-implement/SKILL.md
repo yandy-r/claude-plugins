@@ -1,7 +1,7 @@
 ---
 name: prp-implement
-description: Execute a PRP plan file step-by-step with continuous validation loops. Detects package manager, prepares git branch, processes each task sequentially with per-task validation, runs all 5 validation levels (static, unit, build, integration, edge cases), writes an implementation report to docs/prps/reports/, and archives the plan. Use when the user asks to "execute a PRP plan", "implement from a plan file", "run prp-implement", or provides a path to a .plan.md file. Adapted from PRPs-agentic-eng by Wirasm.
-argument-hint: '<path/to/plan.md>'
+description: Execute a PRP plan file with continuous validation loops. Detects package manager, prepares git branch, processes tasks with per-task validation, runs all 5 validation levels (static, unit, build, integration, edge cases), writes an implementation report to docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans (those with a Batches section and Depends on annotations) and prompts the user to choose sequential or parallel execution. Pass --parallel to skip the prompt and run tasks in parallel via ycc:implementor agents. Use when the user asks to "execute a PRP plan", "implement from a plan file", "run prp-implement", "parallel PRP implement", or provides a path to a .plan.md file. Adapted from PRPs-agentic-eng by Wirasm.
+argument-hint: '<path/to/plan.md> [--parallel]'
 allowed-tools:
   - Read
   - Grep
@@ -9,6 +9,8 @@ allowed-tools:
   - Write
   - Edit
   - MultiEdit
+  - Agent
+  - AskUserQuestion
   - TodoWrite
   - Bash(ls:*)
   - Bash(cat:*)
@@ -43,6 +45,16 @@ Execute a plan file step-by-step with continuous validation. Every change is ver
 ---
 
 ## Phase 0 — DETECT
+
+### Flag Parsing
+
+Extract flags from `$ARGUMENTS` before treating the remainder as a plan path:
+
+| Flag         | Effect                                                                                                                              |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel` | Force parallel execution when the plan is parallel-capable. Skips the interactive prompt. Falls back to sequential with a warning if the plan has no `Batches` section. |
+
+Strip the flag from `$ARGUMENTS` and set `PARALLEL_FLAG=true|false`. The remaining text is the plan file path.
 
 ### Package Manager Detection
 
@@ -92,7 +104,31 @@ Error: Plan file not found or invalid.
 Run /ycc:prp-plan <feature-description> to create a plan first.
 ```
 
-**CHECKPOINT**: Plan loaded. All sections identified. Tasks extracted.
+### Parallel-Capable Detection
+
+After reading the plan, check whether it was written in parallel mode by looking for a `## Batches` section:
+
+```bash
+grep -c "^## Batches" "$PLAN_PATH" || echo 0
+```
+
+- **Count > 0** → Plan is **parallel-capable**. Parse the `Batches` table to extract batch ordering and `BATCH:` fields from tasks.
+- **Count = 0** → Plan is **sequential only**.
+
+### Execution Mode Decision
+
+Decide between **Path A (Sequential)** and **Path B (Parallel)** based on the flag and plan capability:
+
+| `--parallel` flag | Parallel-capable plan | Action                                                                                                                                                                                                                                         |
+| ----------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Yes               | Yes                   | Proceed with **Path B** (parallel batch execution) — no prompt                                                                                                                                                                                  |
+| Yes               | No                    | Warn: *"Plan has no `Batches` section — cannot run in parallel. Falling back to sequential execution."* → **Path A**                                                                                                                            |
+| No                | Yes                   | Use `AskUserQuestion` to prompt: *"This plan is parallel-capable ({N} tasks in {M} batches, max width {X}). Run in parallel or sequential mode?"*. Accept user's choice → **Path A** or **Path B**                                             |
+| No                | No                    | Proceed with **Path A** (sequential) — default, no prompt                                                                                                                                                                                       |
+
+Record the chosen mode as `EXECUTION_MODE=sequential|parallel` for use in Phase 3.
+
+**CHECKPOINT**: Plan loaded. All sections identified. Tasks extracted. Parallel capability detected. Execution mode chosen.
 
 ---
 
@@ -126,9 +162,13 @@ git pull --rebase origin $(git branch --show-current) 2>/dev/null || true
 
 ## Phase 3 — EXECUTE
 
+Branch based on `EXECUTION_MODE` from Phase 1.
+
+### Path A — Sequential Execution (`EXECUTION_MODE=sequential`)
+
 Process each task from the plan sequentially.
 
-### Per-Task Loop
+#### Per-Task Loop
 
 For each task in **Step-by-Step Tasks**:
 
@@ -145,6 +185,53 @@ For each task in **Step-by-Step Tasks**:
 
 4. **Track progress** — Log: `[done] Task N: [task name] — complete`
 
+### Path B — Parallel Batch Execution (`EXECUTION_MODE=parallel`)
+
+Process batches sequentially. Within each batch, dispatch one `ycc:implementor` agent per task in parallel.
+
+#### Per-Batch Loop
+
+For each batch `B1, B2, ... BN` in order (from the plan's `Batches` table):
+
+1. **Identify batch tasks** — Extract all tasks with `BATCH: BN` from the Step-by-Step Tasks section.
+
+2. **Dispatch implementor agents in parallel** — Use a **SINGLE message** with **MULTIPLE `Agent` tool calls**, one per task in the batch. Each call:
+   - `subagent_type`: `"ycc:implementor"`
+   - `description`: The task title (e.g., `"Task 1.1: add rate limiter middleware"`)
+   - `prompt`: The complete task spec (ACTION, IMPLEMENT, MIRROR, IMPORTS, GOTCHA, VALIDATE) plus the relevant excerpt from the plan's **Patterns to Mirror** section. Include a directive that the agent must read the MIRROR source file before writing code and must run its own type-check on modified files before reporting complete.
+
+3. **Wait for all agents in the batch to complete** before proceeding.
+
+4. **Between-batch validation (Levels 1 + 2)** — After each batch (including between-batches, not just at the end), run:
+
+   ```bash
+   # Level 1: Type-check — zero errors required
+   [type-check command from Phase 0]
+
+   # Level 2: Unit tests — affected area must be green
+   [test command from Phase 0]
+   ```
+
+   - **If either fails**: **STOP** the parallel pipeline. Do NOT dispatch the next batch.
+   - Report which batch failed and which type errors / test failures occurred.
+   - Use `AskUserQuestion` to ask the user: *"Batch {BN} validation failed. Choose: (1) fix manually and resume from batch {BN+1}, (2) switch to sequential mode for remaining batches, (3) abort."*
+   - Apply the user's choice.
+
+5. **Track progress** — Log: `[done] Batch BN: K tasks — complete (type-check + tests pass)`
+
+#### Handling Parallel Failures
+
+If a batch fails validation:
+
+- **Do NOT auto-retry** — parallel failures are often file conflicts or missing dependencies between supposedly-independent tasks, which won't resolve by retrying
+- **Do NOT skip the failing batch** — tasks in later batches may depend on it
+- Preserve all completed work; git state reflects whatever was successfully committed
+- The user decides whether to resume, switch modes, or abort
+
+#### After All Batches Complete
+
+Proceed to **Phase 4 — VALIDATE** and run the full 5-level validation as normal. Between-batch validation only covered Levels 1 + 2; Phase 4 still runs Levels 3 (build), 4 (integration), and 5 (edge cases).
+
 ### Handling Deviations
 
 If implementation must deviate from the plan:
@@ -153,6 +240,7 @@ If implementation must deviate from the plan:
 - Note **WHY** it changed
 - Continue with the corrected approach
 - These deviations will be captured in the report
+- In parallel mode, deviations reported by individual implementor agents are collected and included verbatim in the final report
 
 **CHECKPOINT**: All tasks executed. Deviations logged.
 
@@ -331,6 +419,7 @@ Report to user:
 
 - **Plan**: [plan file path] → archived to completed/
 - **Branch**: [current branch name]
+- **Mode**: [Sequential | Parallel (N batches, max width X)]
 - **Status**: [done] All tasks complete
 
 ### Validation Summary
