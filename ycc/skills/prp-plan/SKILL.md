@@ -26,9 +26,9 @@ Create a detailed, self-contained implementation plan that captures all codebase
 
 > Adapted from PRPs-agentic-eng by Wirasm. Part of the PRP workflow series.
 
-**Core Philosophy**: A great plan contains everything needed to implement without asking further questions. Every pattern, every convention, every gotcha — captured once, referenced throughout.
+**Core Philosophy**: A great plan contains everything needed to implement without asking further questions.
 
-**Golden Rule**: If you would need to search the codebase during implementation, capture that knowledge NOW in the plan.
+**Golden Rule**: If you would need to search the codebase during implementation, capture that knowledge NOW.
 
 ---
 
@@ -36,620 +36,180 @@ Create a detailed, self-contained implementation plan that captures all codebase
 
 ### Flag Parsing
 
-Before detecting input type, extract flags from `$ARGUMENTS`:
+Extract flags from `$ARGUMENTS`:
 
-| Flag         | Effect                                                                                                                                                            |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel` | (1) Fan out codebase research into 3 parallel `ycc:prp-researcher` agents covering all 8 categories; (2) emit tasks with `Depends on [...]` annotations grouped into batches for downstream parallel execution via `/ycc:prp-implement --parallel` |
+| Flag         | Effect                                                                                           |
+| ------------ | ------------------------------------------------------------------------------------------------ |
+| `--parallel` | Fan out research into 3 parallel researchers; emit tasks with batch/dependency annotations       |
 
-Strip the flag from `$ARGUMENTS` and set `PARALLEL_MODE=true|false`. The remaining text is the feature description or PRD path.
-
-If no flag is provided, default behavior is unchanged (single researcher, sequential task list).
+Strip the flag, set `PARALLEL_MODE=true|false`. Remaining text is the feature description or PRD path.
 
 ### Input Detection
 
-Determine input type from the stripped `$ARGUMENTS`:
-
-| Input Pattern                              | Detection           | Action                                    |
-| ------------------------------------------ | ------------------- | ----------------------------------------- |
-| Path ending in `.prd.md`                   | File path to PRD    | Parse PRD, find next pending phase        |
-| Path to `.md` with "Implementation Phases" | PRD-like document   | Parse phases, find next pending           |
-| Path to any other file                     | Reference file      | Read file for context, treat as free-form |
-| Free-form text                             | Feature description | Proceed directly to Phase 1               |
-| Empty / blank                              | No input            | Ask user what feature to plan             |
+| Input Pattern                | Action                             |
+| ---------------------------- | ---------------------------------- |
+| Path ending in `.prd.md`     | Parse PRD, find next pending phase |
+| Path to `.md` with phases    | Parse phases, find next pending    |
+| Path to other file           | Read for context, treat as free-form |
+| Free-form text               | Proceed to Phase 1                 |
+| Empty                        | Ask user what feature to plan      |
 
 ### PRD Parsing (when input is a PRD)
 
-1. Read the PRD file
-2. Parse the **Implementation Phases** section
-3. Find phases by status:
-   - Look for `pending` phases
-   - Check dependency chains (a phase may depend on prior phases being `complete`)
-   - Select the **next eligible pending phase**
-4. Extract from the selected phase:
-   - Phase name and description
-   - Acceptance criteria
-   - Dependencies on prior phases
-   - Any scope notes or constraints
-5. Use the phase description as the feature to plan
+1. Read the PRD, parse **Implementation Phases**
+2. Find next eligible `pending` phase (check dependency chains)
+3. Extract phase name, description, acceptance criteria, dependencies
+4. Use the phase description as the feature to plan
 
-If no pending phases remain, report that all phases are complete.
+If no pending phases remain, report all phases complete.
 
 ---
 
 ## Phase 1 — PARSE
 
-Extract and clarify the feature requirements.
+Extract from the input:
+- **What** is being built, **Why** it matters, **Who** uses it, **Where** it fits
 
-### Feature Understanding
+Format a user story: `As a [user], I want [capability], so that [benefit].`
 
-From the input (PRD phase or free-form description), identify:
-
-- **What** is being built (concrete deliverable)
-- **Why** it matters (user value)
-- **Who** uses it (target user/system)
-- **Where** it fits (which part of the codebase)
-
-### User Story
-
-Format as:
-
-```
-As a [type of user],
-I want [capability],
-So that [benefit].
-```
-
-### Complexity Assessment
-
-| Level      | Indicators                                                    | Typical Scope                 |
-| ---------- | ------------------------------------------------------------- | ----------------------------- |
-| **Small**  | Single file, isolated change, no new dependencies             | 1–3 files, <100 lines         |
-| **Medium** | Multiple files, follows existing patterns, minor new concepts | 3–10 files, 100–500 lines     |
-| **Large**  | Cross-cutting concerns, new patterns, external integrations   | 10+ files, 500+ lines         |
-| **XL**     | Architectural changes, new subsystems, migration needed       | 20+ files, consider splitting |
+Assess complexity: Small (1-3 files) | Medium (3-10 files) | Large (10+ files) | XL (20+ files, consider splitting)
 
 ### Ambiguity Gate
 
-If any of these are unclear, **STOP and ask the user** before proceeding:
-
-- The core deliverable is vague
-- Success criteria are undefined
-- There are multiple valid interpretations
-- Technical approach has major unknowns
-
-Do NOT guess. Ask. A plan built on assumptions fails during implementation.
+If the core deliverable is vague, success criteria undefined, multiple valid interpretations exist, or there are major technical unknowns — **STOP and ask the user**. Do NOT guess.
 
 ---
 
 ## Phase 2 — EXPLORE
 
-Goal: gather deep codebase intelligence across 8 discovery categories and 5 traces. The shape of this phase depends on `PARALLEL_MODE`.
+Gather codebase intelligence across 8 categories and 5 traces.
 
-The 8 categories to cover:
+**8 categories**: Similar Implementations, Naming Conventions, Error Handling, Logging Patterns, Type Definitions, Test Patterns, Configuration, Dependencies
 
-1. Similar Implementations
-2. Naming Conventions
-3. Error Handling
-4. Logging Patterns
-5. Type Definitions
-6. Test Patterns
-7. Configuration
-8. Dependencies
+**5 traces**: Entry Points, Data Flow, State Changes, Contracts, Patterns
 
-The 5 traces to return:
+### Path A — Sequential (default)
 
-1. Entry Points
-2. Data Flow
-3. State Changes
-4. Contracts
-5. Patterns
+Dispatch a single `ycc:prp-researcher` agent in codebase mode to cover all 8 categories and 5 traces. Use the discovery table for the plan's Patterns to Mirror section.
 
-### Path A — Sequential (default, `PARALLEL_MODE=false`)
+**IMPORTANT — Researcher prompt constraints**: Tell the researcher to keep code snippets to **5 lines max** per finding and limit the total response to the discovery table format only — no prose summaries.
 
-Dispatch a single **`ycc:prp-researcher`** agent in **codebase mode** to cover all 8 categories and 5 traces in one pass. The researcher returns a unified discovery table with file:line references.
+### Path B — Parallel (`PARALLEL_MODE=true`)
 
-Use the discovery table verbatim for the plan's **Patterns to Mirror** section below.
+Dispatch **3 `ycc:prp-researcher` agents in a SINGLE message**:
 
-### Path B — Parallel Fan-Out (`PARALLEL_MODE=true`)
+| Researcher          | Categories                                      | Traces                  |
+| ------------------- | ----------------------------------------------- | ----------------------- |
+| `patterns-research` | Similar Implementations, Naming, Types          | Entry Points, Contracts |
+| `quality-research`  | Error Handling, Logging, Tests                  | State Changes, Patterns |
+| `infra-research`    | Configuration, Dependencies                     | Data Flow               |
 
-Dispatch **3 `ycc:prp-researcher` agents in parallel** in a SINGLE message with MULTIPLE `Agent` tool calls. Each agent is assigned a slice of the 8 categories:
+**IMPORTANT — Researcher prompt constraints**: Tell each researcher to keep code snippets to **5 lines max** per finding and limit the total response to the discovery table format only — no prose summaries.
 
-| Researcher          | Categories                                          | Traces                     |
-| ------------------- | --------------------------------------------------- | -------------------------- |
-| `patterns-research` | 1. Similar Implementations, 2. Naming, 5. Types     | Entry Points, Contracts    |
-| `quality-research`  | 3. Error Handling, 4. Logging, 6. Tests             | State Changes, Patterns    |
-| `infra-research`    | 7. Configuration, 8. Dependencies                   | Data Flow                  |
-
-Each agent is instructed to return its slice as a discovery table with file:line references, in the same format as the sequential researcher.
-
-**After all 3 return**:
-
-1. Merge the three discovery tables into a single unified table
-2. De-duplicate overlapping findings (same file:line may appear in multiple slices)
-3. Verify all 8 categories are covered — if any are missing, dispatch a follow-up researcher for the gap
-4. Use the merged table verbatim for the plan's **Patterns to Mirror** section
-
-**Why 3 agents, not 8**: Keeps fan-out bounded and matches natural research groupings (code style, quality/observability, infrastructure). All 8 categories are still fully covered — just split across 3 workers instead of 1.
+After all 3 return: merge tables, de-duplicate, verify all 8 categories covered.
 
 ---
 
 ## Phase 3 — RESEARCH
 
-If the feature involves external libraries, APIs, or unfamiliar technology, dispatch **`ycc:prp-researcher`** in **external mode** to research:
+If the feature involves external libraries/APIs, dispatch `ycc:prp-researcher` in external mode. Keep findings to KEY_INSIGHT / APPLIES_TO / GOTCHA / SOURCE format.
 
-1. Official documentation for the library/API
-2. Usage examples and best practices
-3. Version-specific gotchas
-
-The researcher formats findings as:
-
-```
-KEY_INSIGHT: [what you learned]
-APPLIES_TO: [which part of the plan this affects]
-GOTCHA: [any warnings or version-specific issues]
-SOURCE: [URL]
-```
-
-If the feature uses only well-understood internal patterns, skip this phase and note: "No external research needed — feature uses established internal patterns."
+If only internal patterns are used, skip: "No external research needed."
 
 ---
 
 ## Phase 4 — DESIGN
 
-### UX Transformation (if applicable)
+If the feature has UX changes, document before/after user experience and interaction changes.
 
-Document the before/after user experience:
-
-**Before:**
-
-```
-+-----------------------------+
-|  [Current user experience]  |
-|  Show the current flow,     |
-|  what the user sees/does    |
-+-----------------------------+
-```
-
-**After:**
-
-```
-+-----------------------------+
-|  [New user experience]      |
-|  Show the improved flow,    |
-|  what changes for the user  |
-+-----------------------------+
-```
-
-### Interaction Changes
-
-| Touchpoint | Before | After | Notes |
-| ---------- | ------ | ----- | ----- |
-| ...        | ...    | ...   | ...   |
-
-If the feature is purely backend/internal with no UX change, note: "Internal change — no user-facing UX transformation."
+If purely backend/internal: "Internal change — no user-facing UX transformation."
 
 ---
 
 ## Phase 5 — ARCHITECT
 
-### Strategic Design
-
-Define the implementation approach:
-
-- **Approach**: High-level strategy (e.g., "Add new service layer following existing repository pattern")
-- **Alternatives Considered**: What other approaches were evaluated and why they were rejected
-- **Scope**: Concrete boundaries of what WILL be built
-- **NOT Building**: Explicit list of what is OUT OF SCOPE (prevents scope creep during implementation)
+Define:
+- **Approach**: High-level strategy
+- **Alternatives Considered**: What was rejected and why
+- **Scope**: What WILL be built
+- **NOT Building**: What is OUT OF SCOPE
 
 ---
 
 ## Phase 6 — GENERATE
 
-Write the full plan document using the template below. Save to `docs/prps/plans/{kebab-case-feature-name}.plan.md`.
+**CRITICAL: Write the plan progressively in chunks to avoid timeouts.**
 
-Create the directory if it doesn't exist:
+Save to `docs/prps/plans/{kebab-case-feature-name}.plan.md`. Create directory first:
 
 ```bash
 mkdir -p docs/prps/plans
 ```
 
-### Plan Template
+### Step 1: Read the template
 
-````markdown
-# Plan: [Feature Name]
+Read the plan template from `${CLAUDE_PLUGIN_ROOT}/skills/prp-plan/references/plan-template.md`.
 
-## Summary
+If `PARALLEL_MODE=true`, also read `${CLAUDE_PLUGIN_ROOT}/skills/prp-plan/references/parallel-additions.md`.
 
-[2-3 sentence overview]
+### Step 2: Write the plan in chunks
 
-## User Story
+**Do NOT generate the entire plan in a single Write call.** Instead:
 
-As a [user], I want [capability], so that [benefit].
+1. **Write** the initial file with: header through Metadata (+ Batches section if parallel), UX Design, and Mandatory Reading sections
+2. **Edit/append** the Patterns to Mirror section (populated from researcher discovery tables)
+3. **Edit/append** the Files to Change + NOT Building sections
+4. **Edit/append** the Step-by-Step Tasks section (this is usually the largest — keep each task description concise)
+5. **Edit/append** the Testing Strategy, Validation Commands, Acceptance Criteria, Completion Checklist, Risks, and Notes sections
 
-## Problem → Solution
+Each chunk should be a separate Write or Edit call. This prevents any single generation from being too large.
 
-[Current state] → [Desired state]
+### Writing guidelines
 
-## Metadata
-
-- **Complexity**: [Small | Medium | Large | XL]
-- **Source PRD**: [path or "N/A"]
-- **PRD Phase**: [phase name or "N/A"]
-- **Estimated Files**: [count]
-
----
-
-## UX Design
-
-### Before
-
-[ASCII diagram or "N/A — internal change"]
-
-### After
-
-[ASCII diagram or "N/A — internal change"]
-
-### Interaction Changes
-
-| Touchpoint | Before | After | Notes |
-| ---------- | ------ | ----- | ----- |
-
----
-
-## Mandatory Reading
-
-Files that MUST be read before implementing:
-
-| Priority       | File           | Lines | Why                    |
-| -------------- | -------------- | ----- | ---------------------- |
-| P0 (critical)  | `path/to/file` | 1-50  | Core pattern to follow |
-| P1 (important) | `path/to/file` | 10-30 | Related types          |
-| P2 (reference) | `path/to/file` | all   | Similar implementation |
-
-## External Documentation
-
-| Topic | Source | Key Takeaway |
-| ----- | ------ | ------------ |
-| ...   | ...    | ...          |
-
----
-
-## Patterns to Mirror
-
-Code patterns discovered in the codebase. Follow these exactly.
-
-### NAMING_CONVENTION
-
-```
-// SOURCE: [file:lines]
-[actual code snippet showing the naming pattern]
-```
-
-### ERROR_HANDLING
-
-```
-// SOURCE: [file:lines]
-[actual code snippet showing error handling]
-```
-
-### LOGGING_PATTERN
-
-```
-// SOURCE: [file:lines]
-[actual code snippet showing logging]
-```
-
-### REPOSITORY_PATTERN
-
-```
-// SOURCE: [file:lines]
-[actual code snippet showing data access]
-```
-
-### SERVICE_PATTERN
-
-```
-// SOURCE: [file:lines]
-[actual code snippet showing service layer]
-```
-
-### TEST_STRUCTURE
-
-```
-// SOURCE: [file:lines]
-[actual code snippet showing test setup]
-```
-
----
-
-## Files to Change
-
-| File                  | Action | Justification           |
-| --------------------- | ------ | ----------------------- |
-| `path/to/file.ts`     | CREATE | New service for feature |
-| `path/to/existing.ts` | UPDATE | Add new method          |
-
-## NOT Building
-
-- [Explicit item 1 that is out of scope]
-- [Explicit item 2 that is out of scope]
-
----
-
-## Step-by-Step Tasks
-
-### Task 1: [Name]
-
-- **ACTION**: [What to do]
-- **IMPLEMENT**: [Specific code/logic to write]
-- **MIRROR**: [Pattern from Patterns to Mirror section to follow]
-- **IMPORTS**: [Required imports]
-- **GOTCHA**: [Known pitfall to avoid]
-- **VALIDATE**: [How to verify this task is correct]
-
-### Task 2: [Name]
-
-- **ACTION**: ...
-- **IMPLEMENT**: ...
-- **MIRROR**: ...
-- **IMPORTS**: ...
-- **GOTCHA**: ...
-- **VALIDATE**: ...
-
-[Continue for all tasks...]
-
----
-
-## Testing Strategy
-
-### Unit Tests
-
-| Test | Input | Expected Output | Edge Case? |
-| ---- | ----- | --------------- | ---------- |
-| ...  | ...   | ...             | ...        |
-
-### Edge Cases Checklist
-
-- [ ] Empty input
-- [ ] Maximum size input
-- [ ] Invalid types
-- [ ] Concurrent access
-- [ ] Network failure (if applicable)
-- [ ] Permission denied
-
----
-
-## Validation Commands
-
-### Static Analysis
-
-```bash
-# Run type checker
-[project-specific type check command]
-```
-
-EXPECT: Zero type errors
-
-### Unit Tests
-
-```bash
-# Run tests for affected area
-[project-specific test command]
-```
-
-EXPECT: All tests pass
-
-### Full Test Suite
-
-```bash
-# Run complete test suite
-[project-specific full test command]
-```
-
-EXPECT: No regressions
-
-### Database Validation (if applicable)
-
-```bash
-# Verify schema/migrations
-[project-specific db command]
-```
-
-EXPECT: Schema up to date
-
-### Browser Validation (if applicable)
-
-```bash
-# Start dev server and verify
-[project-specific dev server command]
-```
-
-EXPECT: Feature works as designed
-
-### Manual Validation
-
-- [ ] [Step-by-step manual verification checklist]
-
----
-
-## Acceptance Criteria
-
-- [ ] All tasks completed
-- [ ] All validation commands pass
-- [ ] Tests written and passing
-- [ ] No type errors
-- [ ] No lint errors
-- [ ] Matches UX design (if applicable)
-
-## Completion Checklist
-
-- [ ] Code follows discovered patterns
-- [ ] Error handling matches codebase style
-- [ ] Logging follows codebase conventions
-- [ ] Tests follow test patterns
-- [ ] No hardcoded values
-- [ ] Documentation updated (if needed)
-- [ ] No unnecessary scope additions
-- [ ] Self-contained — no questions needed during implementation
-
-## Risks
-
-| Risk | Likelihood | Impact | Mitigation |
-| ---- | ---------- | ------ | ---------- |
-| ...  | ...        | ...    | ...        |
-
-## Notes
-
-[Any additional context, decisions, or observations]
-````
-
-### Parallel Mode Additions (`PARALLEL_MODE=true` only)
-
-When `--parallel` is enabled, augment the template above with the following changes. **Do NOT apply these in sequential mode.**
-
-#### 1. Add a `Batches` section after `Metadata`
-
-```markdown
-## Batches
-
-Tasks grouped by dependency for parallel execution. Tasks within the same batch run concurrently; batches run in order.
-
-| Batch | Tasks         | Depends On | Parallel Width |
-| ----- | ------------- | ---------- | -------------- |
-| B1    | 1.1, 1.2, 1.3 | —          | 3              |
-| B2    | 2.1           | B1         | 1              |
-| B3    | 3.1, 3.2      | B2         | 2              |
-
-- **Total tasks**: [N]
-- **Total batches**: [M]
-- **Max parallel width**: [X]
-```
-
-#### 2. Use hierarchical task IDs and add `Depends on` annotations
-
-Replace the flat `Task 1`, `Task 2` format with hierarchical IDs matching the batch assignment. Add a `BATCH` field and a `Depends on` annotation in the task header.
-
-```markdown
-### Task 1.1: [Name] — Depends on [none]
-
-- **BATCH**: B1
-- **ACTION**: [What to do]
-- **IMPLEMENT**: [Specific code/logic]
-- **MIRROR**: [Pattern reference from Patterns to Mirror]
-- **IMPORTS**: [Required imports]
-- **GOTCHA**: [Known pitfall]
-- **VALIDATE**: [How to verify this task]
-
-### Task 2.1: [Name] — Depends on [1.1, 1.2]
-
-- **BATCH**: B2
-- **ACTION**: ...
-```
-
-#### 3. Batch Construction Rules
-
-When assigning tasks to batches, follow these rules:
-
-- Tasks with no dependencies go in **Batch 1**
-- A task joins the **earliest batch** where all its dependencies are already in prior batches
-- **Tasks modifying the same file MUST be in different batches** (no concurrent writes to the same file)
-- Cross-cutting changes (shared types, global config) get their own dedicated batch, typically **Batch 1** so downstream tasks can depend on them
-- Prefer **wide-shallow** dependency graphs (many independent tasks per batch) over **narrow-deep** chains — maximize parallel width
-
-#### 4. Safety Checks Before Finalizing
-
-Before writing the plan, verify:
-
-- [ ] Every task has exactly one `BATCH` assignment
-- [ ] Every `Depends on` reference points to a real prior task
-- [ ] No two tasks in the same batch touch the same file
-- [ ] The dependency graph has no cycles
-- [ ] The `Batches` table matches the task assignments exactly
+- **Keep task descriptions concise** — ACTION and VALIDATE are required; IMPLEMENT should be 2-3 sentences max, not full code blocks
+- **Patterns to Mirror snippets**: Use the researcher's snippets directly, max 5 lines each
+- **Omit sections that don't apply** rather than writing "N/A" for every sub-field
+- **Validation commands**: Use actual project commands discovered during exploration
 
 ---
 
 ## Output
 
-### Save the Plan
-
-Write the generated plan to:
-
-```
-docs/prps/plans/{kebab-case-feature-name}.plan.md
-```
-
 ### Update PRD (if input was a PRD)
 
-If this plan was generated from a PRD phase:
-
-1. Update the phase status from `pending` to `in-progress`
-2. Add the plan file path as a reference in the phase
+Update the phase status from `pending` to `in-progress` and add the plan file path.
 
 ### Report to User
 
 ```
 ## Plan Created
 
-- **File**: docs/prps/plans/{kebab-case-feature-name}.plan.md
+- **File**: docs/prps/plans/{name}.plan.md
 - **Source PRD**: [path or "N/A"]
 - **Phase**: [phase name or "standalone"]
 - **Complexity**: [level]
 - **Scope**: [N files, M tasks]
 - **Key Patterns**: [top 3 discovered patterns]
-- **External Research**: [topics researched or "none needed"]
+- **External Research**: [topics or "none needed"]
 - **Risks**: [top risk or "none identified"]
-- **Confidence Score**: [1-10] — likelihood of single-pass implementation
+- **Confidence Score**: [1-10]
 - **Execution Mode**: [Sequential | Parallel (N batches, max width X)]
 
-> Next step (sequential mode): Run `/ycc:prp-implement docs/prps/plans/{name}.plan.md` to execute this plan.
->
-> Next step (parallel mode): Run `/ycc:prp-implement --parallel docs/prps/plans/{name}.plan.md` to execute batches in parallel.
+> Next step: Run `/ycc:prp-implement docs/prps/plans/{name}.plan.md` to execute this plan.
 ```
 
 ---
 
 ## Verification
 
-Before finalizing, verify the plan against these checklists:
-
-### Context Completeness
+Before finalizing, verify:
 
 - [ ] All relevant files discovered and documented
-- [ ] Naming conventions captured with examples
-- [ ] Error handling patterns documented
-- [ ] Test patterns identified
-- [ ] Dependencies listed
-
-### Implementation Readiness
-
 - [ ] Every task has ACTION, IMPLEMENT, MIRROR, and VALIDATE
 - [ ] No task requires additional codebase searching
-- [ ] Import paths are specified
-- [ ] GOTCHAs documented where applicable
-
-### Pattern Faithfulness
-
-- [ ] Code snippets are actual codebase examples (not invented)
-- [ ] SOURCE references point to real files and line numbers
-- [ ] Patterns cover naming, errors, logging, data access, and tests
-- [ ] New code will be indistinguishable from existing code
-
-### Validation Coverage
-
-- [ ] Static analysis commands specified
-- [ ] Test commands specified
-- [ ] Build verification included
-
-### UX Clarity
-
-- [ ] Before/after states documented (or marked N/A)
-- [ ] Interaction changes listed
-- [ ] Edge cases for UX identified
-
-### No Prior Knowledge Test
-
-A developer unfamiliar with this codebase should be able to implement the feature using ONLY this plan, without searching the codebase or asking questions. If not, add the missing context.
+- [ ] Code snippets are actual codebase examples with SOURCE references
+- [ ] Validation commands specified
+- [ ] A developer unfamiliar with this codebase could implement using ONLY this plan
 
 ---
 
@@ -658,4 +218,4 @@ A developer unfamiliar with this codebase should be able to implement the featur
 - Run `/ycc:prp-implement <plan-path>` to execute this plan
 - Run `/ycc:plan` for quick conversational planning without artifacts
 - Run `/ycc:prp-prd` to create a PRD first if scope is unclear
-- Run `/ycc:plan-workflow` for the parallel-agent planning track (multi-task features)
+- Run `/ycc:plan-workflow` for the parallel-agent planning track
