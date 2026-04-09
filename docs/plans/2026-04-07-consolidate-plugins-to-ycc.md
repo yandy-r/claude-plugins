@@ -1,17 +1,15 @@
 # Plan: Consolidate all plugins into a single `ycc` plugin
 
-**Date:** 2026-04-07
-**Status:** Draft — awaiting user approval before execution
-**Scope:** Repository-wide refactor of `yandy-r/claude-plugins`
-**Complexity:** MEDIUM (mechanical moves + text rewrites + registry rewrite)
-**Type:** BREAKING CHANGE (marketplace 1.0.0 → 2.0.0)
+**Date:** 2026-04-07 **Status:** Draft — awaiting user approval before execution **Scope:**
+Repository-wide refactor of `yandy-r/claude-plugins` **Complexity:** MEDIUM (mechanical moves + text
+rewrites + registry rewrite) **Type:** BREAKING CHANGE (marketplace 1.0.0 → 2.0.0)
 
 ---
 
 ## 1. Goal
 
-All plugin skills in this repo must be accessible via the single namespace prefix
-`ycc:{skill}` instead of `{plugin-name}:{skill-name}`.
+All plugin skills in this repo must be accessible via the single namespace prefix `ycc:{skill}`
+instead of `{plugin-name}:{skill-name}`.
 
 | Before                               | After                    |
 | ------------------------------------ | ------------------------ |
@@ -32,12 +30,12 @@ All plugin skills in this repo must be accessible via the single namespace prefi
 
 ## 2. Core Design Decision
 
-**Claude Code ties the namespace prefix directly to the plugin's `name` field.**
-There is no aliasing mechanism. To get `ycc:{skill}`, the skills must literally
-live inside a plugin named `ycc`.
+**Claude Code ties the namespace prefix directly to the plugin's `name` field.** There is no
+aliasing mechanism. To get `ycc:{skill}`, the skills must literally live inside a plugin named
+`ycc`.
 
-**Therefore:** collapse all 9 current plugin directories into one `ycc/` plugin
-directory. This is the only viable approach.
+**Therefore:** collapse all 9 current plugin directories into one `ycc/` plugin directory. This is
+the only viable approach.
 
 ### Confirmed trade-offs
 
@@ -47,12 +45,20 @@ directory. This is the only viable approach.
 
 ## 3. Preconditions / What I verified
 
-1. **No name collisions** across skills (12), commands (9), or agents (9). Clean consolidation is possible without renaming anything below the plugin level.
-2. **`_shared/` collision** exists between `plan-workflow/skills/_shared/` and `implement-plan/skills/_shared/`. Diff shows **only comment-level differences** in `resolve-plans-dir.sh` — trivial reconcile. The documented version wins.
-3. **`${CLAUDE_PLUGIN_ROOT}` references** (~30 occurrences) are all of the form `${CLAUDE_PLUGIN_ROOT}/skills/{skill-name}/...`. These stay valid post-move because the skill subdirectory names are preserved — only the plugin directory wrapper changes.
-4. **Shell scripts:** 33 total, **all 33 already executable**. `git mv` preserves the executable bit.
-5. **Hardcoded prefix strings** for rewrite: 16 occurrences across user-facing docs. Full list in §6.
-6. **Cross-plugin references:** none. No skill calls another plugin's skill by its prefix. (Only `ask.md` hardcodes `ask:codebase-advisor` as a subagent_type — see §6.)
+1. **No name collisions** across skills (12), commands (9), or agents (9). Clean consolidation is
+   possible without renaming anything below the plugin level.
+2. **`_shared/` collision** exists between `plan-workflow/skills/_shared/` and
+   `implement-plan/skills/_shared/`. Diff shows **only comment-level differences** in
+   `resolve-plans-dir.sh` — trivial reconcile. The documented version wins.
+3. **`${CLAUDE_PLUGIN_ROOT}` references** (~30 occurrences) are all of the form
+   `${CLAUDE_PLUGIN_ROOT}/skills/{skill-name}/...`. These stay valid post-move because the skill
+   subdirectory names are preserved — only the plugin directory wrapper changes.
+4. **Shell scripts:** 33 total, **all 33 already executable**. `git mv` preserves the executable
+   bit.
+5. **Hardcoded prefix strings** for rewrite: 16 occurrences across user-facing docs. Full list in
+   §6.
+6. **Cross-plugin references:** none. No skill calls another plugin's skill by its prefix. (Only
+   `ask.md` hardcodes `ask:codebase-advisor` as a subagent_type — see §6.)
 
 ## 4. Target repository layout
 
@@ -107,7 +113,8 @@ claude-plugins/
 └── LICENSE
 ```
 
-**Deleted:** the 9 old plugin directories (`ask/`, `plan-workflow/`, `implement-plan/`, `git-workflow/`, `code-report/`, `deep-research/`, `orchestrate/`, `write-docs/`, `project/`).
+**Deleted:** the 9 old plugin directories (`ask/`, `plan-workflow/`, `implement-plan/`,
+`git-workflow/`, `code-report/`, `deep-research/`, `orchestrate/`, `write-docs/`, `project/`).
 
 ## 5. Implementation phases
 
@@ -115,7 +122,8 @@ claude-plugins/
 
 - Create a safety branch: `git checkout -b feat/consolidate-to-ycc`
 - Confirm the working tree is clean.
-- Run a sanity inventory: record current skill, command, and agent counts so we can verify the post-move totals match.
+- Run a sanity inventory: record current skill, command, and agent counts so we can verify the
+  post-move totals match.
 
 **Exit criteria:** Branch created, clean tree, inventory recorded.
 
@@ -159,11 +167,13 @@ git mv write-docs/skills/write-docs               ycc/skills/write-docs
 
 **`_shared/` reconciliation** (done separately to avoid a merge conflict):
 
-1. `git mv plan-workflow/skills/_shared ycc/skills/_shared` (this wins — better comments per the diff)
+1. `git mv plan-workflow/skills/_shared ycc/skills/_shared` (this wins — better comments per the
+   diff)
 2. `diff -rq implement-plan/skills/_shared ycc/skills/_shared` to confirm no other divergent files
 3. `git rm -r implement-plan/skills/_shared`
 
-**Exit criteria:** `ls ycc/skills/` shows all 14 subdirs (12 skill + 1 `_shared`), each containing its original contents.
+**Exit criteria:** `ls ycc/skills/` shows all 14 subdirs (12 skill + 1 `_shared`), each containing
+its original contents.
 
 ### Phase 3 — Move agents
 
@@ -199,18 +209,21 @@ git mv write-docs/commands/write-docs.md          ycc/commands/
 
 ### Phase 5 — Delete old plugin directories
 
-After each phase-2..4 move, the old `{plugin}/skills/`, `{plugin}/agents/`, `{plugin}/commands/` dirs are empty. The only remaining file is each plugin's `.claude-plugin/plugin.json`.
+After each phase-2..4 move, the old `{plugin}/skills/`, `{plugin}/agents/`, `{plugin}/commands/`
+dirs are empty. The only remaining file is each plugin's `.claude-plugin/plugin.json`.
 
 ```
 git rm -r ask code-report deep-research git-workflow implement-plan \
           orchestrate plan-workflow project write-docs
 ```
 
-**Exit criteria:** `ls` at repo root shows no old plugin directories; only `ycc/`, `docs/`, `.claude-plugin/`, and top-level files remain.
+**Exit criteria:** `ls` at repo root shows no old plugin directories; only `ycc/`, `docs/`,
+`.claude-plugin/`, and top-level files remain.
 
 ### Phase 6 — Rewrite the marketplace manifest
 
-Replace `.claude-plugin/marketplace.json` with a single `ycc` entry. Bump marketplace metadata version to `2.0.0`:
+Replace `.claude-plugin/marketplace.json` with a single `ycc` entry. Bump marketplace metadata
+version to `2.0.0`:
 
 ```json
 {
@@ -244,16 +257,25 @@ Rewrite all 16 occurrences. See §6 for the exact sed/Edit operations. Every one
 - `"old-prefix:agent-name"` → `"ycc:agent-name"`, or
 - `` `old-prefix:skill` `` → `` `ycc:skill` `` (for cross-references in prose)
 
-Also rewrite any `${CLAUDE_PLUGIN_ROOT}` path that (if any) refers to a skill by a former sibling plugin. **Verified: none exist** — every `${CLAUDE_PLUGIN_ROOT}/skills/X/...` reference already points to a skill that used to be in the SAME plugin, so they all resolve correctly after consolidation without changes.
+Also rewrite any `${CLAUDE_PLUGIN_ROOT}` path that (if any) refers to a skill by a former sibling
+plugin. **Verified: none exist** — every `${CLAUDE_PLUGIN_ROOT}/skills/X/...` reference already
+points to a skill that used to be in the SAME plugin, so they all resolve correctly after
+consolidation without changes.
 
-**Exit criteria:** `grep -rE "(ask|plan-workflow|implement-plan|git-workflow|code-report|deep-research|orchestrate|write-docs|project):" ycc/ .claude-plugin/` returns zero matches (excluding the `_shared` dir, template strings that happen to contain `Task:`, etc.).
+**Exit criteria:**
+`grep -rE "(ask|plan-workflow|implement-plan|git-workflow|code-report|deep-research|orchestrate|write-docs|project):" ycc/ .claude-plugin/`
+returns zero matches (excluding the `_shared` dir, template strings that happen to contain `Task:`,
+etc.).
 
 ### Phase 8 — Update `README.md` and `CLAUDE.md`
 
-- `README.md`: rewrite the plugin list to describe the single `ycc` plugin and the new `ycc:{skill}` invocation pattern. Remove the per-plugin marketing blocks.
-- `CLAUDE.md`: update the "Directory Structure" and "Naming" sections that currently describe per-plugin layout — reflect that this repo now ships one plugin.
+- `README.md`: rewrite the plugin list to describe the single `ycc` plugin and the new `ycc:{skill}`
+  invocation pattern. Remove the per-plugin marketing blocks.
+- `CLAUDE.md`: update the "Directory Structure" and "Naming" sections that currently describe
+  per-plugin layout — reflect that this repo now ships one plugin.
 
-**Exit criteria:** Both files accurately describe the consolidated structure; no stale references to the 9 old plugin names as installable units.
+**Exit criteria:** Both files accurately describe the consolidated structure; no stale references to
+the 9 old plugin names as installable units.
 
 ### Phase 9 — Validation
 
@@ -300,9 +322,11 @@ Split into logical commits for an auditable history:
 8. `refactor(ycc): rewrite namespace prefixes in docs to ycc:`
 9. `docs(ycc): update README and CLAUDE.md for consolidated layout`
 
-`git mv` in separate commits keeps rename detection clean so `git log --follow` still works on individual files.
+`git mv` in separate commits keeps rename detection clean so `git log --follow` still works on
+individual files.
 
-**Exit criteria:** All 9 commits exist, each passes `git show --stat` inspection, and the branch builds a coherent story.
+**Exit criteria:** All 9 commits exist, each passes `git show --stat` inspection, and the branch
+builds a coherent story.
 
 ### Phase 11 — Smoke test in a Claude Code session
 
@@ -313,18 +337,21 @@ Split into logical commits for an auditable history:
   - `ycc:implement-plan`
   - `ycc:ask-codebase` (and the corresponding `subagent_type: "ycc:codebase-advisor"`)
 - Verify at least one slash command still works: `/ycc:git-workflow` or similar.
-- Verify `${CLAUDE_PLUGIN_ROOT}` resolves by invoking a skill that uses it (e.g., `ycc:git-workflow` runs `analyze-changes.sh`).
+- Verify `${CLAUDE_PLUGIN_ROOT}` resolves by invoking a skill that uses it (e.g., `ycc:git-workflow`
+  runs `analyze-changes.sh`).
 
 **Exit criteria:** All three probes return expected behavior. If any fail, STOP and re-plan.
 
 ## 6. Exact text-rewrite targets
 
-These are the 16 lines that must be rewritten in Phase 7. Each is listed as `file:line — before → after`.
+These are the 16 lines that must be rewritten in Phase 7. Each is listed as
+`file:line — before → after`.
 
 ### ask plugin (3 references)
 
 1. `ycc/commands/ask.md:21` (was `ask/commands/ask.md:21`)
-   - `subagent_type: "ask:codebase-advisor"` → `subagent_type: "ycc:codebase-advisor"` (3 occurrences on this line)
+   - `subagent_type: "ask:codebase-advisor"` → `subagent_type: "ycc:codebase-advisor"` (3
+     occurrences on this line)
 2. `ycc/skills/ask-codebase/SKILL.md:37`
    - `subagent_type: "ask:codebase-advisor"` → `subagent_type: "ycc:codebase-advisor"`
 3. `ycc/skills/ask-codebase/SKILL.md:39`
@@ -339,11 +366,14 @@ These are the 16 lines that must be rewritten in Phase 7. Each is listed as `fil
 6. `ycc/commands/research-to-issues.md:57`
    - `/git-workflow:research-to-issues` → `/ycc:research-to-issues`
 7. `ycc/commands/research-to-issues.md:58`
-   - `/git-workflow:research-to-issues --research-dir ./docs/research` → `/ycc:research-to-issues --research-dir ./docs/research`
+   - `/git-workflow:research-to-issues --research-dir ./docs/research` →
+     `/ycc:research-to-issues --research-dir ./docs/research`
 8. `ycc/commands/research-to-issues.md:59`
-   - `/git-workflow:research-to-issues --skip-anti-scope --skip-gaps` → `/ycc:research-to-issues --skip-anti-scope --skip-gaps`
+   - `/git-workflow:research-to-issues --skip-anti-scope --skip-gaps` →
+     `/ycc:research-to-issues --skip-anti-scope --skip-gaps`
 9. `ycc/commands/research-to-issues.md:60`
-   - `/git-workflow:research-to-issues --dry-run --skip-gaps` → `/ycc:research-to-issues --dry-run --skip-gaps`
+   - `/git-workflow:research-to-issues --dry-run --skip-gaps` →
+     `/ycc:research-to-issues --dry-run --skip-gaps`
 
 ### project plugin (6 references)
 
@@ -351,11 +381,16 @@ These are the 16 lines that must be rewritten in Phase 7. Each is listed as `fil
 11. `ycc/commands/clean.md:28` — `/project:clean /path/to/project` → `/ycc:clean /path/to/project`
 12. `ycc/commands/clean.md:29` — `/project:clean --dry-run` → `/ycc:clean --dry-run`
 13. `ycc/commands/clean.md:30` — `/project:clean --report-only` → `/ycc:clean --report-only`
-14. `ycc/commands/clean.md:31` — `/project:clean --safe-mode --include-git` → `/ycc:clean --safe-mode --include-git`
+14. `ycc/commands/clean.md:31` — `/project:clean --safe-mode --include-git` →
+    `/ycc:clean --safe-mode --include-git`
 15. `ycc/skills/init-workspace/templates/workspace-report.md:3`
     - `` Generated by `/project:init` `` → `` Generated by `/ycc:init` ``
 
-> **\*Naming consideration for `/clean` and `/init`:** these command filenames stay as-is (`clean.md`, `init.md`), because the file basename determines the slash command name. So post-consolidation they become `/ycc:clean` and `/ycc:init`. If you'd rather rename them to `/ycc:project-clean` and `/ycc:project-init` for clarity, say so and I'll add a `git mv` step. Default: keep as `/ycc:clean` and `/ycc:init`.
+> **\*Naming consideration for `/clean` and `/init`:** these command filenames stay as-is
+> (`clean.md`, `init.md`), because the file basename determines the slash command name. So
+> post-consolidation they become `/ycc:clean` and `/ycc:init`. If you'd rather rename them to
+> `/ycc:project-clean` and `/ycc:project-init` for clarity, say so and I'll add a `git mv` step.
+> Default: keep as `/ycc:clean` and `/ycc:init`.
 
 ### write-docs plugin (1 reference)
 
@@ -366,12 +401,16 @@ These are the 16 lines that must be rewritten in Phase 7. Each is listed as `fil
 
 These false positives showed up in grep but are prose/templates, not prefix references:
 
-- `deep-research/skills/deep-research/templates/analysis-prompts.md`: `## Your Task: ...` (English prose)
-- `orchestrate/skills/orchestrate/references/task-breakdown.md`: `Check each subtask:` (English prose)
-- `plan-workflow/skills/*/templates/*`: `Task: [Description]`, `Before completing this task:` (English prose)
+- `deep-research/skills/deep-research/templates/analysis-prompts.md`: `## Your Task: ...` (English
+  prose)
+- `orchestrate/skills/orchestrate/references/task-breakdown.md`: `Check each subtask:` (English
+  prose)
+- `plan-workflow/skills/*/templates/*`: `Task: [Description]`, `Before completing this task:`
+  (English prose)
 - `write-docs/skills/write-docs/references/agent-task-prompts.md:136`: `Your task:` (English prose)
 
-The rewrite tool must be surgical — use exact `old_string`/`new_string` on the lines listed above, not a blind `sed`.
+The rewrite tool must be surgical — use exact `old_string`/`new_string` on the lines listed above,
+not a blind `sed`.
 
 ## 7. Risk register
 
@@ -412,21 +451,26 @@ The rewrite tool must be surgical — use exact `old_string`/`new_string` on the
 | 10. Commit strategy (9 commits)            | small                        |
 | 11. Smoke test in Claude Code session      | small, but blocks completion |
 
-Total: a single focused work session. No code needs to be written — only files moved and strings edited.
+Total: a single focused work session. No code needs to be written — only files moved and strings
+edited.
 
 ## 10. Rollback plan
 
 Everything happens on a branch (`feat/consolidate-to-ycc`). If anything goes wrong:
 
 - **Before merge:** `git checkout main && git branch -D feat/consolidate-to-ycc`. Zero impact.
-- **After merge but before any consumer updates:** `git revert` the merge commit. Marketplace consumers reload and get the 1.x state back.
-- **After merge and consumers have updated:** users re-install by subscribing to the old marketplace version tag if available, or pin to the last commit on `main` before the merge. Document the rollback commit SHA in the PR description.
+- **After merge but before any consumer updates:** `git revert` the merge commit. Marketplace
+  consumers reload and get the 1.x state back.
+- **After merge and consumers have updated:** users re-install by subscribing to the old marketplace
+  version tag if available, or pin to the last commit on `main` before the merge. Document the
+  rollback commit SHA in the PR description.
 
 ## 11. Acceptance criteria
 
 This refactor is DONE when all of the following hold:
 
-1. `ls` at repo root shows exactly: `.claude-plugin/`, `ycc/`, `docs/`, `CLAUDE.md`, `CONTRIBUTING.md`, `LICENSE`, `README.md`, and the repo dotfiles.
+1. `ls` at repo root shows exactly: `.claude-plugin/`, `ycc/`, `docs/`, `CLAUDE.md`,
+   `CONTRIBUTING.md`, `LICENSE`, `README.md`, and the repo dotfiles.
 2. `ycc/skills/` contains exactly 12 skill subdirs + 1 `_shared` dir.
 3. `ycc/commands/` contains exactly 9 `.md` files.
 4. `ycc/agents/` contains exactly 9 `.md` files.
@@ -434,16 +478,18 @@ This refactor is DONE when all of the following hold:
 6. `plugin.json` at `ycc/.claude-plugin/plugin.json` is valid JSON with `name: "ycc"`.
 7. The acceptance grep from Phase 9 check 3 returns zero matches.
 8. All 33 shell scripts remain executable.
-9. At least 3 skills invoked via the new `ycc:{skill}` prefix work in a live Claude Code session (Phase 11).
+9. At least 3 skills invoked via the new `ycc:{skill}` prefix work in a live Claude Code session
+   (Phase 11).
 10. `README.md` and `CLAUDE.md` accurately describe the consolidated layout.
 
 ## 12. Explicit user-approval gate
 
-> **DO NOT begin execution of Phases 1–11 until the user reviews this document and says "approved" / "proceed" / "go".**
+> **DO NOT begin execution of Phases 1–11 until the user reviews this document and says "approved" /
+> "proceed" / "go".**
 
 If the user wants changes, revise this document first, re-request approval, and only then proceed.
 
 ---
 
-_Plan author: planner agent via `/ecc:plan` command_
-_Plan location: `docs/plans/2026-04-07-consolidate-plugins-to-ycc.md`_
+_Plan author: planner agent via `/ycc:plan` command_ _Plan location:
+`docs/plans/2026-04-07-consolidate-plugins-to-ycc.md`_
