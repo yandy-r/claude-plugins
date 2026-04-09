@@ -80,17 +80,29 @@ ycc:feature-research → ycc:shared-context → ycc:parallel-plan → ycc:implem
 
 Use `ycc:plan-workflow` to run the full pipeline, or invoke individual stages.
 
+## Cursor IDE sync
+
+The install script syncs skills, agents, and rules to your Cursor config directory:
+
+```bash
+./install.sh --target cursor
+```
+
+This rsyncs `ycc/skills/`, `ycc/agents/`, and `ycc/rules/` into `~/.cursor/`. Existing files at the destination are preserved; only newer source files overwrite.
+
 ## Repository layout
 
 ```
 claude-plugins/
 ├── .claude-plugin/
 │   └── marketplace.json     # marketplace registry (single ycc entry)
+├── install.sh               # sync assets to IDE config directories
 ├── ycc/                     # the consolidated plugin
 │   ├── .claude-plugin/
 │   │   └── plugin.json      # name: "ycc", version: 2.0.0
 │   ├── commands/            # 34 slash commands
 │   ├── agents/              # 43 agents
+│   ├── rules/               # language-specific rules (common + per-language)
 │   └── skills/              # 34 skills + _shared
 │       ├── _shared/         # shared scripts (e.g., resolve-plans-dir.sh)
 │       └── {skill-name}/
