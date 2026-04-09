@@ -2,11 +2,11 @@
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
-# install.sh — sync ycc plugin assets to target IDE config directories
+# install.sh — sync plugin assets to target IDE config directories
 # ---------------------------------------------------------------------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-YCC_DIR="${SCRIPT_DIR}/ycc"
+CURSOR_PLUGIN_DIR="${SCRIPT_DIR}/.cursor-plugin"
 
 # Colors
 RED='\033[0;31m'
@@ -23,14 +23,14 @@ usage() {
     cat <<EOF
 Usage: $(basename "$0") --target <target>
 
-Sync ycc plugin assets to an IDE configuration directory.
+Sync plugin assets to an IDE configuration directory.
 
 Options:
   --target <target>   Target IDE (cursor)
   --help              Show this help message
 
 Targets:
-  cursor   Sync skills/, agents/, and rules/ to ~/.cursor/
+  cursor   Sync skills/, agents/, and rules/ from .cursor-plugin/ to ~/.cursor/
 
 Examples:
   $(basename "$0") --target cursor
@@ -50,36 +50,31 @@ sync_cursor() {
 
     command -v rsync >/dev/null 2>&1 || { err "rsync is required but not found"; exit 1; }
 
-    # Sync skills and agents from ycc/
-    local ycc_dirs=(skills agents)
-
-    for dir in "${ycc_dirs[@]}"; do
-        local src="${YCC_DIR}/${dir}/"
-        local dest="${cursor_dir}/${dir}/"
-
-        if [[ ! -d "${src}" ]]; then
-            warn "Source not found, skipping: ${src}"
-            continue
-        fi
-
-        mkdir -p "${dest}"
-        rsync -av --update "${src}" "${dest}"
-        info "Synced ${dir}/ → ${dest}"
-    done
-
-    # Sync rules from .cursor/rules/ (repo root)
-    local rules_src="${SCRIPT_DIR}/.cursor/rules/"
-    local rules_dest="${cursor_dir}/rules/"
-
-    if [[ ! -d "${rules_src}" ]]; then
-        warn "Source not found, skipping: ${rules_src}"
-    else
-        mkdir -p "${rules_dest}"
-        rsync -av --update "${rules_src}" "${rules_dest}"
-        info "Synced rules/ → ${rules_dest}"
+    if [[ ! -d "${CURSOR_PLUGIN_DIR}" ]]; then
+        err "Cursor plugin source directory not found: ${CURSOR_PLUGIN_DIR}"
+        exit 1
     fi
 
-    printf "\n${BOLD}Cursor sync complete.${NC}\n"
+    local managed_units=(skills agents rules)
+    local unit
+
+    for unit in "${managed_units[@]}"; do
+        local src_unit="${CURSOR_PLUGIN_DIR}/${unit}/"
+        local dest_unit="${cursor_dir}/${unit}/"
+
+        if [[ -d "${src_unit}" ]]; then
+            mkdir -p "${dest_unit}"
+            rsync -av --delete "${src_unit}" "${dest_unit}"
+            info "Synced ${unit}/ → ${dest_unit}"
+        elif [[ -d "${dest_unit}" ]]; then
+            rm -rf "${dest_unit}"
+            warn "Removed ${dest_unit} (missing from .cursor-plugin)"
+        else
+            warn "Source not found, skipping: ${src_unit}"
+        fi
+    done
+
+    printf '\n%sCursor sync complete.%s\n' "${BOLD}" "${NC}"
 }
 
 # ---------------------------------------------------------------------------
