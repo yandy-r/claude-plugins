@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Dual-mode code review — local uncommitted changes OR a GitHub pull request. Local mode runs a full security + quality pass on the diff. PR mode fetches the PR, reads each changed file in full, builds context from CLAUDE.md and PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build) for detected stacks, assigns severity, writes a review artifact to docs/prps/reviews/pr-{N}-review.md, and posts the review to GitHub via gh. Pass `--parallel` to fan out the REVIEW phase across 3 specialized ycc:code-reviewer agents (correctness, security, quality) and merge findings. Use when the user asks to "review code", "review PR", "check uncommitted changes", "review pr N", "parallel review", or says "/code-review". Adapted from PRPs-agentic-eng by Wirasm.
+description: Dual-mode code review — local uncommitted changes OR a GitHub pull request. Both modes now write a machine-parseable review artifact (Local → docs/prps/reviews/local-{timestamp}-review.md, PR → docs/prps/reviews/pr-{N}-review.md) with sequential finding IDs (F001, F002, ...) and Status fields (Open/Fixed/Failed) so /ycc:review-fix can consume and update them in place. Local mode runs a full security + quality pass on the diff. PR mode fetches the PR, reads each changed file in full, builds context from CLAUDE.md and PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build) for detected stacks, assigns severity, and posts the review to GitHub via gh. Pass `--parallel` to fan out the REVIEW phase across 3 specialized ycc:code-reviewer agents (correctness, security, quality) and merge findings. Use when the user asks to "review code", "review PR", "check uncommitted changes", "review pr N", "parallel review", or says "/code-review". Adapted from PRPs-agentic-eng by Wirasm.
 argument-hint: '[pr-number | pr-url | blank for local review] [--approve | --request-changes] [--parallel]'
 allowed-tools:
   - Read
@@ -155,12 +155,38 @@ Pass the merged findings to Phase 3 (REPORT) as if they came from a single-pass 
 
 ### Phase 3 — REPORT
 
-Generate report with:
+Assign a sequential finding ID to each issue (`F001`, `F002`, `F003`, ...) ordered by severity (CRITICAL first) then by file path. Every finding receives `Status: Open` on first write.
 
-- Severity: CRITICAL, HIGH, MEDIUM, LOW
-- File location and line numbers
-- Issue description
+Generate the review artifact and write it to `docs/prps/reviews/local-{YYYYMMDD-HHMMSS}-review.md`:
+
+```bash
+mkdir -p docs/prps/reviews
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+REVIEW_FILE="docs/prps/reviews/local-${TIMESTAMP}-review.md"
+```
+
+Use the **Review Artifact Format** defined at the bottom of this skill. Include:
+
+- Finding ID (`**[F001]**`)
+- Severity bucket (CRITICAL, HIGH, MEDIUM, LOW)
+- `Status: Open` (always on first write)
+- Category tag
+- `file:line` reference
+- Description
 - Suggested fix
+
+**Always write the file**, even if there are no findings (empty sections are acceptable — they give `/ycc:review-fix` a consistent target and preserve history).
+
+Print a concise summary to stdout with the file path and a hint to run fixes:
+
+```
+Local review written to: docs/prps/reviews/local-20260408-143022-review.md
+Findings: [C] 2  [H] 3  [M] 1  [L] 0
+
+Next steps:
+  /ycc:review-fix docs/prps/reviews/local-20260408-143022-review.md   # apply fixes
+  /ycc:review-fix docs/prps/reviews/local-20260408-143022-review.md --parallel
+```
 
 Block commit if CRITICAL or HIGH issues found.
 Never approve code with security vulnerabilities.
@@ -342,55 +368,56 @@ Special cases:
 
 ### Phase 6 — REPORT
 
+Assign sequential finding IDs (`F001`, `F002`, ...) ordered by severity (CRITICAL first) then by file path. Every finding receives `Status: Open` on first write.
+
 Create review artifact at `docs/prps/reviews/pr-<NUMBER>-review.md`:
 
 ```bash
 mkdir -p docs/prps/reviews
 ```
 
+Use the **Review Artifact Format** defined at the bottom of this skill. The artifact must include finding IDs and `Status: Open` on every finding so that `/ycc:review-fix` can later update the file in place.
+
+Example of the Findings section:
+
 ```markdown
-# PR Review: #<NUMBER> — <TITLE>
-
-**Reviewed**: <date>
-**Author**: <author>
-**Branch**: <head> → <base>
-**Decision**: APPROVE | REQUEST CHANGES | BLOCK
-
-## Summary
-
-<1-2 sentence overall assessment>
-
 ## Findings
 
 ### CRITICAL
 
-<findings or "None">
+- **[F001]** `src/auth.ts:42` — SQL injection in user lookup query
+  - **Status**: Open
+  - **Category**: Security
+  - **Suggested fix**: Use parameterized query via `db.query('... WHERE id = $1', [userId])`
 
 ### HIGH
 
-<findings or "None">
+- **[F002]** `src/api/payments.ts:17` — Missing null check on `req.body.amount`
+  - **Status**: Open
+  - **Category**: Correctness
+  - **Suggested fix**: Validate `typeof amount === 'number' && amount > 0` before processing
 
 ### MEDIUM
 
-<findings or "None">
+- **[F003]** `src/utils/format.ts:83` — Function exceeds 50 lines (78 lines)
+  - **Status**: Open
+  - **Category**: Maintainability
+  - **Suggested fix**: Extract the date parsing block into a helper
 
 ### LOW
 
-<findings or "None">
-
-## Validation Results
-
-| Check      | Result                |
-| ---------- | --------------------- |
-| Type check | Pass / Fail / Skipped |
-| Lint       | Pass / Fail / Skipped |
-| Tests      | Pass / Fail / Skipped |
-| Build      | Pass / Fail / Skipped |
-
-## Files Reviewed
-
-<list of files with change type: Added/Modified/Deleted>
+- **[F004]** `src/app.ts:5` — Missing JSDoc on public export `initApp`
+  - **Status**: Open
+  - **Category**: Maintainability
+  - **Suggested fix**: Add a one-line JSDoc describing arguments and return type
 ```
+
+The artifact MUST also include these sections:
+
+- **Header**: PR number, title, author, branch, decision, reviewed timestamp
+- **Summary**: 1-2 sentence overall assessment
+- **Validation Results**: type-check / lint / tests / build pass-fail table
+- **Files Reviewed**: list of changed files with Added/Modified/Deleted tags
 
 ### Phase 7 — PUBLISH
 
@@ -445,6 +472,110 @@ Artifacts:
 Next steps:
   - <contextual suggestions based on decision>
 ```
+
+---
+
+## Review Artifact Format
+
+Both Local Review Mode and PR Review Mode write an artifact using this exact format. The format is the contract that `/ycc:review-fix` parses — do not deviate.
+
+### File locations
+
+| Mode  | Path                                                    |
+| ----- | ------------------------------------------------------- |
+| Local | `docs/prps/reviews/local-{YYYYMMDD-HHMMSS}-review.md`   |
+| PR    | `docs/prps/reviews/pr-{NUMBER}-review.md`               |
+
+### Template
+
+````markdown
+# [Local Review | PR Review #<NUMBER>] — <TITLE or "Uncommitted Changes">
+
+**Reviewed**: <ISO date>
+**Mode**: Local | PR
+**Author**: <author | "local">
+**Branch**: <head> → <base>
+**Decision**: APPROVE | REQUEST CHANGES | BLOCK | COMMENT
+
+## Summary
+
+<1-2 sentence overall assessment>
+
+## Findings
+
+### CRITICAL
+
+- **[F001]** `file.ts:42` — <description>
+  - **Status**: Open
+  - **Category**: <Security | Correctness | Type Safety | Performance | Pattern Compliance | Completeness | Maintainability>
+  - **Suggested fix**: <concrete, actionable fix>
+
+### HIGH
+
+- **[F002]** `file.ts:73` — <description>
+  - **Status**: Open
+  - **Category**: ...
+  - **Suggested fix**: ...
+
+### MEDIUM
+
+- **[F003]** ...
+  - **Status**: Open
+  - ...
+
+### LOW
+
+- **[F004]** ...
+  - **Status**: Open
+  - ...
+
+## Validation Results
+
+| Check      | Result                |
+| ---------- | --------------------- |
+| Type check | Pass / Fail / Skipped |
+| Lint       | Pass / Fail / Skipped |
+| Tests      | Pass / Fail / Skipped |
+| Build      | Pass / Fail / Skipped |
+
+## Files Reviewed
+
+- `file1.ts` (Modified)
+- `file2.ts` (Added)
+- `file3.ts` (Deleted)
+````
+
+### Finding ID rules
+
+- **Sequential**: IDs start at `F001` and increment by one.
+- **Stable per file**: Once assigned in a given review artifact, an ID is never renumbered, even after a fix is applied.
+- **Per-artifact**: IDs are scoped to a single review file. A fresh code-review pass generates a new file with its own `F001`-restart counter.
+- **Assigned in REPORT phase**: In both sequential and parallel paths, IDs are assigned during the REPORT phase (Phase 3 for local, Phase 6 for PR), AFTER merge and sort. Reviewer agents in parallel mode do NOT assign IDs.
+
+### Status field rules
+
+Every finding MUST have a `Status` field. Valid values:
+
+| Status | Meaning                                                                                                    |
+| ------ | ---------------------------------------------------------------------------------------------------------- |
+| Open   | Default on first write. Not yet processed by `/ycc:review-fix`, or below the fix skill's severity threshold. |
+| Fixed  | Successfully fixed by `/ycc:review-fix`. Set by the fix skill — code-review itself never writes this.       |
+| Failed | Attempted by `/ycc:review-fix` but the fix broke validation. Set by the fix skill.                         |
+
+`/ycc:code-review` only ever writes `Status: Open`. All other states are set in-place by `/ycc:review-fix`.
+
+### Required fields per finding
+
+Every finding must include these four lines (in this order) so the artifact is machine-parseable:
+
+```
+- **[F###]** `file:line` — <description>
+  - **Status**: <Open|Fixed|Failed>
+  - **Category**: <category>
+  - **Suggested fix**: <concrete fix>
+```
+
+Findings missing a `Suggested fix` line are valid but will be **skipped** by `/ycc:review-fix` (flagged for human judgment).
 
 ---
 
