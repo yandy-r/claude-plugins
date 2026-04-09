@@ -38,12 +38,12 @@ Include available metadata fields. Omit fields that are not present in the sourc
 **Prerequisites**: {prerequisites}
 ```
 
-| Field          | When Present                                               | Example                |
-| -------------- | ---------------------------------------------------------- | ---------------------- |
-| duration       | deep-research (implementation roadmap), feature-spec       | "3-4 weeks"            |
-| team_size      | deep-research (implementation roadmap)                     | "1-2 developers"       |
-| risk_level     | deep-research (implementation roadmap), feature-spec       | "Low", "Medium", "High"|
-| prerequisites  | deep-research, parallel-plan (phase dependencies)          | "Phase 0 complete"     |
+| Field         | When Present                                         | Example                 |
+| ------------- | ---------------------------------------------------- | ----------------------- |
+| duration      | deep-research (implementation roadmap), feature-spec | "3-4 weeks"             |
+| team_size     | deep-research (implementation roadmap)               | "1-2 developers"        |
+| risk_level    | deep-research (implementation roadmap), feature-spec | "Low", "Medium", "High" |
+| prerequisites | deep-research, parallel-plan (phase dependencies)    | "Phase 0 complete"      |
 
 For parallel-plan and prp-plan sources, the metadata block may instead contain:
 
@@ -108,12 +108,12 @@ Testing approach and validation commands from the plan.
 
 ## Field Descriptions
 
-| Field              | Source                                            | Example                                |
-| ------------------ | ------------------------------------------------- | -------------------------------------- |
-| phase_description  | Phase objective from source document              | "Establish project infrastructure..."  |
-| checkbox_list      | Generated from child issues after creation        | "- [ ] #12 Set up data models"         |
-| success_criteria   | Success criteria, acceptance criteria from source | Bulleted list of criteria              |
-| dependency_summary | Phase/batch dependencies from plan                | "Requires Phase 1 complete"            |
+| Field              | Source                                            | Example                               |
+| ------------------ | ------------------------------------------------- | ------------------------------------- |
+| phase_description  | Phase objective from source document              | "Establish project infrastructure..." |
+| checkbox_list      | Generated from child issues after creation        | "- [ ] #12 Set up data models"        |
+| success_criteria   | Success criteria, acceptance criteria from source | Bulleted list of criteria             |
+| dependency_summary | Phase/batch dependencies from plan                | "Requires Phase 1 complete"           |
 
 ## Label Assignment
 

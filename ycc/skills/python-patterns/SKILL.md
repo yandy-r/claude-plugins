@@ -516,12 +516,12 @@ async def fetch_all(urls: list[str]) -> dict[str, str]:
 
 ### Choosing a Concurrency Model
 
-| Workload | Use |
-|----------|-----|
-| I/O-bound, many connections | `asyncio` |
-| I/O-bound, mixed sync libraries | `concurrent.futures.ThreadPoolExecutor` |
-| CPU-bound | `concurrent.futures.ProcessPoolExecutor` or `multiprocessing` |
-| Single shared state | Threads + `threading.Lock` (be careful of GIL) |
+| Workload                        | Use                                                           |
+| ------------------------------- | ------------------------------------------------------------- |
+| I/O-bound, many connections     | `asyncio`                                                     |
+| I/O-bound, mixed sync libraries | `concurrent.futures.ThreadPoolExecutor`                       |
+| CPU-bound                       | `concurrent.futures.ProcessPoolExecutor` or `multiprocessing` |
+| Single shared state             | Threads + `threading.Lock` (be careful of GIL)                |
 
 ## Package Organization
 
@@ -569,7 +569,7 @@ from mypackage.utils import format_name
 # Use isort or ruff to enforce automatically
 ```
 
-### __init__.py for Package Exports
+### **init**.py for Package Exports
 
 ```python
 # mypackage/__init__.py
@@ -586,7 +586,7 @@ __all__ = ["User", "Post", "format_name"]
 
 ## Memory and Performance
 
-### Using __slots__ for Memory Efficiency
+### Using **slots** for Memory Efficiency
 
 ```python
 # Bad: Regular class uses __dict__ (more memory)
@@ -703,18 +703,18 @@ addopts = "--cov=mypackage --cov-report=term-missing"
 
 ## Quick Reference: Python Idioms
 
-| Idiom | Description |
-|-------|-------------|
-| EAFP | Easier to Ask Forgiveness than Permission |
-| Context managers | Use `with` for resource management |
-| List comprehensions | For simple transformations |
-| Generators | For lazy evaluation and large datasets |
-| Type hints | Annotate function signatures |
-| Dataclasses | For data containers with auto-generated methods |
-| `__slots__` | For memory optimization |
-| f-strings | For string formatting (Python 3.6+) |
-| `pathlib.Path` | For path operations (Python 3.4+) |
-| `enumerate` | For index-element pairs in loops |
+| Idiom               | Description                                     |
+| ------------------- | ----------------------------------------------- |
+| EAFP                | Easier to Ask Forgiveness than Permission       |
+| Context managers    | Use `with` for resource management              |
+| List comprehensions | For simple transformations                      |
+| Generators          | For lazy evaluation and large datasets          |
+| Type hints          | Annotate function signatures                    |
+| Dataclasses         | For data containers with auto-generated methods |
+| `__slots__`         | For memory optimization                         |
+| f-strings           | For string formatting (Python 3.6+)             |
+| `pathlib.Path`      | For path operations (Python 3.4+)               |
+| `enumerate`         | For index-element pairs in loops                |
 
 ## Anti-Patterns to Avoid
 

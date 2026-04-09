@@ -160,14 +160,14 @@ Include:
 
 Use these maxima unless the user explicitly asks for denser slides and readability still holds:
 
-| Slide type   | Limit                                          |
-|--------------|------------------------------------------------|
-| Title        | 1 heading + 1 subtitle + optional tagline      |
-| Content      | 1 heading + 4–6 bullets or 2 short paragraphs  |
-| Feature grid | 6 cards max                                    |
-| Code         | 8–10 lines max                                 |
-| Quote        | 1 quote + attribution                          |
-| Image        | 1 image constrained by viewport                |
+| Slide type   | Limit                                         |
+| ------------ | --------------------------------------------- |
+| Title        | 1 heading + 1 subtitle + optional tagline     |
+| Content      | 1 heading + 4–6 bullets or 2 short paragraphs |
+| Feature grid | 6 cards max                                   |
+| Code         | 8–10 lines max                                |
+| Quote        | 1 quote + attribution                         |
+| Image        | 1 image constrained by viewport               |
 
 ## Anti-Patterns
 

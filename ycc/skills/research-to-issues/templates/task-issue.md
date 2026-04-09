@@ -52,21 +52,21 @@ Use this template for implementation task issues created from parallel-plan or P
 
 ## Field Descriptions
 
-| Field                      | Source (parallel-plan)                            | Source (prp-plan)                              |
-| -------------------------- | ------------------------------------------------ | ---------------------------------------------- |
-| task_summary               | Task title + first paragraph of Instructions     | ACTION field content                           |
-| mandatory_reading_list     | "READ THESE BEFORE TASK" file list               | Mandatory Reading table (P0/P1/P2 items)       |
-| files_to_create            | "Files to Create" list from Instructions         | Files to Change table (CREATE rows)            |
-| files_to_modify            | "Files to Modify" list from Instructions         | Files to Change table (UPDATE rows)            |
-| implementation_instructions| Full Instructions section content                | IMPLEMENT field content                        |
-| pattern_references         | Critically Relevant Files (pattern examples)     | MIRROR field + Patterns to Mirror section      |
-| gotchas_warnings           | Advice section (relevant items)                  | GOTCHA field content                           |
-| validation_criteria        | Inferred from task scope and success criteria    | VALIDATE field content                         |
-| dependency_info            | "Depends on [N.M, ...]" notation                | Task ordering or Batches dependency info       |
-| source_document            | Path to parallel-plan.md                         | Path to plan.md                                |
-| task_id                    | "Task N.M" identifier                            | "Task N" identifier                            |
-| total_tasks                | Total task count across all phases               | Total task count                               |
-| phase_or_batch             | "Phase N: {name}"                                | "Batch N" (parallel) or sequential position    |
+| Field                       | Source (parallel-plan)                        | Source (prp-plan)                           |
+| --------------------------- | --------------------------------------------- | ------------------------------------------- |
+| task_summary                | Task title + first paragraph of Instructions  | ACTION field content                        |
+| mandatory_reading_list      | "READ THESE BEFORE TASK" file list            | Mandatory Reading table (P0/P1/P2 items)    |
+| files_to_create             | "Files to Create" list from Instructions      | Files to Change table (CREATE rows)         |
+| files_to_modify             | "Files to Modify" list from Instructions      | Files to Change table (UPDATE rows)         |
+| implementation_instructions | Full Instructions section content             | IMPLEMENT field content                     |
+| pattern_references          | Critically Relevant Files (pattern examples)  | MIRROR field + Patterns to Mirror section   |
+| gotchas_warnings            | Advice section (relevant items)               | GOTCHA field content                        |
+| validation_criteria         | Inferred from task scope and success criteria | VALIDATE field content                      |
+| dependency_info             | "Depends on [N.M, ...]" notation              | Task ordering or Batches dependency info    |
+| source_document             | Path to parallel-plan.md                      | Path to plan.md                             |
+| task_id                     | "Task N.M" identifier                         | "Task N" identifier                         |
+| total_tasks                 | Total task count across all phases            | Total task count                            |
+| phase_or_batch              | "Phase N: {name}"                             | "Batch N" (parallel) or sequential position |
 
 ## Field Adaptation
 
@@ -95,8 +95,8 @@ All task issues receive `type:task`.
 | Signal                                         | Label             |
 | ---------------------------------------------- | ----------------- |
 | Phase 1 / Batch 1 / first 2 tasks (sequential) | `priority:high`   |
-| Middle phases / batches / tasks                 | `priority:medium` |
-| Final phase / batch / last tasks                | `priority:low`    |
+| Middle phases / batches / tasks                | `priority:medium` |
+| Final phase / batch / last tasks               | `priority:low`    |
 
 ### Source Labels
 

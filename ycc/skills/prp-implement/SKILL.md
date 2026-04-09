@@ -50,8 +50,8 @@ Execute a plan file step-by-step with continuous validation. Every change is ver
 
 Extract flags from `$ARGUMENTS` before treating the remainder as a plan path:
 
-| Flag         | Effect                                                                                                                              |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Flag         | Effect                                                                                                                                                                  |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--parallel` | Force parallel execution when the plan is parallel-capable. Skips the interactive prompt. Falls back to sequential with a warning if the plan has no `Batches` section. |
 
 Strip the flag from `$ARGUMENTS` and set `PARALLEL_FLAG=true|false`. The remaining text is the plan file path.
@@ -119,12 +119,12 @@ grep -c "^## Batches" "$PLAN_PATH" || echo 0
 
 Decide between **Path A (Sequential)** and **Path B (Parallel)** based on the flag and plan capability:
 
-| `--parallel` flag | Parallel-capable plan | Action                                                                                                                                                                                                                                         |
-| ----------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Yes               | Yes                   | Proceed with **Path B** (parallel batch execution) — no prompt                                                                                                                                                                                  |
-| Yes               | No                    | Warn: *"Plan has no `Batches` section — cannot run in parallel. Falling back to sequential execution."* → **Path A**                                                                                                                            |
-| No                | Yes                   | Use `AskUserQuestion` to prompt: *"This plan is parallel-capable ({N} tasks in {M} batches, max width {X}). Run in parallel or sequential mode?"*. Accept user's choice → **Path A** or **Path B**                                             |
-| No                | No                    | Proceed with **Path A** (sequential) — default, no prompt                                                                                                                                                                                       |
+| `--parallel` flag | Parallel-capable plan | Action                                                                                                                                                                                             |
+| ----------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Yes               | Yes                   | Proceed with **Path B** (parallel batch execution) — no prompt                                                                                                                                     |
+| Yes               | No                    | Warn: _"Plan has no `Batches` section — cannot run in parallel. Falling back to sequential execution."_ → **Path A**                                                                               |
+| No                | Yes                   | Use `AskUserQuestion` to prompt: _"This plan is parallel-capable ({N} tasks in {M} batches, max width {X}). Run in parallel or sequential mode?"_. Accept user's choice → **Path A** or **Path B** |
+| No                | No                    | Proceed with **Path A** (sequential) — default, no prompt                                                                                                                                          |
 
 Record the chosen mode as `EXECUTION_MODE=sequential|parallel` for use in Phase 3.
 
@@ -214,7 +214,7 @@ For each batch `B1, B2, ... BN` in order (from the plan's `Batches` table):
 
    - **If either fails**: **STOP** the parallel pipeline. Do NOT dispatch the next batch.
    - Report which batch failed and which type errors / test failures occurred.
-   - Use `AskUserQuestion` to ask the user: *"Batch {BN} validation failed. Choose: (1) fix manually and resume from batch {BN+1}, (2) switch to sequential mode for remaining batches, (3) abort."*
+   - Use `AskUserQuestion` to ask the user: _"Batch {BN} validation failed. Choose: (1) fix manually and resume from batch {BN+1}, (2) switch to sequential mode for remaining batches, (3) abort."_
    - Apply the user's choice.
 
 5. **Track progress** — Log: `[done] Batch BN: K tasks — complete (type-check + tests pass)`

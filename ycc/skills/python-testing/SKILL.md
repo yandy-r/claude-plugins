@@ -52,12 +52,12 @@ def add(a: int, b: int) -> int:
 
 ### Coverage Targets
 
-| Code Type | Target |
-|-----------|--------|
-| Critical business logic | 100% |
-| Public APIs | 90%+ |
-| General code | 80%+ |
-| Generated/boilerplate | Exclude |
+| Code Type               | Target  |
+| ----------------------- | ------- |
+| Critical business logic | 100%    |
+| Public APIs             | 90%+    |
+| General code            | 80%+    |
+| Generated/boilerplate   | Exclude |
 
 ```bash
 pytest --cov=mypackage --cov-report=term-missing --cov-report=html
@@ -785,6 +785,7 @@ pytest --pdb
 ## Best Practices
 
 **DO:**
+
 - Follow TDD: write tests before code (red-green-refactor)
 - Test one behavior per test
 - Use descriptive names: `test_user_login_with_invalid_credentials_fails`
@@ -795,6 +796,7 @@ pytest --pdb
 - Keep tests fast — use `@pytest.mark.slow` to gate integration tests
 
 **DON'T:**
+
 - Test implementation details — test behavior through the public API
 - Use complex conditionals in tests — keep them linear
 - Ignore test failures or skip flaky tests indefinitely
@@ -806,17 +808,17 @@ pytest --pdb
 
 ## Quick Reference
 
-| Pattern | Usage |
-|---------|-------|
-| `pytest.raises()` | Test expected exceptions |
-| `@pytest.fixture` | Create reusable test fixtures |
-| `@pytest.mark.parametrize` | Run tests with multiple inputs |
-| `@pytest.mark.slow` | Gate slow tests |
-| `pytest -m "not slow"` | Skip slow tests |
-| `@patch()` / `Mock` | Mock functions and classes |
-| `tmp_path` fixture | Automatic temp directory (pathlib.Path) |
-| `monkeypatch` fixture | Safe env var / attribute patching |
-| `capsys` fixture | Capture stdout / stderr |
-| `pytest --cov` | Generate coverage report |
+| Pattern                    | Usage                                   |
+| -------------------------- | --------------------------------------- |
+| `pytest.raises()`          | Test expected exceptions                |
+| `@pytest.fixture`          | Create reusable test fixtures           |
+| `@pytest.mark.parametrize` | Run tests with multiple inputs          |
+| `@pytest.mark.slow`        | Gate slow tests                         |
+| `pytest -m "not slow"`     | Skip slow tests                         |
+| `@patch()` / `Mock`        | Mock functions and classes              |
+| `tmp_path` fixture         | Automatic temp directory (pathlib.Path) |
+| `monkeypatch` fixture      | Safe env var / attribute patching       |
+| `capsys` fixture           | Capture stdout / stderr                 |
+| `pytest --cov`             | Generate coverage report                |
 
 **Remember**: Tests are code too. Keep them clean, readable, and maintainable. Good tests catch bugs; great tests prevent them.

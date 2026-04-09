@@ -40,10 +40,10 @@ allowed-tools:
 
 Before selecting mode, extract flags from `$ARGUMENTS`:
 
-| Flag                | Effect                                                                                                                               |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                             |
-| `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                   |
+| Flag                | Effect                                                                                                                                  |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                                 |
+| `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                      |
 | `--parallel`        | Fan out the REVIEW phase across 3 `ycc:code-reviewer` agents (correctness, security, quality) dispatched in parallel and merge findings |
 
 Strip these from `$ARGUMENTS` and set `PARALLEL_MODE=true|false`. The remaining text is the mode selector (PR number/URL or blank for local).
@@ -112,11 +112,11 @@ Read each changed file in full. Check for:
 
 Dispatch **3 `ycc:code-reviewer` agents in parallel** in a SINGLE message with MULTIPLE `Agent` tool calls. Each agent reads all changed files and applies its assigned focus:
 
-| Reviewer               | Focus           | Checklist Items                                                                                                   |
-| ---------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Reviewer               | Focus           | Checklist Items                                                                                                               |
+| ---------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `correctness-reviewer` | Code Quality    | Functions > 50 lines, files > 800 lines, nesting > 4 levels, missing error handling, `console.log`, TODO/FIXME, missing JSDoc |
-| `security-reviewer`    | Security Issues | Hardcoded credentials/keys/tokens, SQL injection, XSS, missing input validation, insecure deps, path traversal    |
-| `quality-reviewer`     | Best Practices  | Mutation patterns, emoji in code/comments, missing tests, accessibility (a11y)                                    |
+| `security-reviewer`    | Security Issues | Hardcoded credentials/keys/tokens, SQL injection, XSS, missing input validation, insecure deps, path traversal                |
+| `quality-reviewer`     | Best Practices  | Mutation patterns, emoji in code/comments, missing tests, accessibility (a11y)                                                |
 
 Each reviewer prompt must include:
 
@@ -131,16 +131,20 @@ Each reviewer returns findings as:
 ## Findings
 
 ### CRITICAL
+
 - `file.ts:42` — [description]
   - Suggested fix: [fix]
 
 ### HIGH
+
 - ...
 
 ### MEDIUM
+
 - ...
 
 ### LOW
+
 - ...
 ```
 
@@ -257,11 +261,11 @@ Apply the review checklist across 7 categories:
 
 Dispatch **3 `ycc:code-reviewer` agents in parallel** in a SINGLE message with MULTIPLE `Agent` tool calls. Each agent reads all changed files at the PR head revision and applies its assigned category slice:
 
-| Reviewer               | Categories                                    | What to Check                                                                                                                                                        |
-| ---------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `correctness-reviewer` | Correctness, Type Safety, Completeness        | Logic errors, off-by-ones, null handling, edge cases, race conditions, type mismatches, unsafe casts, `any` usage, missing generics, missing tests, incomplete migrations |
-| `security-reviewer`    | Security, Performance                         | Injection, auth gaps, secret exposure, SSRF, path traversal, XSS, N+1 queries, missing indexes, unbounded loops, memory leaks, large payloads                        |
-| `quality-reviewer`     | Pattern Compliance, Maintainability           | Project conventions (naming, file structure, error handling, imports), dead code, magic numbers, deep nesting, unclear naming, missing types                         |
+| Reviewer               | Categories                             | What to Check                                                                                                                                                             |
+| ---------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `correctness-reviewer` | Correctness, Type Safety, Completeness | Logic errors, off-by-ones, null handling, edge cases, race conditions, type mismatches, unsafe casts, `any` usage, missing generics, missing tests, incomplete migrations |
+| `security-reviewer`    | Security, Performance                  | Injection, auth gaps, secret exposure, SSRF, path traversal, XSS, N+1 queries, missing indexes, unbounded loops, memory leaks, large payloads                             |
+| `quality-reviewer`     | Pattern Compliance, Maintainability    | Project conventions (naming, file structure, error handling, imports), dead code, magic numbers, deep nesting, unclear naming, missing types                              |
 
 Each reviewer prompt must include:
 
@@ -277,16 +281,20 @@ Each reviewer returns findings as:
 ## Findings
 
 ### CRITICAL
+
 - `file.ts:42` — [description] [category]
   - Suggested fix: [fix]
 
 ### HIGH
+
 - ...
 
 ### MEDIUM
+
 - ...
 
 ### LOW
+
 - ...
 ```
 
@@ -481,14 +489,14 @@ Both Local Review Mode and PR Review Mode write an artifact using this exact for
 
 ### File locations
 
-| Mode  | Path                                                    |
-| ----- | ------------------------------------------------------- |
-| Local | `docs/prps/reviews/local-{YYYYMMDD-HHMMSS}-review.md`   |
-| PR    | `docs/prps/reviews/pr-{NUMBER}-review.md`               |
+| Mode  | Path                                                  |
+| ----- | ----------------------------------------------------- |
+| Local | `docs/prps/reviews/local-{YYYYMMDD-HHMMSS}-review.md` |
+| PR    | `docs/prps/reviews/pr-{NUMBER}-review.md`             |
 
 ### Template
 
-````markdown
+```markdown
 # [Local Review | PR Review #<NUMBER>] — <TITLE or "Uncommitted Changes">
 
 **Reviewed**: <ISO date>
@@ -543,7 +551,7 @@ Both Local Review Mode and PR Review Mode write an artifact using this exact for
 - `file1.ts` (Modified)
 - `file2.ts` (Added)
 - `file3.ts` (Deleted)
-````
+```
 
 ### Finding ID rules
 
@@ -556,11 +564,11 @@ Both Local Review Mode and PR Review Mode write an artifact using this exact for
 
 Every finding MUST have a `Status` field. Valid values:
 
-| Status | Meaning                                                                                                    |
-| ------ | ---------------------------------------------------------------------------------------------------------- |
+| Status | Meaning                                                                                                      |
+| ------ | ------------------------------------------------------------------------------------------------------------ |
 | Open   | Default on first write. Not yet processed by `/ycc:review-fix`, or below the fix skill's severity threshold. |
-| Fixed  | Successfully fixed by `/ycc:review-fix`. Set by the fix skill — code-review itself never writes this.       |
-| Failed | Attempted by `/ycc:review-fix` but the fix broke validation. Set by the fix skill.                         |
+| Fixed  | Successfully fixed by `/ycc:review-fix`. Set by the fix skill — code-review itself never writes this.        |
+| Failed | Attempted by `/ycc:review-fix` but the fix broke validation. Set by the fix skill.                           |
 
 `/ycc:code-review` only ever writes `Status: Open`. All other states are set in-place by `/ycc:review-fix`.
 

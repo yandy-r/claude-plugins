@@ -40,21 +40,21 @@ Create a detailed, self-contained implementation plan that captures all codebase
 
 Extract flags from `$ARGUMENTS`:
 
-| Flag         | Effect                                                                                           |
-| ------------ | ------------------------------------------------------------------------------------------------ |
-| `--parallel` | Fan out research into 3 parallel researchers; emit tasks with batch/dependency annotations       |
+| Flag         | Effect                                                                                     |
+| ------------ | ------------------------------------------------------------------------------------------ |
+| `--parallel` | Fan out research into 3 parallel researchers; emit tasks with batch/dependency annotations |
 
 Strip the flag, set `PARALLEL_MODE=true|false`. Remaining text is the feature description or PRD path.
 
 ### Input Detection
 
-| Input Pattern                | Action                             |
-| ---------------------------- | ---------------------------------- |
-| Path ending in `.prd.md`     | Parse PRD, find next pending phase |
-| Path to `.md` with phases    | Parse phases, find next pending    |
-| Path to other file           | Read for context, treat as free-form |
-| Free-form text               | Proceed to Phase 1                 |
-| Empty                        | Ask user what feature to plan      |
+| Input Pattern             | Action                               |
+| ------------------------- | ------------------------------------ |
+| Path ending in `.prd.md`  | Parse PRD, find next pending phase   |
+| Path to `.md` with phases | Parse phases, find next pending      |
+| Path to other file        | Read for context, treat as free-form |
+| Free-form text            | Proceed to Phase 1                   |
+| Empty                     | Ask user what feature to plan        |
 
 ### PRD Parsing (when input is a PRD)
 
@@ -70,6 +70,7 @@ If no pending phases remain, report all phases complete.
 ## Phase 1 — PARSE
 
 Extract from the input:
+
 - **What** is being built, **Why** it matters, **Who** uses it, **Where** it fits
 
 Format a user story: `As a [user], I want [capability], so that [benefit].`
@@ -100,11 +101,11 @@ Dispatch a single `ycc:prp-researcher` agent in codebase mode to cover all 8 cat
 
 Dispatch **3 `ycc:prp-researcher` agents in a SINGLE message**:
 
-| Researcher          | Categories                                      | Traces                  |
-| ------------------- | ----------------------------------------------- | ----------------------- |
-| `patterns-research` | Similar Implementations, Naming, Types          | Entry Points, Contracts |
-| `quality-research`  | Error Handling, Logging, Tests                  | State Changes, Patterns |
-| `infra-research`    | Configuration, Dependencies                     | Data Flow               |
+| Researcher          | Categories                             | Traces                  |
+| ------------------- | -------------------------------------- | ----------------------- |
+| `patterns-research` | Similar Implementations, Naming, Types | Entry Points, Contracts |
+| `quality-research`  | Error Handling, Logging, Tests         | State Changes, Patterns |
+| `infra-research`    | Configuration, Dependencies            | Data Flow               |
 
 **IMPORTANT — Researcher prompt constraints**: Tell each researcher to keep code snippets to **5 lines max** per finding and limit the total response to the discovery table format only — no prose summaries.
 
@@ -131,6 +132,7 @@ If purely backend/internal: "Internal change — no user-facing UX transformatio
 ## Phase 5 — ARCHITECT
 
 Define:
+
 - **Approach**: High-level strategy
 - **Alternatives Considered**: What was rejected and why
 - **Scope**: What WILL be built
@@ -186,6 +188,7 @@ ${CLAUDE_PLUGIN_ROOT}/skills/prp-plan/scripts/validate-prp-plan.sh "docs/prps/pl
 ### On errors (exit 1):
 
 Review the error output. For each error:
+
 - **Missing section**: Edit the plan file to add the section with appropriate content from the research phases
 - **Missing task fields**: Edit affected tasks to add ACTION and VALIDATE at minimum
 - **Invalid file paths**: Verify the path using Glob, then fix the path in the plan
@@ -231,6 +234,7 @@ Update the phase status from `pending` to `in-progress` and add the plan file pa
 ## Verification
 
 Structural validation is enforced by `validate-prp-plan.sh` in Phase 6.5. The script checks:
+
 - Required and recommended sections from the PRP plan template
 - Task field completeness (ACTION, VALIDATE required; MIRROR, IMPLEMENT recommended)
 - File path existence for Files to Change and Mandatory Reading

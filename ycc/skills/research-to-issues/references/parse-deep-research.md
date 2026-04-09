@@ -6,13 +6,13 @@ Extraction instructions for deep-research documents produced by `ycc:deep-resear
 
 A directory containing:
 
-| Document                                 | What to Extract                                                  |
-| ---------------------------------------- | ---------------------------------------------------------------- |
+| Document                                          | What to Extract                                                  |
+| ------------------------------------------------- | ---------------------------------------------------------------- |
 | `RESEARCH-REPORT.md` or `deep-research-report.md` | Research date, project name, key findings with confidence levels |
-| `synthesis/strategic-recommendations.md` | MVP features (section 4), anti-scope items (section 7)           |
-| `synthesis/implementation-roadmap.md`    | Phase definitions, deliverables per phase, success criteria      |
-| `analysis/convergence.md`                | Confidence levels for cross-cutting concerns                     |
-| `analysis/gaps-and-risks.md`             | Research gaps with severity                                      |
+| `synthesis/strategic-recommendations.md`          | MVP features (section 4), anti-scope items (section 7)           |
+| `synthesis/implementation-roadmap.md`             | Phase definitions, deliverables per phase, success criteria      |
+| `analysis/convergence.md`                         | Confidence levels for cross-cutting concerns                     |
+| `analysis/gaps-and-risks.md`                      | Research gaps with severity                                      |
 
 Read each file and extract the structured data. Not all files may exist -- adapt to whatever is present.
 
@@ -53,8 +53,8 @@ Unless `--skip-gaps` is specified, extract from gaps-and-risks analysis (section
 
 Apply priority mapping based on confidence:
 
-| Confidence                        | Priority Label    | Extra Labels                   |
-| --------------------------------- | ----------------- | ------------------------------ |
+| Confidence                       | Priority Label    | Extra Labels                   |
+| -------------------------------- | ----------------- | ------------------------------ |
 | High (7-8/8 personas, or "High") | `priority:high`   | --                             |
 | Medium-High (5-6/8 personas)     | `priority:medium` | --                             |
 | Medium or lower                  | `priority:low`    | `under-review`                 |
@@ -63,12 +63,12 @@ Apply priority mapping based on confidence:
 
 ## Issue Mapping
 
-| Source Element                | Issue Type                                  | Template               |
-| ----------------------------- | ------------------------------------------- | ---------------------- |
-| Each phase from roadmap       | 1 tracking issue                            | `tracking-issue.md`    |
-| Each feature/deliverable      | 1 child issue under its phase               | `feature-issue.md`     |
-| Each anti-scope item          | 1 child issue under "Deferred" tracker      | `feature-issue.md` (anti-scope variant) |
-| Each research gap             | 1 child issue under "Research Gaps" tracker  | `feature-issue.md` (gap variant)        |
+| Source Element           | Issue Type                                  | Template                                |
+| ------------------------ | ------------------------------------------- | --------------------------------------- |
+| Each phase from roadmap  | 1 tracking issue                            | `tracking-issue.md`                     |
+| Each feature/deliverable | 1 child issue under its phase               | `feature-issue.md`                      |
+| Each anti-scope item     | 1 child issue under "Deferred" tracker      | `feature-issue.md` (anti-scope variant) |
+| Each research gap        | 1 child issue under "Research Gaps" tracker | `feature-issue.md` (gap variant)        |
 
 ## Agentic Context Fields
 

@@ -15,12 +15,12 @@ Display this plan before creating any issues. Adapt sections based on source typ
 
 Source type labels:
 
-| Detected Type   | Label                      |
-| --------------- | -------------------------- |
-| deep-research   | Deep Research              |
-| feature-spec    | Feature Spec               |
-| parallel-plan   | Parallel Plan              |
-| prp-plan        | PRP Plan                   |
+| Detected Type | Label         |
+| ------------- | ------------- |
+| deep-research | Deep Research |
+| feature-spec  | Feature Spec  |
+| parallel-plan | Parallel Plan |
+| prp-plan      | PRP Plan      |
 
 ## Labels Section (Always)
 
@@ -96,12 +96,14 @@ For parallel-plan and prp-plan sources:
 ## Dependency Graph
 
 Phase 1 (independent):
-  - Task 1.1: Set up data models
-  - Task 1.2: Configure auth
+
+- Task 1.1: Set up data models
+- Task 1.2: Configure auth
 
 Phase 2 (depends on Phase 1):
-  - Task 2.1: Build API endpoints [depends on 1.1]
-  - Task 2.2: Add validation [depends on 1.1, 1.2]
+
+- Task 2.1: Build API endpoints [depends on 1.1]
+- Task 2.2: Add validation [depends on 1.1, 1.2]
 ```
 
 ## Decision Issues Section (feature-spec only)
@@ -109,9 +111,9 @@ Phase 2 (depends on Phase 1):
 ```markdown
 ## Decision Issues ({count})
 
-| #   | Title                  | Options | Labels          |
-| --- | ---------------------- | ------- | --------------- |
-| 1   | Auth strategy decision | 3       | needs-decision  |
+| #   | Title                  | Options | Labels         |
+| --- | ---------------------- | ------- | -------------- |
+| 1   | Auth strategy decision | 3       | needs-decision |
 ```
 
 ## Footer (Always)

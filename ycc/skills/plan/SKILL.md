@@ -32,11 +32,11 @@ Create a comprehensive implementation plan before writing any code. This is the 
 
 ## Flags
 
-| Flag         | Effect                                                                                                                                                                                                                                                                                                                                                              |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Flag         | Effect                                                                                                                                                                                                                                                                                                                                                    |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--parallel` | Instruct the `ycc:planner` agent to emit a parallel-capable plan: a `Batches` summary section at the top, hierarchical step IDs (`1.1`, `1.2`, `2.1`), and explicit `Depends on [...]` annotations on every step. Enables in-conversation parallel implementation via `ycc:implementor` agents, or file-based handoff to `/ycc:prp-implement --parallel`. |
 
-**Note**: `--parallel` on `/ycc:plan` shapes the *output*, not the research phase. The `ycc:planner` agent already does its own codebase reads; this skill does not fan out to multiple researcher agents. For research fan-out on larger features, use `/ycc:prp-plan --parallel`.
+**Note**: `--parallel` on `/ycc:plan` shapes the _output_, not the research phase. The `ycc:planner` agent already does its own codebase reads; this skill does not fan out to multiple researcher agents. For research fan-out on larger features, use `/ycc:prp-plan --parallel`.
 
 ## When to Use
 
@@ -139,12 +139,14 @@ After the `ycc:planner` agent returns its plan, perform these quick checks BEFOR
 Scan the agent's response for these sections. If any **required** section is missing, re-dispatch the planner with a note to include the missing section(s).
 
 **Required** (re-dispatch if missing):
+
 - `## Overview` or `## Summary`
 - `## Implementation Steps` or `## Step-by-Step Tasks`
 - `## Testing Strategy`
 - `**WAITING FOR CONFIRMATION**`
 
 **Expected** (append a note to the plan if missing, but do NOT re-dispatch):
+
 - `## Architecture Changes` or `## Requirements`
 - `## Risks` or `## Risks & Mitigations`
 - `## Success Criteria`
@@ -163,6 +165,7 @@ Extract up to 10 file paths from the plan (backtick-quoted paths or paths after 
 #### Check 3: Parallel mode integrity (`PARALLEL_MODE=true` only)
 
 If the plan was requested with `--parallel`, verify:
+
 - A `## Batches` section exists in the response
 - At least one `Depends on` annotation exists
 - Step IDs use hierarchical format (N.N)
@@ -230,13 +233,13 @@ Use Option 1 for small features and quick iterations. Use Option 2 when the user
 
 ## Comparison with other ycc planning tracks
 
-| Track                          | When to use                                                                                                                                         |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/ycc:plan` (this one)         | Quick conversational plan via `ycc:planner` agent. No artifact file. Add `--parallel` to shape the output for parallel execution (no research fan-out). |
-| `/ycc:prp-plan`                | Artifact-producing plan with codebase pattern extraction. Single-pass. Add `--parallel` for 3-researcher fan-out + batched plan.                     |
-| `/ycc:prp-prd`                 | Interactive PRD first, then prp-plan. Problem-first hypothesis workflow.                                                                             |
-| `/ycc:plan-workflow`           | Heavyweight parallel-agent planning. Multi-task features. Artifact output.                                                                           |
-| `/ycc:parallel-plan`           | Lower-level component of `/ycc:plan-workflow` for dependency-aware plans.                                                                             |
+| Track                  | When to use                                                                                                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/ycc:plan` (this one) | Quick conversational plan via `ycc:planner` agent. No artifact file. Add `--parallel` to shape the output for parallel execution (no research fan-out). |
+| `/ycc:prp-plan`        | Artifact-producing plan with codebase pattern extraction. Single-pass. Add `--parallel` for 3-researcher fan-out + batched plan.                        |
+| `/ycc:prp-prd`         | Interactive PRD first, then prp-plan. Problem-first hypothesis workflow.                                                                                |
+| `/ycc:plan-workflow`   | Heavyweight parallel-agent planning. Multi-task features. Artifact output.                                                                              |
+| `/ycc:parallel-plan`   | Lower-level component of `/ycc:plan-workflow` for dependency-aware plans.                                                                               |
 
 ### Which `--parallel` should I use?
 

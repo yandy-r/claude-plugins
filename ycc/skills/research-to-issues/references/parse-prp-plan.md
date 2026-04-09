@@ -17,36 +17,36 @@ Both formats may include a `## Batches` section (parallel mode) or be sequential
 
 ### Common Sections (both variants)
 
-| Section                          | What to Extract                                              |
-| -------------------------------- | ------------------------------------------------------------ |
-| `## Summary`                     | Project description for all issue bodies                     |
-| `## User Story`                  | User story for tracking issue                                |
-| `## Problem -> Solution`         | Context for tracking issue (may appear as `## Problem → Solution`) |
-| `## Metadata`                    | Complexity, estimated files for labels                       |
-| `## Patterns to Mirror`          | Pattern references for child issues                          |
-| `## Acceptance Criteria`         | Tracking issue success criteria                              |
-| `## Batches` or `## Batches (parallel execution summary)` | Batch groupings for parallel mode |
+| Section                                                   | What to Extract                                                    |
+| --------------------------------------------------------- | ------------------------------------------------------------------ |
+| `## Summary`                                              | Project description for all issue bodies                           |
+| `## User Story`                                           | User story for tracking issue                                      |
+| `## Problem -> Solution`                                  | Context for tracking issue (may appear as `## Problem → Solution`) |
+| `## Metadata`                                             | Complexity, estimated files for labels                             |
+| `## Patterns to Mirror`                                   | Pattern references for child issues                                |
+| `## Acceptance Criteria`                                  | Tracking issue success criteria                                    |
+| `## Batches` or `## Batches (parallel execution summary)` | Batch groupings for parallel mode                                  |
 
 ### Standard Format Sections
 
-| Section                          | What to Extract                                              |
-| -------------------------------- | ------------------------------------------------------------ |
-| `## Mandatory Reading`           | P0/P1/P2 reading list for every child issue                  |
-| `## Files to Change`             | Cross-reference with tasks for scope                         |
-| `## NOT Building`                | Anti-scope block on tracking issue                           |
-| `## Step-by-Step Tasks`          | Each `### Task N:` becomes a child issue                     |
-| `## Testing Strategy`            | Testing section on tracking issue                            |
-| `## Risks`                       | Risk context on tracking issue                               |
+| Section                 | What to Extract                             |
+| ----------------------- | ------------------------------------------- |
+| `## Mandatory Reading`  | P0/P1/P2 reading list for every child issue |
+| `## Files to Change`    | Cross-reference with tasks for scope        |
+| `## NOT Building`       | Anti-scope block on tracking issue          |
+| `## Step-by-Step Tasks` | Each `### Task N:` becomes a child issue    |
+| `## Testing Strategy`   | Testing section on tracking issue           |
+| `## Risks`              | Risk context on tracking issue              |
 
 ### Narrative Format Sections
 
-| Section                          | What to Extract                                              |
-| -------------------------------- | ------------------------------------------------------------ |
-| `## References (file:line)`      | Code reference list (replaces Mandatory Reading)             |
-| `## Out of scope`                | Anti-scope block (replaces NOT Building)                     |
-| `## Tasks`                       | Task container with batch sub-headings                       |
-| `## Gotchas / Risks`             | Risk context on tracking issue                               |
-| `## Validation Commands`         | Build/test commands for tracking issue                       |
+| Section                     | What to Extract                                  |
+| --------------------------- | ------------------------------------------------ |
+| `## References (file:line)` | Code reference list (replaces Mandatory Reading) |
+| `## Out of scope`           | Anti-scope block (replaces NOT Building)         |
+| `## Tasks`                  | Task container with batch sub-headings           |
+| `## Gotchas / Risks`        | Risk context on tracking issue                   |
+| `## Validation Commands`    | Build/test commands for tracking issue           |
 
 ## Step 1: Detect Plan Mode
 
@@ -70,10 +70,10 @@ Read global sections to build context blocks:
 
 **Standard format**: Parse the `## Mandatory Reading` table:
 
-| Priority | File          | Lines    | Why                      |
-| -------- | ------------- | -------- | ------------------------ |
-| P0       | src/auth.ts   | 1-50     | Core auth patterns       |
-| P1       | src/db.ts     | 20-80    | Database access patterns |
+| Priority | File        | Lines | Why                      |
+| -------- | ----------- | ----- | ------------------------ |
+| P0       | src/auth.ts | 1-50  | Core auth patterns       |
+| P1       | src/db.ts   | 20-80 | Database access patterns |
 
 Include P0 items in EVERY child issue. P1 in relevant child issues. P2 as optional context.
 
@@ -135,23 +135,24 @@ For each task, extract:
 
 ### Mapping Narrative Fields to Task Issue Template
 
-| Task Issue Field           | Narrative Format Source                                       |
-| -------------------------- | ------------------------------------------------------------- |
-| task_summary               | Task title + first sentence of narrative                      |
-| mandatory_reading_list     | Global References list + files mentioned with `:line` ranges  |
-| files_to_create            | Paths in narrative prefixed by "Create" or "Add"              |
-| files_to_modify            | Paths in narrative prefixed by "Update", "Change", "Fix"      |
-| implementation_instructions| Full narrative description                                    |
-| pattern_references         | Patterns to Mirror table entries referenced in the narrative  |
-| gotchas_warnings           | Global Gotchas/Risks relevant to this task                    |
-| validation_criteria        | `Acceptance:` statement from the task block                   |
-| dependency_info            | `_Depends on [...]._` notation                                |
+| Task Issue Field            | Narrative Format Source                                      |
+| --------------------------- | ------------------------------------------------------------ |
+| task_summary                | Task title + first sentence of narrative                     |
+| mandatory_reading_list      | Global References list + files mentioned with `:line` ranges |
+| files_to_create             | Paths in narrative prefixed by "Create" or "Add"             |
+| files_to_modify             | Paths in narrative prefixed by "Update", "Change", "Fix"     |
+| implementation_instructions | Full narrative description                                   |
+| pattern_references          | Patterns to Mirror table entries referenced in the narrative |
+| gotchas_warnings            | Global Gotchas/Risks relevant to this task                   |
+| validation_criteria         | `Acceptance:` statement from the task block                  |
+| dependency_info             | `_Depends on [...]._` notation                               |
 
 ## Step 4: Build Tracking Issue Content
 
 ### Sequential Mode (<=6 tasks)
 
 Create 1 top-level tracking issue containing:
+
 - Summary and User Story
 - Checkbox list of all task issues
 - Acceptance Criteria from the plan
@@ -172,6 +173,7 @@ Each cluster becomes a tracking issue. Create 1 top-level tracking issue linking
 ### Parallel/Batch Mode
 
 Each Batch becomes a tracking issue containing:
+
 - Batch description (from Batches table or `### Batch X` heading)
 - Batch dependencies (from Batches table "Depends on" column)
 - Checkbox list of task issues in this batch
@@ -185,38 +187,39 @@ Create 1 top-level tracking issue linking to all batch trackers.
 
 ### Sequential Mode (<=6 tasks)
 
-| Source Element           | Issue Type                          | Template            |
-| ------------------------ | ----------------------------------- | ------------------- |
-| Entire plan              | 1 top-level tracking issue          | `tracking-issue.md` |
-| Each Task N              | 1 child issue                       | `task-issue.md`     |
+| Source Element | Issue Type                 | Template            |
+| -------------- | -------------------------- | ------------------- |
+| Entire plan    | 1 top-level tracking issue | `tracking-issue.md` |
+| Each Task N    | 1 child issue              | `task-issue.md`     |
 
 ### Sequential Mode (>6 tasks)
 
-| Source Element           | Issue Type                          | Template            |
-| ------------------------ | ----------------------------------- | ------------------- |
-| Entire plan              | 1 top-level tracking issue          | `tracking-issue.md` |
-| Each task cluster        | 1 sub-tracking issue                | `tracking-issue.md` |
-| Each Task N              | 1 child issue under its cluster     | `task-issue.md`     |
+| Source Element    | Issue Type                      | Template            |
+| ----------------- | ------------------------------- | ------------------- |
+| Entire plan       | 1 top-level tracking issue      | `tracking-issue.md` |
+| Each task cluster | 1 sub-tracking issue            | `tracking-issue.md` |
+| Each Task N       | 1 child issue under its cluster | `task-issue.md`     |
 
 ### Parallel/Batch Mode
 
-| Source Element           | Issue Type                          | Template            |
-| ------------------------ | ----------------------------------- | ------------------- |
-| Entire plan              | 1 top-level tracking issue          | `tracking-issue.md` |
-| Each Batch               | 1 batch tracking issue              | `tracking-issue.md` |
-| Each Task in batch       | 1 child issue under its batch       | `task-issue.md`     |
+| Source Element     | Issue Type                    | Template            |
+| ------------------ | ----------------------------- | ------------------- |
+| Entire plan        | 1 top-level tracking issue    | `tracking-issue.md` |
+| Each Batch         | 1 batch tracking issue        | `tracking-issue.md` |
+| Each Task in batch | 1 child issue under its batch | `task-issue.md`     |
 
 ## Priority Classification
 
-| Signal                                            | Priority Label    |
-| ------------------------------------------------- | ----------------- |
-| Sequential: first 2 tasks or Batch A/1 tasks      | `priority:high`   |
-| Sequential: middle tasks or Batch B/2 tasks       | `priority:medium` |
-| Sequential: last tasks or Batch C+/3+ tasks       | `priority:low`    |
+| Signal                                       | Priority Label    |
+| -------------------------------------------- | ----------------- |
+| Sequential: first 2 tasks or Batch A/1 tasks | `priority:high`   |
+| Sequential: middle tasks or Batch B/2 tasks  | `priority:medium` |
+| Sequential: last tasks or Batch C+/3+ tasks  | `priority:low`    |
 
 ## Source-Specific Labels
 
 All issues from this source type receive:
+
 - `source:prp-plan`
 - Child task issues: `type:task`
 - Batch mode: `batch:{letter-or-number}` labels (e.g., `batch:a`, `batch:1`)

@@ -9,12 +9,12 @@ Convert planning and research output into structured GitHub issues with tracking
 
 ## Supported Source Types
 
-| Source Type     | Produced By                          | Input Path Pattern                          |
-| --------------- | ------------------------------------ | ------------------------------------------- |
-| deep-research   | `ycc:deep-research`                 | Directory with `RESEARCH-REPORT.md`          |
-| feature-spec    | `ycc:feature-research`              | `docs/plans/*/feature-spec.md`               |
-| parallel-plan   | `ycc:parallel-plan`, `ycc:plan-workflow` | `docs/plans/*/parallel-plan.md`         |
-| prp-plan        | `ycc:prp-plan`                      | `docs/prps/plans/*.plan.md`                  |
+| Source Type   | Produced By                              | Input Path Pattern                  |
+| ------------- | ---------------------------------------- | ----------------------------------- |
+| deep-research | `ycc:deep-research`                      | Directory with `RESEARCH-REPORT.md` |
+| feature-spec  | `ycc:feature-research`                   | `docs/plans/*/feature-spec.md`      |
+| parallel-plan | `ycc:parallel-plan`, `ycc:plan-workflow` | `docs/plans/*/parallel-plan.md`     |
+| prp-plan      | `ycc:prp-plan`                           | `docs/prps/plans/*.plan.md`         |
 
 ## Current Task
 
@@ -85,12 +85,12 @@ Display the detected source type and source path to the user for confirmation be
 
 Read the parsing reference for the detected source type:
 
-| Detected Type   | Reference File                                                                               |
-| --------------- | -------------------------------------------------------------------------------------------- |
-| deep-research   | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/parse-deep-research.md`          |
-| feature-spec    | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/parse-feature-spec.md`           |
-| parallel-plan   | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/parse-parallel-plan.md`          |
-| prp-plan        | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/parse-prp-plan.md`               |
+| Detected Type | Reference File                                                                      |
+| ------------- | ----------------------------------------------------------------------------------- |
+| deep-research | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/parse-deep-research.md` |
+| feature-spec  | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/parse-feature-spec.md`  |
+| parallel-plan | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/parse-parallel-plan.md` |
+| prp-plan      | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/parse-prp-plan.md`      |
 
 Follow the extraction instructions in the reference to produce:
 
@@ -139,6 +139,7 @@ For each label not already in the repo:
 **MCP (preferred):** `mcp__github__create_label` with owner, repo, name, color (no `#` prefix), description.
 
 **CLI fallback:**
+
 ```bash
 gh label create "<label-name>" --description "<description>" --color "<hex-color>" --force
 ```
@@ -149,14 +150,15 @@ Create all child issues before tracking issues (tracking issues need the child i
 
 Select the template based on source type:
 
-| Source Type                   | Template                                                                       |
-| ----------------------------- | ------------------------------------------------------------------------------ |
-| deep-research, feature-spec   | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/templates/feature-issue.md`  |
-| parallel-plan, prp-plan       | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/templates/task-issue.md`     |
+| Source Type                 | Template                                                                     |
+| --------------------------- | ---------------------------------------------------------------------------- |
+| deep-research, feature-spec | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/templates/feature-issue.md` |
+| parallel-plan, prp-plan     | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/templates/task-issue.md`    |
 
 **MCP (preferred):** `mcp__github__create_issue` with owner, repo, title, body, labels array.
 
 **CLI fallback:**
+
 ```bash
 gh issue create --title "<title>" --body "$(cat <<'EOF'
 <composed-body>
@@ -177,6 +179,7 @@ Compose tracking issue bodies using `${CLAUDE_PLUGIN_ROOT}/skills/research-to-is
 **MCP (preferred):** `mcp__github__create_issue` with title `"Phase {N}: {title}"` or `"Batch {N}: {title}"`, body, labels.
 
 **CLI fallback:**
+
 ```bash
 gh issue create --title "Phase {N}: {title}" --body "$(cat <<'EOF'
 <composed-body>
@@ -200,16 +203,16 @@ EOF
 
 ## Tracking Issues
 
-| Group     | Title         | Issue | Child Issues |
-| --------- | ------------- | ----- | ------------ |
-| Phase 1   | Foundation    | #XX   | {count}      |
-| Phase 2   | Core Platform | #XX   | {count}      |
+| Group   | Title         | Issue | Child Issues |
+| ------- | ------------- | ----- | ------------ |
+| Phase 1 | Foundation    | #XX   | {count}      |
+| Phase 2 | Core Platform | #XX   | {count}      |
 
 ## All Issues
 
-| #   | Issue | Title                | Labels                                  |
-| --- | ----- | -------------------- | --------------------------------------- |
-| 1   | #XX   | Set up data models   | type:task, phase:1, priority:high       |
+| #   | Issue | Title              | Labels                            |
+| --- | ----- | ------------------ | --------------------------------- |
+| 1   | #XX   | Set up data models | type:task, phase:1, priority:high |
 
 ## Next Steps
 
@@ -239,12 +242,14 @@ EOF
 ### Reference Files
 
 Type-specific parsing instructions:
+
 - **`references/parse-deep-research.md`** -- Deep-research document extraction
 - **`references/parse-feature-spec.md`** -- Feature-spec document extraction
 - **`references/parse-parallel-plan.md`** -- Parallel-plan document extraction
 - **`references/parse-prp-plan.md`** -- PRP plan document extraction
 
 Shared references:
+
 - **`references/label-taxonomy.md`** -- Complete label scheme with colors and priority rules
 - **`references/plan-display-format.md`** -- Plan display format by source type
 
