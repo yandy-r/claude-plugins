@@ -87,13 +87,23 @@ Use `ycc:plan-workflow` to run the full pipeline, or invoke individual stages.
 
 Cursor loads **skills**, **agents**, and **rules** from `~/.cursor/{skills,agents,rules}/`. This repository maintains a Cursor-facing tree under **`.cursor-plugin/`** (including **generated** agents and skills).
 
-### Install into `~/.cursor`
+Shared MCP server definitions live in [`mcp-configs/mcp.json`](mcp-configs/mcp.json). The installer adapts them per target:
+
+| Target   | What it does |
+| -------- | ------------ |
+| `claude` | Merges `mcpServers` from `mcp-configs/mcp.json` into **user-scoped** `~/.claude.json` (preserves other keys such as `projects`). |
+| `cursor` | Generates and validates the Cursor bundle, rsyncs `skills/`, `agents/`, and `rules/` into `~/.cursor/`, then copies MCP config to `~/.cursor/mcp.json`. |
+| `all`    | Runs the `claude` pipeline, then the `cursor` pipeline. |
+
+### Install into `~/.cursor` (and optional MCP sync)
 
 ```bash
-./install.sh --target cursor
+./install.sh --target cursor    # bundle + ~/.cursor/mcp.json
+./install.sh --target claude    # ~/.claude.json merge only
+./install.sh --target all       # both
 ```
 
-This rsyncs `.cursor-plugin/skills/`, `.cursor-plugin/agents/`, and `.cursor-plugin/rules/` into `~/.cursor/` (see [`install.sh`](install.sh) for behavior when a source unit is missing).
+The `cursor` target rsyncs `.cursor-plugin/skills/`, `.cursor-plugin/agents/`, and `.cursor-plugin/rules/` into `~/.cursor/` (see [`install.sh`](install.sh) for behavior when a source unit is missing), then installs `mcp-configs/mcp.json` as `~/.cursor/mcp.json`.
 
 ### Regenerate Cursor agents
 
@@ -144,7 +154,9 @@ claude-plugins/
 │   ├── agents/                # generated from ycc/agents (run scripts/generate-cursor-agents.sh)
 │   ├── rules/                 # generated from ycc/rules (run scripts/generate-cursor-rules.sh)
 │   └── skills/                # generated from ycc/skills (run scripts/generate-cursor-skills.sh)
-├── install.sh                 # sync .cursor-plugin assets to ~/.cursor/
+├── mcp-configs/
+│   └── mcp.json               # shared MCP servers; merged/copied by install.sh
+├── install.sh                 # sync Cursor bundle + MCP targets (claude | cursor | all)
 ├── scripts/
 │   ├── generate-cursor-agents.sh   # wrapper → generate_cursor_agents.py
 │   ├── generate_cursor_agents.py   # ycc/agents → .cursor-plugin/agents

@@ -55,6 +55,7 @@ From the repo root, sync the generated bundle to your Cursor config:
 
 ```bash
 ./install.sh --target cursor
+# or: ./install.sh --target all   # also merges MCP into ~/.claude.json
 ```
 
 This copies `.cursor-plugin/rules/` (including nested `common/`, `typescript/`, …) to `~/.cursor/rules/`.
