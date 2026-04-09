@@ -1,12 +1,13 @@
 ---
 name: code-review
-description: Dual-mode code review — local uncommitted changes OR a GitHub pull request. Local mode runs a full security + quality pass on the diff. PR mode fetches the PR, reads each changed file in full, builds context from CLAUDE.md and PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build) for detected stacks, assigns severity, writes a review artifact to docs/prps/reviews/pr-{N}-review.md, and posts the review to GitHub via gh. Use when the user asks to "review code", "review PR", "check uncommitted changes", "review pr N", or says "/code-review". Adapted from PRPs-agentic-eng by Wirasm.
-argument-hint: '[pr-number | pr-url | blank for local review] [--approve | --request-changes]'
+description: Dual-mode code review — local uncommitted changes OR a GitHub pull request. Local mode runs a full security + quality pass on the diff. PR mode fetches the PR, reads each changed file in full, builds context from CLAUDE.md and PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build) for detected stacks, assigns severity, writes a review artifact to docs/prps/reviews/pr-{N}-review.md, and posts the review to GitHub via gh. Pass `--parallel` to fan out the REVIEW phase across 3 specialized ycc:code-reviewer agents (correctness, security, quality) and merge findings. Use when the user asks to "review code", "review PR", "check uncommitted changes", "review pr N", "parallel review", or says "/code-review". Adapted from PRPs-agentic-eng by Wirasm.
+argument-hint: '[pr-number | pr-url | blank for local review] [--approve | --request-changes] [--parallel]'
 allowed-tools:
   - Read
   - Grep
   - Glob
   - Write
+  - Agent
   - Bash(git:*)
   - Bash(gh:*)
   - Bash(ls:*)
@@ -35,6 +36,22 @@ allowed-tools:
 
 ---
 
+## Flag Parsing
+
+Before selecting mode, extract flags from `$ARGUMENTS`:
+
+| Flag                | Effect                                                                                                                               |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                             |
+| `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                   |
+| `--parallel`        | Fan out the REVIEW phase across 3 `ycc:code-reviewer` agents (correctness, security, quality) dispatched in parallel and merge findings |
+
+Strip these from `$ARGUMENTS` and set `PARALLEL_MODE=true|false`. The remaining text is the mode selector (PR number/URL or blank for local).
+
+Parallel mode applies to **both** Local Review Mode (Phase 2) and PR Review Mode (Phase 3). All other phases are unchanged.
+
+---
+
 ## Mode Selection
 
 If `$ARGUMENTS` contains a PR number, PR URL, or `--pr`:
@@ -58,6 +75,10 @@ git diff --name-only HEAD
 If no changed files, stop: "Nothing to review."
 
 ### Phase 2 — REVIEW
+
+The shape of this phase depends on `PARALLEL_MODE`.
+
+#### Path A — Single-Pass Review (default, `PARALLEL_MODE=false`)
 
 Read each changed file in full. Check for:
 
@@ -86,6 +107,51 @@ Read each changed file in full. Check for:
 - Emoji usage in code/comments
 - Missing tests for new code
 - Accessibility issues (a11y)
+
+#### Path B — Parallel Review (`PARALLEL_MODE=true`)
+
+Dispatch **3 `ycc:code-reviewer` agents in parallel** in a SINGLE message with MULTIPLE `Agent` tool calls. Each agent reads all changed files and applies its assigned focus:
+
+| Reviewer               | Focus           | Checklist Items                                                                                                   |
+| ---------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `correctness-reviewer` | Code Quality    | Functions > 50 lines, files > 800 lines, nesting > 4 levels, missing error handling, `console.log`, TODO/FIXME, missing JSDoc |
+| `security-reviewer`    | Security Issues | Hardcoded credentials/keys/tokens, SQL injection, XSS, missing input validation, insecure deps, path traversal    |
+| `quality-reviewer`     | Best Practices  | Mutation patterns, emoji in code/comments, missing tests, accessibility (a11y)                                    |
+
+Each reviewer prompt must include:
+
+1. The list of changed files (`git diff --name-only HEAD`)
+2. Its assigned focus and checklist items (from the table above)
+3. The severity rubric (CRITICAL, HIGH, MEDIUM, LOW)
+4. A directive to return findings in the standard format below
+
+Each reviewer returns findings as:
+
+```markdown
+## Findings
+
+### CRITICAL
+- `file.ts:42` — [description]
+  - Suggested fix: [fix]
+
+### HIGH
+- ...
+
+### MEDIUM
+- ...
+
+### LOW
+- ...
+```
+
+After all 3 reviewers return, **merge findings**:
+
+1. Combine by severity (CRITICAL first, then HIGH, MEDIUM, LOW)
+2. De-duplicate findings at the same `file:line` (if two reviewers flagged the same issue, keep the more severe one and annotate which reviewers concurred)
+3. Sort within each severity by file path
+4. Attach the reviewer source to each finding (`[correctness]`, `[security]`, `[quality]`) for traceability
+
+Pass the merged findings to Phase 3 (REPORT) as if they came from a single-pass review.
 
 ### Phase 3 — REPORT
 
@@ -145,6 +211,10 @@ gh pr diff <NUMBER> --name-only | while IFS= read -r file; do
 done
 ```
 
+The shape of this phase depends on `PARALLEL_MODE`.
+
+#### Path A — Single-Pass Review (default, `PARALLEL_MODE=false`)
+
 Apply the review checklist across 7 categories:
 
 | Category               | What to Check                                                                 |
@@ -156,6 +226,54 @@ Apply the review checklist across 7 categories:
 | **Performance**        | N+1 queries, missing indexes, unbounded loops, memory leaks, large payloads   |
 | **Completeness**       | Missing tests, missing error handling, incomplete migrations, missing docs    |
 | **Maintainability**    | Dead code, magic numbers, deep nesting, unclear naming, missing types         |
+
+#### Path B — Parallel Review (`PARALLEL_MODE=true`)
+
+Dispatch **3 `ycc:code-reviewer` agents in parallel** in a SINGLE message with MULTIPLE `Agent` tool calls. Each agent reads all changed files at the PR head revision and applies its assigned category slice:
+
+| Reviewer               | Categories                                    | What to Check                                                                                                                                                        |
+| ---------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `correctness-reviewer` | Correctness, Type Safety, Completeness        | Logic errors, off-by-ones, null handling, edge cases, race conditions, type mismatches, unsafe casts, `any` usage, missing generics, missing tests, incomplete migrations |
+| `security-reviewer`    | Security, Performance                         | Injection, auth gaps, secret exposure, SSRF, path traversal, XSS, N+1 queries, missing indexes, unbounded loops, memory leaks, large payloads                        |
+| `quality-reviewer`     | Pattern Compliance, Maintainability           | Project conventions (naming, file structure, error handling, imports), dead code, magic numbers, deep nesting, unclear naming, missing types                         |
+
+Each reviewer prompt must include:
+
+1. The PR number, head revision, and the list of changed files
+2. Relevant context from Phase 2 (CLAUDE.md rules, PRP artifacts, PR description)
+3. Its assigned categories and what to check (from the table above)
+4. The severity rubric
+5. A directive to return findings in the standard format below
+
+Each reviewer returns findings as:
+
+```markdown
+## Findings
+
+### CRITICAL
+- `file.ts:42` — [description] [category]
+  - Suggested fix: [fix]
+
+### HIGH
+- ...
+
+### MEDIUM
+- ...
+
+### LOW
+- ...
+```
+
+After all 3 reviewers return, **merge findings**:
+
+1. Combine by severity (CRITICAL first, then HIGH, MEDIUM, LOW)
+2. De-duplicate findings at the same `file:line` (if two reviewers flagged the same issue, keep the more severe one and list both concurring reviewers)
+3. Sort within each severity by file path
+4. Tag each finding with its source reviewer (`[correctness]`, `[security]`, `[quality]`) for traceability
+
+Pass the merged findings to Phase 4 (VALIDATE) and downstream phases as if they came from a single-pass review.
+
+**Note**: Validation commands (Phase 4) still run sequentially in the main skill — parallelization here only applies to the review pass.
 
 Assign severity to each finding:
 
