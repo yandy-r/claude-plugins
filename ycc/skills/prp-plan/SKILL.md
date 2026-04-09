@@ -18,6 +18,8 @@ allowed-tools:
   - Bash(test:*)
   - Bash(mkdir:*)
   - Bash(git:*)
+  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/prp-plan/scripts/*.sh:*)'
+  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
 ---
 
 # PRP Plan
@@ -173,6 +175,32 @@ Each chunk should be a separate Write or Edit call. This prevents any single gen
 
 ---
 
+## Phase 6.5 — VALIDATE
+
+After writing the plan file, run the structural validator:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/skills/prp-plan/scripts/validate-prp-plan.sh "docs/prps/plans/{name}.plan.md"
+```
+
+### On errors (exit 1):
+
+Review the error output. For each error:
+- **Missing section**: Edit the plan file to add the section with appropriate content from the research phases
+- **Missing task fields**: Edit affected tasks to add ACTION and VALIDATE at minimum
+- **Invalid file paths**: Verify the path using Glob, then fix the path in the plan
+- **Placeholder text**: Replace with actual content from codebase exploration
+
+Re-run the validator **once** after fixes. If it still fails, include the validation output in the report to the user so they are aware of remaining issues.
+
+### On warnings only (exit 0):
+
+Include a brief note in the report: "Plan validated with N warning(s) — see validator output for details."
+
+**Do NOT loop more than once.** One fix pass maximum.
+
+---
+
 ## Output
 
 ### Update PRD (if input was a PRD)
@@ -202,14 +230,13 @@ Update the phase status from `pending` to `in-progress` and add the plan file pa
 
 ## Verification
 
-Before finalizing, verify:
-
-- [ ] All relevant files discovered and documented
-- [ ] Every task has ACTION, IMPLEMENT, MIRROR, and VALIDATE
-- [ ] No task requires additional codebase searching
-- [ ] Code snippets are actual codebase examples with SOURCE references
-- [ ] Validation commands specified
-- [ ] A developer unfamiliar with this codebase could implement using ONLY this plan
+Structural validation is enforced by `validate-prp-plan.sh` in Phase 6.5. The script checks:
+- Required and recommended sections from the PRP plan template
+- Task field completeness (ACTION, VALIDATE required; MIRROR, IMPLEMENT recommended)
+- File path existence for Files to Change and Mandatory Reading
+- Parallel-mode integrity (if Batches section present)
+- Placeholder text detection
+- Self-containment heuristic (percentage of tasks with all 4 core fields)
 
 ---
 

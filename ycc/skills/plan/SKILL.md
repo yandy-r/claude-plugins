@@ -130,9 +130,50 @@ execution:
    plan? (yes / no / modify)`
 ```
 
+### Step 2.5 — Validate the plan before relaying
+
+After the `ycc:planner` agent returns its plan, perform these quick checks BEFORE presenting it to the user. Use only the tools already available to this skill.
+
+#### Check 1: Structure completeness
+
+Scan the agent's response for these sections. If any **required** section is missing, re-dispatch the planner with a note to include the missing section(s).
+
+**Required** (re-dispatch if missing):
+- `## Overview` or `## Summary`
+- `## Implementation Steps` or `## Step-by-Step Tasks`
+- `## Testing Strategy`
+- `**WAITING FOR CONFIRMATION**`
+
+**Expected** (append a note to the plan if missing, but do NOT re-dispatch):
+- `## Architecture Changes` or `## Requirements`
+- `## Risks` or `## Risks & Mitigations`
+- `## Success Criteria`
+
+#### Check 2: File path spot-check
+
+Extract up to 10 file paths from the plan (backtick-quoted paths or paths after `File:` annotations). For each, use Glob or `Bash: test -f "<path>"` to check existence.
+
+- If **all paths exist**: clean pass, append nothing.
+- If **>30% of checked paths are missing**: append a validation note before relaying:
+
+  > **Validation Note**: {N} of {M} file paths in this plan could not be found in the current codebase. This may indicate renamed files, planned new files, or stale references. Review the paths in the Implementation Steps before confirming.
+
+- If **a few paths are missing** (≤30%): append a lighter note listing only the missing paths.
+
+#### Check 3: Parallel mode integrity (`PARALLEL_MODE=true` only)
+
+If the plan was requested with `--parallel`, verify:
+- A `## Batches` section exists in the response
+- At least one `Depends on` annotation exists
+- Step IDs use hierarchical format (N.N)
+
+If any are missing, re-dispatch the planner with a directive to add the missing parallel annotations.
+
+---
+
 ### Step 3 — Relay the plan
 
-Present the agent's plan to the user verbatim. Do not summarize, do not shorten, do not add your own commentary above it.
+Present the agent's plan to the user verbatim, including any validation notes appended in Step 2.5. Do not summarize, do not shorten, do not add your own commentary above it.
 
 ### Step 4 — WAIT
 
