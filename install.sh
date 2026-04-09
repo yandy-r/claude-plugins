@@ -50,9 +50,10 @@ sync_cursor() {
 
     command -v rsync >/dev/null 2>&1 || { err "rsync is required but not found"; exit 1; }
 
-    local dirs=(skills agents rules)
+    # Sync skills and agents from ycc/
+    local ycc_dirs=(skills agents)
 
-    for dir in "${dirs[@]}"; do
+    for dir in "${ycc_dirs[@]}"; do
         local src="${YCC_DIR}/${dir}/"
         local dest="${cursor_dir}/${dir}/"
 
@@ -65,6 +66,18 @@ sync_cursor() {
         rsync -av --update "${src}" "${dest}"
         info "Synced ${dir}/ → ${dest}"
     done
+
+    # Sync rules from .cursor/rules/ (repo root)
+    local rules_src="${SCRIPT_DIR}/.cursor/rules/"
+    local rules_dest="${cursor_dir}/rules/"
+
+    if [[ ! -d "${rules_src}" ]]; then
+        warn "Source not found, skipping: ${rules_src}"
+    else
+        mkdir -p "${rules_dest}"
+        rsync -av --update "${rules_src}" "${rules_dest}"
+        info "Synced rules/ → ${rules_dest}"
+    fi
 
     printf "\n${BOLD}Cursor sync complete.${NC}\n"
 }
