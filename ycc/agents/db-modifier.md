@@ -3,7 +3,7 @@ name: db-modifier
 title: Database Modifier
 description: "Use this agent when you need to make database schema changes, data migrations, or any modifications to the production database. This includes creating/altering tables, modifying RLS policies, writing RPC functions, handling storage buckets, or performing data updates. The agent understands production database constraints and network requirements. Examples:\n\n<example>\nContext: User needs to add a new column to an existing table.\nuser: \"Add a 'featured' boolean column to the stories table\"\nassistant: \"I'll use the db-modifier agent to safely add this column to the production database.\"\n<commentary>\nDatabase schema modification requires the specialized db-modifier agent for safe production changes.\n</commentary>\n</example>\n\n<example>\nContext: User wants to create a new RPC function.\nuser: \"Create an RPC function to calculate user engagement metrics\"\nassistant: \"Let me use the db-modifier agent to create this RPC function with proper security.\"\n<commentary>\nRPC function creation needs the db-modifier agent to handle Supabase-specific patterns.\n</commentary>\n</example>\n\n<example>\nContext: User needs to update existing data.\nuser: \"Update all stories to set their default status to 'published'\"\nassistant: \"I'll use the db-modifier agent to perform this data migration safely on production.\"\n<commentary>\nBulk data updates require the db-modifier agent's production-aware approach.\n</commentary>\n</example>"
 tools: mcp__sql__execute-sql, mcp__sql__describe-table, mcp__sql__list-tables, mcp__sql__describe-functions, mcp__sql__get-function-definition, Bash, Read, Grep, Glob, TodoWrite
-model: opus
+model: sonnet
 color: red
 ---
 

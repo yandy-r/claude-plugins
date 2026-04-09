@@ -29,7 +29,7 @@ description: >
   Same-file findings are grouped because concurrent edits to one file cause write conflicts. The agent processes them in descending line order.
   </commentary>
   </example>
-model: opus
+model: sonnet
 color: yellow
 tools:
   - Read
