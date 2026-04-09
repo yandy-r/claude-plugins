@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Dual-mode code review — local uncommitted changes OR a GitHub pull request. Both modes now write a machine-parseable review artifact (Local → docs/prps/reviews/local-{timestamp}-review.md, PR → docs/prps/reviews/pr-{N}-review.md) with sequential finding IDs (F001, F002, ...) and Status fields (Open/Fixed/Failed) so /ycc:review-fix can consume and update them in place. Local mode runs a full security + quality pass on the diff. PR mode fetches the PR, reads each changed file in full, builds context from CLAUDE.md and PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build) for detected stacks, assigns severity, and posts the review to GitHub via gh. Pass `--parallel` to fan out the REVIEW phase across 3 specialized ycc:code-reviewer agents (correctness, security, quality) and merge findings. Use when the user asks to "review code", "review PR", "check uncommitted changes", "review pr N", "parallel review", or says "/code-review". Adapted from PRPs-agentic-eng by Wirasm.
+description: Dual-mode code review — local uncommitted changes OR a GitHub pull request. Both modes now write a machine-parseable review artifact (Local → docs/prps/reviews/local-{timestamp}-review.md, PR → docs/prps/reviews/pr-{N}-review.md) with sequential finding IDs (F001, F002, ...) and Status fields (Open/Fixed/Failed) so /review-fix can consume and update them in place. Local mode runs a full security + quality pass on the diff. PR mode fetches the PR, reads each changed file in full, builds context from CLAUDE.md and PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build) for detected stacks, assigns severity, and posts the review to GitHub via gh. Pass `--parallel` to fan out the REVIEW phase across 3 specialized code-reviewer agents (correctness, security, quality) and merge findings. Use when the user asks to "review code", "review PR", "check uncommitted changes", "review pr N", "parallel review", or says "/code-review". Adapted from PRPs-agentic-eng by Wirasm.
 argument-hint: '[pr-number | pr-url | blank for local review] [--approve | --request-changes] [--parallel]'
 allowed-tools:
   - Read
@@ -44,7 +44,7 @@ Before selecting mode, extract flags from `$ARGUMENTS`:
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                                 |
 | `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                      |
-| `--parallel`        | Fan out the REVIEW phase across 3 `ycc:code-reviewer` agents (correctness, security, quality) dispatched in parallel and merge findings |
+| `--parallel`        | Fan out the REVIEW phase across 3 `code-reviewer` agents (correctness, security, quality) dispatched in parallel and merge findings |
 
 Strip these from `$ARGUMENTS` and set `PARALLEL_MODE=true|false`. The remaining text is the mode selector (PR number/URL or blank for local).
 
@@ -110,7 +110,7 @@ Read each changed file in full. Check for:
 
 #### Path B — Parallel Review (`PARALLEL_MODE=true`)
 
-Dispatch **3 `ycc:code-reviewer` agents in parallel** in a SINGLE message with MULTIPLE `Agent` tool calls. Each agent reads all changed files and applies its assigned focus:
+Dispatch **3 `code-reviewer` agents in parallel** in a SINGLE message with MULTIPLE `Agent` tool calls. Each agent reads all changed files and applies its assigned focus:
 
 | Reviewer               | Focus           | Checklist Items                                                                                                               |
 | ---------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -179,7 +179,7 @@ Use the **Review Artifact Format** defined at the bottom of this skill. Include:
 - Description
 - Suggested fix
 
-**Always write the file**, even if there are no findings (empty sections are acceptable — they give `/ycc:review-fix` a consistent target and preserve history).
+**Always write the file**, even if there are no findings (empty sections are acceptable — they give `/review-fix` a consistent target and preserve history).
 
 Print a concise summary to stdout with the file path and a hint to run fixes:
 
@@ -188,8 +188,8 @@ Local review written to: docs/prps/reviews/local-20260408-143022-review.md
 Findings: [C] 2  [H] 3  [M] 1  [L] 0
 
 Next steps:
-  /ycc:review-fix docs/prps/reviews/local-20260408-143022-review.md   # apply fixes
-  /ycc:review-fix docs/prps/reviews/local-20260408-143022-review.md --parallel
+  /review-fix docs/prps/reviews/local-20260408-143022-review.md   # apply fixes
+  /review-fix docs/prps/reviews/local-20260408-143022-review.md --parallel
 ```
 
 Block commit if CRITICAL or HIGH issues found.
@@ -259,7 +259,7 @@ Apply the review checklist across 7 categories:
 
 #### Path B — Parallel Review (`PARALLEL_MODE=true`)
 
-Dispatch **3 `ycc:code-reviewer` agents in parallel** in a SINGLE message with MULTIPLE `Agent` tool calls. Each agent reads all changed files at the PR head revision and applies its assigned category slice:
+Dispatch **3 `code-reviewer` agents in parallel** in a SINGLE message with MULTIPLE `Agent` tool calls. Each agent reads all changed files at the PR head revision and applies its assigned category slice:
 
 | Reviewer               | Categories                             | What to Check                                                                                                                                                             |
 | ---------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -384,7 +384,7 @@ Create review artifact at `docs/prps/reviews/pr-<NUMBER>-review.md`:
 mkdir -p docs/prps/reviews
 ```
 
-Use the **Review Artifact Format** defined at the bottom of this skill. The artifact must include finding IDs and `Status: Open` on every finding so that `/ycc:review-fix` can later update the file in place.
+Use the **Review Artifact Format** defined at the bottom of this skill. The artifact must include finding IDs and `Status: Open` on every finding so that `/review-fix` can later update the file in place.
 
 Example of the Findings section:
 
@@ -485,7 +485,7 @@ Next steps:
 
 ## Review Artifact Format
 
-Both Local Review Mode and PR Review Mode write an artifact using this exact format. The format is the contract that `/ycc:review-fix` parses — do not deviate.
+Both Local Review Mode and PR Review Mode write an artifact using this exact format. The format is the contract that `/review-fix` parses — do not deviate.
 
 ### File locations
 
@@ -566,11 +566,11 @@ Every finding MUST have a `Status` field. Valid values:
 
 | Status | Meaning                                                                                                      |
 | ------ | ------------------------------------------------------------------------------------------------------------ |
-| Open   | Default on first write. Not yet processed by `/ycc:review-fix`, or below the fix skill's severity threshold. |
-| Fixed  | Successfully fixed by `/ycc:review-fix`. Set by the fix skill — code-review itself never writes this.        |
-| Failed | Attempted by `/ycc:review-fix` but the fix broke validation. Set by the fix skill.                           |
+| Open   | Default on first write. Not yet processed by `/review-fix`, or below the fix skill's severity threshold. |
+| Fixed  | Successfully fixed by `/review-fix`. Set by the fix skill — code-review itself never writes this.        |
+| Failed | Attempted by `/review-fix` but the fix broke validation. Set by the fix skill.                           |
 
-`/ycc:code-review` only ever writes `Status: Open`. All other states are set in-place by `/ycc:review-fix`.
+`/code-review` only ever writes `Status: Open`. All other states are set in-place by `/review-fix`.
 
 ### Required fields per finding
 
@@ -583,7 +583,7 @@ Every finding must include these four lines (in this order) so the artifact is m
   - **Suggested fix**: <concrete fix>
 ```
 
-Findings missing a `Suggested fix` line are valid but will be **skipped** by `/ycc:review-fix` (flagged for human judgment).
+Findings missing a `Suggested fix` line are valid but will be **skipped** by `/review-fix` (flagged for human judgment).
 
 ---
 

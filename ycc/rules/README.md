@@ -1,5 +1,26 @@
 # Rules
 
+This directory is the **source of truth** for rule content. For **Cursor**, generated `.mdc` files
+live under `.cursor-plugin/rules/` (nested layout preserved). Regenerate after edits:
+
+```bash
+./scripts/generate-cursor-rules.sh
+./scripts/validate-cursor-rules.sh
+```
+
+Generated files use YAML frontmatter (`description`, `alwaysApply`, `globs`) and Cursor-native path
+wording. Prefer **single-root** Cursor workspaces when using nested `.cursor/rules/**` trees.
+
+### Cursor `.mdc` frontmatter
+
+Each generated rule starts with YAML between `---` lines:
+
+- **`description`**: short summary (required).
+- **`alwaysApply`**: `true` for `common/*` and `web/design-quality.md`; `false` for scoped rules.
+- **`globs`**: file patterns for scoped rules (language folders and most `web/*`); omitted when `alwaysApply: true`.
+
+Source files may use Claude-style `paths:` in YAML; the generator rewrites that to `globs:`.
+
 ## Structure
 
 Rules are organized into a **common** layer plus **language-specific** directories:
@@ -28,22 +49,17 @@ rules/
 
 ## Installation
 
-### Option 1: Install Script (Recommended)
+### Cursor (this plugin bundle)
+
+From the repo root, sync the generated bundle to your Cursor config:
 
 ```bash
-# Install common + one or more language-specific rule sets
-./install.sh typescript
-./install.sh python
-./install.sh golang
-./install.sh web
-./install.sh swift
-./install.sh php
-
-# Install multiple languages at once
-./install.sh typescript python
+./install.sh --target cursor
 ```
 
-### Option 2: Manual Installation
+This copies `.cursor-plugin/rules/` (including nested `common/`, `typescript/`, …) to `~/.cursor/rules/`.
+
+### Manual copy (any editor)
 
 > **Important:** Copy entire directories — do NOT flatten with `/*`.
 > Common and language-specific directories contain files with the same names.
@@ -52,18 +68,10 @@ rules/
 > language-specific files.
 
 ```bash
-# Install common rules (required for all projects)
-cp -r rules/common ~/.claude/rules/common
-
-# Install language-specific rules based on your project's tech stack
-cp -r rules/typescript ~/.claude/rules/typescript
-cp -r rules/python ~/.claude/rules/python
-cp -r rules/golang ~/.claude/rules/golang
-cp -r rules/web ~/.claude/rules/web
-cp -r rules/swift ~/.claude/rules/swift
-cp -r rules/php ~/.claude/rules/php
-
-# Attention ! ! ! Configure according to your actual project requirements; the configuration here is for reference only.
+# Example: copy into Cursor project rules
+cp -r .cursor-plugin/rules/common ~/.cursor/rules/common
+cp -r .cursor-plugin/rules/typescript ~/.cursor/rules/typescript
+# ...add only the stacks you need
 ```
 
 ## Rules vs Skills

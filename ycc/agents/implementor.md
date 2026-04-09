@@ -1,7 +1,7 @@
 ---
 name: implementor
 title: Implementor
-description: Use this agent when you need to implement specific software engineering tasks that have been explicitly assigned and tagged for parallel execution. This agent receives a single task from a master plan and implements it with planning documentation context.
+description: "Implement specific software engineering tasks assigned from a master plan with planning documentation context. Receives a single task and executes it."
 color: red
 model: sonnet
 ---

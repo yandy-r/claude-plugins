@@ -2,14 +2,14 @@
 # generate-mcp-catalog.sh
 # Scans MCP sources and outputs a markdown catalog organized by category
 # Sources:
-#   - Plugin marketplace: ~/.config/dotfiles/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/
-#   - MCP library: ~/.claude/mcp-library/CLAUDE.md
+#   - Plugin marketplace: ~/.config/dotfiles/.cursor/plugins/marketplaces/claude-plugins-official/external_plugins/
+#   - MCP library: ~/.cursor/mcp-library/CLAUDE.md
 
 set -euo pipefail
 
 # Define paths
-MARKETPLACE_DIR="${HOME}/.config/dotfiles/.claude/plugins/marketplaces/claude-plugins-official/external_plugins"
-MCP_LIBRARY_DOC="${HOME}/.claude/mcp-library/CLAUDE.md"
+MARKETPLACE_DIR="${HOME}/.config/dotfiles/.cursor/plugins/marketplaces/claude-plugins-official/external_plugins"
+MCP_LIBRARY_DOC="${HOME}/.cursor/mcp-library/CLAUDE.md"
 
 # Category mappings for better organization
 declare -A CATEGORIES=(
@@ -81,7 +81,7 @@ add_mcp() {
 if [[ -d "$MARKETPLACE_DIR" ]]; then
     for dir in "$MARKETPLACE_DIR"/*/; do
         [[ -d "$dir" ]] || continue
-        plugin_json="$dir/.claude-plugin/plugin.json"
+        plugin_json="$dir/.cursor-plugin/plugin.json"
 
         if [[ -f "$plugin_json" ]]; then
             name=$(jq -r '.name // empty' "$plugin_json" 2>/dev/null)

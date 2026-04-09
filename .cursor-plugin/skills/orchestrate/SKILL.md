@@ -19,7 +19,7 @@ allowed-tools:
   - Bash(cat:*)
   - Bash(test:*)
   - Bash(mkdir:*)
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/scripts/*.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/orchestrate/scripts/*.sh:*)'
 ---
 
 ## MANDATORY — AGENT TEAMS REQUIRED
@@ -74,7 +74,7 @@ Extract the task description from `$ARGUMENTS` (everything before any flags).
 Run the task analysis script:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/scripts/analyze-task.sh "$TASK_DESCRIPTION"
+${CURSOR_PLUGIN_ROOT}/skills/orchestrate/scripts/analyze-task.sh "$TASK_DESCRIPTION"
 ```
 
 The script provides:
@@ -89,7 +89,7 @@ The script provides:
 Read the complete agent catalog:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/references/agent-catalog.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/orchestrate/references/agent-catalog.md
 ```
 
 This provides the complete reference of available agents organized by category, capabilities, and use cases.
@@ -110,7 +110,7 @@ Analyze the task to determine:
 ### Step 4: Read Decomposition Template
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/references/task-breakdown.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/orchestrate/references/task-breakdown.md
 ```
 
 This template provides patterns for breaking down tasks by feature area, technical layer, cross-cutting concerns, and dependencies.
@@ -155,8 +155,8 @@ Ensure each subtask meets quality standards:
 Optionally run validation script:
 
 ```bash
-if [[ -f "${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/scripts/validate-agents.sh" ]]; then
-  ${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/scripts/validate-agents.sh
+if [[ -f "${CURSOR_PLUGIN_ROOT}/skills/orchestrate/scripts/validate-agents.sh" ]]; then
+  ${CURSOR_PLUGIN_ROOT}/skills/orchestrate/scripts/validate-agents.sh
 fi
 ```
 
@@ -184,7 +184,7 @@ For each subtask, determine the optimal agent type based on:
 ### Step 8: Read Agent Prompt Templates
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/references/agent-prompts.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/orchestrate/references/agent-prompts.md
 ```
 
 Use standard prompts for common orchestration patterns to ensure consistency.
@@ -335,7 +335,7 @@ Repeat Step 12 for each subsequent batch until all subtasks are completed or no 
 Run the summarization script:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/scripts/summarize-results.sh
+${CURSOR_PLUGIN_ROOT}/skills/orchestrate/scripts/summarize-results.sh
 ```
 
 Collect outputs from all agents and organize by:

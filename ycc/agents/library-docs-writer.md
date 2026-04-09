@@ -1,7 +1,7 @@
 ---
 name: library-docs-writer
 title: Library Docs Writer
-description: "Use this agent to fetch and compress external library documentation into concise reference files. This agent retrieves the latest documentation from web sources and context7, then creates condensed local documentation files that serve as a single source of truth. Perfect for creating quick-reference docs for external dependencies like React hooks, Supabase APIs, or any third-party library.\n\n<example>\nContext: User needs latest React Server Components documentation stored locally.\nuser: \"Create a reference doc for React Server Components with the latest patterns\"\nassistant: \"I'll use the library-docs-writer agent to fetch the latest React Server Components documentation and create a condensed reference file.\"\n<commentary>\nUser wants external library docs compressed into local file - use library-docs-writer to fetch and condense.\n</commentary>\n</example>\n\n<example>\nContext: User wants Supabase RLS policies documentation.\nuser: \"Get me the latest Supabase RLS documentation and save it to docs/\"\nassistant: \"Let me use the library-docs-writer agent to retrieve current Supabase RLS docs and create a compressed reference.\"\n<commentary>\nExternal library documentation needed locally - library-docs-writer will fetch and compress it.\n</commentary>\n</example>"
+description: "Fetch and compress external library documentation into concise local reference files from web sources and context7. Creates quick-reference docs for external dependencies."
 model: sonnet
 color: pink
 ---

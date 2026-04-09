@@ -1,6 +1,6 @@
 # Parse Parallel-Plan Output
 
-Extraction instructions for `parallel-plan.md` documents produced by `ycc:parallel-plan` or `ycc:plan-workflow`.
+Extraction instructions for `parallel-plan.md` documents produced by `parallel-plan` or `plan-workflow`.
 
 ## Expected Source Structure
 

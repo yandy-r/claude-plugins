@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # generate-agent-catalog.sh
-# Scans ~/.claude/agents/ and outputs a markdown catalog organized by category
+# Scans ~/.cursor/agents/ (Cursor config; synced by install.sh from .cursor-plugin/agents) and outputs a markdown catalog organized by category
 # Reads YAML frontmatter from each agent file for metadata
 
 set -euo pipefail
 
-# Define paths
-AGENTS_DIR="${HOME}/.claude/agents"
+# Define paths (override for tests: AGENTS_DIR=/path/to/agents ./generate-agent-catalog.sh)
+AGENTS_DIR="${AGENTS_DIR:-${HOME}/.cursor/agents}"
 
 # Category mappings based on agent names/purposes
 declare -A CATEGORIES=(
@@ -40,7 +40,6 @@ declare -A CATEGORIES=(
     ["documentation-writer"]="Documentation"
     ["api-docs-expert"]="Documentation"
     ["library-docs-writer"]="Documentation"
-    ["documenter"]="Documentation"
     ["docs-git-committer"]="Documentation"
 
     # Testing & Quality

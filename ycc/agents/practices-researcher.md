@@ -1,38 +1,6 @@
 ---
 name: practices-researcher
-description: >
-  Use this agent when the user asks to "review code quality", "check modularity", "find reusable code",
-  "analyze code practices", "assess code reuse", "KISS assessment", "check for over-engineering",
-  "find shared utilities", "review code structure for reusability", or wants to evaluate whether
-  code follows engineering best practices around modularity, simplicity, and reuse. Also useful when
-  planning a new feature and needing to discover existing reusable code in the codebase.
-
-  <example>
-  Context: User is about to implement a new feature and wants to find existing reusable code.
-  user: "Before I start building the notification system, can you check what utilities and shared modules we already have that I should reuse?"
-  assistant: "I'll use the practices-researcher agent to scan the codebase for existing reusable code and shared utilities relevant to your notification system."
-  <commentary>
-  User wants to discover existing code before writing new code. The practices-researcher agent scans for utilities, helpers, and shared modules.
-  </commentary>
-  </example>
-
-  <example>
-  Context: User has written code and wants a modularity review.
-  user: "I just finished the data pipeline. Can you review it for modularity and code reuse?"
-  assistant: "Let me use the practices-researcher agent to evaluate your data pipeline for modularity, reuse opportunities, and KISS compliance."
-  <commentary>
-  User wants a quality review focused on engineering practices, not bugs or security. The practices-researcher agent evaluates modularity, simplicity, and reuse.
-  </commentary>
-  </example>
-
-  <example>
-  Context: User is deciding whether to build custom or use a library.
-  user: "Should I write my own validation library or use an existing one? We already have some validation helpers scattered around."
-  assistant: "I'll use the practices-researcher agent to analyze your existing validation code, assess consolidation opportunities, and recommend build vs. depend."
-  <commentary>
-  User needs a build-vs-depend decision with codebase context. The practices-researcher agent discovers existing code and recommends the pragmatic path.
-  </commentary>
-  </example>
+description: "Evaluate code quality, modularity, reuse, and KISS compliance. Discover existing reusable code, assess build-vs-depend decisions, and review code structure for engineering best practices."
 model: sonnet
 tools:
   - Read

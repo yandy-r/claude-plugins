@@ -1,34 +1,6 @@
 ---
 name: planner
-description: >
-  Use this agent when the user wants an expert implementation plan for a feature, refactor, or architectural change BEFORE any code is written. Invoked by the /ycc:plan skill, and can be used standalone whenever a concrete, actionable, phased plan is needed — with specific file paths, dependencies, risks, testing strategy, and success criteria. The agent analyzes the codebase read-only, then produces a plan and WAITS for user confirmation.
-
-  <example>
-  Context: User wants a plan before building a new feature.
-  user: "I need to add real-time notifications when markets resolve."
-  assistant: "I'll use the ycc:planner agent to produce an implementation plan with specific file paths, phases, and risks — then we review before writing any code."
-  <commentary>
-  New feature, non-trivial, user wants planning first. The planner agent returns a structured plan and waits for confirmation.
-  </commentary>
-  </example>
-
-  <example>
-  Context: User is considering a refactor and wants to understand scope.
-  user: "Refactor the auth middleware to use the new session store — what's involved?"
-  assistant: "Let me launch the ycc:planner agent to map the affected files, dependencies, risks, and a phased migration path."
-  <commentary>
-  Refactor scoping needs a specific, file-level breakdown. The planner agent is ideal because it reads the codebase read-only and produces a concrete plan.
-  </commentary>
-  </example>
-
-  <example>
-  Context: Claude is running /ycc:plan and needs to produce the structured plan output.
-  user: (invokes /ycc:plan "add rate limiting")
-  assistant: "I'll dispatch the ycc:planner agent to draft the rate-limiting plan."
-  <commentary>
-  The /ycc:plan skill delegates to this agent for the actual plan construction and codebase analysis.
-  </commentary>
-  </example>
+description: "Software architect agent for designing implementation plans. Returns step-by-step plans with specific file paths, dependencies, risks, testing strategy, and success criteria. Waits for user confirmation."
 model: opus
 color: blue
 tools:

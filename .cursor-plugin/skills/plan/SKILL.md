@@ -1,6 +1,6 @@
 ---
 name: plan
-description: Lightweight conversational planner that dispatches the ycc:planner agent to produce a specific, phased implementation plan with file paths, dependencies, risks, and a testing strategy — then WAITS for explicit user confirmation before any code is written. Pass `--parallel` to instruct the planner to shape its output for parallel execution (Batches summary section, hierarchical step IDs, explicit Depends on annotations). Use for quick planning on a new feature, architectural change, or complex refactor when you do NOT need the heavier parallel-agent plan-workflow or the PRD-driven prp-plan. Use when the user asks to "plan this", "outline an approach", "break this down before I code", "parallel plan", or says "/plan".
+description: Lightweight conversational planner that dispatches the planner agent to produce a specific, phased implementation plan with file paths, dependencies, risks, and a testing strategy — then WAITS for explicit user confirmation before any code is written. Pass `--parallel` to instruct the planner to shape its output for parallel execution (Batches summary section, hierarchical step IDs, explicit Depends on annotations). Use for quick planning on a new feature, architectural change, or complex refactor when you do NOT need the heavier parallel-agent plan-workflow or the PRD-driven prp-plan. Use when the user asks to "plan this", "outline an approach", "break this down before I code", "parallel plan", or says "/plan".
 argument-hint: '<what you want to plan> [--parallel]'
 allowed-tools:
   - Read
@@ -26,7 +26,7 @@ Create a comprehensive implementation plan before writing any code. This is the 
 ## What This Skill Does
 
 1. **Parse flags and the request** — Extract `--parallel`, then read the user input and any referenced files
-2. **Dispatch `ycc:planner`** — Delegate plan construction to the planning specialist agent. In parallel mode, augment the prompt with output-shape directives
+2. **Dispatch `planner`** — Delegate plan construction to the planning specialist agent. In parallel mode, augment the prompt with output-shape directives
 3. **Relay the plan** — Present the agent's plan to the user verbatim
 4. **Wait for confirmation** — MUST receive explicit user approval before proceeding
 
@@ -34,9 +34,9 @@ Create a comprehensive implementation plan before writing any code. This is the 
 
 | Flag         | Effect                                                                                                                                                                                                                                                                                                                                                    |
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel` | Instruct the `ycc:planner` agent to emit a parallel-capable plan: a `Batches` summary section at the top, hierarchical step IDs (`1.1`, `1.2`, `2.1`), and explicit `Depends on [...]` annotations on every step. Enables in-conversation parallel implementation via `ycc:implementor` agents, or file-based handoff to `/ycc:prp-implement --parallel`. |
+| `--parallel` | Instruct the `planner` agent to emit a parallel-capable plan: a `Batches` summary section at the top, hierarchical step IDs (`1.1`, `1.2`, `2.1`), and explicit `Depends on [...]` annotations on every step. Enables in-conversation parallel implementation via `implementor` agents, or file-based handoff to `/prp-implement --parallel`. |
 
-**Note**: `--parallel` on `/ycc:plan` shapes the _output_, not the research phase. The `ycc:planner` agent already does its own codebase reads; this skill does not fan out to multiple researcher agents. For research fan-out on larger features, use `/ycc:prp-plan --parallel`.
+**Note**: `--parallel` on `/plan` shapes the _output_, not the research phase. The `planner` agent already does its own codebase reads; this skill does not fan out to multiple researcher agents. For research fan-out on larger features, use `/prp-plan --parallel`.
 
 ## When to Use
 
@@ -58,9 +58,9 @@ Use this skill when:
 
 Read the stripped `$ARGUMENTS`. If it references a file path, read that file for context. If the request is ambiguous, ask a single focused clarifying question **before** dispatching the agent.
 
-### Step 2 — Dispatch the `ycc:planner` agent
+### Step 2 — Dispatch the `planner` agent
 
-Use the Agent tool with `subagent_type: "ycc:planner"`. In the prompt, include:
+Use the Agent tool with `subagent_type: "planner"`. In the prompt, include:
 
 - The user's original request (verbatim)
 - Any file paths or context they referenced
@@ -132,7 +132,7 @@ execution:
 
 ### Step 2.5 — Validate the plan before relaying
 
-After the `ycc:planner` agent returns its plan, perform these quick checks BEFORE presenting it to the user. Use only the tools already available to this skill.
+After the `planner` agent returns its plan, perform these quick checks BEFORE presenting it to the user. Use only the tools already available to this skill.
 
 #### Check 1: Structure completeness
 
@@ -185,8 +185,8 @@ Do not touch any code until the user responds.
 Valid user responses:
 
 - **"yes" / "proceed" / "approved"** → proceed to implement
-- **"modify: ..."** → re-dispatch `ycc:planner` with the modification request and the previous plan as context
-- **"different approach: ..."** → discard and re-dispatch `ycc:planner` with the new direction
+- **"modify: ..."** → re-dispatch `planner` with the modification request and the previous plan as context
+- **"different approach: ..."** → discard and re-dispatch `planner` with the new direction
 - **"skip phase N and do phase M first"** → re-dispatch with the reorder request
 - **"no"** → stop, do not implement
 
@@ -200,7 +200,7 @@ Do not summarize, do not touch files, do not run commands beyond read-only analy
 
 If the user's instructions are unclear after the planner produces a draft, ask a focused clarifying question rather than guessing, then re-dispatch the planner with the clarification.
 
-The `ycc:planner` agent owns the plan format, worked examples, sizing/phasing guidance, and red-flag checks. This skill is an orchestration layer — it decides _when_ to plan and _what_ to do with the plan, not _how_ a plan should be structured.
+The `planner` agent owns the plan format, worked examples, sizing/phasing guidance, and red-flag checks. This skill is an orchestration layer — it decides _when_ to plan and _what_ to do with the plan, not _how_ a plan should be structured.
 
 ---
 
@@ -208,10 +208,10 @@ The `ycc:planner` agent owns the plan format, worked examples, sizing/phasing gu
 
 After planning, depending on what the user approves:
 
-- Use `/ycc:prp-implement` if they want rigorous per-task validation loops (requires a PRP-format plan file — consider running `/ycc:prp-plan` first if you want that workflow)
-- Use `/ycc:implement-plan` if the work was structured via `/ycc:parallel-plan`
-- Use `/ycc:code-review` to review completed implementation
-- Use `/ycc:git-workflow` or `/ycc:prp-commit` to commit
+- Use `/prp-implement` if they want rigorous per-task validation loops (requires a PRP-format plan file — consider running `/prp-plan` first if you want that workflow)
+- Use `/implement-plan` if the work was structured via `/parallel-plan`
+- Use `/code-review` to review completed implementation
+- Use `/git-workflow` or `/prp-commit` to commit
 
 ### Executing a Parallel Plan
 
@@ -219,13 +219,13 @@ If the plan was produced with `--parallel` (has a `Batches` section and `Depends
 
 **Option 1 — In-conversation parallel execution (lightweight)**
 
-Process batches sequentially. Within each batch, dispatch one `ycc:implementor` agent per step in a SINGLE message with MULTIPLE `Agent` tool calls. Between batches, run the project's type-check and unit-test commands. On failure, stop and ask the user how to proceed.
+Process batches sequentially. Within each batch, dispatch one `implementor` agent per step in a SINGLE message with MULTIPLE `Agent` tool calls. Between batches, run the project's type-check and unit-test commands. On failure, stop and ask the user how to proceed.
 
 This keeps everything in the current conversation — no file artifact needed.
 
 **Option 2 — Save to file and hand off (rigorous)**
 
-Write the plan to `docs/prps/plans/{name}.plan.md` (adapting it to the PRP plan template if needed: add `Patterns to Mirror`, `Files to Change`, `Validation Commands`, etc.), then run `/ycc:prp-implement --parallel docs/prps/plans/{name}.plan.md` for the full 5-level validation pipeline.
+Write the plan to `docs/prps/plans/{name}.plan.md` (adapting it to the PRP plan template if needed: add `Patterns to Mirror`, `Files to Change`, `Validation Commands`, etc.), then run `/prp-implement --parallel docs/prps/plans/{name}.plan.md` for the full 5-level validation pipeline.
 
 Use Option 1 for small features and quick iterations. Use Option 2 when the user wants an implementation report, per-task validation logs, and the plan archived for audit.
 
@@ -235,14 +235,14 @@ Use Option 1 for small features and quick iterations. Use Option 2 when the user
 
 | Track                  | When to use                                                                                                                                             |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/ycc:plan` (this one) | Quick conversational plan via `ycc:planner` agent. No artifact file. Add `--parallel` to shape the output for parallel execution (no research fan-out). |
-| `/ycc:prp-plan`        | Artifact-producing plan with codebase pattern extraction. Single-pass. Add `--parallel` for 3-researcher fan-out + batched plan.                        |
-| `/ycc:prp-prd`         | Interactive PRD first, then prp-plan. Problem-first hypothesis workflow.                                                                                |
-| `/ycc:plan-workflow`   | Heavyweight parallel-agent planning. Multi-task features. Artifact output.                                                                              |
-| `/ycc:parallel-plan`   | Lower-level component of `/ycc:plan-workflow` for dependency-aware plans.                                                                               |
+| `/plan` (this one) | Quick conversational plan via `planner` agent. No artifact file. Add `--parallel` to shape the output for parallel execution (no research fan-out). |
+| `/prp-plan`        | Artifact-producing plan with codebase pattern extraction. Single-pass. Add `--parallel` for 3-researcher fan-out + batched plan.                        |
+| `/prp-prd`         | Interactive PRD first, then prp-plan. Problem-first hypothesis workflow.                                                                                |
+| `/plan-workflow`   | Heavyweight parallel-agent planning. Multi-task features. Artifact output.                                                                              |
+| `/parallel-plan`   | Lower-level component of `/plan-workflow` for dependency-aware plans.                                                                               |
 
 ### Which `--parallel` should I use?
 
-- **`/ycc:plan --parallel`** — You want a quick parallel-capable plan without creating an artifact file. Planner does its own research. Best for small/medium features.
-- **`/ycc:prp-plan --parallel`** — You want research fan-out (3 parallel researchers covering 8 categories) plus a full artifact file with patterns to mirror and validation commands. Best for medium/large features where you want a rigorous, auditable plan.
-- **`/ycc:plan-workflow`** — You want heavyweight team orchestration with shared context and multi-phase validation. Best for very large features spanning many tasks.
+- **`/plan --parallel`** — You want a quick parallel-capable plan without creating an artifact file. Planner does its own research. Best for small/medium features.
+- **`/prp-plan --parallel`** — You want research fan-out (3 parallel researchers covering 8 categories) plus a full artifact file with patterns to mirror and validation commands. Best for medium/large features where you want a rigorous, auditable plan.
+- **`/plan-workflow`** — You want heavyweight team orchestration with shared context and multi-phase validation. Best for very large features spanning many tasks.

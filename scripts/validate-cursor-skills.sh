@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Ensure .cursor-plugin/skills matches generator output and has no banned Claude-only residue.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+SKILLS_DIR="${REPO_ROOT}/.cursor-plugin/skills"
+
+echo "== Sync check (generator --check) =="
+python3 "${REPO_ROOT}/scripts/generate_cursor_skills.py" --check
+
+echo "== Content policy (generated skills) =="
+BAD=0
+while IFS= read -r -d '' f; do
+  if grep -qE '/ycc:|~/.claude/|\bycc:|CLAUDE_PLUGIN_ROOT|\$\{HOME\}/\.claude/|\$HOME/\.claude/' "$f" 2>/dev/null; then
+    echo "FORBIDDEN pattern in $f:" >&2
+    grep -nE '/ycc:|~/.claude/|\bycc:|CLAUDE_PLUGIN_ROOT|\$\{HOME\}/\.claude/|\$HOME/\.claude/' "$f" >&2 || true
+    BAD=1
+  fi
+  if grep -q 'mcp\*\*' "$f" 2>/dev/null; then
+    echo "Malformed mcp** token in $f:" >&2
+    grep -n 'mcp\*\*' "$f" >&2 || true
+    BAD=1
+  fi
+done < <(find "$SKILLS_DIR" -type f -print0)
+
+if [[ "$BAD" -ne 0 ]]; then
+  echo "validate-cursor-skills.sh: content policy failed." >&2
+  exit 1
+fi
+
+echo "OK: .cursor-plugin/skills is in sync and passes content policy."

@@ -829,7 +829,7 @@ When deploying persona agents:
 2. **Substitute variables**:
    - `{{RESEARCH_SUBJECT}}` - The research topic
    - `{{OUTPUT_DIR}}` - The output directory path (e.g., `research/ai-deployment`)
-3. **Deploy in parallel** - Use a single message with 8 Task tool calls
+3. **Deploy in parallel** - Use a single message with 8 parallel agent invocations
 4. **Set model appropriately** - All use default model for comprehensive research
 5. **Wait for completion** - All 8 agents must finish before proceeding to Phase 2
 

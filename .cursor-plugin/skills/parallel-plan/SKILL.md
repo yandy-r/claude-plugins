@@ -18,9 +18,9 @@ allowed-tools:
   - Bash(ls:*)
   - Bash(cat:*)
   - Bash(test:*)
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/*.sh:*)'
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/**/*.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/parallel-plan/scripts/*.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/**/*.sh:*)'
 ---
 
 ## SCOPE LIMITATION - READ FIRST
@@ -79,7 +79,7 @@ If no feature name provided, abort with usage instructions.
 Use the shared resolver to determine the correct plans directory:
 
 ```bash
-source ${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/resolve-plans-dir.sh
+source ${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/resolve-plans-dir.sh
 feature_dir="$(get_feature_plan_dir "[feature-name]")"
 ```
 
@@ -90,7 +90,7 @@ Extract the feature name from `$ARGUMENTS` (first non-flag argument).
 Run the prerequisites check script:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/check-prerequisites.sh [feature-name]
+${CURSOR_PLUGIN_ROOT}/skills/parallel-plan/scripts/check-prerequisites.sh [feature-name]
 ```
 
 If the script exits with error:
@@ -178,7 +178,7 @@ Create 3 tasks in the shared task list:
 Read the analysis prompt templates:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/templates/analysis-prompts.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/parallel-plan/templates/analysis-prompts.md
 ```
 
 ### Step 8: Spawn Analysis Teammates
@@ -213,7 +213,7 @@ Wait for teammates to complete. Use `TaskList` to check progress. When all 3 ana
 After teammates complete, validate all analysis files:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/validate-analysis-artifacts.sh "${feature_dir}"
+${CURSOR_PLUGIN_ROOT}/skills/parallel-plan/scripts/validate-analysis-artifacts.sh "${feature_dir}"
 ```
 
 If validation fails, message the relevant teammate to fix their output and retry.
@@ -223,7 +223,7 @@ If validation fails, message the relevant teammate to fix their output and retry
 Run the pre-generation gate script:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/persist-or-fail.sh "${feature_dir}"
+${CURSOR_PLUGIN_ROOT}/skills/parallel-plan/scripts/persist-or-fail.sh "${feature_dir}"
 ```
 
 - **Exit 0** → proceed to Phase 3
@@ -262,7 +262,7 @@ These files contain 60-80% compressed insights versus reading all source files d
 Read the plan template structure:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/templates/plan-structure.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/parallel-plan/templates/plan-structure.md
 ```
 
 Create `${feature_dir}/parallel-plan.md` following the template exactly:
@@ -360,7 +360,7 @@ Create 3 validation tasks in the shared task list:
 ### Step 17: Read Validation Prompts
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/templates/validation-prompts.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/parallel-plan/templates/validation-prompts.md
 ```
 
 ### Step 18: Spawn Validation Teammates
@@ -399,7 +399,7 @@ Send shutdown requests to all validation teammates.
 Run the validation script:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/validate-parallel-plan.sh "${feature_dir}/parallel-plan.md"
+${CURSOR_PLUGIN_ROOT}/skills/parallel-plan/scripts/validate-parallel-plan.sh "${feature_dir}/parallel-plan.md"
 ```
 
 Report any structural issues found.

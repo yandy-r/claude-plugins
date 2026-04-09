@@ -1,25 +1,6 @@
 ---
 name: code-documenter
-description: Use this agent when you need to add inline documentation to source files including JSDoc/docstrings, type documentation, inline comments for complex logic, and module-level headers. Modifies source files directly. Examples:
-
-  <example>
-  Context: The write-docs skill is deploying documentation agents in parallel.
-  user: "/write-docs"
-  assistant: "I'll deploy the code-documenter agent to add inline documentation to source files."
-  <commentary>
-  The write-docs orchestrator deploys this agent as part of its parallel documentation pipeline to handle code-level documentation.
-  </commentary>
-  </example>
-
-  <example>
-  Context: Source code lacks proper documentation comments.
-  user: "Add JSDoc comments to the exported functions in src/"
-  assistant: "I'll use the code-documenter agent to add proper documentation to the exported functions."
-  <commentary>
-  Direct request for code-level documentation maps to this specialized agent.
-  </commentary>
-  </example>
-
+description: "Generate and maintain code documentation including inline comments, module-level docs, and architectural documentation."
 model: sonnet
 color: yellow
 tools:

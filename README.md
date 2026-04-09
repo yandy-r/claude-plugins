@@ -6,7 +6,7 @@ A single Claude Code plugin (`ycc`) bundling workflow orchestration, parallel pl
 
 ## What's inside
 
-The `ycc` plugin ships **34 skills**, **34 slash commands** (1-to-1 with skills), and **43 agents**. Every skill is reachable as either `ycc:{name}` (auto-trigger) or `/ycc:{name}` (explicit invocation).
+The `ycc` plugin ships **34 skills**, **34 slash commands** (1-to-1 with skills), and **51 agents**. Every skill is reachable as either `ycc:{name}` (auto-trigger) or `/ycc:{name}` (explicit invocation).
 
 | Command / Skill           | Purpose                                                                    |
 | ------------------------- | -------------------------------------------------------------------------- |
@@ -47,7 +47,10 @@ The `ycc` plugin ships **34 skills**, **34 slash commands** (1-to-1 with skills)
 
 ### Agents
 
-The plugin bundles 43 specialized agents covering codebase analysis, language experts (Go, Rust, Python, TypeScript), reviewers, planners, documenters, and infrastructure architects. Reference any of them via `subagent_type: "ycc:{agent-name}"`. See `ycc/agents/` for the full list.
+The plugin bundles **51** specialized agents covering codebase analysis, language experts (Go, Rust, Python, TypeScript), reviewers, planners, documenters, and infrastructure architects.
+
+- **Claude Code:** reference any of them via `subagent_type: "ycc:{agent-name}"`. Canonical source lives in [`ycc/agents/`](ycc/agents/).
+- **Cursor:** generated, Cursor-native copies live in [`.cursor-plugin/agents/`](.cursor-plugin/agents/) (produced from `ycc/agents/` — see [Cursor IDE sync](#cursor-ide-sync)).
 
 ## Installation
 
@@ -82,13 +85,54 @@ Use `ycc:plan-workflow` to run the full pipeline, or invoke individual stages.
 
 ## Cursor IDE sync
 
-The install script syncs skills, agents, and rules to your Cursor config directory:
+Cursor loads **skills**, **agents**, and **rules** from `~/.cursor/{skills,agents,rules}/`. This repository maintains a Cursor-facing tree under **`.cursor-plugin/`** (including **generated** agents and skills).
+
+### Install into `~/.cursor`
 
 ```bash
 ./install.sh --target cursor
 ```
 
-This rsyncs `ycc/skills/`, `ycc/agents/`, and `ycc/rules/` into `~/.cursor/`. Existing files at the destination are preserved; only newer source files overwrite.
+This rsyncs `.cursor-plugin/skills/`, `.cursor-plugin/agents/`, and `.cursor-plugin/rules/` into `~/.cursor/` (see [`install.sh`](install.sh) for behavior when a source unit is missing).
+
+### Regenerate Cursor agents
+
+`ycc/agents/*.md` is the **source of truth**. After editing an agent there, regenerate the Cursor copies and validate:
+
+```bash
+./scripts/generate-cursor-agents.sh
+./scripts/validate-cursor-agents.sh
+```
+
+The generator **overwrites** each matching `*.md` and **deletes** any `*.md` under `.cursor-plugin/agents/` that no longer exists in `ycc/agents/`, so the two trees stay in lockstep.
+
+Commit changes to both `ycc/agents/` and `.cursor-plugin/agents/` together.
+
+### Regenerate Cursor skills
+
+`ycc/skills/` is the **source of truth**. After editing skills (including scripts and templates), regenerate the Cursor tree and validate:
+
+```bash
+./scripts/generate-cursor-skills.sh
+./scripts/validate-cursor-skills.sh
+```
+
+The generator **mirrors** the full directory (new/updated files and **deletions**), preserves Unix file modes (e.g. executable `*.sh`), and applies Cursor-native rewrites (for example `CLAUDE_PLUGIN_ROOT` → `CURSOR_PLUGIN_ROOT`, `/ycc:foo` → `/foo`, `~/.claude/` → `~/.cursor/` where applicable).
+
+**`CURSOR_PLUGIN_ROOT`:** Generated skills reference bundled files as `${CURSOR_PLUGIN_ROOT}/skills/...`. Set this to the absolute path of your **plugin root** (the directory that contains a `skills/` folder — e.g. this repo’s [`.cursor-plugin`](.cursor-plugin) when developing, or your installed plugin directory under `~/.cursor/plugins/` after installation).
+
+Commit changes to both `ycc/skills/` and `.cursor-plugin/skills/` together.
+
+### Regenerate Cursor rules
+
+`ycc/rules/` is the **source of truth** (nested `common/`, language folders, `web/`, etc.). After editing `.md` sources, regenerate Cursor `.mdc` rules and validate:
+
+```bash
+./scripts/generate-cursor-rules.sh
+./scripts/validate-cursor-rules.sh
+```
+
+The generator writes **nested** `.mdc` files (same folder layout as `ycc/rules/`), converts Claude-style `paths:` frontmatter to `globs:`, mirrors the tree exactly (including deletions), and applies the same Cursor-native text rewrites as skills.
 
 ## Repository layout
 
@@ -96,21 +140,35 @@ This rsyncs `ycc/skills/`, `ycc/agents/`, and `ycc/rules/` into `~/.cursor/`. Ex
 claude-plugins/
 ├── .claude-plugin/
 │   └── marketplace.json     # marketplace registry (single ycc entry)
-├── install.sh               # sync assets to IDE config directories
-├── ycc/                     # the consolidated plugin
+├── .cursor-plugin/            # Cursor IDE bundle (synced by install.sh --target cursor)
+│   ├── agents/                # generated from ycc/agents (run scripts/generate-cursor-agents.sh)
+│   ├── rules/                 # generated from ycc/rules (run scripts/generate-cursor-rules.sh)
+│   └── skills/                # generated from ycc/skills (run scripts/generate-cursor-skills.sh)
+├── install.sh                 # sync .cursor-plugin assets to ~/.cursor/
+├── scripts/
+│   ├── generate-cursor-agents.sh   # wrapper → generate_cursor_agents.py
+│   ├── generate_cursor_agents.py   # ycc/agents → .cursor-plugin/agents
+│   ├── validate-cursor-agents.sh   # sync check + content policy
+│   ├── generate-cursor-skills.sh   # wrapper → generate_cursor_skills.py
+│   ├── generate_cursor_skills.py   # ycc/skills → .cursor-plugin/skills
+│   ├── validate-cursor-skills.sh   # sync check + content policy
+│   ├── generate-cursor-rules.sh    # wrapper → generate_cursor_rules.py
+│   ├── generate_cursor_rules.py    # ycc/rules → .cursor-plugin/rules (.md → .mdc)
+│   └── validate-cursor-rules.sh    # sync + frontmatter lint + content policy
+├── ycc/                       # the consolidated Claude Code plugin
 │   ├── .claude-plugin/
-│   │   └── plugin.json      # name: "ycc", version: 2.0.0
-│   ├── commands/            # 34 slash commands
-│   ├── agents/              # 43 agents
-│   ├── rules/               # language-specific rules (common + per-language)
-│   └── skills/              # 34 skills + _shared
-│       ├── _shared/         # shared scripts (e.g., resolve-plans-dir.sh)
+│   │   └── plugin.json        # name: "ycc", version: 2.0.0
+│   ├── commands/              # 34 slash commands
+│   ├── agents/                # 51 agents (source for Cursor generation)
+│   ├── rules/                 # language-specific rules (common + per-language); source for Cursor .mdc generation
+│   └── skills/                # 34 skills + _shared (source for Cursor generation)
+│       ├── _shared/           # shared scripts (e.g., resolve-plans-dir.sh)
 │       └── {skill-name}/
 │           ├── SKILL.md
-│           ├── references/  # templates and examples
-│           └── scripts/     # validation and helpers
+│           ├── references/    # templates and examples
+│           └── scripts/       # validation and helpers
 └── docs/
-    └── plans/               # implementation plans
+    └── plans/                 # implementation plans
 ```
 
 ## License

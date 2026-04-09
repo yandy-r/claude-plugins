@@ -1,6 +1,6 @@
 ---
 name: save-session
-description: Capture the current session state — what was built, what worked, what failed, open questions, and exact next step — to a dated file at ~/.claude/session-data/YYYY-MM-DD-{shortid}-session.tmp so a future session can resume with full context. Use when the user says "save session", "end of session", "preserve context", "before context limit", or says "/save-session". The file is meant to be read by /ycc:resume-session at the start of the next session.
+description: Capture the current session state — what was built, what worked, what failed, open questions, and exact next step — to a dated file at ~/.cursor/session-data/YYYY-MM-DD-{shortid}-session.tmp so a future session can resume with full context. Use when the user says "save session", "end of session", "preserve context", "before context limit", or says "/save-session". The file is meant to be read by /resume-session at the start of the next session.
 argument-hint: '[optional: topic override]'
 allowed-tools:
   - Read
@@ -22,7 +22,7 @@ Capture everything that happened in this session — what was built, what worked
 
 ## When to Use
 
-- End of a work session before closing Claude Code
+- End of a work session before closing the session
 - Before hitting context limits (run this first, then start a fresh session)
 - After solving a complex problem you want to remember
 - Any time you need to hand off context to a future session
@@ -40,15 +40,15 @@ Before writing the file, collect:
 
 ### Step 2 — Create the sessions folder if it doesn't exist
 
-Create the canonical sessions folder in the user's Claude home directory:
+Create the canonical sessions folder in the user's Cursor home directory:
 
 ```bash
-mkdir -p ~/.claude/session-data
+mkdir -p ~/.cursor/session-data
 ```
 
 ### Step 3 — Write the session file
 
-Create `~/.claude/session-data/YYYY-MM-DD-<short-id>-session.tmp`, using today's actual date (`date +%Y-%m-%d`) and a short-id that is:
+Create `~/.cursor/session-data/YYYY-MM-DD-<short-id>-session.tmp`, using today's actual date (`date +%Y-%m-%d`) and a short-id that is:
 
 - Letters `a-z` / `A-Z`, digits `0-9`, hyphens `-`, underscores `_`
 - Recommended: lowercase letters + digits + hyphens, 8+ characters to avoid collisions
@@ -283,6 +283,6 @@ Then test with Postman — the response should include a `Set-Cookie` header.
 - Each session gets its own file — never append to a previous session's file
 - The "What Did NOT Work" section is the most critical — future sessions will blindly retry failed approaches without it
 - If the user asks to save mid-session (not just at the end), save what's known so far and mark in-progress items clearly
-- The file is meant to be read by Claude at the start of the next session via `/ycc:resume-session`
-- Use the canonical global session store: `~/.claude/session-data/`
+- The file is meant to be read by the assistant at the start of the next session via `/resume-session`
+- Use the canonical global session store: `~/.cursor/session-data/`
 - Prefer the short-id filename form (`YYYY-MM-DD-<short-id>-session.tmp`) for any new session file

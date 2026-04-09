@@ -1,7 +1,7 @@
 ---
 name: docs-git-committer
 title: Docs & Git Committer
-description: 'Use this agent when the user says "It''s time to push commits and to update the documentation." This agent updates documentation after code changes, including feature documentation in docs/, CLAUDE.md files, and commits all changes to git.<example>Context: The user has completed code changes and is ready to finalize. user: "It''s time to push commits and to update the documentation." assistant: "I''ll use the docs-git-committer agent to update the documentation and commit these changes"<commentary>The user has explicitly requested documentation updates and commits, use the docs-git-committer agent.</commentary></example><example>Context: After finishing development work, the user wants to wrap up. user: "It''s time to push commits and to update the documentation." assistant: "I''ll launch the docs-git-committer agent to handle the documentation updates and git commit" <commentary>Direct trigger phrase for documentation and committing, use the docs-git-committer agent.</commentary></example>'
+description: "Update documentation after code changes (feature docs, CLAUDE.md files) and commit all changes to git."
 tools: Bash, Glob, Grep, Read, WebFetch, TodoWrite, WebSearch, BashOutput, KillBash, Edit, MultiEdit, Write, NotebookEdit
 model: sonnet
 color: cyan

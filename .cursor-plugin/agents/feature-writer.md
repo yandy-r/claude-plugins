@@ -1,25 +1,6 @@
 ---
 name: feature-writer
-description: Use this agent when you need to create user-facing feature documentation including guides, tutorials, use cases, and troubleshooting. Outputs to docs/features/. Examples:
-
-  <example>
-  Context: The write-docs skill is deploying documentation agents in parallel.
-  user: "/write-docs"
-  assistant: "I'll deploy the feature-writer agent to create user-facing feature guides in docs/features/."
-  <commentary>
-  The write-docs orchestrator deploys this agent as part of its parallel documentation pipeline to handle feature documentation.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A project needs feature documentation for end users.
-  user: "Write feature guides for the authentication and dashboard features"
-  assistant: "I'll use the feature-writer agent to create comprehensive feature guides with usage instructions and examples."
-  <commentary>
-  Direct request for feature documentation maps to this specialized agent.
-  </commentary>
-  </example>
-
+description: "Implement features based on research and specifications, writing production-ready code with proper testing."
 model: sonnet
 color: green
 tools:

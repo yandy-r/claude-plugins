@@ -1,6 +1,6 @@
 ---
 name: prp-implement
-description: Execute a PRP plan file with continuous validation loops. Detects package manager, prepares git branch, processes tasks with per-task validation, runs all 5 validation levels (static, unit, build, integration, edge cases), writes an implementation report to docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans (those with a Batches section and Depends on annotations) and prompts the user to choose sequential or parallel execution. Pass --parallel to skip the prompt and run tasks in parallel via ycc:implementor agents. Use when the user asks to "execute a PRP plan", "implement from a plan file", "run prp-implement", "parallel PRP implement", or provides a path to a .plan.md file. Adapted from PRPs-agentic-eng by Wirasm.
+description: Execute a PRP plan file with continuous validation loops. Detects package manager, prepares git branch, processes tasks with per-task validation, runs all 5 validation levels (static, unit, build, integration, edge cases), writes an implementation report to docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans (those with a Batches section and Depends on annotations) and prompts the user to choose sequential or parallel execution. Pass --parallel to skip the prompt and run tasks in parallel via implementor agents. Use when the user asks to "execute a PRP plan", "implement from a plan file", "run prp-implement", "parallel PRP implement", or provides a path to a .plan.md file. Adapted from PRPs-agentic-eng by Wirasm.
 argument-hint: '<path/to/plan.md> [--parallel]'
 allowed-tools:
   - Read
@@ -101,7 +101,7 @@ If the file doesn't exist or isn't a valid plan:
 
 ```
 Error: Plan file not found or invalid.
-Run /ycc:prp-plan <feature-description> to create a plan first.
+Run /prp-plan <feature-description> to create a plan first.
 ```
 
 ### Parallel-Capable Detection
@@ -187,7 +187,7 @@ For each task in **Step-by-Step Tasks**:
 
 ### Path B — Parallel Batch Execution (`EXECUTION_MODE=parallel`)
 
-Process batches sequentially. Within each batch, dispatch one `ycc:implementor` agent per task in parallel.
+Process batches sequentially. Within each batch, dispatch one `implementor` agent per task in parallel.
 
 #### Per-Batch Loop
 
@@ -196,7 +196,7 @@ For each batch `B1, B2, ... BN` in order (from the plan's `Batches` table):
 1. **Identify batch tasks** — Extract all tasks with `BATCH: BN` from the Step-by-Step Tasks section.
 
 2. **Dispatch implementor agents in parallel** — Use a **SINGLE message** with **MULTIPLE `Agent` tool calls**, one per task in the batch. Each call:
-   - `subagent_type`: `"ycc:implementor"`
+   - `subagent_type`: `"implementor"`
    - `description`: The task title (e.g., `"Task 1.1: add rate limiter middleware"`)
    - `prompt`: The complete task spec (ACTION, IMPLEMENT, MIRROR, IMPORTS, GOTCHA, VALIDATE) plus the relevant excerpt from the plan's **Patterns to Mirror** section. Include a directive that the agent must read the MIRROR source file before writing code and must run its own type-check on modified files before reporting complete.
 
@@ -388,8 +388,8 @@ Write report to `docs/prps/reports/{plan-name}-report.md`:
 
 ## Next Steps
 
-- [ ] Code review via `/ycc:code-review`
-- [ ] Create PR via `/ycc:prp-pr`
+- [ ] Code review via `/code-review`
+- [ ] Create PR via `/prp-pr`
 ```
 
 ### Update PRD (if applicable)
@@ -453,7 +453,7 @@ Report to user:
 | Phase 2 | [next]         |
 | ...     | ...            |
 
-> Next step: Run `/ycc:prp-pr` to create a pull request, or `/ycc:code-review` to review changes first.
+> Next step: Run `/prp-pr` to create a pull request, or `/code-review` to review changes first.
 ```
 
 ---
@@ -511,7 +511,7 @@ Report to user:
 
 ## Next Steps
 
-- Run `/ycc:code-review` to review changes before committing
-- Run `/ycc:prp-commit` to commit with a descriptive message
-- Run `/ycc:prp-pr` to create a pull request
-- Run `/ycc:prp-plan <next-phase>` if the PRD has more phases
+- Run `/code-review` to review changes before committing
+- Run `/prp-commit` to commit with a descriptive message
+- Run `/prp-pr` to create a pull request
+- Run `/prp-plan <next-phase>` if the PRD has more phases

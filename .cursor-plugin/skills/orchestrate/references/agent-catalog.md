@@ -591,4 +591,4 @@ Complete reference of all available agents for orchestration.
 
 ---
 
-_This catalog is based on available agents in the Task tool. Refer to Task tool description for latest updates._
+_This catalog is based on available agents in Cursor. Refer to Cursor agent documentation for latest updates._

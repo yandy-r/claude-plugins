@@ -72,7 +72,7 @@ Check if GitHub MCP tools are available in your current tool list by looking for
 Load the full reference before crafting any commit message:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/templates/commit-types.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/git-workflow/templates/commit-types.md
 ```
 
 ---
@@ -101,7 +101,7 @@ Determine:
 Run the analysis script for structured output:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/scripts/analyze-changes.sh
+${CURSOR_PLUGIN_ROOT}/skills/git-workflow/scripts/analyze-changes.sh
 ```
 
 This provides:
@@ -217,7 +217,7 @@ Remove --dry-run flag to execute the workflow.
 Read the documentation decision template:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/templates/documentation-decision.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/git-workflow/templates/documentation-decision.md
 ```
 
 This provides guidance on:
@@ -268,7 +268,7 @@ For each changed file or feature, decide:
 Read the conventional commits reference:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/templates/commit-types.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/git-workflow/templates/commit-types.md
 ```
 
 ### Step 9: Craft Commit Message
@@ -302,7 +302,7 @@ Existing sessions will be invalidated.
 Run validation script:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh "<commit-message>"
+${CURSOR_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh "<commit-message>"
 ```
 
 If validation fails, revise the message and re-validate.
@@ -355,12 +355,12 @@ Example scopes:
 Read the docs-git-committer prompt template:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/templates/agent-prompts.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/git-workflow/templates/agent-prompts.md
 ```
 
 ### Step 15: Deploy Agents in Parallel
 
-**CRITICAL**: Deploy all agents in a **SINGLE message** with **MULTIPLE Task tool calls**.
+**CRITICAL**: Deploy all agents in a **SINGLE message** with **MULTIPLE parallel agent invocations**.
 
 For each feature scope, deploy a `docs-git-committer` agent:
 
@@ -429,13 +429,13 @@ After agents complete:
 - **Validate each agent's commit message** against conventional commit format:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh "$(git log -1 --format=%s <commit-hash>)"
+${CURSOR_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh "$(git log -1 --format=%s <commit-hash>)"
 ```
 
 - If any commit message fails validation, amend it:
 
 ```bash
-git rebase -x '${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh "$(git log -1 --format=%s HEAD)" || echo "NEEDS FIX"' <merge-base>..HEAD
+git rebase -x '${CURSOR_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh "$(git log -1 --format=%s HEAD)" || echo "NEEDS FIX"' <merge-base>..HEAD
 ```
 
 Or for a single commit, use `git commit --amend -m "<corrected-message>"` to fix it.
@@ -544,7 +544,7 @@ If `--pr` flag is present in `$ARGUMENTS`:
 Read the PR template:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/templates/pr-template.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/git-workflow/templates/pr-template.md
 ```
 
 This provides:
@@ -560,7 +560,7 @@ This provides:
 Run the PR creation script to gather information:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/scripts/create-pr.sh --analyze
+${CURSOR_PLUGIN_ROOT}/skills/git-workflow/scripts/create-pr.sh --analyze
 ```
 
 This provides:
@@ -585,7 +585,7 @@ Based on commits made, create a PR title:
 Validate the PR title with the same rules as commit messages:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh "<pr-title>"
+${CURSOR_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh "<pr-title>"
 ```
 
 If validation fails, revise the title until it passes.

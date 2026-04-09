@@ -1,6 +1,6 @@
 ---
 name: review-fix
-description: Plan and apply fixes for findings from a code-review artifact produced by /ycc:code-review. Parses the review file (local or PR), filters findings by severity threshold, groups them into dependency-safe batches (same-file findings stay together, different files can run in parallel), dispatches ycc:review-fixer agents to apply each fix, updates the Status field in the source review file in place (Open → Fixed or Failed), runs validation after changes, and writes a fix report to docs/prps/reviews/fixes/. Pass `--parallel` to fan out independent fixes across parallel review-fixer agents. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to change the minimum severity threshold (default HIGH). Pass `--dry-run` to preview the fix plan without applying changes. Use when the user asks to "fix review findings", "apply review fixes", "review-fix PR 42", "fix the code review", or says "/review-fix". Adapted from PRPs-agentic-eng by Wirasm.
+description: Plan and apply fixes for findings from a code-review artifact produced by /code-review. Parses the review file (local or PR), filters findings by severity threshold, groups them into dependency-safe batches (same-file findings stay together, different files can run in parallel), dispatches review-fixer agents to apply each fix, updates the Status field in the source review file in place (Open → Fixed or Failed), runs validation after changes, and writes a fix report to docs/prps/reviews/fixes/. Pass `--parallel` to fan out independent fixes across parallel review-fixer agents. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to change the minimum severity threshold (default HIGH). Pass `--dry-run` to preview the fix plan without applying changes. Use when the user asks to "fix review findings", "apply review fixes", "review-fix PR 42", "fix the code review", or says "/review-fix". Adapted from PRPs-agentic-eng by Wirasm.
 argument-hint: '<path/to/review.md | pr-number | blank> [--parallel] [--severity <level>] [--dry-run]'
 allowed-tools:
   - Read
@@ -33,7 +33,7 @@ allowed-tools:
 
 # Review Fix
 
-Plan and apply fixes for code-review findings. Reads a review artifact produced by `/ycc:code-review`, filters by severity, plans dependency-safe fix batches, dispatches `ycc:review-fixer` agents to apply each fix, updates the Status field in the review file in place, and writes a fix report.
+Plan and apply fixes for code-review findings. Reads a review artifact produced by `/code-review`, filters by severity, plans dependency-safe fix batches, dispatches `review-fixer` agents to apply each fix, updates the Status field in the review file in place, and writes a fix report.
 
 > Adapted from PRPs-agentic-eng by Wirasm. Part of the PRP workflow series.
 
@@ -51,7 +51,7 @@ Extract flags from `$ARGUMENTS` before treating the remainder as the input:
 
 | Flag                 | Effect                                                                                                              |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `--parallel`         | Dispatch `ycc:review-fixer` agents in parallel per batch. Level 1+2 validation between batches. Fail-stop behavior. |
+| `--parallel`         | Dispatch `review-fixer` agents in parallel per batch. Level 1+2 validation between batches. Fail-stop behavior. |
 | `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).              |
 | `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files.                                       |
 
@@ -77,7 +77,7 @@ If no review file found:
 
 ```
 Error: No review artifact found.
-Run /ycc:code-review first to produce a review artifact.
+Run /code-review first to produce a review artifact.
 ```
 
 Verify the file exists before proceeding:
@@ -88,7 +88,7 @@ test -f "$REVIEW_FILE" || { echo "Error: review file not found: $REVIEW_FILE"; e
 
 ### Package Manager Detection
 
-Detect the project type-check and test commands (used for between-batch validation in parallel mode and for passing to each `ycc:review-fixer` agent):
+Detect the project type-check and test commands (used for between-batch validation in parallel mode and for passing to each `review-fixer` agent):
 
 | File Exists         | Stack  | Type-check                      | Tests           |
 | ------------------- | ------ | ------------------------------- | --------------- |
@@ -136,7 +136,7 @@ If the file is not in the expected format or no findings are found, stop with:
 
 ```
 Error: Review file has no parseable findings or is not in the expected format.
-See the Review Artifact Format section of /ycc:code-review.
+See the Review Artifact Format section of /code-review.
 ```
 
 If every finding already has `Status: Fixed` or `Status: Failed`, stop with:
@@ -203,7 +203,7 @@ Group the eligible findings into batches. The goal is maximum parallelism withou
 
 ### Batching rules
 
-1. **Findings in the same file go in the same group.** Concurrent edits to one file cause write conflicts, so same-file findings are ALWAYS processed sequentially within a single `ycc:review-fixer` agent.
+1. **Findings in the same file go in the same group.** Concurrent edits to one file cause write conflicts, so same-file findings are ALWAYS processed sequentially within a single `review-fixer` agent.
 2. **Findings in different files are parallel candidates.** They can go in the same batch and be dispatched concurrently.
 3. **Within a same-file group, sort by line number DESCENDING.** This ensures earlier edits don't shift the line numbers of later findings.
 4. **Severity ordering across batches**: process CRITICAL findings first, then HIGH, then MEDIUM, then LOW. This gives the user the highest-value fixes immediately and ensures that if the pipeline stops mid-run, the worst issues are addressed first.
@@ -248,7 +248,7 @@ If `DRY_RUN=true`, stop here. Print a reminder:
 
 ```
 Dry run complete. To apply fixes, re-run without --dry-run:
-  /ycc:review-fix $REVIEW_FILE [--parallel] [--severity <level>]
+  /review-fix $REVIEW_FILE [--parallel] [--severity <level>]
 ```
 
 **CHECKPOINT**: Plan built. Batches computed. User has seen the plan.
@@ -265,7 +265,7 @@ Process batches in order. Within each batch, process findings (or same-file grou
 
 For each finding or group:
 
-1. **Dispatch a single `ycc:review-fixer` agent** with the Finding spec (Shape A for single, Shape B for same-file group). Include `SOURCE REVIEW FILE` and `PROJECT TYPE-CHECK COMMAND` in the prompt.
+1. **Dispatch a single `review-fixer` agent** with the Finding spec (Shape A for single, Shape B for same-file group). Include `SOURCE REVIEW FILE` and `PROJECT TYPE-CHECK COMMAND` in the prompt.
 
 2. **Wait for the agent to return** its success or failure report.
 
@@ -286,7 +286,7 @@ Process batches sequentially; within each batch, dispatch all review-fixer agent
 For each batch:
 
 1. **Dispatch review-fixer agents in parallel** — Use a **SINGLE message** with **MULTIPLE `Agent` tool calls**, one per finding or same-file group in the batch:
-   - `subagent_type`: `"ycc:review-fixer"`
+   - `subagent_type`: `"review-fixer"`
    - `description`: e.g., `"Fix F042: missing null check in payments.ts"`
    - `prompt`: The Finding spec (Shape A or Shape B) plus `SOURCE REVIEW FILE` and `PROJECT TYPE-CHECK COMMAND`
 
@@ -313,7 +313,7 @@ For each batch:
 
 ### Handling failures
 
-If a `ycc:review-fixer` agent returns `STATUS: Failed`:
+If a `review-fixer` agent returns `STATUS: Failed`:
 
 - **Do NOT retry** the same fix automatically. The agent already judged the Suggested fix to be incompatible.
 - Mark the finding as `Failed` in the review file.
@@ -402,7 +402,7 @@ Derive the report filename from the source review:
 **Description**: Unescaped input in raw SQL query
 **Suggested fix (from review)**: Use `db.query('... WHERE id = $1', [userId])`
 **Blocker**: `Property 'query' does not exist on type 'Connection'`. The connection type in this codebase exposes `execute`, not `query`.
-**Recommendation**: Update the review's Suggested fix to use `db.execute(...)` and re-run `/ycc:review-fix`.
+**Recommendation**: Update the review's Suggested fix to use `db.execute(...)` and re-run `/review-fix`.
 
 ## Validation Results
 
@@ -413,9 +413,9 @@ Derive the report filename from the source review:
 
 ## Next Steps
 
-- Re-run `/ycc:code-review <same target>` to verify the remaining open findings and confirm fixes resolved the issues
+- Re-run `/code-review <same target>` to verify the remaining open findings and confirm fixes resolved the issues
 - Address failed fixes manually using the Blocker + Recommendation notes above
-- Run `/ycc:git-workflow` to commit the changes when satisfied
+- Run `/git-workflow` to commit the changes when satisfied
 ```
 
 ---
@@ -448,8 +448,8 @@ The source review at <path> has been updated in place:
   Tests:      <Pass|Fail>
 
 ### Next Steps
-  /ycc:code-review <same target>   # re-review to verify fixes landed
-  /ycc:git-workflow                # commit the fixes when satisfied
+  /code-review <same target>   # re-review to verify fixes landed
+  /git-workflow                # commit the fixes when satisfied
 ```
 
 ---
@@ -462,12 +462,12 @@ The review artifact format requires `Status` on every finding. If a finding lack
 
 ```
 Warning: Finding F### has no Status field. Treating as Open.
-Fix the source review file format — see the Review Artifact Format section of /ycc:code-review.
+Fix the source review file format — see the Review Artifact Format section of /code-review.
 ```
 
 ### File was modified between review and fix
 
-If the finding's line number no longer points to the described code (because the file changed since the review was written), the `ycc:review-fixer` agent will detect this and return `STATUS: Failed` with a stale-line blocker. Mark the finding as `Failed` in the review file and include "stale line — file modified since review" in the report notes.
+If the finding's line number no longer points to the described code (because the file changed since the review was written), the `review-fixer` agent will detect this and return `STATUS: Failed` with a stale-line blocker. Mark the finding as `Failed` in the review file and include "stale line — file modified since review" in the report notes.
 
 ### Review file points to a deleted file
 
@@ -475,11 +475,11 @@ Covered by the missing-file filter in Phase 2. Skipped, not Failed.
 
 ### Fix introduces new findings
 
-`/ycc:review-fix` does not recursively scan for new findings. Re-run `/ycc:code-review` after fixes to catch any regressions.
+`/review-fix` does not recursively scan for new findings. Re-run `/code-review` after fixes to catch any regressions.
 
 ### User interrupts mid-run
 
-The review file is updated incrementally after each agent returns, so if the run is interrupted, the file reflects the current partial state. Re-running `/ycc:review-fix` on the same review file will skip findings that are already `Fixed` or `Failed` and resume from the next `Open` one.
+The review file is updated incrementally after each agent returns, so if the run is interrupted, the file reflects the current partial state. Re-running `/review-fix` on the same review file will skip findings that are already `Fixed` or `Failed` and resume from the next `Open` one.
 
 ---
 
@@ -497,18 +497,18 @@ The review file is updated incrementally after each agent returns, so if the run
 
 | Skill                    | Purpose                                                                                          |
 | ------------------------ | ------------------------------------------------------------------------------------------------ |
-| `/ycc:code-review`       | Produces a review artifact with findings and `Status: Open`                                      |
-| `/ycc:review-fix` (this) | Consumes a review artifact and applies fixes, updating `Status` to `Fixed` or `Failed`           |
-| `/ycc:prp-implement`     | Executes a PRP plan file with per-task validation — a different workflow, different input format |
-| `/ycc:git-workflow`      | Commits changes after fixes land                                                                 |
+| `/code-review`       | Produces a review artifact with findings and `Status: Open`                                      |
+| `/review-fix` (this) | Consumes a review artifact and applies fixes, updating `Status` to `Fixed` or `Failed`           |
+| `/prp-implement`     | Executes a PRP plan file with per-task validation — a different workflow, different input format |
+| `/git-workflow`      | Commits changes after fixes land                                                                 |
 
 ---
 
 ## Important Notes
 
 - **In-place Status updates**: The source review file is the source of truth. This skill mutates it in place via `Edit`, updating only the `Status` line of each processed finding. All other content is preserved.
-- **No scope creep**: Each `ycc:review-fixer` agent is scope-disciplined — it fixes exactly what the finding specifies. If the fix reveals a larger issue, the agent reports it, but the skill does not chase down related problems.
+- **No scope creep**: Each `review-fixer` agent is scope-disciplined — it fixes exactly what the finding specifies. If the fix reveals a larger issue, the agent reports it, but the skill does not chase down related problems.
 - **Resumable**: Re-running on the same review file skips already-processed findings.
 - **Audit trail**: The combination of (a) updated source review file and (b) fix report gives a complete history of what was attempted, what succeeded, and why.
 - **Parallel safety**: Parallel mode never dispatches two agents to the same file concurrently.
-- **No auto-commit**: The skill reports success and suggests `/ycc:git-workflow` as the next step. It does not commit changes itself.
+- **No auto-commit**: The skill reports success and suggests `/git-workflow` as the next step. It does not commit changes itself.

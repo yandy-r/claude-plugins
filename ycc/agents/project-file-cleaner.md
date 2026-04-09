@@ -1,7 +1,7 @@
 ---
 name: project-file-cleaner
 title: Project File Cleaner
-description: 'Use this agent when you need to clean up unnecessary files from a project directory, including old code files, compiled binaries, unused assets, outdated documentation, temporary files, and any redundant files that are no longer needed. This agent is particularly useful after major refactoring, before deployment, or during regular project maintenance to keep the codebase organized and efficient. Examples: <example>Context: The user wants to clean up their Docker-based project after development work. user: "Clean up all the unnecessary files in my project" assistant: "I''ll use the project-file-cleaner agent to analyze and remove unnecessary files from your project" <commentary>Since the user wants to clean up unnecessary files, use the Task tool to launch the project-file-cleaner agent to identify and remove redundant files.</commentary></example> <example>Context: The user has finished refactoring and wants to remove old files. user: "Remove all the old compiled binaries and temp files from testing" assistant: "Let me deploy the project-file-cleaner agent to identify and remove those unnecessary files" <commentary>The user specifically wants to clean up compiled binaries and temporary files, which is exactly what the project-file-cleaner agent handles.</commentary></example>'
+description: "Clean up unnecessary files from a project directory including old code, compiled binaries, unused assets, outdated docs, and temporary files."
 model: sonnet
 color: yellow
 ---

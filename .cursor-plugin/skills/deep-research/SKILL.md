@@ -62,7 +62,7 @@ OUTPUT_DIR="research/${SANITIZED}"
 Run the prerequisite check script:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/deep-research/scripts/check-prerequisites.sh "$OUTPUT_DIR"
+${CURSOR_PLUGIN_ROOT}/skills/deep-research/scripts/check-prerequisites.sh "$OUTPUT_DIR"
 ```
 
 Create the directory structure:
@@ -192,12 +192,12 @@ Remove --dry-run flag to execute the research.
 Read the persona prompt templates:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/deep-research/templates/persona-prompts.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/deep-research/templates/persona-prompts.md
 ```
 
 ### Step 7: Deploy 8 Persona Agents in Parallel
 
-**CRITICAL**: Deploy all 8 persona agents in a **SINGLE message** with **MULTIPLE Task tool calls**.
+**CRITICAL**: Deploy all 8 persona agents in a **SINGLE message** with **MULTIPLE parallel agent invocations**.
 
 | Persona                 | Subagent Type         | Output File                           | Search Depth |
 | ----------------------- | --------------------- | ------------------------------------- | ------------ |
@@ -263,12 +263,12 @@ cat "$OUTPUT_DIR/persona-findings/negative-space.md"
 Read the analysis agent templates:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/deep-research/templates/analysis-prompts.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/deep-research/templates/analysis-prompts.md
 ```
 
 ### Step 11: Deploy Crucible Analysis Agents
 
-**CRITICAL**: Deploy both analysis agents in a **SINGLE message** with **MULTIPLE Task tool calls**.
+**CRITICAL**: Deploy both analysis agents in a **SINGLE message** with **MULTIPLE parallel agent invocations**.
 
 | Agent                | Subagent Type               | Output File                          | Task                               |
 | -------------------- | --------------------------- | ------------------------------------ | ---------------------------------- |
@@ -327,7 +327,7 @@ After crucible analysis completes, verify critical findings:
 
 ### Step 13: Deploy Strategic Analysis Agents
 
-**CRITICAL**: Deploy all 4 strategic analysis agents in a **SINGLE message** with **MULTIPLE Task tool calls**.
+**CRITICAL**: Deploy all 4 strategic analysis agents in a **SINGLE message** with **MULTIPLE parallel agent invocations**.
 
 | Agent                | Subagent Type               | Output File                        | Focus                              |
 | -------------------- | --------------------------- | ---------------------------------- | ---------------------------------- |
@@ -361,7 +361,7 @@ Read all outputs to prepare for synthesis:
 Read the report structure template:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/deep-research/templates/report-structure.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/deep-research/templates/report-structure.md
 ```
 
 ### Step 16: Generate Final Report
@@ -381,7 +381,7 @@ Create `$OUTPUT_DIR/report.md` following the template structure.
 Run the validation script:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/deep-research/scripts/validate-research.sh "$OUTPUT_DIR"
+${CURSOR_PLUGIN_ROOT}/skills/deep-research/scripts/validate-research.sh "$OUTPUT_DIR"
 ```
 
 Fix any issues reported:

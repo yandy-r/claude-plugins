@@ -22,10 +22,10 @@ You are handling the git commit and documentation for: [FEATURE SCOPE]
 ## Documentation Templates
 
 Read these templates BEFORE creating documentation:
-- Feature docs: ~/.claude/file-templates/feature-doc.template.md
-- CLAUDE.md: ~/.claude/file-templates/claude.template.md
-- Architecture docs: ~/.claude/file-templates/arch.template.md
-- API docs: ~/.claude/file-templates/api.template.md
+- Feature docs: ~/.cursor/file-templates/feature-doc.template.md
+- CLAUDE.md: ~/.cursor/file-templates/claude.template.md
+- Architecture docs: ~/.cursor/file-templates/arch.template.md
+- API docs: ~/.cursor/file-templates/api.template.md
 
 ## Your Tasks
 
@@ -42,10 +42,10 @@ Read these templates BEFORE creating documentation:
 ## Important Constraints
 
 - **ALWAYS use conventional commit format** — this is mandatory, not optional
-- Read the reference BEFORE writing your commit message: ${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/templates/commit-types.md
+- Read the reference BEFORE writing your commit message: ${CURSOR_PLUGIN_ROOT}/skills/git-workflow/templates/commit-types.md
 - Validate your commit message BEFORE committing:
   ```bash
-  ${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh "<your-commit-message>"
+  ${CURSOR_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh "<your-commit-message>"
 ````
 
 If validation fails, revise the message and re-validate until it passes.
@@ -60,7 +60,7 @@ If validation fails, revise the message and re-validate until it passes.
 
 ## Documentation Decision Guidance
 
-Refer to: ${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/templates/documentation-decision.md
+Refer to: ${CURSOR_PLUGIN_ROOT}/skills/git-workflow/templates/documentation-decision.md
 
 Quick reminders:
 
@@ -108,7 +108,7 @@ Key changes:
 
 Read BEFORE documenting:
 
-- Feature docs: ~/.claude/file-templates/feature-doc.template.md
+- Feature docs: ~/.cursor/file-templates/feature-doc.template.md
 
 ## Your Tasks
 
@@ -183,8 +183,8 @@ This changes the following APIs:
 
 Read BEFORE documenting:
 
-- API docs: ~/.claude/file-templates/api.template.md
-- Feature docs: ~/.claude/file-templates/feature-doc.template.md (if needed)
+- API docs: ~/.cursor/file-templates/api.template.md
+- Feature docs: ~/.cursor/file-templates/feature-doc.template.md (if needed)
 
 ## Your Tasks
 
@@ -260,8 +260,8 @@ This is a CRITICAL security pattern that must be followed consistently.
 
 Read BEFORE documenting:
 
-- CLAUDE.md: ~/.claude/file-templates/claude.template.md
-- Architecture docs: ~/.claude/file-templates/arch.template.md
+- CLAUDE.md: ~/.cursor/file-templates/claude.template.md
+- Architecture docs: ~/.cursor/file-templates/arch.template.md
 
 ## Your Tasks
 
@@ -417,7 +417,7 @@ Use when:
 - Single logical feature
 - No natural scope divisions
 
-**Command**: Single Task tool call with one docs-git-committer agent
+**Command**: Single agent invocation with one docs-git-committer agent
 
 ### Parallel Agent Deployment
 
@@ -427,13 +427,13 @@ Use when:
 - Multiple distinct features
 - Independent scopes
 
-**CRITICAL**: Deploy ALL agents in SINGLE message with MULTIPLE Task tool calls
+**CRITICAL**: Deploy ALL agents in SINGLE message with MULTIPLE parallel agent invocations
 
 **Example**:
 
 ```
 
-[Single message with 3 Task tool calls]
+[Single message with 3 parallel agent invocations]
 
 Task 1: docs-git-committer for auth system
 Task 2: docs-git-committer for payment integration

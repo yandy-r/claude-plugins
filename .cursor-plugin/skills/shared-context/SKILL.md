@@ -19,8 +19,8 @@ allowed-tools:
   - Bash(cat:*)
   - Bash(test:*)
   - Bash(mkdir:*)
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/shared-context/scripts/*.sh:*)'
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/shared-context/scripts/*.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
 ---
 
 ## SCOPE LIMITATION - READ FIRST
@@ -94,7 +94,7 @@ Validate the feature name:
 Use the shared resolver to determine the correct plans directory:
 
 ```bash
-source ${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/resolve-plans-dir.sh
+source ${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/resolve-plans-dir.sh
 feature_dir="$(get_feature_plan_dir "[feature-name]")"
 ```
 
@@ -191,7 +191,7 @@ Create 4 tasks in the shared task list — one per research domain:
 Read the research prompts template:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/shared-context/templates/research-prompts.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/shared-context/templates/research-prompts.md
 ```
 
 ### Step 9: Spawn Research Teammates
@@ -238,7 +238,7 @@ If a teammate gets stuck, send them a message with guidance or additional contex
 After all teammates complete, validate all research files:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/shared-context/scripts/validate-research-artifacts.sh "${feature_dir}"
+${CURSOR_PLUGIN_ROOT}/skills/shared-context/scripts/validate-research-artifacts.sh "${feature_dir}"
 ```
 
 If validation fails: identify which files are missing or invalid from the script output, send a message to the relevant teammate asking them to fix their output, wait for correction, then rerun validation until pass.
@@ -273,7 +273,7 @@ Read all research files:
 Read the shared structure template:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/shared-context/templates/shared-structure.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/shared-context/templates/shared-structure.md
 ```
 
 Create `${feature_dir}/shared.md` following the template exactly.
@@ -294,7 +294,7 @@ Quality rules:
 Run the validation script:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/shared-context/scripts/validate-shared.sh "${feature_dir}/shared.md"
+${CURSOR_PLUGIN_ROOT}/skills/shared-context/scripts/validate-shared.sh "${feature_dir}/shared.md"
 ```
 
 Fix any issues reported, then re-run until validation passes or only warnings remain.

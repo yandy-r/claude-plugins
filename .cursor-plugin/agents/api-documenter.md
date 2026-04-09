@@ -1,25 +1,6 @@
 ---
 name: api-documenter
-description: Use this agent when you need to create comprehensive API documentation including endpoint specs, request/response examples, authentication guides, and error handling references. Outputs to docs/api/. Examples:
-
-  <example>
-  Context: The write-docs skill is deploying documentation agents in parallel.
-  user: "/write-docs"
-  assistant: "I'll deploy the api-documenter agent to create API reference documentation in docs/api/."
-  <commentary>
-  The write-docs orchestrator deploys this agent as part of its parallel documentation pipeline to handle API documentation.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A project has API endpoints that need documentation.
-  user: "Document all the API endpoints in this project"
-  assistant: "I'll use the api-documenter agent to create comprehensive API documentation with endpoint specs, examples, and error handling."
-  <commentary>
-  Direct request for API documentation maps to this specialized agent.
-  </commentary>
-  </example>
-
+description: "Generate comprehensive API documentation from code, including endpoint specs, parameter descriptions, response schemas, and usage examples."
 model: sonnet
 color: cyan
 tools:

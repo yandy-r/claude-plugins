@@ -1,6 +1,6 @@
 ---
 name: init
-description: This skill should be used when the user asks to "initialize workspace", "set up Claude CLI environment", "configure agents and MCPs for project", "init workspace", "set up project with Claude tools", or mentions workspace initialization. Analyzes project type and presents available agents/MCPs for selection.
+description: This skill should be used when the user asks to "initialize workspace", "set up Cursor CLI environment", "configure agents and MCPs for project", "init workspace", "set up project with Cursor tools", or mentions workspace initialization. Analyzes project type and presents available agents/MCPs for selection.
 argument-hint: '[--dry-run]'
 disable-model-invocation: true
 allowed-tools:
@@ -12,13 +12,13 @@ allowed-tools:
   - Bash(cp:*)
   - Bash(mkdir:*)
   - Bash(jq:*)
-  - 'Bash(${HOME}/.claude/mcp-library/generate-mcp-config.sh:*)'
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/init/scripts/*.sh:*)'
+  - 'Bash(${HOME}/.cursor/mcp-library/generate-mcp-config.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/init/scripts/*.sh:*)'
 ---
 
-# Claude CLI Workspace Initialization
+# Cursor CLI Workspace Initialization
 
-Initialize this workspace with the optimal Claude CLI configuration based on project analysis.
+Initialize this workspace with the optimal Cursor CLI configuration based on project analysis.
 
 ## Current Project Context
 
@@ -40,7 +40,7 @@ Initialize this workspace with the optimal Claude CLI configuration based on pro
 
 ## Task
 
-Initialize this workspace with the optimal Claude CLI configuration.
+Initialize this workspace with the optimal Cursor CLI configuration.
 
 ### Phase 1: Project Discovery
 
@@ -58,9 +58,9 @@ Read these files if they exist: `README.md`, `CLAUDE.md`, `package.json`, `go.mo
 Run the catalog generator scripts:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/init/scripts/generate-mcp-catalog.sh
+${CURSOR_PLUGIN_ROOT}/skills/init/scripts/generate-mcp-catalog.sh
 
-${CLAUDE_PLUGIN_ROOT}/skills/init/scripts/generate-agent-catalog.sh
+${CURSOR_PLUGIN_ROOT}/skills/init/scripts/generate-agent-catalog.sh
 ```
 
 ### Phase 3: Present Full Selection List
@@ -76,14 +76,14 @@ If `--dry-run` was passed in `$ARGUMENTS`: display what would be configured, sho
 For selected MCPs:
 
 ```bash
-${HOME}/.claude/mcp-library/generate-mcp-config.sh <selected-mcps>
+${HOME}/.cursor/mcp-library/generate-mcp-config.sh <selected-mcps>
 ```
 
-For selected agents: create `.claude/agents/` directory if needed and copy selected agent files from `${HOME}/.claude/agents/` to the project.
+For selected agents: create `.claude/agents/` directory if needed and copy selected agent files from `${HOME}/.cursor/agents/` to the project.
 
 ### Phase 6: Generate Summary Report
 
-Output a summary using the template at `${CLAUDE_PLUGIN_ROOT}/skills/init/templates/workspace-report.md` with project analysis, configured MCPs/agents tables, and next steps.
+Output a summary using the template at `${CURSOR_PLUGIN_ROOT}/skills/init/templates/workspace-report.md` with project analysis, configured MCPs/agents tables, and next steps.
 
 ---
 

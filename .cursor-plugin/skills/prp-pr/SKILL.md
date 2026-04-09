@@ -1,6 +1,6 @@
 ---
 name: prp-pr
-description: Create a GitHub pull request from the current branch — validates preconditions, discovers PR templates, analyzes commits and file diffs, references PRP artifacts (prds/plans/reports), pushes, and creates the PR via gh. Lightweight sibling of /ycc:git-workflow --pr; use this when you only need the PR, not the commit+docs orchestration. Adapted from PRPs-agentic-eng by Wirasm.
+description: Create a GitHub pull request from the current branch — validates preconditions, discovers PR templates, analyzes commits and file diffs, references PRP artifacts (prds/plans/reports), pushes, and creates the PR via gh. Lightweight sibling of /git-workflow --pr; use this when you only need the PR, not the commit+docs orchestration. Adapted from PRPs-agentic-eng by Wirasm.
 argument-hint: '[base-branch] [--draft]'
 allowed-tools:
   - Read
@@ -21,7 +21,7 @@ allowed-tools:
 
 **Input**: `$ARGUMENTS` — optional, may contain a base branch name and/or flags (e.g., `--draft`).
 
-This is the lightweight counterpart to `/ycc:git-workflow --pr`. Use it when you just need the PR created, without the full commit+documentation orchestration.
+This is the lightweight counterpart to `/git-workflow --pr`. Use it when you just need the PR created, without the full commit+documentation orchestration.
 
 **Parse `$ARGUMENTS`**:
 
@@ -44,7 +44,7 @@ git log origin/<base>..HEAD --oneline
 | Check                   | Condition                                           | Action if Failed                                                                              |
 | ----------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | Not on base branch      | Current branch ≠ base                               | Stop: "Switch to a feature branch first."                                                     |
-| Clean working directory | No uncommitted changes                              | Warn: "You have uncommitted changes. Commit or stash first. Use `/ycc:prp-commit` to commit." |
+| Clean working directory | No uncommitted changes                              | Warn: "You have uncommitted changes. Commit or stash first. Use `/prp-commit` to commit." |
 | Has commits ahead       | `git log origin/<base>..HEAD` not empty             | Stop: "No commits ahead of `<base>`. Nothing to PR."                                          |
 | No existing PR          | `gh pr list --head <branch> --json number` is empty | Stop: "PR already exists: #<number>. Use `gh pr view <number> --web` to open it."             |
 
@@ -193,7 +193,7 @@ Artifacts referenced:
 
 Next steps:
   - gh pr view <number> --web      → open in browser
-  - /ycc:code-review <number>      → review the PR
+  - /code-review <number>      → review the PR
   - gh pr merge <number>           → merge when ready
 ```
 
@@ -209,9 +209,9 @@ Next steps:
 
 ---
 
-## When to use this vs `/ycc:git-workflow --pr`
+## When to use this vs `/git-workflow --pr`
 
-| Use `/ycc:prp-pr` when            | Use `/ycc:git-workflow --pr` when                  |
+| Use `/prp-pr` when            | Use `/git-workflow --pr` when                  |
 | --------------------------------- | -------------------------------------------------- |
 | Your commits are already in place | You want to commit and PR in one flow              |
 | You want a focused PR-only tool   | You want documentation agents to update docs first |

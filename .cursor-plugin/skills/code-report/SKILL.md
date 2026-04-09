@@ -52,7 +52,7 @@ Extract the feature name from `$ARGUMENTS` (first non-flag argument).
 Run the prerequisites check script:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/code-report/scripts/check-prerequisites.sh [feature-name]
+${CURSOR_PLUGIN_ROOT}/skills/code-report/scripts/check-prerequisites.sh [feature-name]
 ```
 
 If the script exits with error:
@@ -155,7 +155,7 @@ Remove --dry-run flag to generate the report.
 Read the report template:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/code-report/templates/report-structure.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/code-report/templates/report-structure.md
 ```
 
 ### Step 8: Generate Report Content

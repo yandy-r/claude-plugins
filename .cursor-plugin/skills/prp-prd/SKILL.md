@@ -48,7 +48,7 @@ You are a sharp product manager who:
 QUESTION SET 1 → GROUNDING → QUESTION SET 2 → RESEARCH → QUESTION SET 3 → GENERATE
 ```
 
-Each question set builds on previous answers. Grounding phases validate assumptions using the `ycc:prp-researcher` agent for dual-mode (codebase + market) discovery.
+Each question set builds on previous answers. Grounding phases validate assumptions using the `prp-researcher` agent for dual-mode (codebase + market) discovery.
 
 ---
 
@@ -86,7 +86,7 @@ Ask these questions (present all at once, user can answer together):
 
 ## Phase 3: GROUNDING — Market & Context Research
 
-After foundation answers, dispatch the **`ycc:prp-researcher`** agent in **market+codebase (dual) mode** to investigate:
+After foundation answers, dispatch the **`prp-researcher`** agent in **market+codebase (dual) mode** to investigate:
 
 - Similar products/features in the market
 - How competitors solve this problem
@@ -128,7 +128,7 @@ Based on foundation + research, ask:
 
 ## Phase 5: GROUNDING — Technical Feasibility
 
-Dispatch the **`ycc:prp-researcher`** agent again, this time scoped to **technical feasibility**:
+Dispatch the **`prp-researcher`** agent again, this time scoped to **technical feasibility**:
 
 - If a codebase exists, run two investigations:
   1. **Explore feasibility** — existing infrastructure that can be leveraged, similar patterns already implemented, integration points, dependencies, relevant config and type definitions
@@ -378,7 +378,7 @@ After generating, report:
 
 ### To Start Implementation
 
-Run: `/ycc:prp-plan docs/prps/prds/{name}.prd.md`
+Run: `/prp-plan docs/prps/prds/{name}.prd.md`
 
 This will automatically select the next pending phase and create an implementation plan.
 ```
@@ -400,7 +400,7 @@ This will automatically select the next pending phase and create an implementati
                           v
 +---------------------------------------------------------+
 |  GROUNDING: Market research, competitor analysis         |
-|  (dispatch ycc:prp-researcher dual-mode)                 |
+|  (dispatch prp-researcher dual-mode)                 |
 +---------------------------------------------------------+
                           |
                           v
@@ -411,7 +411,7 @@ This will automatically select the next pending phase and create an implementati
                           v
 +---------------------------------------------------------+
 |  GROUNDING: Technical feasibility, codebase exploration |
-|  (dispatch ycc:prp-researcher technical mode)            |
+|  (dispatch prp-researcher technical mode)            |
 +---------------------------------------------------------+
                           |
                           v
@@ -431,10 +431,10 @@ This will automatically select the next pending phase and create an implementati
 
 After PRD generation:
 
-- Use `/ycc:prp-plan` to create implementation plans from PRD phases (this workflow is PRD-aware and will find the next pending phase)
-- Use `/ycc:plan` for simpler conversational planning without PRD structure
-- Use `/ycc:plan-workflow` for the heavyweight parallel-agent planning track instead
-- Use `/ycc:save-session` to preserve PRD context across sessions
+- Use `/prp-plan` to create implementation plans from PRD phases (this workflow is PRD-aware and will find the next pending phase)
+- Use `/plan` for simpler conversational planning without PRD structure
+- Use `/plan-workflow` for the heavyweight parallel-agent planning track instead
+- Use `/save-session` to preserve PRD context across sessions
 
 ## Success Criteria
 

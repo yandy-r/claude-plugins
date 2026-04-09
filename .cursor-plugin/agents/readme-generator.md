@@ -1,25 +1,6 @@
 ---
 name: readme-generator
-description: Use this agent when you need to create or update README.md files throughout a project including root README, directory READMEs, setup guides, and usage examples. Examples:
-
-  <example>
-  Context: The write-docs skill is deploying documentation agents in parallel.
-  user: "/write-docs"
-  assistant: "I'll deploy the readme-generator agent to create and update README files throughout the project."
-  <commentary>
-  The write-docs orchestrator deploys this agent as part of its parallel documentation pipeline to handle README files.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A project needs its README updated or directories lack READMEs.
-  user: "Update the project README and add READMEs to the major directories"
-  assistant: "I'll use the readme-generator agent to create comprehensive README files throughout the project."
-  <commentary>
-  Direct request for README creation/updates maps to this specialized agent.
-  </commentary>
-  </example>
-
+description: "Generate comprehensive README files for projects with proper structure, badges, installation instructions, and usage examples."
 model: sonnet
 color: magenta
 tools:

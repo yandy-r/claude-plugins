@@ -52,7 +52,7 @@ Extract the feature name from `$ARGUMENTS` (first non-flag argument).
 Run the prerequisites check script:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/implement-plan/scripts/check-prerequisites.sh [feature-name]
+${CURSOR_PLUGIN_ROOT}/skills/implement-plan/scripts/check-prerequisites.sh [feature-name]
 ```
 
 If the script exits with error:
@@ -79,7 +79,7 @@ Also read files listed in the "Critically Relevant Files" section of parallel-pl
 Parse `parallel-plan.md` to extract all tasks:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/implement-plan/scripts/parse-dependencies.sh docs/plans/[feature-name]/parallel-plan.md
+${CURSOR_PLUGIN_ROOT}/skills/implement-plan/scripts/parse-dependencies.sh docs/plans/[feature-name]/parallel-plan.md
 ```
 
 For each task, extract:
@@ -185,12 +185,12 @@ Remove --dry-run flag to execute the plan.
 
 For each batch of ready tasks:
 
-**CRITICAL**: Deploy all agents in the batch in a **SINGLE message** with **MULTIPLE Task tool calls**.
+**CRITICAL**: Deploy all agents in the batch in a **SINGLE message** with **MULTIPLE parallel agent invocations**.
 
 Read the agent task prompt template:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/implement-plan/templates/agent-task-prompt.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/implement-plan/templates/agent-task-prompt.md
 ```
 
 For each task in the batch, deploy an `implementor` agent with:

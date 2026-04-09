@@ -20,9 +20,9 @@ allowed-tools:
   - Bash(cat:*)
   - Bash(test:*)
   - Bash(mkdir:*)
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/scripts/*.sh:*)'
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/**/*.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/plan-workflow/scripts/*.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/**/*.sh:*)'
 ---
 
 # Unified Planning Workflow
@@ -101,7 +101,7 @@ Validate the feature name:
 Use the shared resolver to determine the correct plans directory:
 
 ```bash
-source ${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/resolve-plans-dir.sh
+source ${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/resolve-plans-dir.sh
 feature_dir="$(get_feature_plan_dir "[feature-name]")"
 ```
 
@@ -112,7 +112,7 @@ This handles monorepo detection, `.plans-config` files, and git root resolution 
 Run the state detection script:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/scripts/check-state.sh [feature-name]
+${CURSOR_PLUGIN_ROOT}/skills/plan-workflow/scripts/check-state.sh [feature-name]
 ```
 
 This script reports:
@@ -150,7 +150,7 @@ mkdir -p "${feature_dir}"
 If `--dry-run` is present, read and display dry run template:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/templates/checkpoint-messages.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/plan-workflow/templates/checkpoint-messages.md
 ```
 
 Display the "Dry Run" section from the template with appropriate values substituted, then **STOP**.
@@ -172,7 +172,7 @@ TeamCreate: team_name="pw-[feature-name]", description="Planning workflow team f
 Read the research prompts template:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/templates/research-agents.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/plan-workflow/templates/research-agents.md
 ```
 
 ### Step 9: Create Research Tasks
@@ -213,7 +213,7 @@ Use the prompts from `research-agents.md` with variables substituted:
 After all research teammates complete (check via TaskList), validate all research files:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/shared-context/scripts/validate-research-artifacts.sh "${feature_dir}"
+${CURSOR_PLUGIN_ROOT}/skills/shared-context/scripts/validate-research-artifacts.sh "${feature_dir}"
 ```
 
 If validation fails: message the relevant teammate to fix their output, wait for correction, rerun validation until pass.
@@ -246,7 +246,7 @@ After verifying all files exist, read all research files:
 Read the shared structure template:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/templates/shared-structure.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/plan-workflow/templates/shared-structure.md
 ```
 
 Create `${feature_dir}/shared.md` following the template exactly.
@@ -256,7 +256,7 @@ Create `${feature_dir}/shared.md` following the template exactly.
 Run the validation script:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/scripts/validate-shared.sh "${feature_dir}/shared.md"
+${CURSOR_PLUGIN_ROOT}/skills/plan-workflow/scripts/validate-shared.sh "${feature_dir}/shared.md"
 ```
 
 Fix any errors before proceeding.
@@ -280,7 +280,7 @@ If checkpoint is enabled, use **AskUserQuestion** with these options:
 Read checkpoint message format from:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/templates/checkpoint-messages.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/plan-workflow/templates/checkpoint-messages.md
 ```
 
 If user chooses "Review shared.md first":
@@ -315,7 +315,7 @@ TeamCreate: team_name="pw-[feature-name]", description="Planning workflow team f
 In standard mode (not --optimized), read analysis prompts:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/templates/planning-agents.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/plan-workflow/templates/planning-agents.md
 ```
 
 ### Step 19: Create Analysis Tasks
@@ -354,7 +354,7 @@ Use the prompts from `planning-agents.md` with variables substituted:
 After analysis teammates complete (check via TaskList), validate all analysis files:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/validate-analysis-artifacts.sh "${feature_dir}"
+${CURSOR_PLUGIN_ROOT}/skills/parallel-plan/scripts/validate-analysis-artifacts.sh "${feature_dir}"
 ```
 
 If validation passes → skip to Step 22 (Pre-Generation Gate).
@@ -365,7 +365,7 @@ If validation fails → message the relevant teammate to fix their output, wait,
 Run the pre-generation gate script:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/persist-or-fail.sh "${feature_dir}"
+${CURSOR_PLUGIN_ROOT}/skills/parallel-plan/scripts/persist-or-fail.sh "${feature_dir}"
 ```
 
 - **Exit 0** → proceed to Phase 7
@@ -399,7 +399,7 @@ After verifying all files exist, read all analysis files:
 ### Step 25: Read Plan Template
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/templates/plan-structure.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/plan-workflow/templates/plan-structure.md
 ```
 
 ### Step 26: Generate parallel-plan.md
@@ -418,7 +418,7 @@ Required sections:
 Run the validation script:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/scripts/validate-workflow-plan.sh "${feature_dir}/parallel-plan.md"
+${CURSOR_PLUGIN_ROOT}/skills/plan-workflow/scripts/validate-workflow-plan.sh "${feature_dir}/parallel-plan.md"
 ```
 
 Fix any structural issues found.
@@ -430,7 +430,7 @@ Fix any structural issues found.
 ### Step 28: Read Validation Prompts
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/templates/validation-agents.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/plan-workflow/templates/validation-agents.md
 ```
 
 ### Step 29: Create Validation Tasks

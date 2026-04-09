@@ -1,79 +1,120 @@
-# Cursor rules (`~/.cursor/rules`)
+# Rules
 
-This directory contains **Cursor rule files** (`.mdc`) used by the editor’s AI features. Rules here
-apply **globally** to all workspaces unless you override them with project-local rules under
-`<project>/.cursor/rules/`.
+This directory is the **source of truth** for rule content. For **Cursor**, generated `.mdc` files
+live under `.cursor-plugin/rules/` (nested layout preserved). Regenerate after edits:
 
-## File types
-
-| File        | Purpose                                         |
-| ----------- | ----------------------------------------------- |
-| `*.mdc`     | Active rules — read by Cursor                   |
-| `README.md` | Human documentation only (not loaded as a rule) |
-
-## Frontmatter (required)
-
-Every rule file starts with YAML between `---` lines:
-
-```yaml
----
-description: 'Short human-readable summary of what this rule enforces'
-alwaysApply: true
----
+```bash
+./scripts/generate-cursor-rules.sh
+./scripts/validate-cursor-rules.sh
 ```
 
-### Scoped rules (language / web)
+Generated files use YAML frontmatter (`description`, `alwaysApply`, `globs`) and Cursor-native path
+wording. Prefer **single-root** Cursor workspaces when using nested `.cursor/rules/**` trees.
 
-When a rule should apply only to certain files, set `alwaysApply: false` and add **`globs`** (not
-`paths`). Glob patterns **must be quoted** in YAML so `**` parses correctly:
+### Cursor `.mdc` frontmatter
 
-```yaml
----
-description: 'TypeScript coding conventions'
-alwaysApply: false
-globs:
-  - '**/*.ts'
-  - '**/*.tsx'
-  - '**/*.js'
-  - '**/*.jsx'
----
+Each generated rule starts with YAML between `---` lines:
+
+- **`description`**: short summary (required).
+- **`alwaysApply`**: `true` for `common/*` and `web/design-quality.md`; `false` for scoped rules.
+- **`globs`**: file patterns for scoped rules (language folders and most `web/*`); omitted when `alwaysApply: true`.
+
+Source files may use Claude-style `paths:` in YAML; the generator rewrites that to `globs:`.
+
+## Structure
+
+Rules are organized into a **common** layer plus **language-specific** directories:
+
+```
+rules/
+├── common/          # Language-agnostic principles (always install)
+│   ├── coding-style.md
+│   ├── git-workflow.md
+│   ├── testing.md
+│   ├── performance.md
+│   ├── patterns.md
+│   ├── hooks.md
+│   ├── agents.md
+│   └── security.md
+├── typescript/      # TypeScript/JavaScript specific
+├── python/          # Python specific
+├── golang/          # Go specific
+├── web/             # Web and frontend specific
+├── swift/           # Swift specific
+└── php/             # PHP specific
 ```
 
-### Precedence
+- **common/** contains universal principles — no language-specific code examples.
+- **Language directories** extend the common rules with framework-specific patterns, tools, and code examples. Each file references its common counterpart.
 
-- **`alwaysApply: true`** — included in context broadly (use for language-agnostic standards: coding
-  style, testing policy, git workflow, security baselines, etc.).
-- **`alwaysApply: false` + `globs`** — applied when matching files are in scope (use for
-  `typescript__*`, `python__*`, `web__*`, etc.).
+## Installation
 
-Where a global rule and a scoped rule overlap, **the more specific scoped rule should win in
-practice**; keep global rules generic and put language-specific detail in prefixed files.
+### Cursor (this plugin bundle)
 
-## Naming convention
+From the repo root, sync the generated bundle to your Cursor config:
 
-Files are **flattened** in this directory (no `common/` subfolders):
+```bash
+./install.sh --target cursor
+```
 
-- **Global rules:** `coding-style.mdc`, `testing.mdc`, `security.mdc`, `git-workflow.mdc`, …
-- **Language- or domain-prefixed rules:** `{prefix}__{topic}.mdc`  
-  Examples: `typescript__coding-style.mdc`, `golang__testing.mdc`, `web__patterns.mdc`
+This copies `.cursor-plugin/rules/` (including nested `common/`, `typescript/`, …) to `~/.cursor/rules/`.
 
-Prefix examples: `typescript`, `python`, `golang`, `rust`, `java`, `kotlin`, `swift`, `php`, `perl`,
-`dart`, `csharp`, `cpp`, `web`.
+### Manual copy (any editor)
 
-## Cross-references
+> **Important:** Copy entire directories — do NOT flatten with `/*`.
+> Common and language-specific directories contain files with the same names.
+> Flattening them into one directory causes language-specific files to overwrite
+> common rules, and breaks the relative `../common/` references used by
+> language-specific files.
 
-Language-specific files reference the matching global file in the same directory, e.g.
-`[coding-style.mdc](coding-style.mdc)`. Paths like `../common/` are **not** used in this layout.
+```bash
+# Example: copy into Cursor project rules
+cp -r .cursor-plugin/rules/common ~/.cursor/rules/common
+cp -r .cursor-plugin/rules/typescript ~/.cursor/rules/typescript
+# ...add only the stacks you need
+```
 
-## Content notes
+## Rules vs Skills
 
-- Some body text still mentions **Claude Code** paths (e.g. `~/.claude/agents/`, `settings.json`);
-  update those to your harness if you use a different tool.
-- Chinese duplicate rule files (`zh__*.md`) were removed; only English rules are kept here.
+- **Rules** define standards, conventions, and checklists that apply broadly (e.g., "80% test coverage", "no hardcoded secrets").
+- **Skills** (`skills/` directory) provide deep, actionable reference material for specific tasks (e.g., `python-patterns`, `golang-testing`).
 
-## Adding a new scoped rule
+Language-specific rule files reference relevant skills where appropriate. Rules tell you _what_ to do; skills tell you _how_ to do it.
 
-1. Create `mylang__topic.mdc` with `description`, `alwaysApply: false`, and `globs` for that
-   language.
-2. Optionally add a one-line “extends” note pointing at the global `topic.mdc` file.
-3. Keep globs **double-quoted** in YAML.
+## Adding a New Language
+
+To add support for a new language (e.g., `rust/`):
+
+1. Create a `rules/rust/` directory
+2. Add files that extend the common rules:
+   - `coding-style.md` — formatting tools, idioms, error handling patterns
+   - `testing.md` — test framework, coverage tools, test organization
+   - `patterns.md` — language-specific design patterns
+   - `hooks.md` — PostToolUse hooks for formatters, linters, type checkers
+   - `security.md` — secret management, security scanning tools
+3. Each file should start with:
+   ```
+   > This file extends [common/xxx.mdc](../common/xxx.mdc) with <Language> specific content.
+   ```
+4. Reference existing skills if available, or create new ones under `skills/`.
+
+For non-language domains like `web/`, follow the same layered pattern when there is enough reusable domain-specific guidance to justify a standalone ruleset.
+
+## Rule Priority
+
+When language-specific rules and common rules conflict, **language-specific rules take precedence** (specific overrides general). This follows the standard layered configuration pattern (similar to CSS specificity or `.gitignore` precedence).
+
+- `rules/common/` defines universal defaults applicable to all projects.
+- `rules/golang/`, `rules/python/`, `rules/swift/`, `rules/php/`, `rules/typescript/`, etc. override those defaults where language idioms differ.
+
+### Example
+
+`common/coding-style.md` recommends immutability as a default principle. A language-specific `golang/coding-style.md` can override this:
+
+> Idiomatic Go uses pointer receivers for struct mutation — see [common/coding-style.mdc](../common/coding-style.mdc) for the general principle, but Go-idiomatic mutation is preferred here.
+
+### Common rules with override notes
+
+Rules in `rules/common/` that may be overridden by language-specific files are marked with:
+
+> **Language note**: This rule may be overridden by language-specific rules for languages where this pattern is not idiomatic.

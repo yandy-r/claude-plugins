@@ -25,8 +25,8 @@ allowed-tools:
   - Bash(cat:*)
   - Bash(test:*)
   - Bash(mkdir:*)
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/feature-research/scripts/*.sh:*)'
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/feature-research/scripts/*.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
 ---
 
 # Feature Research
@@ -164,7 +164,7 @@ Create 7 tasks in the shared task list:
 Read the research prompts template:
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/feature-research/templates/research-agents.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/feature-research/templates/research-agents.md
 ```
 
 ### Step 8: Spawn Research Teammates
@@ -219,7 +219,7 @@ If a teammate gets stuck, send them guidance via SendMessage.
 After all 7 teammates complete, validate all `research-*.md` files:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/feature-research/scripts/validate-research.sh docs/plans/[feature-name]
+${CURSOR_PLUGIN_ROOT}/skills/feature-research/scripts/validate-research.sh docs/plans/[feature-name]
 ```
 
 If validation fails: message the relevant teammate to fix their output, wait for correction, rerun validation until pass.
@@ -239,7 +239,7 @@ Read all 7 research files from `docs/plans/[feature-name]/`.
 ### Step 13: Read Spec Template
 
 ```bash
-cat ${CLAUDE_PLUGIN_ROOT}/skills/feature-research/templates/spec-structure.md
+cat ${CURSOR_PLUGIN_ROOT}/skills/feature-research/templates/spec-structure.md
 ```
 
 ### Step 14: Generate feature-spec.md
@@ -262,7 +262,7 @@ Create `docs/plans/[feature-name]/feature-spec.md` following the template.
 ### Step 15: Validate Spec
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/feature-research/scripts/validate-spec.sh docs/plans/[feature-name]/feature-spec.md
+${CURSOR_PLUGIN_ROOT}/skills/feature-research/scripts/validate-spec.sh docs/plans/[feature-name]/feature-spec.md
 ```
 
 Fix any issues reported (missing sections, empty content, formatting).

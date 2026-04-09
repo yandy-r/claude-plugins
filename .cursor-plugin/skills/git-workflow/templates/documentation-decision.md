@@ -82,7 +82,7 @@ Does this change affect user-facing behavior or APIs?
 
 ### Feature Documentation Template Location
 
-**Template**: `~/.claude/file-templates/feature-doc.template.md`
+**Template**: `~/.cursor/file-templates/feature-doc.template.md`
 
 **Output location**: `docs/features/[feature-name].doc.md`
 
@@ -200,7 +200,7 @@ service connects to the database and validates credentials...
 
 ### CLAUDE.md Template Location
 
-**Template**: `~/.claude/file-templates/claude.template.md`
+**Template**: `~/.cursor/file-templates/claude.template.md`
 
 **Output location**: Only in specific directories with changes, never root
 
@@ -246,7 +246,7 @@ service connects to the database and validates credentials...
 
 ### Architecture Documentation Template Location
 
-**Template**: `~/.claude/file-templates/arch.template.md`
+**Template**: `~/.cursor/file-templates/arch.template.md`
 
 **Output location**: `docs/architecture/[topic].md`
 
@@ -299,7 +299,7 @@ Architecture docs should include:
 
 ### API Documentation Template Location
 
-**Template**: `~/.claude/file-templates/api.template.md`
+**Template**: `~/.cursor/file-templates/api.template.md`
 
 **Output location**: `docs/api/[endpoint-or-group].md`
 
@@ -352,7 +352,7 @@ API docs should include:
 
 ### Setup Documentation Template Location
 
-**Template**: `~/.claude/file-templates/setup.template.md`
+**Template**: `~/.cursor/file-templates/setup.template.md`
 
 **Output location**: `docs/setup.md` (or contribution section)
 

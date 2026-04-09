@@ -1,6 +1,6 @@
 # Style Presets Reference
 
-Curated visual styles for `ycc:frontend-slides`.
+Curated visual styles for `frontend-slides`.
 
 Use this file for:
 

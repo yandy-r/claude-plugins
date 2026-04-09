@@ -17,7 +17,7 @@ allowed-tools:
   - Bash(rm:*)
   - Bash(git:*)
   - Bash(du:*)
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/clean/scripts/*.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/clean/scripts/*.sh:*)'
 ---
 
 # Project File Cleaner
@@ -37,17 +37,17 @@ Parse `$ARGUMENTS` for:
 ## Phase 0: Setup
 
 1. **Validate target directory** exists
-2. **Detect project type** using: `${CLAUDE_PLUGIN_ROOT}/skills/clean/scripts/detect-project-type.sh "$TARGET_DIR"`
-3. **Read safety configuration** from `${CLAUDE_PLUGIN_ROOT}/skills/clean/references/safety-config.md`
+2. **Detect project type** using: `${CURSOR_PLUGIN_ROOT}/skills/clean/scripts/detect-project-type.sh "$TARGET_DIR"`
+3. **Read safety configuration** from `${CURSOR_PLUGIN_ROOT}/skills/clean/references/safety-config.md`
 4. **Create working directory**: `$TARGET_DIR/.cleanup-analysis/findings/`
 5. **Initialize progress tracking** with TodoWrite for all phases
 6. **If --dry-run**: Display analysis plan and **STOP**
 
 ## Phase 1: Parallel Agent Deployment
 
-Read agent prompts from `${CLAUDE_PLUGIN_ROOT}/skills/clean/references/agent-prompts.md`.
+Read agent prompts from `${CURSOR_PLUGIN_ROOT}/skills/clean/references/agent-prompts.md`.
 
-Deploy all 6 agents in a **SINGLE message** with **MULTIPLE Task tool calls** using subagent type `project-file-cleaner`:
+Deploy all 6 agents in a **SINGLE message** with **MULTIPLE parallel agent invocations** using subagent type `project-file-cleaner`:
 
 | Agent      | Output File                 |
 | ---------- | --------------------------- |
@@ -71,8 +71,8 @@ After all agents complete:
 
 ## Phase 3: Report Generation and User Review
 
-1. Run: `${CLAUDE_PLUGIN_ROOT}/skills/clean/scripts/generate-report.sh "$TARGET_DIR"`
-2. Run safety validation: `${CLAUDE_PLUGIN_ROOT}/skills/clean/scripts/validate-safety.sh "$TARGET_DIR/.cleanup-analysis/cleanup-report.md"`
+1. Run: `${CURSOR_PLUGIN_ROOT}/skills/clean/scripts/generate-report.sh "$TARGET_DIR"`
+2. Run safety validation: `${CURSOR_PLUGIN_ROOT}/skills/clean/scripts/validate-safety.sh "$TARGET_DIR/.cleanup-analysis/cleanup-report.md"`
 3. Fix any violations before proceeding
 4. **If --report-only**: Display report summary and **STOP**
 5. Present findings to user with AskUserQuestion (show report / summary / proceed / cancel)

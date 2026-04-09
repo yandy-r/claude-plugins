@@ -24,7 +24,7 @@ Inspired by the visual exploration approach showcased in work by zarazhangrui (c
 4. **Distinctive design**: avoid generic purple-gradient, Inter-on-white, template-looking decks.
 5. **Production quality**: keep code commented, accessible, responsive, and performant.
 
-Before generating, read `${CLAUDE_PLUGIN_ROOT}/skills/frontend-slides/references/style-presets.md` for the viewport-safe CSS base, density limits, preset catalog, and CSS gotchas.
+Before generating, read `${CURSOR_PLUGIN_ROOT}/skills/frontend-slides/references/style-presets.md` for the viewport-safe CSS base, density limits, preset catalog, and CSS gotchas.
 
 ## Workflow
 
@@ -59,7 +59,7 @@ Otherwise:
 3. Each preview must be self-contained, show typography/color/motion clearly, and stay under roughly 100 lines of slide content.
 4. Ask the user which preview to keep or what elements to mix.
 
-Use the preset guide in `${CLAUDE_PLUGIN_ROOT}/skills/frontend-slides/references/style-presets.md` when mapping mood to style.
+Use the preset guide in `${CURSOR_PLUGIN_ROOT}/skills/frontend-slides/references/style-presets.md` when mapping mood to style.
 
 ### 4. Build the Presentation
 
@@ -180,8 +180,8 @@ Use these maxima unless the user explicitly asks for denser slides and readabili
 
 ## Related ycc Skills
 
-- `ycc:frontend-patterns` — component and interaction patterns around the deck
-- `ycc:frontend-design` — visual direction, typography, and composition principles that apply to slides too
+- `frontend-patterns` — component and interaction patterns around the deck
+- `frontend-design` — visual direction, typography, and composition principles that apply to slides too
 
 ## Deliverable Checklist
 

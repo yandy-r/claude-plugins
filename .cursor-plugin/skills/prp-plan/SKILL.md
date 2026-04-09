@@ -1,6 +1,6 @@
 ---
 name: prp-plan
-description: Create a comprehensive, self-contained feature implementation plan with codebase pattern extraction and optional external research. Detects whether the input is a PRD (selects next pending phase) or a free-form description, runs deep codebase discovery via ycc:prp-researcher, and writes a single-pass-ready plan to docs/prps/plans/{name}.plan.md. Pass `--parallel` to fan out research across 3 researcher agents and emit a dependency-batched task list ready for parallel execution by prp-implement. Use when the user asks for a "PRP plan", "implementation plan from PRD", "feature plan with patterns to mirror", "parallel PRP plan", or says "/prp-plan". Adapted from PRPs-agentic-eng by Wirasm.
+description: Create a comprehensive, self-contained feature implementation plan with codebase pattern extraction and optional external research. Detects whether the input is a PRD (selects next pending phase) or a free-form description, runs deep codebase discovery via prp-researcher, and writes a single-pass-ready plan to docs/prps/plans/{name}.plan.md. Pass `--parallel` to fan out research across 3 researcher agents and emit a dependency-batched task list ready for parallel execution by prp-implement. Use when the user asks for a "PRP plan", "implementation plan from PRD", "feature plan with patterns to mirror", "parallel PRP plan", or says "/prp-plan". Adapted from PRPs-agentic-eng by Wirasm.
 argument-hint: '<feature description | path/to/prd.md> [--parallel]'
 allowed-tools:
   - Read
@@ -18,8 +18,8 @@ allowed-tools:
   - Bash(test:*)
   - Bash(mkdir:*)
   - Bash(git:*)
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/prp-plan/scripts/*.sh:*)'
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/prp-plan/scripts/*.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
 ---
 
 # PRP Plan
@@ -93,13 +93,13 @@ Gather codebase intelligence across 8 categories and 5 traces.
 
 ### Path A — Sequential (default)
 
-Dispatch a single `ycc:prp-researcher` agent in codebase mode to cover all 8 categories and 5 traces. Use the discovery table for the plan's Patterns to Mirror section.
+Dispatch a single `prp-researcher` agent in codebase mode to cover all 8 categories and 5 traces. Use the discovery table for the plan's Patterns to Mirror section.
 
 **IMPORTANT — Researcher prompt constraints**: Tell the researcher to keep code snippets to **5 lines max** per finding and limit the total response to the discovery table format only — no prose summaries.
 
 ### Path B — Parallel (`PARALLEL_MODE=true`)
 
-Dispatch **3 `ycc:prp-researcher` agents in a SINGLE message**:
+Dispatch **3 `prp-researcher` agents in a SINGLE message**:
 
 | Researcher          | Categories                             | Traces                  |
 | ------------------- | -------------------------------------- | ----------------------- |
@@ -115,7 +115,7 @@ After all 3 return: merge tables, de-duplicate, verify all 8 categories covered.
 
 ## Phase 3 — RESEARCH
 
-If the feature involves external libraries/APIs, dispatch `ycc:prp-researcher` in external mode. Keep findings to KEY_INSIGHT / APPLIES_TO / GOTCHA / SOURCE format.
+If the feature involves external libraries/APIs, dispatch `prp-researcher` in external mode. Keep findings to KEY_INSIGHT / APPLIES_TO / GOTCHA / SOURCE format.
 
 If only internal patterns are used, skip: "No external research needed."
 
@@ -152,9 +152,9 @@ mkdir -p docs/prps/plans
 
 ### Step 1: Read the template
 
-Read the plan template from `${CLAUDE_PLUGIN_ROOT}/skills/prp-plan/references/plan-template.md`.
+Read the plan template from `${CURSOR_PLUGIN_ROOT}/skills/prp-plan/references/plan-template.md`.
 
-If `PARALLEL_MODE=true`, also read `${CLAUDE_PLUGIN_ROOT}/skills/prp-plan/references/parallel-additions.md`.
+If `PARALLEL_MODE=true`, also read `${CURSOR_PLUGIN_ROOT}/skills/prp-plan/references/parallel-additions.md`.
 
 ### Step 2: Write the plan in chunks
 
@@ -182,7 +182,7 @@ Each chunk should be a separate Write or Edit call. This prevents any single gen
 After writing the plan file, run the structural validator:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/prp-plan/scripts/validate-prp-plan.sh "docs/prps/plans/{name}.plan.md"
+${CURSOR_PLUGIN_ROOT}/skills/prp-plan/scripts/validate-prp-plan.sh "docs/prps/plans/{name}.plan.md"
 ```
 
 ### On errors (exit 1):
@@ -226,7 +226,7 @@ Update the phase status from `pending` to `in-progress` and add the plan file pa
 - **Confidence Score**: [1-10]
 - **Execution Mode**: [Sequential | Parallel (N batches, max width X)]
 
-> Next step: Run `/ycc:prp-implement docs/prps/plans/{name}.plan.md` to execute this plan.
+> Next step: Run `/prp-implement docs/prps/plans/{name}.plan.md` to execute this plan.
 ```
 
 ---
@@ -246,7 +246,7 @@ Structural validation is enforced by `validate-prp-plan.sh` in Phase 6.5. The sc
 
 ## Next Steps
 
-- Run `/ycc:prp-implement <plan-path>` to execute this plan
-- Run `/ycc:plan` for quick conversational planning without artifacts
-- Run `/ycc:prp-prd` to create a PRD first if scope is unclear
-- Run `/ycc:plan-workflow` for the parallel-agent planning track
+- Run `/prp-implement <plan-path>` to execute this plan
+- Run `/plan` for quick conversational planning without artifacts
+- Run `/prp-prd` to create a PRD first if scope is unclear
+- Run `/plan-workflow` for the parallel-agent planning track

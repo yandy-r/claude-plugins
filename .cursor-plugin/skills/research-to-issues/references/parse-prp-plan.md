@@ -1,6 +1,6 @@
 # Parse PRP Plan Output
 
-Extraction instructions for plan documents produced by `ycc:prp-plan`.
+Extraction instructions for plan documents produced by `prp-plan`.
 
 ## Expected Source Structure
 

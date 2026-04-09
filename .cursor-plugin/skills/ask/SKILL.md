@@ -34,9 +34,9 @@ Determine the operating mode based on the user's question:
 
 ### 2. Launch the Codebase Advisor Agent
 
-Use the Task tool with **`subagent_type: "ycc:codebase-advisor"`**. This is the plugin's read-only agent — it has no write tools and cannot modify files.
+Use parallel agents with **`subagent_type: "codebase-advisor"`**. This is the plugin's read-only agent — it has no write tools and cannot modify files.
 
-**CRITICAL: Always use `subagent_type: "ycc:codebase-advisor"`. Never use `codebase-research-analyst`, `Explore`, or any other agent type.** Other agent types have write tools (Bash, Write, TodoWrite) and will attempt to create files and directories.
+**CRITICAL: Always use `subagent_type: "codebase-advisor"`. Never use `codebase-research-analyst`, `Explore`, or any other agent type.** Other agent types have write tools (Bash, Write, TodoWrite) and will attempt to create files and directories.
 
 **For guidance questions**:
 

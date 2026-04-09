@@ -1,25 +1,6 @@
 ---
 name: architecture-analyst
-description: Use this agent when you need to analyze a codebase's architecture and create documentation in docs/architecture/. This agent produces system overviews, component relationship maps, and data flow diagrams using Mermaid syntax. Examples:
-
-  <example>
-  Context: The write-docs skill is deploying documentation agents in parallel.
-  user: "/write-docs"
-  assistant: "I'll deploy the architecture-analyst agent to create system design documentation in docs/architecture/."
-  <commentary>
-  The write-docs orchestrator deploys this agent as part of its parallel documentation pipeline to handle architecture documentation.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A project needs architecture documentation created from scratch.
-  user: "Document the system architecture of this project"
-  assistant: "I'll use the architecture-analyst agent to analyze the codebase and create comprehensive architecture documentation with diagrams."
-  <commentary>
-  Direct request for architecture documentation maps to this specialized agent.
-  </commentary>
-  </example>
-
+description: "Analyze codebase architecture and create documentation in docs/architecture/ with system overviews, component maps, and Mermaid data flow diagrams."
 model: sonnet
 color: blue
 tools:

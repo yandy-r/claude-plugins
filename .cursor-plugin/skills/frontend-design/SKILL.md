@@ -145,7 +145,7 @@ Before delivering:
 
 ## Related ycc Skills
 
-- `ycc:frontend-patterns` — React/Next.js component, state, and animation patterns to back up the design
-- `ycc:frontend-slides` — when the design target is a presentation deck instead of an app
+- `frontend-patterns` — React/Next.js component, state, and animation patterns to back up the design
+- `frontend-slides` — when the design target is a presentation deck instead of an app
 
 **Remember**: Pick a direction, commit to it, and let typography and rhythm do the heavy lifting. Generic-looking UI is the failure mode — not "too bold."

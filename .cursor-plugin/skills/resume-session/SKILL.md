@@ -1,6 +1,6 @@
 ---
 name: resume-session
-description: Load the most recent session file from ~/.claude/session-data/ (or a specified one by date or path) and produce a structured briefing of what was built, what worked, what NOT to retry, open questions, and the exact next step. Does NOT start working automatically — waits for user direction. Counterpart to /ycc:save-session. Use when the user says "resume session", "continue from last session", "load context", or says "/resume-session".
+description: Load the most recent session file from ~/.cursor/session-data/ (or a specified one by date or path) and produce a structured briefing of what was built, what worked, what NOT to retry, open questions, and the exact next step. Does NOT start working automatically — waits for user direction. Counterpart to /save-session. Use when the user says "resume session", "continue from last session", "load context", or says "/resume-session".
 argument-hint: '[YYYY-MM-DD | path/to/session.tmp] (blank = most recent)'
 allowed-tools:
   - Read
@@ -16,22 +16,22 @@ allowed-tools:
 # Resume Session
 
 Load the last saved session state and orient fully before doing any work.
-This skill is the counterpart to `/ycc:save-session`.
+This skill is the counterpart to `/save-session`.
 
 ## When to Use
 
 - Starting a new session to continue work from a previous day
 - After starting a fresh session due to context limits
 - When handing off a session file from another source (just provide the file path)
-- Any time you have a session file and want Claude to fully absorb it before proceeding
+- Any time you have a session file and want the assistant to fully absorb it before proceeding
 
 ## Usage
 
 ```
-/ycc:resume-session                                                       # most recent file in ~/.claude/session-data/
-/ycc:resume-session 2024-01-15                                            # most recent session for that date
-/ycc:resume-session ~/.claude/session-data/2024-01-15-abc123de-session.tmp # specific short-id file
-/ycc:resume-session ~/.claude/sessions/2024-01-15-session.tmp             # legacy-format file
+/resume-session                                                       # most recent file in ~/.cursor/session-data/
+/resume-session 2024-01-15                                            # most recent session for that date
+/resume-session ~/.cursor/session-data/2024-01-15-abc123de-session.tmp # specific short-id file
+/resume-session ~/.cursor/sessions/2024-01-15-session.tmp             # legacy-format file
 ```
 
 ## Process
@@ -40,20 +40,20 @@ This skill is the counterpart to `/ycc:save-session`.
 
 If no argument provided:
 
-1. Check `~/.claude/session-data/`
+1. Check `~/.cursor/session-data/`
 2. Pick the most recently modified `*-session.tmp` file
 3. If the folder does not exist or has no matching files, tell the user:
 
    ```
-   No session files found in ~/.claude/session-data/
-   Run /ycc:save-session at the end of a session to create one.
+   No session files found in ~/.cursor/session-data/
+   Run /save-session at the end of a session to create one.
    ```
 
    Then stop.
 
 If an argument is provided:
 
-- If it looks like a date (`YYYY-MM-DD`), search `~/.claude/session-data/` first, then the legacy `~/.claude/sessions/`, for files matching `YYYY-MM-DD-session.tmp` (legacy format) or `YYYY-MM-DD-<shortid>-session.tmp` (current format), and load the most recently modified variant for that date
+- If it looks like a date (`YYYY-MM-DD`), search `~/.cursor/session-data/` first, then the legacy `~/.cursor/sessions/`, for files matching `YYYY-MM-DD-session.tmp` (legacy format) or `YYYY-MM-DD-<shortid>-session.tmp` (current format), and load the most recently modified variant for that date
 - If it looks like a file path, read that file directly
 - If not found, report clearly and stop
 
@@ -118,14 +118,14 @@ Note the gap — "WARNING: This session is from N days ago (threshold: 7 days). 
 Read it and follow the same briefing process — the format is the same regardless of source.
 
 **Session file is empty or malformed:**
-Report: "Session file found but appears empty or unreadable. You may need to create a new one with `/ycc:save-session`."
+Report: "Session file found but appears empty or unreadable. You may need to create a new one with `/save-session`."
 
 ---
 
 ## Example Output
 
 ```
-SESSION LOADED: /Users/you/.claude/session-data/2024-01-15-abc123de-session.tmp
+SESSION LOADED: /Users/you/.cursor/session-data/2024-01-15-abc123de-session.tmp
 ════════════════════════════════════════════════
 
 PROJECT: my-app — JWT Authentication
@@ -163,4 +163,4 @@ Ready to continue. What would you like to do?
 - Never modify the session file when loading it — it's a read-only historical record
 - The briefing format is fixed — do not skip sections even if they are empty
 - "What Not To Retry" must always be shown, even if it just says "None" — it's too important to miss
-- After resuming, the user may want to run `/ycc:save-session` again at the end of the new session to create a new dated file
+- After resuming, the user may want to run `/save-session` again at the end of the new session to create a new dated file

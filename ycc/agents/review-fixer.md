@@ -1,34 +1,6 @@
 ---
 name: review-fixer
-description: >
-  Use this agent to implement a SINGLE code-review finding (or a same-file group of findings) from a review artifact produced by /ycc:code-review. The agent receives a Finding spec (ID, severity, file:line, description, category, suggested fix) and applies the exact fix — nothing more. Dispatched in parallel batches by the /ycc:review-fix skill during --parallel execution, one agent per independent finding. The agent is scope-disciplined: it fixes ONLY what the finding specifies and reports back with the exact change or the exact blocker encountered. It does NOT fix unrelated issues in the same file, does NOT refactor, and does NOT expand scope.
-
-  <example>
-  Context: /ycc:review-fix --parallel is executing a batch of 3 independent fixes (3 different files).
-  user: (skill dispatches 3 review-fixer agents in parallel)
-  assistant: "I'll dispatch three review-fixer agents in a single message — one per finding in this batch."
-  <commentary>
-  This agent is designed for parallel fan-out from review-fix. Each agent handles one finding in isolation.
-  </commentary>
-  </example>
-
-  <example>
-  Context: Review-fix sequential mode processing F042 — a missing null check.
-  user: (skill passes F042 spec to the agent)
-  assistant: "Opening the file, reading the surrounding context, applying the null check exactly as the Suggested fix describes, and running file-level type-check before reporting back."
-  <commentary>
-  Sequential mode also dispatches this agent — one finding at a time. The agent's behavior is identical regardless of mode.
-  </commentary>
-  </example>
-
-  <example>
-  Context: A same-file group of 3 findings (F010, F011, F012) all in `src/auth.ts`.
-  user: (skill passes the group spec to a single agent, sorted by line number descending)
-  assistant: "Processing F012 → F011 → F010 in reverse line order so earlier edits don't shift line numbers of later findings. Running type-check after the group, reporting back with the combined change set."
-  <commentary>
-  Same-file findings are grouped because concurrent edits to one file cause write conflicts. The agent processes them in descending line order.
-  </commentary>
-  </example>
+description: "Implement a SINGLE code-review finding (or same-file group) from a review artifact. Applies the exact fix specified — nothing more. Scope-disciplined: fixes only what the finding specifies."
 model: sonnet
 color: yellow
 tools:

@@ -1,34 +1,6 @@
 ---
 name: prp-researcher
-description: >
-  Use this agent during the grounding phases of /ycc:prp-prd and /ycc:prp-plan to conduct dual-mode research: codebase exploration (similar features, naming conventions, error handling, test patterns, dependencies) and external market/technical research (competitor approaches, library documentation, best practices, known pitfalls). Returns discovery tables and key insights without making suggestions — the caller synthesizes them into the PRD or plan.
-
-  <example>
-  Context: Claude is running /ycc:prp-prd and has reached Phase 3 (market grounding).
-  user: "I want to build a real-time notification system with webhooks."
-  assistant: "I'll launch the prp-researcher agent to investigate how similar notification systems are built — both in this codebase and in the market — before we move to the Vision phase."
-  <commentary>
-  The PRP PRD workflow has an explicit grounding phase that needs both market context and codebase context. The prp-researcher covers both.
-  </commentary>
-  </example>
-
-  <example>
-  Context: Claude is running /ycc:prp-plan and is in Phase 2 (EXPLORE).
-  user: *(invokes prp-plan for a new auth middleware)*
-  assistant: "Let me dispatch the prp-researcher agent to map the 8 discovery categories (similar implementations, naming, error handling, logging, types, tests, config, deps) before I draft the plan."
-  <commentary>
-  prp-plan's EXPLORE phase needs a deep codebase dive across 8 categories. The researcher returns a unified discovery table that becomes the "Patterns to Mirror" section of the plan.
-  </commentary>
-  </example>
-
-  <example>
-  Context: User wants to verify a technical approach before committing to a PRD.
-  user: "Before I finalize the PRD, can you check if any other teams have solved this type of rate-limiting problem and what libraries exist?"
-  assistant: "I'll spawn the prp-researcher agent to do market and technical research on rate-limiting approaches and report findings with citations."
-  <commentary>
-  Standalone dual-mode research for PRP workflows. The prp-researcher handles both the web/market side and the codebase side.
-  </commentary>
-  </example>
+description: "Dual-mode research for PRP workflows: codebase exploration (similar features, naming, error handling, test patterns, dependencies) and external market/technical research (competitors, docs, best practices)."
 model: inherit
 color: cyan
 tools:
@@ -217,7 +189,7 @@ Each finding structured as:
 
 Your output feeds directly into:
 
-- `/ycc:prp-prd` Phase 3 (market grounding) and Phase 5 (technical feasibility)
-- `/ycc:prp-plan` Phase 2 (EXPLORE) and Phase 3 (RESEARCH)
+- `/prp-prd` Phase 3 (market grounding) and Phase 5 (technical feasibility)
+- `/prp-plan` Phase 2 (EXPLORE) and Phase 3 (RESEARCH)
 
 The caller will synthesize your discovery tables into the "Patterns to Mirror", "Research Summary", or "Technical Context" sections of the PRD or plan. Keep your output structured and mechanical — easy to consume.

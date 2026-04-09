@@ -658,14 +658,14 @@ Write your analysis to: {{OUTPUT_DIR}}/synthesis/innovation.md
 
 ### Phase 2 Deployment (Crucible Analysis)
 
-Deploy both agents in **SINGLE message** with **TWO Task tool calls**:
+Deploy both agents in **SINGLE message** with **TWO parallel agent invocations**:
 
 1. **ACH Analyst** (`general-purpose`) -> crucible-analysis.md
 2. **Contradiction Mapper** (`codebase-research-analyst`) -> contradiction-mapping.md
 
 ### Phase 3 Deployment (Emergent Insights)
 
-Deploy all four agents in **SINGLE message** with **FOUR Task tool calls**:
+Deploy all four agents in **SINGLE message** with **FOUR parallel agent invocations**:
 
 1. **Tension Mapper** (`codebase-research-analyst`) -> tension-mapping.md
 2. **Pattern Recognizer** (`general-purpose`) -> pattern-recognition.md

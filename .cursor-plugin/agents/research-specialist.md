@@ -1,7 +1,7 @@
 ---
 name: research-specialist
 title: Research Specialist
-description: "Use this agent when you need comprehensive research on any non-code topic, fact-checking, gathering current information, or finding authoritative sources with citations. Examples: <example>Context: User needs to research market trends for a business proposal. user: 'I need to research the current state of the electric vehicle market in Europe' assistant: 'I'll use the research-specialist agent to gather comprehensive information about the European EV market with proper citations.' <commentary>Since the user needs research with authoritative sources, use the research-specialist agent to conduct thorough web-based research.</commentary></example> <example>Context: User is writing an article and needs verified facts. user: 'Can you help me verify some statistics about renewable energy adoption rates?' assistant: 'Let me use the research-specialist agent to find and verify current renewable energy statistics with proper citations.' <commentary>The user needs fact-checking with citations, which is exactly what the research-specialist agent is designed for.</commentary></example>"
+description: "Comprehensive research on non-code topics with fact-checking, current information gathering, and authoritative sources with citations."
 tools: Bash, Glob, Grep, LS, Read, Edit, Write, WebFetch, TodoWrite, WebSearch, mcp__scrape__get-markdown, mcp__perplexity__ask-perplexity, mcp__maps-mcp__geocode, mcp__maps-mcp__reverse-geocode, mcp__maps-mcp__places-search, mcp__maps-mcp__distance-matrix, mcp__maps-mcp__place-details, MultiEdit, Task
 model: opus
 color: blue
@@ -37,7 +37,7 @@ Use the right tool for each research task:
 
 **Best for:** Detailed content extraction, official documentation, long-form content
 
-### mcp**scrape**get-markdown - Clean Content
+### mcp__scrape__get-markdown - Clean Content
 
 **Use when:**
 
@@ -48,7 +48,7 @@ Use the right tool for each research task:
 
 **Best for:** Complex pages, content with lots of navigation/ads, dynamic content
 
-### mcp**perplexity**ask-perplexity - Synthesized Intelligence
+### mcp__perplexity__ask-perplexity - Synthesized Intelligence
 
 **Use when:**
 

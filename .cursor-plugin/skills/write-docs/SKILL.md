@@ -47,7 +47,7 @@ If no arguments provided, analyze the entire codebase and create a full document
 Execute the audit script to inventory existing documentation:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/write-docs/scripts/audit-documentation.sh
+${CURSOR_PLUGIN_ROOT}/skills/write-docs/scripts/audit-documentation.sh
 ```
 
 This script scans:
@@ -126,7 +126,7 @@ If `--dry-run` is in `$ARGUMENTS`:
 
 ### Step 7: Deploy Documentation Agents
 
-**CRITICAL**: Deploy all 5 agents in a **SINGLE message** with **MULTIPLE Task tool calls**.
+**CRITICAL**: Deploy all 5 agents in a **SINGLE message** with **MULTIPLE parallel agent invocations**.
 
 | Agent                    | Plugin Agent Name      | Output Location      | Focus                                                         |
 | ------------------------ | ---------------------- | -------------------- | ------------------------------------------------------------- |
@@ -261,7 +261,7 @@ Mode: [update|fresh]
 After agents complete, run:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/write-docs/scripts/generate-doc-index.sh
+${CURSOR_PLUGIN_ROOT}/skills/write-docs/scripts/generate-doc-index.sh
 ```
 
 This creates/updates `docs/README.md` with:
@@ -287,7 +287,7 @@ Ensure documentation is interconnected:
 Run link verification:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/write-docs/scripts/verify-links.sh
+${CURSOR_PLUGIN_ROOT}/skills/write-docs/scripts/verify-links.sh
 ```
 
 Report and fix any broken internal links.

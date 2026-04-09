@@ -1,6 +1,6 @@
 # Parse Feature-Spec Output
 
-Extraction instructions for `feature-spec.md` documents produced by `ycc:feature-research`.
+Extraction instructions for `feature-spec.md` documents produced by `feature-research`.
 
 ## Expected Source Structure
 

@@ -1,6 +1,6 @@
 ---
 name: research-to-issues
-description: This skill should be used when the user asks to "create issues from research", "turn research into GitHub issues", "create issues from feature spec", "turn plan into issues", "issues from parallel plan", "create issues from PRP plan", "generate issues from deep-research output", "create tracking issues from plan", "parse plan into actionable issues", or mentions converting documentation produced by ycc:deep-research, ycc:feature-research, ycc:parallel-plan, ycc:plan-workflow, or ycc:prp-plan into structured GitHub issues with labels and tracking hierarchy.
+description: This skill should be used when the user asks to "create issues from research", "turn research into GitHub issues", "create issues from feature spec", "turn plan into issues", "issues from parallel plan", "create issues from PRP plan", "generate issues from deep-research output", "create tracking issues from plan", "parse plan into actionable issues", or mentions converting documentation produced by deep-research, feature-research, parallel-plan, plan-workflow, or prp-plan into structured GitHub issues with labels and tracking hierarchy.
 ---
 
 # Source Documents to GitHub Issues
@@ -11,10 +11,10 @@ Convert planning and research output into structured GitHub issues with tracking
 
 | Source Type   | Produced By                              | Input Path Pattern                  |
 | ------------- | ---------------------------------------- | ----------------------------------- |
-| deep-research | `ycc:deep-research`                      | Directory with `RESEARCH-REPORT.md` |
-| feature-spec  | `ycc:feature-research`                   | `docs/plans/*/feature-spec.md`      |
-| parallel-plan | `ycc:parallel-plan`, `ycc:plan-workflow` | `docs/plans/*/parallel-plan.md`     |
-| prp-plan      | `ycc:prp-plan`                           | `docs/prps/plans/*.plan.md`         |
+| deep-research | `deep-research`                      | Directory with `RESEARCH-REPORT.md` |
+| feature-spec  | `feature-research`                   | `docs/plans/*/feature-spec.md`      |
+| parallel-plan | `parallel-plan`, `plan-workflow` | `docs/plans/*/parallel-plan.md`     |
+| prp-plan      | `prp-plan`                           | `docs/prps/plans/*.plan.md`         |
 
 ## Current Task
 
@@ -62,7 +62,7 @@ Determine the source path:
 ### Step 2: Run Validation
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/scripts/validate-prerequisites.sh "<source-path>" --type "<type-if-specified>"
+${CURSOR_PLUGIN_ROOT}/skills/research-to-issues/scripts/validate-prerequisites.sh "<source-path>" --type "<type-if-specified>"
 ```
 
 The script auto-detects the source type and outputs `DETECTED_TYPE: <type>`. Parse this from stdout.
@@ -87,10 +87,10 @@ Read the parsing reference for the detected source type:
 
 | Detected Type | Reference File                                                                      |
 | ------------- | ----------------------------------------------------------------------------------- |
-| deep-research | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/parse-deep-research.md` |
-| feature-spec  | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/parse-feature-spec.md`  |
-| parallel-plan | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/parse-parallel-plan.md` |
-| prp-plan      | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/parse-prp-plan.md`      |
+| deep-research | `${CURSOR_PLUGIN_ROOT}/skills/research-to-issues/references/parse-deep-research.md` |
+| feature-spec  | `${CURSOR_PLUGIN_ROOT}/skills/research-to-issues/references/parse-feature-spec.md`  |
+| parallel-plan | `${CURSOR_PLUGIN_ROOT}/skills/research-to-issues/references/parse-parallel-plan.md` |
+| prp-plan      | `${CURSOR_PLUGIN_ROOT}/skills/research-to-issues/references/parse-prp-plan.md`      |
 
 Follow the extraction instructions in the reference to produce:
 
@@ -100,7 +100,7 @@ Follow the extraction instructions in the reference to produce:
 
 ### Step 5: Classify Priority
 
-Read `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/label-taxonomy.md` for priority assignment rules by source type. Apply priority labels to each item.
+Read `${CURSOR_PLUGIN_ROOT}/skills/research-to-issues/references/label-taxonomy.md` for priority assignment rules by source type. Apply priority labels to each item.
 
 ---
 
@@ -116,11 +116,11 @@ Construct a complete plan:
 
 ### Step 7: Compute Labels
 
-Collect all unique labels needed. Read `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/label-taxonomy.md` for the full color scheme. Always include the `source:{type}` provenance label.
+Collect all unique labels needed. Read `${CURSOR_PLUGIN_ROOT}/skills/research-to-issues/references/label-taxonomy.md` for the full color scheme. Always include the `source:{type}` provenance label.
 
 ### Step 8: Display Plan
 
-Read `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/plan-display-format.md` and display the plan using the format appropriate for the detected source type.
+Read `${CURSOR_PLUGIN_ROOT}/skills/research-to-issues/references/plan-display-format.md` and display the plan using the format appropriate for the detected source type.
 
 ### Step 9: Check for Dry Run
 
@@ -152,8 +152,8 @@ Select the template based on source type:
 
 | Source Type                 | Template                                                                     |
 | --------------------------- | ---------------------------------------------------------------------------- |
-| deep-research, feature-spec | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/templates/feature-issue.md` |
-| parallel-plan, prp-plan     | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/templates/task-issue.md`    |
+| deep-research, feature-spec | `${CURSOR_PLUGIN_ROOT}/skills/research-to-issues/templates/feature-issue.md` |
+| parallel-plan, prp-plan     | `${CURSOR_PLUGIN_ROOT}/skills/research-to-issues/templates/task-issue.md`    |
 
 **MCP (preferred):** `mcp__github__create_issue` with owner, repo, title, body, labels array.
 
@@ -174,7 +174,7 @@ Same process as Step 11 for anti-scope items, research gaps, and decision items 
 
 ### Step 13: Create Tracking Issues
 
-Compose tracking issue bodies using `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/templates/tracking-issue.md`. Populate checkbox lists with links to child issue numbers (e.g., `- [ ] #42 Set up data models`).
+Compose tracking issue bodies using `${CURSOR_PLUGIN_ROOT}/skills/research-to-issues/templates/tracking-issue.md`. Populate checkbox lists with links to child issue numbers (e.g., `- [ ] #42 Set up data models`).
 
 **MCP (preferred):** `mcp__github__create_issue` with title `"Phase {N}: {title}"` or `"Batch {N}: {title}"`, body, labels.
 
