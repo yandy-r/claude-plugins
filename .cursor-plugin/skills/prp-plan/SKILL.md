@@ -48,13 +48,14 @@ Strip the flag, set `PARALLEL_MODE=true|false`. Remaining text is the feature de
 
 ### Input Detection
 
-| Input Pattern             | Action                               |
-| ------------------------- | ------------------------------------ |
-| Path ending in `.prd.md`  | Parse PRD, find next pending phase   |
-| Path to `.md` with phases | Parse phases, find next pending      |
-| Path to other file        | Read for context, treat as free-form |
-| Free-form text            | Proceed to Phase 1                   |
-| Empty                     | Ask user what feature to plan        |
+| Input Pattern             | Action                                                            |
+| ------------------------- | ----------------------------------------------------------------- |
+| Path ending in `.prd.md`  | Parse PRD, find next pending phase                                |
+| Path ending in `.spec.md` | Read spec, extract requirements and technical approach as context |
+| Path to `.md` with phases | Parse phases, find next pending                                   |
+| Path to other file        | Read for context, treat as free-form                              |
+| Free-form text            | Proceed to Phase 1                                                |
+| Empty                     | Ask user what feature to plan                                     |
 
 ### PRD Parsing (when input is a PRD)
 
