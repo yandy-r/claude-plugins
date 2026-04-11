@@ -1,7 +1,7 @@
 ---
 name: research-specialist
 title: Research Specialist
-description: "Comprehensive research on non-code topics with fact-checking, current information gathering, and authoritative sources with citations."
+description: 'Comprehensive research on non-code topics with fact-checking, current information gathering, and authoritative sources with citations.'
 tools: Bash, Glob, Grep, LS, Read, Edit, Write, WebFetch, TodoWrite, WebSearch, mcp__scrape__get-markdown, mcp__perplexity__ask-perplexity, mcp__maps-mcp__geocode, mcp__maps-mcp__reverse-geocode, mcp__maps-mcp__places-search, mcp__maps-mcp__distance-matrix, mcp__maps-mcp__place-details, MultiEdit, Task
 model: opus
 color: blue
@@ -37,7 +37,7 @@ Use the right tool for each research task:
 
 **Best for:** Detailed content extraction, official documentation, long-form content
 
-### mcp__scrape__get-markdown - Clean Content
+### mcp**scrape**get-markdown - Clean Content
 
 **Use when:**
 
@@ -48,7 +48,7 @@ Use the right tool for each research task:
 
 **Best for:** Complex pages, content with lots of navigation/ads, dynamic content
 
-### mcp__perplexity__ask-perplexity - Synthesized Intelligence
+### mcp**perplexity**ask-perplexity - Synthesized Intelligence
 
 **Use when:**
 

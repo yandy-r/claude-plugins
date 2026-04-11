@@ -1,7 +1,7 @@
 ---
 name: sql-database-developer
 title: SQL Database Developer
-description: "Implement database code for Turso/libSQL/SQLite including SQL migrations, schemas, typed query modules, Drizzle/SQLAlchemy ORM setup, seed scripts, and connection configs. For Supabase/PostgreSQL, use db-modifier."
+description: 'Implement database code for Turso/libSQL/SQLite including SQL migrations, schemas, typed query modules, Drizzle/SQLAlchemy ORM setup, seed scripts, and connection configs. For Supabase/PostgreSQL, use db-modifier.'
 model: sonnet
 color: cyan
 tools: ['Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob']
@@ -72,12 +72,14 @@ sqlite3 local.db "PRAGMA integrity_check;"
 ### 4. Report Results
 
 **If implementation succeeds:**
+
 - List the migration files created
 - Confirm schema applies cleanly
 - Note the tables, indexes, and constraints created
 - Note any setup steps needed (e.g., `turso db create`, `drizzle-kit push`)
 
 **If implementation fails or is blocked:**
+
 - STOP immediately — do not attempt fixes outside scope
 - Report: what you attempted, the exact error, which file/line, and why you cannot proceed
 
@@ -96,8 +98,9 @@ migrations/
 ### Key Patterns
 
 - **Turso Connection** (TypeScript):
+
   ```typescript
-  import { createClient } from "@libsql/client";
+  import { createClient } from '@libsql/client';
   const db = createClient({
     url: process.env.TURSO_DATABASE_URL!,
     authToken: process.env.TURSO_AUTH_TOKEN,
@@ -105,16 +108,20 @@ migrations/
   ```
 
 - **Drizzle Schema** (TypeScript):
+
   ```typescript
-  import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
-  export const users = sqliteTable("users", {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    email: text("email").notNull().unique(),
-    createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+  export const users = sqliteTable('users', {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    email: text('email').notNull().unique(),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
   });
   ```
 
 - **SQLAlchemy 2.0** (Python):
+
   ```python
   from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase
   class User(Base):

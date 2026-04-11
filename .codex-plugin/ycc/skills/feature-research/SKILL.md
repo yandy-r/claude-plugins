@@ -25,13 +25,13 @@ feature-spec.md        feature-spec.md     parallel-plan.md
 
 **Key Distinctions — This skill vs. other planning/research skills**:
 
-| Skill | Agents | Output Dir | Output Files | Use When |
-|---|---|---|---|---|
-| `feature-research` (THIS) | 7 parallel agents | `docs/plans/[name]/` | 7 `research-*.md` + `feature-spec.md` | Deep multi-agent research before plan-workflow |
-| `shared-context` | Agent team | `docs/plans/[name]/` | `shared.md` | Codebase-focused context for parallel-plan |
-| `prp-spec` | Single pass (optional researcher) | `docs/prps/specs/` | `{name}.spec.md` | Lightweight spec for PRP workflow |
-| `prp-prd` | Interactive + researcher | `docs/prps/prds/` | `{name}.prd.md` | Full PRD with hypothesis-driven questioning |
-| `prp-plan` | Single pass + researcher | `docs/prps/plans/` | `{name}.plan.md` | Implementation plan from PRD or description |
+| Skill                     | Agents                            | Output Dir           | Output Files                          | Use When                                       |
+| ------------------------- | --------------------------------- | -------------------- | ------------------------------------- | ---------------------------------------------- |
+| `feature-research` (THIS) | 7 parallel agents                 | `docs/plans/[name]/` | 7 `research-*.md` + `feature-spec.md` | Deep multi-agent research before plan-workflow |
+| `shared-context`          | Agent team                        | `docs/plans/[name]/` | `shared.md`                           | Codebase-focused context for parallel-plan     |
+| `prp-spec`                | Single pass (optional researcher) | `docs/prps/specs/`   | `{name}.spec.md`                      | Lightweight spec for PRP workflow              |
+| `prp-prd`                 | Interactive + researcher          | `docs/prps/prds/`    | `{name}.prd.md`                       | Full PRD with hypothesis-driven questioning    |
+| `prp-plan`                | Single pass + researcher          | `docs/prps/plans/`   | `{name}.plan.md`                      | Implementation plan from PRD or description    |
 
 **This skill ALWAYS**:
 

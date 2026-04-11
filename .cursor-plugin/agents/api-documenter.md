@@ -1,6 +1,6 @@
 ---
 name: api-documenter
-description: "Generate comprehensive API documentation from code, including endpoint specs, parameter descriptions, response schemas, and usage examples."
+description: 'Generate comprehensive API documentation from code, including endpoint specs, parameter descriptions, response schemas, and usage examples.'
 model: sonnet
 color: cyan
 tools:

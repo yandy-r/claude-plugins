@@ -90,12 +90,12 @@ Cursor loads **skills**, **agents**, and **rules** from `~/.cursor/{skills,agent
 
 Shared MCP server definitions live in [`mcp-configs/mcp.json`](mcp-configs/mcp.json). The installer adapts them per target:
 
-| Target   | What it does |
-| -------- | ------------ |
-| `claude` | Merges `mcpServers` from `mcp-configs/mcp.json` into **user-scoped** `~/.claude.json` (preserves other keys such as `projects`). |
-| `cursor` | Generates and validates the Cursor bundle, rsyncs `skills/`, `agents/`, and `rules/` into `~/.cursor/`, then copies MCP config to `~/.cursor/mcp.json`. |
+| Target   | What it does                                                                                                                                                                                                                         |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `claude` | Merges `mcpServers` from `mcp-configs/mcp.json` into **user-scoped** `~/.claude.json` (preserves other keys such as `projects`).                                                                                                     |
+| `cursor` | Generates and validates the Cursor bundle, rsyncs `skills/`, `agents/`, and `rules/` into `~/.cursor/`, then copies MCP config to `~/.cursor/mcp.json`.                                                                              |
 | `codex`  | Generates and validates a Codex-native plugin in `.codex-plugin/ycc/`, syncs it to `~/.codex/plugins/ycc/`, syncs generated custom agents to `~/.codex/agents/`, and merges a `ycc` entry into `~/.agents/plugins/marketplace.json`. |
-| `all`    | Runs the `claude`, `cursor`, and `codex` pipelines. |
+| `all`    | Runs the `claude`, `cursor`, and `codex` pipelines.                                                                                                                                                                                  |
 
 ### Install targets
 

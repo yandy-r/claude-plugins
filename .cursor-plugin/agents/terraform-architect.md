@@ -1,7 +1,7 @@
 ---
 name: terraform-architect
 title: Terraofrm Architect
-description: "Expert Terraform IaC assistance including cloud-native architecture design, module development, multi-cloud strategies, deployment debugging, and configuration review."
+description: 'Expert Terraform IaC assistance including cloud-native architecture design, module development, multi-cloud strategies, deployment debugging, and configuration review.'
 model: opus
 color: blue
 ---

@@ -28,8 +28,8 @@ Create a comprehensive implementation plan before writing any code. This is the 
 
 ## Flags
 
-| Flag         | Effect                                                                                                                                                                                                                                                                                                                                                    |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Flag         | Effect                                                                                                                                                                                                                                                                                                                                        |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--parallel` | Instruct the `planner` agent to emit a parallel-capable plan: a `Batches` summary section at the top, hierarchical step IDs (`1.1`, `1.2`, `2.1`), and explicit `Depends on [...]` annotations on every step. Enables in-conversation parallel implementation via `implementor` agents, or file-based handoff to `$prp-implement --parallel`. |
 
 **Note**: `--parallel` on `$plan` shapes the _output_, not the research phase. The `planner` agent already does its own codebase reads; this skill does not fan out to multiple researcher agents. For research fan-out on larger features, use `$prp-plan --parallel`.
@@ -229,12 +229,12 @@ Use Option 1 for small features and quick iterations. Use Option 2 when the user
 
 ## Comparison with other ycc planning tracks
 
-| Track                  | When to use                                                                                                                                             |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Track              | When to use                                                                                                                                         |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `$plan` (this one) | Quick conversational plan via `planner` agent. No artifact file. Add `--parallel` to shape the output for parallel execution (no research fan-out). |
-| `$prp-plan`        | Artifact-producing plan with codebase pattern extraction. Single-pass. Add `--parallel` for 3-researcher fan-out + batched plan.                        |
-| `$prp-prd`         | Interactive PRD first, then prp-plan. Problem-first hypothesis workflow.                                                                                |
-| `$plan-workflow`   | Heavyweight parallel-agent planning. Multi-task features. Artifact output.                                                                              |
+| `$prp-plan`        | Artifact-producing plan with codebase pattern extraction. Single-pass. Add `--parallel` for 3-researcher fan-out + batched plan.                    |
+| `$prp-prd`         | Interactive PRD first, then prp-plan. Problem-first hypothesis workflow.                                                                            |
+| `$plan-workflow`   | Heavyweight parallel-agent planning. Multi-task features. Artifact output.                                                                          |
 | `$parallel-plan`   | Lower-level component of `$plan-workflow` for dependency-aware plans.                                                                               |
 
 ### Which `--parallel` should I use?

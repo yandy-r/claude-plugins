@@ -1,6 +1,6 @@
 ---
 name: prp-researcher
-description: "Dual-mode research for PRP workflows: codebase exploration (similar features, naming, error handling, test patterns, dependencies) and external market/technical research (competitors, docs, best practices)."
+description: 'Dual-mode research for PRP workflows: codebase exploration (similar features, naming, error handling, test patterns, dependencies) and external market/technical research (competitors, docs, best practices).'
 model: inherit
 color: cyan
 tools:

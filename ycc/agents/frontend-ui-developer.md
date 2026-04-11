@@ -1,7 +1,7 @@
 ---
 name: frontend-ui-developer
 title: Frontend UI Developer
-description: "Create, modify, or enhance frontend React components, UI elements, pages, and styling including Tailwind CSS and shadcn/ui. Analyzes existing patterns before implementation."
+description: 'Create, modify, or enhance frontend React components, UI elements, pages, and styling including Tailwind CSS and shadcn/ui. Analyzes existing patterns before implementation.'
 model: sonnet
 color: purple
 ---

@@ -1,7 +1,7 @@
 ---
 name: implementor
 title: Implementor
-description: "Implement specific software engineering tasks assigned from a master plan with planning documentation context. Receives a single task and executes it."
+description: 'Implement specific software engineering tasks assigned from a master plan with planning documentation context. Receives a single task and executes it.'
 color: red
 model: sonnet
 ---

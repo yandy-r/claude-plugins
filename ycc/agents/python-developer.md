@@ -1,7 +1,7 @@
 ---
 name: python-developer
 title: Python Developer
-description: "Implement Python code from specs including FastAPI/Flask/Django services, CLI tools, data pipelines, async apps, pytest suites, pyproject.toml configs, and Dockerfiles."
+description: 'Implement Python code from specs including FastAPI/Flask/Django services, CLI tools, data pipelines, async apps, pytest suites, pyproject.toml configs, and Dockerfiles.'
 model: sonnet
 color: magenta
 tools: ['Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob']
@@ -70,11 +70,13 @@ python -m <module> --help
 ### 4. Report Results
 
 **If implementation succeeds:**
+
 - List the files created or modified
 - Confirm type checking and tests pass
 - Note any setup steps the user needs to run (e.g., `uv sync`, `alembic upgrade head`)
 
 **If implementation fails or is blocked:**
+
 - STOP immediately — do not attempt fixes outside scope
 - Report: what you attempted, the exact error, which file/line, and why you cannot proceed
 

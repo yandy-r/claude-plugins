@@ -1,6 +1,6 @@
 ---
 name: codebase-advisor
-description: "Read-only codebase advisor that answers questions about code structure, architecture, and implementation without making changes. Use for impact analysis and explanations."
+description: 'Read-only codebase advisor that answers questions about code structure, architecture, and implementation without making changes. Use for impact analysis and explanations.'
 tools: Glob, Grep, LS, Read, NotebookRead, WebFetch, WebSearch
 color: cyan
 ---

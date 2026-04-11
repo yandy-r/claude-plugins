@@ -1,7 +1,7 @@
 ---
 name: test-strategy-planner
 title: Test Strategy Planner
-description: "Analyze codebases and create comprehensive testing strategies including unit, integration, e2e, performance, and security tests with detailed roadmaps and implementation plans."
+description: 'Analyze codebases and create comprehensive testing strategies including unit, integration, e2e, performance, and security tests with detailed roadmaps and implementation plans.'
 model: opus
 color: yellow
 ---

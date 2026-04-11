@@ -1,7 +1,7 @@
 ---
 name: typescript-expert-architect
 title: TypeScript Expert Architect
-description: "Expert TypeScript/JavaScript assistance at the language, type-system, and tooling level including generic APIs, .d.ts authoring, tsconfig tuning, conditional/mapped types, npm libraries, monorepos, cross-runtime, and bundler optimization."
+description: 'Expert TypeScript/JavaScript assistance at the language, type-system, and tooling level including generic APIs, .d.ts authoring, tsconfig tuning, conditional/mapped types, npm libraries, monorepos, cross-runtime, and bundler optimization.'
 model: opus
 color: yellow
 ---

@@ -1,6 +1,6 @@
 ---
 name: architecture-analyst
-description: "Analyze codebase architecture and create documentation in docs/architecture/ with system overviews, component maps, and Mermaid data flow diagrams."
+description: 'Analyze codebase architecture and create documentation in docs/architecture/ with system overviews, component maps, and Mermaid data flow diagrams.'
 model: sonnet
 color: blue
 tools:

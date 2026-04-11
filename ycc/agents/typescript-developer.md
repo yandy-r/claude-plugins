@@ -1,7 +1,7 @@
 ---
 name: typescript-developer
 title: TypeScript Developer
-description: "Implement TypeScript/JavaScript code including libraries, tsconfig hierarchies, package.json exports, monorepo workspaces, bundler pipelines (vite/tsup/esbuild), ESM/CJS dual builds, and Vitest configs."
+description: 'Implement TypeScript/JavaScript code including libraries, tsconfig hierarchies, package.json exports, monorepo workspaces, bundler pipelines (vite/tsup/esbuild), ESM/CJS dual builds, and Vitest configs.'
 model: sonnet
 color: green
 tools: ['Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob']
@@ -72,11 +72,13 @@ npx tsup
 ### 4. Report Results
 
 **If implementation succeeds:**
+
 - List the files created or modified
 - Confirm type checking and tests pass
 - Note any setup steps needed (e.g., `pnpm install`, `npx vitest run`)
 
 **If implementation fails or is blocked:**
+
 - STOP immediately — do not attempt fixes outside scope
 - Report: what you attempted, the exact error, which file/line, and why you cannot proceed
 

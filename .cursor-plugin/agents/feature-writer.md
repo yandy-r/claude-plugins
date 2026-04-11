@@ -1,6 +1,6 @@
 ---
 name: feature-writer
-description: "Implement features based on research and specifications, writing production-ready code with proper testing."
+description: 'Implement features based on research and specifications, writing production-ready code with proper testing.'
 model: sonnet
 color: green
 tools:

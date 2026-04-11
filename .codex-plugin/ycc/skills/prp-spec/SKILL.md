@@ -21,14 +21,14 @@ Generate a concise, actionable feature specification in a single pass. Lighter t
 
 ## Key Distinctions
 
-| This skill (`prp-spec`) | NOT this (`feature-research`) | NOT this (`prp-prd`) |
-|---|---|---|
-| Single-pass spec generation | 7-agent parallel research team | Interactive PRD with hypothesis |
-| `docs/prps/specs/` | `docs/plans/[name]/` | `docs/prps/prds/` |
-| 1 output file | 8 output files (7 research + spec) | 1 output file |
-| Optional researcher dispatch | Always deploys full team | Always dispatches researcher |
-| Technical approach included | Full technical specifications | Problem-first, solution-light |
-| 1 GATE wait for clarification | Runs without GATEs | 6 GATE waits through phases |
+| This skill (`prp-spec`)       | NOT this (`feature-research`)      | NOT this (`prp-prd`)            |
+| ----------------------------- | ---------------------------------- | ------------------------------- |
+| Single-pass spec generation   | 7-agent parallel research team     | Interactive PRD with hypothesis |
+| `docs/prps/specs/`            | `docs/plans/[name]/`               | `docs/prps/prds/`               |
+| 1 output file                 | 8 output files (7 research + spec) | 1 output file                   |
+| Optional researcher dispatch  | Always deploys full team           | Always dispatches researcher    |
+| Technical approach included   | Full technical specifications      | Problem-first, solution-light   |
+| 1 GATE wait for clarification | Runs without GATEs                 | 6 GATE waits through phases     |
 
 Reach for `feature-research` when external APIs need deep investigation across many domains. Reach for `prp-prd` when the problem itself is unclear. Use this skill when the problem is clear and the goal is a concise, planner-ready spec.
 
@@ -53,24 +53,25 @@ You are a pragmatic technical writer who:
 
 Extract flags from `$ARGUMENTS`:
 
-| Flag | Effect |
-|---|---|
+| Flag       | Effect                                                                                   |
+| ---------- | ---------------------------------------------------------------------------------------- |
 | `--ground` | Dispatch `prp-researcher` in dual mode for codebase + market grounding before generating |
 
 Strip the flag, set `GROUND_MODE=true|false`. The remaining text is the feature description or PRD path.
 
 ### Input Detection
 
-| Input Pattern | Action |
-|---|---|
+| Input Pattern            | Action                                                           |
+| ------------------------ | ---------------------------------------------------------------- |
 | Path ending in `.prd.md` | Read PRD, extract problem + requirements + phase context as seed |
-| Path to other `.md` file | Read for context, treat as input |
-| Free-form text | Proceed to Phase 1 |
-| Empty | Ask the user what to spec |
+| Path to other `.md` file | Read for context, treat as input                                 |
+| Free-form text           | Proceed to Phase 1                                               |
+| Empty                    | Ask the user what to spec                                        |
 
 ### Feature Name Derivation
 
 Derive a kebab-case `{name}` from the input:
+
 - From a PRD path: use the PRD's basename (strip `.prd.md`)
 - From free-form text: convert the first 3-5 meaningful words to kebab-case
 - Confirm the derived name with the user if ambiguous
@@ -150,19 +151,19 @@ Write the spec using this exact structure. Preserve section ordering.
 
 ### Functional
 
-| # | Requirement | Priority | Notes |
-|---|---|---|---|
-| F1 | {requirement} | Must | {context} |
-| F2 | {requirement} | Must | {context} |
-| F3 | {requirement} | Should | {context} |
-| F4 | {requirement} | Could | {context} |
+| #   | Requirement   | Priority | Notes     |
+| --- | ------------- | -------- | --------- |
+| F1  | {requirement} | Must     | {context} |
+| F2  | {requirement} | Must     | {context} |
+| F3  | {requirement} | Should   | {context} |
+| F4  | {requirement} | Could    | {context} |
 
 ### Non-Functional
 
-| # | Requirement | Target | Rationale |
-|---|---|---|---|
-| NF1 | {e.g., Response time} | {e.g., <200ms p95} | {why} |
-| NF2 | {e.g., Availability} | {e.g., 99.9%} | {why} |
+| #   | Requirement           | Target             | Rationale |
+| --- | --------------------- | ------------------ | --------- |
+| NF1 | {e.g., Response time} | {e.g., <200ms p95} | {why}     |
+| NF2 | {e.g., Availability}  | {e.g., 99.9%}      | {why}     |
 
 ## Technical Approach
 
@@ -180,15 +181,15 @@ Write the spec using this exact structure. Preserve section ordering.
 
 ## Integration Points
 
-| System/Service | Direction | Protocol | Notes |
-|---|---|---|---|
-| {system} | {inbound/outbound/both} | {REST/gRPC/etc.} | {key detail} |
+| System/Service | Direction               | Protocol         | Notes        |
+| -------------- | ----------------------- | ---------------- | ------------ |
+| {system}       | {inbound/outbound/both} | {REST/gRPC/etc.} | {key detail} |
 
 ## Risks & Unknowns
 
-| Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
-| {risk} | {H/M/L} | {H/M/L} | {strategy} |
+| Risk   | Likelihood | Impact  | Mitigation |
+| ------ | ---------- | ------- | ---------- |
+| {risk} | {H/M/L}    | {H/M/L} | {strategy} |
 
 ## Open Questions
 

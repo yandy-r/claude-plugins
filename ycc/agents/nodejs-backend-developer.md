@@ -1,7 +1,7 @@
 ---
 name: nodejs-backend-developer
 title: Node.js Backend Developer
-description: "Implement Node.js/TypeScript backend services including Express/Fastify/Hono routes, Prisma/Drizzle setup, auth flows, Docker configs, structured logging, and test suites."
+description: 'Implement Node.js/TypeScript backend services including Express/Fastify/Hono routes, Prisma/Drizzle setup, auth flows, Docker configs, structured logging, and test suites.'
 model: sonnet
 color: cyan
 tools: ['Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob']
@@ -72,12 +72,14 @@ kill %1
 ### 4. Report Results
 
 **If implementation succeeds:**
+
 - List the files created or modified
 - Confirm type checking and tests pass
 - Note the endpoints created and their HTTP methods
 - Note any setup steps needed (e.g., `prisma migrate dev`, `docker-compose up`)
 
 **If implementation fails or is blocked:**
+
 - STOP immediately — do not attempt fixes outside scope
 - Report: what you attempted, the exact error, which file/line, and why you cannot proceed
 
@@ -123,16 +125,16 @@ src/
 
 ```typescript
 // Typical middleware ordering
-app.use(requestId());          // Generate correlation ID
-app.use(requestLogger());      // Log requests with timing
-app.use(cors(corsOptions));    // CORS configuration
-app.use(helmet());             // Security headers
-app.use(rateLimiter());        // Rate limiting
-app.use(bodyParser());         // Request body parsing
-app.use(authMiddleware());     // Authentication (on protected routes)
+app.use(requestId()); // Generate correlation ID
+app.use(requestLogger()); // Log requests with timing
+app.use(cors(corsOptions)); // CORS configuration
+app.use(helmet()); // Security headers
+app.use(rateLimiter()); // Rate limiting
+app.use(bodyParser()); // Request body parsing
+app.use(authMiddleware()); // Authentication (on protected routes)
 // ... routes ...
-app.use(notFoundHandler());    // 404 handler
-app.use(errorHandler());       // Global error handler (last)
+app.use(notFoundHandler()); // 404 handler
+app.use(errorHandler()); // Global error handler (last)
 ```
 
 ## Scope Discipline

@@ -1,7 +1,7 @@
 ---
 name: nodejs-backend-architect
 title: Node.js Backend Architect
-description: "Expert guidance on Node.js/TypeScript backend development including microservices architecture, performance optimization, async/concurrency, API design, auth systems, and database optimization."
+description: 'Expert guidance on Node.js/TypeScript backend development including microservices architecture, performance optimization, async/concurrency, API design, auth systems, and database optimization.'
 model: opus
 color: green
 ---

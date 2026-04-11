@@ -1,6 +1,6 @@
 ---
 name: readme-generator
-description: "Generate comprehensive README files for projects with proper structure, badges, installation instructions, and usage examples."
+description: 'Generate comprehensive README files for projects with proper structure, badges, installation instructions, and usage examples.'
 model: sonnet
 color: magenta
 tools:

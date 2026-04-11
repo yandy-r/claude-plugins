@@ -1,7 +1,7 @@
 ---
 name: api-docs-expert
 title: API Documentation Expert
-description: "Create, review, and improve API documentation, design RESTful endpoints, write OpenAPI/Swagger specs, create Postman collections, and ensure API docs follow best practices."
+description: 'Create, review, and improve API documentation, design RESTful endpoints, write OpenAPI/Swagger specs, create Postman collections, and ensure API docs follow best practices.'
 model: opus
 color: pink
 ---

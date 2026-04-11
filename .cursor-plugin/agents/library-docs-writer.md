@@ -1,7 +1,7 @@
 ---
 name: library-docs-writer
 title: Library Docs Writer
-description: "Fetch and compress external library documentation into concise local reference files from web sources and context7. Creates quick-reference docs for external dependencies."
+description: 'Fetch and compress external library documentation into concise local reference files from web sources and context7. Creates quick-reference docs for external dependencies.'
 model: sonnet
 color: pink
 ---

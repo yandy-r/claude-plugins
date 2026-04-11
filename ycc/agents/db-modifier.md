@@ -1,7 +1,7 @@
 ---
 name: db-modifier
 title: Database Modifier
-description: "Make database schema changes, data migrations, or modifications to the production Supabase/PostgreSQL database including tables, RLS policies, RPC functions, storage buckets, and data updates."
+description: 'Make database schema changes, data migrations, or modifications to the production Supabase/PostgreSQL database including tables, RLS policies, RPC functions, storage buckets, and data updates.'
 tools: mcp__sql__execute-sql, mcp__sql__describe-table, mcp__sql__list-tables, mcp__sql__describe-functions, mcp__sql__get-function-definition, Bash, Read, Grep, Glob, TodoWrite
 model: sonnet
 color: red

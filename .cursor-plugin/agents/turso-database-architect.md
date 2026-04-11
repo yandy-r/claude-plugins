@@ -1,7 +1,7 @@
 ---
 name: turso-database-architect
 title: SQL Database Architect (Turso/SQLite Specialist)
-description: "Expert database design, architecture, and optimization for Turso/libSQL/SQLite including schema design, query optimization, migration strategies, performance tuning, and index strategies."
+description: 'Expert database design, architecture, and optimization for Turso/libSQL/SQLite including schema design, query optimization, migration strategies, performance tuning, and index strategies.'
 model: opus
 color: orange
 ---

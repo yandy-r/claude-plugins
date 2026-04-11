@@ -1,7 +1,7 @@
 ---
 name: cloudflare-developer
 title: Cloudflare Developer
-description: "Implement Cloudflare Workers, Pages, D1, R2, KV, Durable Objects, and wrangler.toml configurations. Writes Worker code, creates configs, and verifies deployments."
+description: 'Implement Cloudflare Workers, Pages, D1, R2, KV, Durable Objects, and wrangler.toml configurations. Writes Worker code, creates configs, and verifies deployments.'
 model: sonnet
 color: green
 tools: ['Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob']
@@ -68,12 +68,14 @@ npx wrangler deploy --dry-run
 ### 4. Report Results
 
 **If implementation succeeds:**
+
 - List the files created or modified
 - Confirm type checking passes
 - Note the routes/endpoints created
 - Note any setup steps needed (e.g., `wrangler d1 create`, `wrangler kv namespace create`)
 
 **If implementation fails or is blocked:**
+
 - STOP immediately — do not attempt fixes outside scope
 - Report: what you attempted, the exact error, which file/line, and why you cannot proceed
 
