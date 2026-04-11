@@ -1,0 +1,580 @@
+---
+name: code-review
+description: Dual-mode code review — local uncommitted changes OR a GitHub pull request.
+  Both modes now write a machine-parseable review artifact (Local → docs/prps/reviews/local-{timestamp}-review.md,
+  PR → docs/prps/reviews/pr-{N}-review.md) with sequential finding IDs (F001, F002,
+  ...) and Status fields (Open/Fixed/Failed) so $review-fix can consume and update
+  them in place. Local mode runs a full security + quality pass on the diff. PR mode
+  fetches the PR, reads each changed file in full, builds context from AGENTS.md and
+  PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build)
+  for detected stacks, assigns severity, and posts the review to GitHub via gh. Pass
+  `--parallel` to fan out the REVIEW phase across 3 specialized code-reviewer agents
+  (correctness, security, quality) and merge findings. Use when the user asks to "review
+  code", "review PR", "check uncommitted changes", "review pr N", "parallel review",
+  or says "/code-review".
+---
+
+# Code Review
+
+> PR review mode adapted from PRPs-agentic-eng by Wirasm. Part of the PRP workflow series.
+
+**Input**: `$ARGUMENTS`
+
+---
+
+## Flag Parsing
+
+Before selecting mode, extract flags from `$ARGUMENTS`:
+
+| Flag                | Effect                                                                                                                                  |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                                 |
+| `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                      |
+| `--parallel`        | Fan out the REVIEW phase across 3 `code-reviewer` agents (correctness, security, quality) dispatched in parallel and merge findings |
+
+Strip these from `$ARGUMENTS` and set `PARALLEL_MODE=true|false`. The remaining text is the mode selector (PR number/URL or blank for local).
+
+Parallel mode applies to **both** Local Review Mode (Phase 2) and PR Review Mode (Phase 3). All other phases are unchanged.
+
+---
+
+## Mode Selection
+
+If `$ARGUMENTS` contains a PR number, PR URL, or `--pr`:
+→ Jump to **PR Review Mode** below.
+
+Otherwise:
+→ Use **Local Review Mode**.
+
+---
+
+## Local Review Mode
+
+Comprehensive security and quality review of uncommitted changes.
+
+### Phase 1 — GATHER
+
+```bash
+git diff --name-only HEAD
+```
+
+If no changed files, stop: "Nothing to review."
+
+### Phase 2 — REVIEW
+
+The shape of this phase depends on `PARALLEL_MODE`.
+
+#### Path A — Single-Pass Review (default, `PARALLEL_MODE=false`)
+
+Read each changed file in full. Check for:
+
+**Security Issues (CRITICAL):**
+
+- Hardcoded credentials, API keys, tokens
+- SQL injection vulnerabilities
+- XSS vulnerabilities
+- Missing input validation
+- Insecure dependencies
+- Path traversal risks
+
+**Code Quality (HIGH):**
+
+- Functions > 50 lines
+- Files > 800 lines
+- Nesting depth > 4 levels
+- Missing error handling
+- `console.log` statements
+- TODO/FIXME comments
+- Missing JSDoc for public APIs
+
+**Best Practices (MEDIUM):**
+
+- Mutation patterns (use immutable instead)
+- Emoji usage in code/comments
+- Missing tests for new code
+- Accessibility issues (a11y)
+
+#### Path B — Parallel Review (`PARALLEL_MODE=true`)
+
+Dispatch **3 `code-reviewer` agents in parallel** in a SINGLE message with MULTIPLE `Agent` tool calls. Each agent reads all changed files and applies its assigned focus:
+
+| Reviewer               | Focus           | Checklist Items                                                                                                               |
+| ---------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `correctness-reviewer` | Code Quality    | Functions > 50 lines, files > 800 lines, nesting > 4 levels, missing error handling, `console.log`, TODO/FIXME, missing JSDoc |
+| `security-reviewer`    | Security Issues | Hardcoded credentials/keys/tokens, SQL injection, XSS, missing input validation, insecure deps, path traversal                |
+| `quality-reviewer`     | Best Practices  | Mutation patterns, emoji in code/comments, missing tests, accessibility (a11y)                                                |
+
+Each reviewer prompt must include:
+
+1. The list of changed files (`git diff --name-only HEAD`)
+2. Its assigned focus and checklist items (from the table above)
+3. The severity rubric (CRITICAL, HIGH, MEDIUM, LOW)
+4. A directive to return findings in the standard format below
+
+Each reviewer returns findings as:
+
+```markdown
+## Findings
+
+### CRITICAL
+
+- `file.ts:42` — [description]
+  - Suggested fix: [fix]
+
+### HIGH
+
+- ...
+
+### MEDIUM
+
+- ...
+
+### LOW
+
+- ...
+```
+
+After all 3 reviewers return, **merge findings**:
+
+1. Combine by severity (CRITICAL first, then HIGH, MEDIUM, LOW)
+2. De-duplicate findings at the same `file:line` (if two reviewers flagged the same issue, keep the more severe one and annotate which reviewers concurred)
+3. Sort within each severity by file path
+4. Attach the reviewer source to each finding (`[correctness]`, `[security]`, `[quality]`) for traceability
+
+Pass the merged findings to Phase 3 (REPORT) as if they came from a single-pass review.
+
+### Phase 3 — REPORT
+
+Assign a sequential finding ID to each issue (`F001`, `F002`, `F003`, ...) ordered by severity (CRITICAL first) then by file path. Every finding receives `Status: Open` on first write.
+
+Generate the review artifact and write it to `docs/prps/reviews/local-{YYYYMMDD-HHMMSS}-review.md`:
+
+```bash
+mkdir -p docs/prps/reviews
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+REVIEW_FILE="docs/prps/reviews/local-${TIMESTAMP}-review.md"
+```
+
+Use the **Review Artifact Format** defined at the bottom of this skill. Include:
+
+- Finding ID (`**[F001]**`)
+- Severity bucket (CRITICAL, HIGH, MEDIUM, LOW)
+- `Status: Open` (always on first write)
+- Category tag
+- `file:line` reference
+- Description
+- Suggested fix
+
+**Always write the file**, even if there are no findings (empty sections are acceptable — they give `$review-fix` a consistent target and preserve history).
+
+Print a concise summary to stdout with the file path and a hint to run fixes:
+
+```
+Local review written to: docs/prps/reviews/local-20260408-143022-review.md
+Findings: [C] 2  [H] 3  [M] 1  [L] 0
+
+Next steps:
+  $review-fix docs/prps/reviews/local-20260408-143022-review.md   # apply fixes
+  $review-fix docs/prps/reviews/local-20260408-143022-review.md --parallel
+```
+
+Block commit if CRITICAL or HIGH issues found.
+Never approve code with security vulnerabilities.
+
+---
+
+## PR Review Mode
+
+Comprehensive GitHub PR review — fetches diff, reads full files, runs validation, posts review.
+
+Detect whether GitHub MCP tools are available (look for `mcp__github__*`). If they are, prefer those for PR fetch/view/review operations. Otherwise fall back to the `gh` CLI examples shown below.
+
+### Phase 1 — FETCH
+
+Parse input to determine PR:
+
+| Input                          | Action                                   |
+| ------------------------------ | ---------------------------------------- |
+| Number (e.g. `42`)             | Use as PR number                         |
+| URL (`github.com/.../pull/42`) | Extract PR number                        |
+| Branch name                    | Find PR via `gh pr list --head <branch>` |
+
+```bash
+gh pr view <NUMBER> --json number,title,body,author,baseRefName,headRefName,changedFiles,additions,deletions
+gh pr diff <NUMBER>
+```
+
+If PR not found, stop with error. Store PR metadata for later phases.
+
+### Phase 2 — CONTEXT
+
+Build review context:
+
+1. **Project rules** — Read `AGENTS.md`, `.claude/docs/`, and any contributing guidelines
+2. **PRP artifacts** — Check `docs/prps/reports/` and `docs/prps/plans/` (including `completed/`) for implementation context related to this PR
+3. **PR intent** — Parse PR description for goals, linked issues, test plans
+4. **Changed files** — List all modified files and categorize by type (source, test, config, docs)
+
+### Phase 3 — REVIEW
+
+Read each changed file **in full** (not just the diff hunks — you need surrounding context).
+
+For PR reviews, fetch the full file contents at the PR head revision:
+
+```bash
+gh pr diff <NUMBER> --name-only | while IFS= read -r file; do
+  gh api "repos/{owner}/{repo}/contents/$file?ref=<head-branch>" --jq '.content' | base64 -d
+done
+```
+
+The shape of this phase depends on `PARALLEL_MODE`.
+
+#### Path A — Single-Pass Review (default, `PARALLEL_MODE=false`)
+
+Apply the review checklist across 7 categories:
+
+| Category               | What to Check                                                                 |
+| ---------------------- | ----------------------------------------------------------------------------- |
+| **Correctness**        | Logic errors, off-by-ones, null handling, edge cases, race conditions         |
+| **Type Safety**        | Type mismatches, unsafe casts, `any` usage, missing generics                  |
+| **Pattern Compliance** | Matches project conventions (naming, file structure, error handling, imports) |
+| **Security**           | Injection, auth gaps, secret exposure, SSRF, path traversal, XSS              |
+| **Performance**        | N+1 queries, missing indexes, unbounded loops, memory leaks, large payloads   |
+| **Completeness**       | Missing tests, missing error handling, incomplete migrations, missing docs    |
+| **Maintainability**    | Dead code, magic numbers, deep nesting, unclear naming, missing types         |
+
+#### Path B — Parallel Review (`PARALLEL_MODE=true`)
+
+Dispatch **3 `code-reviewer` agents in parallel** in a SINGLE message with MULTIPLE `Agent` tool calls. Each agent reads all changed files at the PR head revision and applies its assigned category slice:
+
+| Reviewer               | Categories                             | What to Check                                                                                                                                                             |
+| ---------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `correctness-reviewer` | Correctness, Type Safety, Completeness | Logic errors, off-by-ones, null handling, edge cases, race conditions, type mismatches, unsafe casts, `any` usage, missing generics, missing tests, incomplete migrations |
+| `security-reviewer`    | Security, Performance                  | Injection, auth gaps, secret exposure, SSRF, path traversal, XSS, N+1 queries, missing indexes, unbounded loops, memory leaks, large payloads                             |
+| `quality-reviewer`     | Pattern Compliance, Maintainability    | Project conventions (naming, file structure, error handling, imports), dead code, magic numbers, deep nesting, unclear naming, missing types                              |
+
+Each reviewer prompt must include:
+
+1. The PR number, head revision, and the list of changed files
+2. Relevant context from Phase 2 (AGENTS.md rules, PRP artifacts, PR description)
+3. Its assigned categories and what to check (from the table above)
+4. The severity rubric
+5. A directive to return findings in the standard format below
+
+Each reviewer returns findings as:
+
+```markdown
+## Findings
+
+### CRITICAL
+
+- `file.ts:42` — [description] [category]
+  - Suggested fix: [fix]
+
+### HIGH
+
+- ...
+
+### MEDIUM
+
+- ...
+
+### LOW
+
+- ...
+```
+
+After all 3 reviewers return, **merge findings**:
+
+1. Combine by severity (CRITICAL first, then HIGH, MEDIUM, LOW)
+2. De-duplicate findings at the same `file:line` (if two reviewers flagged the same issue, keep the more severe one and list both concurring reviewers)
+3. Sort within each severity by file path
+4. Tag each finding with its source reviewer (`[correctness]`, `[security]`, `[quality]`) for traceability
+
+Pass the merged findings to Phase 4 (VALIDATE) and downstream phases as if they came from a single-pass review.
+
+**Note**: Validation commands (Phase 4) still run sequentially in the main skill — parallelization here only applies to the review pass.
+
+Assign severity to each finding:
+
+| Severity     | Meaning                                     | Action                  |
+| ------------ | ------------------------------------------- | ----------------------- |
+| **CRITICAL** | Security vulnerability or data loss risk    | Must fix before merge   |
+| **HIGH**     | Bug or logic error likely to cause issues   | Should fix before merge |
+| **MEDIUM**   | Code quality issue or missing best practice | Fix recommended         |
+| **LOW**      | Style nit or minor suggestion               | Optional                |
+
+### Phase 4 — VALIDATE
+
+Run available validation commands.
+
+Detect the project type from config files (`package.json`, `Cargo.toml`, `go.mod`, `pyproject.toml`, etc.), then run the appropriate commands:
+
+**Node.js / TypeScript** (has `package.json`):
+
+```bash
+npm run typecheck 2>/dev/null || npx tsc --noEmit 2>/dev/null  # Type check
+npm run lint                                                    # Lint
+npm test                                                        # Tests
+npm run build                                                   # Build
+```
+
+**Rust** (has `Cargo.toml`):
+
+```bash
+cargo clippy -- -D warnings  # Lint
+cargo test                   # Tests
+cargo build                  # Build
+```
+
+**Go** (has `go.mod`):
+
+```bash
+go vet ./...    # Lint
+go test ./...   # Tests
+go build ./...  # Build
+```
+
+**Python** (has `pyproject.toml` / `setup.py`):
+
+```bash
+pytest  # Tests
+```
+
+Run only the commands that apply to the detected project type. Record pass/fail for each.
+
+### Phase 5 — DECIDE
+
+Form recommendation based on findings:
+
+| Condition                                    | Decision                          |
+| -------------------------------------------- | --------------------------------- |
+| Zero CRITICAL/HIGH issues, validation passes | **APPROVE**                       |
+| Only MEDIUM/LOW issues, validation passes    | **APPROVE** with comments         |
+| Any HIGH issues or validation failures       | **REQUEST CHANGES**               |
+| Any CRITICAL issues                          | **BLOCK** — must fix before merge |
+
+Special cases:
+
+- Draft PR → Always use **COMMENT** (not approve/block)
+- Only docs/config changes → Lighter review, focus on correctness
+- Explicit `--approve` or `--request-changes` flag → Override decision (but still report all findings)
+
+### Phase 6 — REPORT
+
+Assign sequential finding IDs (`F001`, `F002`, ...) ordered by severity (CRITICAL first) then by file path. Every finding receives `Status: Open` on first write.
+
+Create review artifact at `docs/prps/reviews/pr-<NUMBER>-review.md`:
+
+```bash
+mkdir -p docs/prps/reviews
+```
+
+Use the **Review Artifact Format** defined at the bottom of this skill. The artifact must include finding IDs and `Status: Open` on every finding so that `$review-fix` can later update the file in place.
+
+Example of the Findings section:
+
+```markdown
+## Findings
+
+### CRITICAL
+
+- **[F001]** `src/auth.ts:42` — SQL injection in user lookup query
+  - **Status**: Open
+  - **Category**: Security
+  - **Suggested fix**: Use parameterized query via `db.query('... WHERE id = $1', [userId])`
+
+### HIGH
+
+- **[F002]** `src/api/payments.ts:17` — Missing null check on `req.body.amount`
+  - **Status**: Open
+  - **Category**: Correctness
+  - **Suggested fix**: Validate `typeof amount === 'number' && amount > 0` before processing
+
+### MEDIUM
+
+- **[F003]** `src/utils/format.ts:83` — Function exceeds 50 lines (78 lines)
+  - **Status**: Open
+  - **Category**: Maintainability
+  - **Suggested fix**: Extract the date parsing block into a helper
+
+### LOW
+
+- **[F004]** `src/app.ts:5` — Missing JSDoc on public export `initApp`
+  - **Status**: Open
+  - **Category**: Maintainability
+  - **Suggested fix**: Add a one-line JSDoc describing arguments and return type
+```
+
+The artifact MUST also include these sections:
+
+- **Header**: PR number, title, author, branch, decision, reviewed timestamp
+- **Summary**: 1-2 sentence overall assessment
+- **Validation Results**: type-check / lint / tests / build pass-fail table
+- **Files Reviewed**: list of changed files with Added/Modified/Deleted tags
+
+### Phase 7 — PUBLISH
+
+Post the review to GitHub:
+
+```bash
+# If APPROVE
+gh pr review <NUMBER> --approve --body "<summary of review>"
+
+# If REQUEST CHANGES
+gh pr review <NUMBER> --request-changes --body "<summary with required fixes>"
+
+# If COMMENT only (draft PR or informational)
+gh pr review <NUMBER> --comment --body "<summary>"
+```
+
+For inline comments on specific lines, use the GitHub review comments API:
+
+```bash
+gh api "repos/{owner}/{repo}/pulls/<NUMBER>/comments" \
+  -f body="<comment>" \
+  -f path="<file>" \
+  -F line=<line-number> \
+  -f side="RIGHT" \
+  -f commit_id="$(gh pr view <NUMBER> --json headRefOid --jq .headRefOid)"
+```
+
+Alternatively, post a single review with multiple inline comments at once:
+
+```bash
+gh api "repos/{owner}/{repo}/pulls/<NUMBER>/reviews" \
+  -f event="COMMENT" \
+  -f body="<overall summary>" \
+  --input comments.json  # [{"path": "file", "line": N, "body": "comment"}, ...]
+```
+
+### Phase 8 — OUTPUT
+
+Report to user:
+
+```
+PR #<NUMBER>: <TITLE>
+Decision: <APPROVE|REQUEST_CHANGES|BLOCK>
+
+Issues: <critical_count> critical, <high_count> high, <medium_count> medium, <low_count> low
+Validation: <pass_count>/<total_count> checks passed
+
+Artifacts:
+  Review: docs/prps/reviews/pr-<NUMBER>-review.md
+  GitHub: <PR URL>
+
+Next steps:
+  - <contextual suggestions based on decision>
+```
+
+---
+
+## Review Artifact Format
+
+Both Local Review Mode and PR Review Mode write an artifact using this exact format. The format is the contract that `$review-fix` parses — do not deviate.
+
+### File locations
+
+| Mode  | Path                                                  |
+| ----- | ----------------------------------------------------- |
+| Local | `docs/prps/reviews/local-{YYYYMMDD-HHMMSS}-review.md` |
+| PR    | `docs/prps/reviews/pr-{NUMBER}-review.md`             |
+
+### Template
+
+```markdown
+# [Local Review | PR Review #<NUMBER>] — <TITLE or "Uncommitted Changes">
+
+**Reviewed**: <ISO date>
+**Mode**: Local | PR
+**Author**: <author | "local">
+**Branch**: <head> → <base>
+**Decision**: APPROVE | REQUEST CHANGES | BLOCK | COMMENT
+
+## Summary
+
+<1-2 sentence overall assessment>
+
+## Findings
+
+### CRITICAL
+
+- **[F001]** `file.ts:42` — <description>
+  - **Status**: Open
+  - **Category**: <Security | Correctness | Type Safety | Performance | Pattern Compliance | Completeness | Maintainability>
+  - **Suggested fix**: <concrete, actionable fix>
+
+### HIGH
+
+- **[F002]** `file.ts:73` — <description>
+  - **Status**: Open
+  - **Category**: ...
+  - **Suggested fix**: ...
+
+### MEDIUM
+
+- **[F003]** ...
+  - **Status**: Open
+  - ...
+
+### LOW
+
+- **[F004]** ...
+  - **Status**: Open
+  - ...
+
+## Validation Results
+
+| Check      | Result                |
+| ---------- | --------------------- |
+| Type check | Pass / Fail / Skipped |
+| Lint       | Pass / Fail / Skipped |
+| Tests      | Pass / Fail / Skipped |
+| Build      | Pass / Fail / Skipped |
+
+## Files Reviewed
+
+- `file1.ts` (Modified)
+- `file2.ts` (Added)
+- `file3.ts` (Deleted)
+```
+
+### Finding ID rules
+
+- **Sequential**: IDs start at `F001` and increment by one.
+- **Stable per file**: Once assigned in a given review artifact, an ID is never renumbered, even after a fix is applied.
+- **Per-artifact**: IDs are scoped to a single review file. A fresh code-review pass generates a new file with its own `F001`-restart counter.
+- **Assigned in REPORT phase**: In both sequential and parallel paths, IDs are assigned during the REPORT phase (Phase 3 for local, Phase 6 for PR), AFTER merge and sort. Reviewer agents in parallel mode do NOT assign IDs.
+
+### Status field rules
+
+Every finding MUST have a `Status` field. Valid values:
+
+| Status | Meaning                                                                                                      |
+| ------ | ------------------------------------------------------------------------------------------------------------ |
+| Open   | Default on first write. Not yet processed by `$review-fix`, or below the fix skill's severity threshold. |
+| Fixed  | Successfully fixed by `$review-fix`. Set by the fix skill — code-review itself never writes this.        |
+| Failed | Attempted by `$review-fix` but the fix broke validation. Set by the fix skill.                           |
+
+`$code-review` only ever writes `Status: Open`. All other states are set in-place by `$review-fix`.
+
+### Required fields per finding
+
+Every finding must include these four lines (in this order) so the artifact is machine-parseable:
+
+```
+- **[F###]** `file:line` — <description>
+  - **Status**: <Open|Fixed|Failed>
+  - **Category**: <category>
+  - **Suggested fix**: <concrete fix>
+```
+
+Findings missing a `Suggested fix` line are valid but will be **skipped** by `$review-fix` (flagged for human judgment).
+
+---
+
+## Edge Cases
+
+- **No `gh` CLI and no GitHub MCP**: Fall back to local-only review (read the diff, skip GitHub publish). Warn user.
+- **Diverged branches**: Suggest `git fetch origin && git rebase origin/<base>` before review.
+- **Large PRs (>50 files)**: Warn about review scope. Focus on source changes first, then tests, then config/docs.

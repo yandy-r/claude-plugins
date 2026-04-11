@@ -7,6 +7,12 @@ marketplace at `.claude-plugin/marketplace.json`. All skills, commands, and agen
 under `ycc/` and are accessed at runtime as `ycc:{skill}`, `/ycc:{command}`, or
 `subagent_type: "ycc:{agent}"`.
 
+The same source trees also generate native compatibility bundles for Cursor and Codex:
+
+- Cursor bundle: `.cursor-plugin/`
+- Codex bundle: `.codex-plugin/ycc/`
+- Codex custom agents: `.codex-plugin/agents/`
+
 > Pre-2.0 versions shipped 9 separate plugins. 2.0.0 collapsed them into one bundle so
 > every skill is reachable via the same `ycc:` namespace prefix. See `docs/plans/` for
 > the consolidation plan.
@@ -17,6 +23,10 @@ under `ycc/` and are accessed at runtime as `ycc:{skill}`, `/ycc:{command}`, or
 claude-plugins/
 ├── .claude-plugin/
 │   └── marketplace.json     # single ycc entry
+├── .codex-plugin/
+│   ├── agents/              # generated Codex custom agents
+│   └── ycc/                 # generated Codex plugin root
+├── .cursor-plugin/          # generated Cursor bundle
 ├── ycc/
 │   ├── .claude-plugin/
 │   │   └── plugin.json      # name: "ycc", version: 2.0.0
@@ -59,6 +69,9 @@ When a script needs to reference its own plugin path, use `${CLAUDE_PLUGIN_ROOT}
 this resolves to the `ycc/` directory at runtime. Paths inside skills follow the form
 `${CLAUDE_PLUGIN_ROOT}/skills/{skill-name}/...`.
 
+Codex-generated skills are not source-edited directly. The Codex generator rewrites
+those paths to the managed install location `~/.codex/plugins/ycc/...`.
+
 ### Skills
 
 Each skill directory contains:
@@ -87,6 +100,15 @@ The marketplace registry at `.claude-plugin/marketplace.json` contains a single 
 Do not add additional plugin entries. New functionality goes into the existing `ycc`
 plugin as a new skill, command, or agent.
 
+## Generated Compatibility Targets
+
+- `ycc/skills/` is the source of truth for Cursor and Codex skill generation.
+- `ycc/agents/` is the source of truth for Cursor and Codex agent generation.
+- Do not hand-edit generated files under `.cursor-plugin/` or `.codex-plugin/` unless
+  you are first changing the generator.
+- Codex does not support this repo's custom slash-command layer as installable artifacts.
+  The native Codex target exposes skills via the plugin bundle and agents via TOML files.
+
 ## Testing Changes
 
 After modifying anything under `ycc/`:
@@ -98,3 +120,21 @@ After modifying anything under `ycc/`:
 3. Confirm shell scripts remain executable:
    `find ycc/skills -name "*.sh" -not -executable` (should output nothing).
 4. Test the skill or command in a live Claude Code session via its `ycc:` prefix.
+
+If you changed `ycc/skills/` or `ycc/agents/`, also regenerate and validate the
+compatibility bundles:
+
+1. Codex:
+   - `./scripts/generate-codex-skills.sh`
+   - `./scripts/generate-codex-agents.sh`
+   - `./scripts/generate-codex-plugin.sh`
+   - `./scripts/validate-codex-skills.sh`
+   - `./scripts/validate-codex-agents.sh`
+   - `./scripts/validate-codex-plugin.sh`
+2. Cursor:
+   - `./scripts/generate-cursor-skills.sh`
+   - `./scripts/generate-cursor-agents.sh`
+   - `./scripts/generate-cursor-rules.sh`
+   - `./scripts/validate-cursor-skills.sh`
+   - `./scripts/validate-cursor-agents.sh`
+   - `./scripts/validate-cursor-rules.sh`

@@ -7,6 +7,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CURSOR_PLUGIN_DIR="${SCRIPT_DIR}/.cursor-plugin"
+CODEX_PLUGIN_DIR="${SCRIPT_DIR}/.codex-plugin/ycc"
+CODEX_AGENTS_DIR="${SCRIPT_DIR}/.codex-plugin/agents"
 MCP_CONFIG_SRC="${SCRIPT_DIR}/mcp-configs/mcp.json"
 
 # Colors ($'...' so escapes are real bytes, not literal \\033)
@@ -27,18 +29,22 @@ Usage: $(basename "$0") --target <target>
 Sync plugin assets to an IDE configuration directory.
 
 Options:
-  --target <target>   Target: claude, cursor, or all
+  --target <target>   Target: claude, cursor, codex, or all
   --help              Show this help message
 
 Targets:
   claude   Merge mcp-configs/mcp.json mcpServers into ~/.claude.json (user scope)
   cursor   Generate Cursor-native agents/skills/rules, validate, rsync bundle to
            ~/.cursor/, then copy MCP config to ~/.cursor/mcp.json
-  all      Run claude then cursor pipelines
+  codex    Generate Codex-native plugin + agents, validate, sync plugin source to
+           ~/.codex/plugins/ycc, sync agents to ~/.codex/agents, and merge the
+           ycc entry into ~/.agents/plugins/marketplace.json
+  all      Run claude then cursor then codex pipelines
 
 Examples:
   $(basename "$0") --target claude
   $(basename "$0") --target cursor
+  $(basename "$0") --target codex
   $(basename "$0") --target all
 EOF
 }
@@ -136,6 +142,85 @@ sync_claude_target() {
 }
 
 # ---------------------------------------------------------------------------
+# Codex marketplace (~/.agents/plugins/marketplace.json)
+# ---------------------------------------------------------------------------
+merge_codex_marketplace_json() {
+    command -v python3 >/dev/null 2>&1 || { err "python3 is required but not found"; exit 1; }
+
+    local dest="${HOME}/.agents/plugins/marketplace.json"
+    python3 - "$dest" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+dest_path = Path(sys.argv[1])
+payload = {
+    "name": "local-ycc-plugins",
+    "interface": {
+        "displayName": "Local YCC Plugins",
+    },
+}
+entry = {
+    "name": "ycc",
+    "source": {
+        "source": "local",
+        "path": "./.codex/plugins/ycc",
+    },
+    "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL",
+    },
+    "category": "Productivity",
+}
+
+if dest_path.exists():
+    with open(dest_path, encoding="utf-8") as handle:
+        current = json.load(handle)
+    if not isinstance(current, dict):
+        raise SystemExit(f"{dest_path} must contain a JSON object")
+else:
+    current = {}
+
+marketplace_name = current.get("name") if isinstance(current.get("name"), str) and current["name"].strip() else payload["name"]
+interface = current.get("interface")
+if interface is None:
+    interface = payload["interface"]
+elif not isinstance(interface, dict):
+    raise SystemExit(f"{dest_path}: interface must be an object when present")
+
+plugins = current.get("plugins")
+if plugins is None:
+    plugins = []
+elif not isinstance(plugins, list):
+    raise SystemExit(f"{dest_path}: plugins must be an array when present")
+
+updated = False
+for index, item in enumerate(plugins):
+    if isinstance(item, dict) and item.get("name") == "ycc":
+        if item != entry:
+            plugins[index] = entry
+        updated = True
+        break
+
+if not updated:
+    plugins.append(entry)
+
+merged = {
+    **current,
+    "name": marketplace_name,
+    "interface": interface,
+    "plugins": plugins,
+}
+
+dest_path.parent.mkdir(parents=True, exist_ok=True)
+with open(dest_path, "w", encoding="utf-8") as handle:
+    json.dump(merged, handle, indent=2, ensure_ascii=False)
+    handle.write("\n")
+PY
+    info "Merged ycc into ${dest}"
+}
+
+# ---------------------------------------------------------------------------
 # Cursor sync (bundle + MCP)
 # ---------------------------------------------------------------------------
 sync_cursor_target() {
@@ -215,11 +300,88 @@ sync_cursor_target() {
 }
 
 # ---------------------------------------------------------------------------
+# Codex sync (plugin source + agents + marketplace)
+# ---------------------------------------------------------------------------
+sync_codex_target() {
+    local codex_plugins_dir="${HOME}/.codex/plugins"
+    local codex_plugin_dest="${codex_plugins_dir}/ycc"
+    local codex_agents_dest="${HOME}/.codex/agents"
+    local scripts_dir="${SCRIPT_DIR}/scripts"
+
+    command -v python3 >/dev/null 2>&1 || { err "python3 is required but not found"; exit 1; }
+    command -v rsync >/dev/null 2>&1 || { err "rsync is required but not found"; exit 1; }
+
+    mkdir -p "${codex_plugins_dir}" "${codex_agents_dest}"
+
+    if [[ ! -d "${SCRIPT_DIR}/.codex-plugin" ]]; then
+        err "Codex plugin source directory not found: ${SCRIPT_DIR}/.codex-plugin"
+        exit 1
+    fi
+    if [[ ! -d "${CODEX_PLUGIN_DIR}" ]]; then
+        err "Codex plugin bundle root not found: ${CODEX_PLUGIN_DIR}"
+        exit 1
+    fi
+    if [[ ! -d "${CODEX_AGENTS_DIR}" ]]; then
+        err "Codex agent source directory not found: ${CODEX_AGENTS_DIR}"
+        exit 1
+    fi
+
+    local gen_plugin="${scripts_dir}/generate-codex-plugin.sh"
+    local gen_skills="${scripts_dir}/generate-codex-skills.sh"
+    local gen_agents="${scripts_dir}/generate-codex-agents.sh"
+    local val_plugin="${scripts_dir}/validate-codex-plugin.sh"
+    local val_skills="${scripts_dir}/validate-codex-skills.sh"
+    local val_agents="${scripts_dir}/validate-codex-agents.sh"
+
+    local s
+    for s in "${gen_plugin}" "${gen_skills}" "${gen_agents}" "${val_plugin}" "${val_skills}" "${val_agents}"; do
+        if [[ ! -f "${s}" ]]; then
+            err "Missing required script: ${s}"
+            exit 1
+        fi
+        if [[ ! -r "${s}" ]]; then
+            err "Script not readable: ${s}"
+            exit 1
+        fi
+    done
+
+    printf '\n%s[1/4] Generate Codex-native bundle%s\n' "${BOLD}" "${NC}"
+    info "Running generate-codex-skills.sh"
+    bash "${gen_skills}"
+    info "Running generate-codex-agents.sh"
+    bash "${gen_agents}"
+    info "Running generate-codex-plugin.sh"
+    bash "${gen_plugin}"
+
+    printf '\n%s[2/4] Validate generated bundle%s\n' "${BOLD}" "${NC}"
+    info "Running validate-codex-skills.sh"
+    bash "${val_skills}"
+    info "Running validate-codex-agents.sh"
+    bash "${val_agents}"
+    info "Running validate-codex-plugin.sh"
+    bash "${val_plugin}"
+
+    printf '\n%s[3/4] Sync plugin source + agents%s\n' "${BOLD}" "${NC}"
+    mkdir -p "${codex_plugin_dest}" "${codex_agents_dest}"
+    rsync -av --delete "${CODEX_PLUGIN_DIR}/" "${codex_plugin_dest}/"
+    info "Synced Codex plugin source → ${codex_plugin_dest}"
+    rsync -av --delete "${CODEX_AGENTS_DIR}/" "${codex_agents_dest}/"
+    info "Synced Codex custom agents → ${codex_agents_dest}"
+
+    printf '\n%s[4/4] Sync user marketplace entry%s\n' "${BOLD}" "${NC}"
+    merge_codex_marketplace_json
+
+    printf '\n%sCodex sync complete.%s\n' "${BOLD}" "${NC}"
+    warn "Restart Codex, then open /plugins and install ycc from your local marketplace if it is not already installed."
+}
+
+# ---------------------------------------------------------------------------
 # All targets
 # ---------------------------------------------------------------------------
 sync_all_targets() {
     sync_claude_target
     sync_cursor_target
+    sync_codex_target
 }
 
 # ---------------------------------------------------------------------------
@@ -259,11 +421,14 @@ case "${TARGET}" in
     cursor)
         sync_cursor_target
         ;;
+    codex)
+        sync_codex_target
+        ;;
     all)
         sync_all_targets
         ;;
     *)
-        err "Unknown target: ${TARGET} (supported: claude, cursor, all)"
+        err "Unknown target: ${TARGET} (supported: claude, cursor, codex, all)"
         exit 1
         ;;
 esac

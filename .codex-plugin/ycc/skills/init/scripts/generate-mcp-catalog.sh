@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+# generate-mcp-catalog.sh
+# Scans MCP sources and outputs a markdown catalog organized by category
+# Sources:
+#   - Plugin marketplace: ~/.config/dotfiles/.codex/plugins/marketplaces/claude-plugins-official/external_plugins/
+#   - MCP library: ~/.codex/mcp-library/AGENTS.md
+
+set -euo pipefail
+
+# Define paths
+MARKETPLACE_DIR="${HOME}/.config/dotfiles/.codex/plugins/marketplaces/claude-plugins-official/external_plugins"
+MCP_LIBRARY_DOC="${HOME}/.codex/mcp-library/AGENTS.md"
+
+# Category mappings for better organization
+declare -A CATEGORIES=(
+    # Version Control
+    ["github"]="Version Control"
+    ["gitlab"]="Version Control"
+
+    # Project Management
+    ["linear"]="Project Management"
+    ["asana"]="Project Management"
+
+    # Code Quality & Analysis
+    ["serena"]="Code Quality"
+    ["greptile"]="Code Quality"
+    ["playwright"]="Testing"
+    ["static-analysis"]="Code Quality"
+
+    # Documentation
+    ["context7"]="Documentation"
+
+    # Backend Services
+    ["firebase"]="Backend Services"
+    ["supabase"]="Backend Services"
+    ["sql"]="Backend Services"
+    ["convex"]="Backend Services"
+
+    # Communication
+    ["slack"]="Communication"
+
+    # Payments
+    ["stripe"]="Payments"
+
+    # Framework-Specific
+    ["laravel-boost"]="Framework-Specific"
+
+    # Media & Content
+    ["images"]="Media & Content"
+    ["videos"]="Media & Content"
+    ["speech"]="Media & Content"
+
+    # Search & Research
+    ["search"]="Search & Research"
+    ["google-mcp"]="Search & Research"
+    ["mcp-reddit"]="Search & Research"
+
+    # AI & Collaboration
+    ["zen"]="AI Collaboration"
+
+    # Templates
+    ["boilerplate"]="Templates"
+)
+
+# Arrays to hold discovered MCPs
+declare -A MCPS_BY_CATEGORY
+
+# Function to add MCP to category
+add_mcp() {
+    local name="$1"
+    local description="$2"
+    local category="${CATEGORIES[$name]:-Other}"
+
+    if [[ -z "${MCPS_BY_CATEGORY[$category]+x}" ]]; then
+        MCPS_BY_CATEGORY[$category]=""
+    fi
+    MCPS_BY_CATEGORY[$category]+="- **${name}**: ${description}"$'\n'
+}
+
+# Scan plugin marketplace
+if [[ -d "$MARKETPLACE_DIR" ]]; then
+    for dir in "$MARKETPLACE_DIR"/*/; do
+        [[ -d "$dir" ]] || continue
+        plugin_json="$dir/.codex-plugin/plugin.json"
+
+        if [[ -f "$plugin_json" ]]; then
+            name=$(jq -r '.name // empty' "$plugin_json" 2>/dev/null)
+            desc=$(jq -r '.description // "No description"' "$plugin_json" 2>/dev/null)
+
+            if [[ -n "$name" ]]; then
+                add_mcp "$name" "$desc"
+            fi
+        else
+            # Fallback: use directory name
+            name=$(basename "$dir")
+            add_mcp "$name" "MCP plugin (no description available)"
+        fi
+    done
+fi
+
+# Parse MCP library AGENTS.md for additional MCPs
+if [[ -f "$MCP_LIBRARY_DOC" ]]; then
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^-\ \`([^\`]+)\`\ -\ (.+)$ ]]; then
+            name="${BASH_REMATCH[1]}"
+            desc="${BASH_REMATCH[2]}"
+
+            # Only add if not already discovered
+            found=false
+            for cat in "${!MCPS_BY_CATEGORY[@]}"; do
+                if [[ "${MCPS_BY_CATEGORY[$cat]}" == *"**${name}**"* ]]; then
+                    found=true
+                    break
+                fi
+            done
+
+            if [[ "$found" == "false" ]]; then
+                add_mcp "$name" "$desc"
+            fi
+        fi
+    done < "$MCP_LIBRARY_DOC"
+fi
+
+# Output the catalog
+echo "# Available MCP Servers"
+echo ""
+echo "The following MCP servers are available for configuration."
+echo ""
+
+# Sort categories for consistent output
+sorted_categories=(
+    "Version Control"
+    "Project Management"
+    "Code Quality"
+    "Testing"
+    "Documentation"
+    "Backend Services"
+    "Communication"
+    "Payments"
+    "Framework-Specific"
+    "Media & Content"
+    "Search & Research"
+    "AI Collaboration"
+    "Templates"
+    "Other"
+)
+
+for category in "${sorted_categories[@]}"; do
+    if [[ -n "${MCPS_BY_CATEGORY[$category]+x}" && -n "${MCPS_BY_CATEGORY[$category]}" ]]; then
+        echo "## ${category}"
+        echo ""
+        echo "${MCPS_BY_CATEGORY[$category]}"
+    fi
+done
+
+# Summary
+total=0
+for cat in "${!MCPS_BY_CATEGORY[@]}"; do
+    count=$(echo "${MCPS_BY_CATEGORY[$cat]}" | grep -c "^-" || true)
+    total=$((total + count))
+done
+
+echo "---"
+echo "**Total MCPs available**: ${total}"

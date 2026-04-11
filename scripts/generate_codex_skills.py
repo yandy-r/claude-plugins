@@ -1,0 +1,213 @@
+#!/usr/bin/env python3
+"""
+Generate Codex-native plugin skills under plugins/ycc/skills from ycc/skills.
+"""
+
+from __future__ import annotations
+
+import argparse
+import shutil
+import stat
+import sys
+import tempfile
+from pathlib import Path
+
+from generate_codex_common import (
+    HOME_INSTALL_PLUGIN_ROOT,
+    PLUGIN_ROOT,
+    PLUGIN_SHARED_DIR,
+    PLUGIN_SKILLS_DIR,
+    SRC_SKILLS_DIR,
+    apply_codex_text_transforms,
+    compress_skill_description,
+    dump_frontmatter,
+    load_agent_aliases,
+    parse_frontmatter,
+)
+
+
+TEXT_SUFFIXES = frozenset(
+    {
+        ".md",
+        ".mdc",
+        ".sh",
+        ".bash",
+        ".py",
+        ".json",
+        ".yaml",
+        ".yml",
+        ".txt",
+        ".toml",
+        ".gitignore",
+    }
+)
+
+TEXT_NAMES = frozenset({"SKILL.md", "LICENSE", "Makefile"})
+
+
+def should_transform_text(path: Path) -> bool:
+    if path.name in TEXT_NAMES:
+        return True
+    return path.suffix.lower() in TEXT_SUFFIXES
+
+
+def plugin_output_path(rel: Path) -> Path:
+    if rel.parts and rel.parts[0] == "_shared":
+        return PLUGIN_SHARED_DIR / rel.relative_to("_shared")
+    return PLUGIN_SKILLS_DIR / rel
+
+
+def rewrite_plugin_paths(text: str) -> str:
+    pattern = r"\$\{CLAUDE_PLUGIN_ROOT\}/skills/([^\"`\s]+)"
+
+    def replace(match: object) -> str:
+        path_text = getattr(match, "group")(1)
+        if path_text.startswith("_shared/"):
+            return f"{HOME_INSTALL_PLUGIN_ROOT}/shared/{path_text[len('_shared/'):]}"
+        return f"{HOME_INSTALL_PLUGIN_ROOT}/skills/{path_text}"
+
+    return __import__("re").sub(pattern, replace, text)
+
+
+def transform_skill_markdown(raw: str, aliases: dict[str, str]) -> str:
+    frontmatter, body = parse_frontmatter(raw)
+    name = str(frontmatter.get("name") or "skill")
+    description = str(frontmatter.get("description") or "").strip()
+    transformed_description = apply_codex_text_transforms(
+        rewrite_plugin_paths(description),
+        aliases,
+    ).strip()
+    transformed_description = compress_skill_description(transformed_description)
+    transformed_body = apply_codex_text_transforms(
+        rewrite_plugin_paths(body),
+        aliases,
+    )
+    payload = {
+        "name": name,
+        "description": transformed_description,
+    }
+    return dump_frontmatter(payload) + transformed_body
+
+
+def copy_mode(src: Path, dst: Path) -> None:
+    try:
+        mode = stat.S_IMODE(src.stat().st_mode)
+        dst.chmod(mode)
+    except OSError:
+        pass
+
+
+def iter_source_files() -> list[Path]:
+    return sorted(path for path in SRC_SKILLS_DIR.rglob("*") if path.is_file())
+
+
+def prune_orphans(dest_root: Path, expected_files: set[Path]) -> None:
+    existing_files = sorted(
+        (path for path in dest_root.rglob("*") if path.is_file()),
+        key=lambda path: len(path.parts),
+        reverse=True,
+    )
+    for path in existing_files:
+        rel = path.relative_to(dest_root)
+        if rel not in expected_files:
+            path.unlink()
+
+    existing_dirs = sorted(
+        (path for path in dest_root.rglob("*") if path.is_dir()),
+        key=lambda path: len(path.parts),
+        reverse=True,
+    )
+    for path in existing_dirs:
+        if path == dest_root:
+            continue
+        try:
+            next(path.iterdir())
+        except StopIteration:
+            path.rmdir()
+
+
+def write_tree(dest_root: Path, dry_run: bool) -> set[Path]:
+    aliases = load_agent_aliases()
+    written: set[Path] = set()
+    for src in iter_source_files():
+        rel = src.relative_to(SRC_SKILLS_DIR)
+        dst = plugin_output_path(rel)
+        out = dest_root / dst.relative_to(PLUGIN_ROOT)
+        written.add(out.relative_to(dest_root))
+
+        if dry_run:
+            print(f"Would write {out.relative_to(dest_root)}")
+            continue
+
+        out.parent.mkdir(parents=True, exist_ok=True)
+        if should_transform_text(src):
+            text = src.read_text(encoding="utf-8")
+            if src.name == "SKILL.md":
+                transformed = transform_skill_markdown(text, aliases)
+            else:
+                transformed = apply_codex_text_transforms(
+                    rewrite_plugin_paths(text),
+                    aliases,
+                )
+            out.write_text(transformed, encoding="utf-8")
+        else:
+            shutil.copyfile(src, out)
+        copy_mode(src, out)
+
+    if not dry_run:
+        prune_orphans(dest_root, written)
+    return written
+
+
+def compare_trees(generated: Path, repo_dest: Path, expected_files: set[Path]) -> list[str]:
+    diffs: list[str] = []
+    for rel in sorted(expected_files):
+        left = generated / rel
+        right = repo_dest / rel
+        if not right.exists():
+            diffs.append(f"missing in repo: {rel}")
+            continue
+        if left.read_bytes() != right.read_bytes():
+            diffs.append(f"drift: {rel}")
+    return diffs
+
+
+def run_check() -> int:
+    with tempfile.TemporaryDirectory() as tmp:
+        temp_root = Path(tmp)
+        written = write_tree(temp_root, dry_run=False)
+        diffs = compare_trees(temp_root, PLUGIN_ROOT, written)
+        if diffs:
+            print(
+                "Codex plugin skills are out of date. Run: ./scripts/generate-codex-skills.sh",
+                file=sys.stderr,
+            )
+            for diff in diffs:
+                print(f"  {diff}", file=sys.stderr)
+            return 1
+    return 0
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--check", action="store_true", help="Exit 1 if generated output drifts")
+    parser.add_argument("--dry-run", action="store_true", help="Print what would be written")
+    args = parser.parse_args()
+
+    if args.check:
+        if not PLUGIN_ROOT.exists():
+            print(f"Missing {PLUGIN_ROOT}; run generator without --check first.", file=sys.stderr)
+            sys.exit(1)
+        sys.exit(run_check())
+
+    if args.dry_run:
+        write_tree(PLUGIN_ROOT, dry_run=True)
+        return
+
+    write_tree(PLUGIN_ROOT, dry_run=False)
+    count = sum(1 for path in PLUGIN_ROOT.rglob("*") if path.is_file())
+    print(f"Wrote {count} files under {PLUGIN_ROOT}")
+
+
+if __name__ == "__main__":
+    main()

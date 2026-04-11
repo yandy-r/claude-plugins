@@ -1,0 +1,37 @@
+{
+  "name": "ycc",
+  "version": "2.0.0",
+  "description": "Yandy's Codex plugin bundle: planning, implementation, git workflow, research, docs, orchestration, ask, and project utilities \u2014 all under the ycc: namespace.",
+  "author": {
+    "name": "yandy-r"
+  },
+  "repository": "https://github.com/yandy-r/claude-plugins",
+  "homepage": "https://github.com/yandy-r/claude-plugins",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "skills",
+    "planning",
+    "development"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "YCC",
+    "shortDescription": "Planning, implementation, review, and workflow skills for Codex.",
+    "longDescription": "Yandy's Codex-native workflow bundle with planning, research, implementation, review, and GitHub-oriented development skills.",
+    "developerName": "yandy-r",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/yandy-r/claude-plugins",
+    "defaultPrompt": [
+      "Use YCC to plan a medium-sized feature before implementation.",
+      "Use YCC to review my branch and summarize the highest-risk findings.",
+      "Use YCC to orchestrate a multi-step refactor across this repository."
+    ],
+    "brandColor": "#0F766E"
+  }
+}
