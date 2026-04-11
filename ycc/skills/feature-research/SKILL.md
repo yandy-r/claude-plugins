@@ -1,10 +1,14 @@
 ---
 name: feature-research
 description: >
-  This skill should be used when the user asks to "research a feature", "create a feature spec",
-  "analyze external APIs for a feature", "plan feature research", "generate a feature-spec.md",
-  or mentions needing comprehensive research before implementing a new feature. Also triggered
-  by the /feature-research command. Creates feature-spec.md ready for plan-workflow.
+  Run the full 7-agent research pipeline for a new feature — deploys api-researcher,
+  business-analyzer, tech-designer, ux-researcher, security-researcher, practices-researcher,
+  and recommendations-agent in parallel to produce 7 research-*.md files and a consolidated
+  feature-spec.md under docs/plans/[feature-name]/. This is the heavyweight multi-agent
+  research track that outputs to docs/plans/, NOT docs/prps/. Use when the user asks to
+  "research a feature", "run feature research", "deep-dive a feature before planning",
+  or says "/feature-research". For lightweight single-pass specs in the PRP workflow,
+  use ycc:prp-spec instead.
 argument-hint: '[feature-name] [--description "..."] [--dry-run]'
 allowed-tools:
   - Read
@@ -42,10 +46,29 @@ Creates:               Uses:               Executes:
 feature-spec.md        feature-spec.md     parallel-plan.md
 ```
 
-**Key Distinction**:
+**Key Distinctions — This skill vs. other planning/research skills**:
 
-- `shared-context`: Codebase-focused research (files, patterns, tables, internal docs)
-- `feature-research`: Comprehensive research (external APIs, business logic, UX, technical specs, recommendations)
+| Skill | Agents | Output Dir | Output Files | Use When |
+|---|---|---|---|---|
+| `feature-research` (THIS) | 7 parallel agents | `docs/plans/[name]/` | 7 `research-*.md` + `feature-spec.md` | Deep multi-agent research before plan-workflow |
+| `shared-context` | Agent team | `docs/plans/[name]/` | `shared.md` | Codebase-focused context for parallel-plan |
+| `prp-spec` | Single pass (optional researcher) | `docs/prps/specs/` | `{name}.spec.md` | Lightweight spec for PRP workflow |
+| `prp-prd` | Interactive + researcher | `docs/prps/prds/` | `{name}.prd.md` | Full PRD with hypothesis-driven questioning |
+| `prp-plan` | Single pass + researcher | `docs/prps/plans/` | `{name}.plan.md` | Implementation plan from PRD or description |
+
+**This skill ALWAYS**:
+
+- Deploys the full 7-agent research team (never skips agents)
+- Creates 7 `research-*.md` files + 1 `feature-spec.md`
+- Outputs ONLY to `docs/plans/[feature-name]/`
+- Uses TeamCreate/TeamDelete for agent coordination
+
+**This skill NEVER**:
+
+- Writes to `docs/prps/` (that is the PRP workflow directory)
+- Generates a single-file spec without the research pipeline
+- Skips the multi-agent team to produce output directly
+- Acts as a lightweight spec generator
 
 ## Arguments
 
@@ -83,6 +106,8 @@ Extract from `$ARGUMENTS`:
 Validate the feature name: must be kebab-case, no special characters except hyphens.
 
 ### Step 2: Create Directory
+
+**CRITICAL**: Output goes to `docs/plans/[feature-name]/` — NEVER to `docs/prps/` or any other directory, regardless of the user's current working directory. If the user invokes this skill from inside `docs/prps/` or any subdirectory, still resolve the output path from the repository root as `docs/plans/[feature-name]/`.
 
 ```bash
 test -d "docs/plans/[feature-name]" && echo "exists" || mkdir -p "docs/plans/[feature-name]"
@@ -296,6 +321,16 @@ Provide completion summary with: feature name, description, files created, team 
 ### Research Quality Checklist
 
 Each research file should: focus on its specific domain, include concrete examples and links, identify gaps and uncertainties, provide actionable recommendations, and avoid duplication with other research files.
+
+## Anti-patterns — Do NOT Do These
+
+1. **Do NOT skip the multi-agent pipeline**: Never generate `feature-spec.md` directly without first deploying all 7 research teammates and collecting their `research-*.md` files. The spec is a synthesis of research, not a standalone generation. If about to write `feature-spec.md` without the 7 research files already on disk, STOP — the pipeline is off-rails.
+
+2. **Do NOT output to `docs/prps/`**: This skill's output directory is `docs/plans/[feature-name]/`. The `docs/prps/` tree belongs to the PRP workflow (`prp-prd`, `prp-spec`, `prp-plan`, `prp-implement`). Even if the user's working directory is `docs/prps/` or any subdirectory, always create output under `docs/plans/`.
+
+3. **Do NOT generate a single file**: The minimum correct output is 8 files (7 research + 1 spec). If about to write only one file, STOP — the user likely wants the lightweight PRP spec skill. Redirect them to `/ycc:prp-spec`.
+
+4. **Do NOT conflate with PRP spec generation**: If the user wants a lightweight single-pass spec without a research team, they want `/ycc:prp-spec`, not this skill. This skill is the heavyweight multi-agent research track.
 
 ## Important Notes
 
