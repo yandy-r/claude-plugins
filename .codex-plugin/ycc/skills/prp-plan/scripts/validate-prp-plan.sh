@@ -24,15 +24,15 @@ WARNINGS=0
 
 # Source shared scripts
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-SHARED_DIR="${SCRIPT_DIR}/../../_shared/scripts"
+SHARED_DIR="${SCRIPT_DIR}/../../../shared/scripts"
 
 if [[ -f "${SHARED_DIR}/resolve-plans-dir.sh" ]]; then
-  # shellcheck source=../../_shared/scripts/resolve-plans-dir.sh
+  # shellcheck source=../../../shared/scripts/resolve-plans-dir.sh
   source "${SHARED_DIR}/resolve-plans-dir.sh"
 fi
 
 if [[ -f "${SHARED_DIR}/validate-file-paths.sh" ]]; then
-  # shellcheck source=../../_shared/scripts/validate-file-paths.sh
+  # shellcheck source=../../../shared/scripts/validate-file-paths.sh
   source "${SHARED_DIR}/validate-file-paths.sh"
 fi
 
@@ -87,7 +87,12 @@ CONTENT=$(cat "$PLAN_FILE")
 
 # --- Title check ---
 echo "Checking document structure..."
-if echo "$CONTENT" | head -5 | grep -q "^# "; then
+# Avoid pipefail false negatives when grep exits early on a match.
+if awk '
+  NR > 5 { exit found ? 0 : 1 }
+  /^# / { found = 1; exit 0 }
+  END { exit found ? 0 : 1 }
+' "$PLAN_FILE"; then
   success "Title present"
 else
   error "Missing title (# heading)"
@@ -106,7 +111,7 @@ REQUIRED_SECTIONS=(
 )
 
 for section in "${REQUIRED_SECTIONS[@]}"; do
-  if echo "$CONTENT" | grep -q "^## ${section}"; then
+  if grep -q "^## ${section}" <<< "$CONTENT"; then
     success "Found: ## ${section}"
   else
     error "Missing required section: ## ${section}"
@@ -126,7 +131,7 @@ RECOMMENDED_SECTIONS=(
 )
 
 for section in "${RECOMMENDED_SECTIONS[@]}"; do
-  if echo "$CONTENT" | grep -q "^## ${section}"; then
+  if grep -q "^## ${section}" <<< "$CONTENT"; then
     success "Found: ## ${section}"
   else
     warning "Missing recommended section: ## ${section}"
@@ -136,7 +141,7 @@ done
 # --- Task structure ---
 echo ""
 echo "Checking task structure..."
-TASK_COUNT=$(echo "$CONTENT" | grep -c "^### Task" || echo "0")
+TASK_COUNT=$(grep -c "^### Task" <<< "$CONTENT" || true)
 
 if [[ $TASK_COUNT -eq 0 ]]; then
   error "No tasks found (expected ### Task N: headings)"
@@ -150,10 +155,10 @@ if [[ $TASK_COUNT -gt 0 ]]; then
   echo "Checking task field completeness..."
 
   # Count tasks with required fields
-  ACTION_COUNT=$(echo "$CONTENT" | grep -c '\*\*ACTION\*\*:' || echo "0")
-  VALIDATE_COUNT=$(echo "$CONTENT" | grep -c '\*\*VALIDATE\*\*:' || echo "0")
-  MIRROR_COUNT=$(echo "$CONTENT" | grep -c '\*\*MIRROR\*\*:' || echo "0")
-  IMPLEMENT_COUNT=$(echo "$CONTENT" | grep -c '\*\*IMPLEMENT\*\*:' || echo "0")
+  ACTION_COUNT=$(grep -c '\*\*ACTION\*\*:' <<< "$CONTENT" || true)
+  VALIDATE_COUNT=$(grep -c '\*\*VALIDATE\*\*:' <<< "$CONTENT" || true)
+  MIRROR_COUNT=$(grep -c '\*\*MIRROR\*\*:' <<< "$CONTENT" || true)
+  IMPLEMENT_COUNT=$(grep -c '\*\*IMPLEMENT\*\*:' <<< "$CONTENT" || true)
 
   if [[ $ACTION_COUNT -ge $TASK_COUNT ]]; then
     success "All tasks have ACTION fields ($ACTION_COUNT)"
@@ -230,13 +235,13 @@ echo "Checking file paths..."
 
 if type -t validate_file_paths &>/dev/null; then
   # Check Files to Change section
-  if echo "$CONTENT" | grep -q "^## Files to Change"; then
+  if grep -q "^## Files to Change" <<< "$CONTENT"; then
     echo "  Checking ## Files to Change..."
     validate_file_paths "$PLAN_FILE" "Files to Change" "table" "true" || true
   fi
 
   # Check Mandatory Reading section
-  if echo "$CONTENT" | grep -q "^## Mandatory Reading"; then
+  if grep -q "^## Mandatory Reading" <<< "$CONTENT"; then
     echo "  Checking ## Mandatory Reading..."
     validate_file_paths "$PLAN_FILE" "Mandatory Reading" "table" "false" || true
   fi
@@ -245,12 +250,12 @@ else
 fi
 
 # --- Parallel-mode checks ---
-if echo "$CONTENT" | grep -q "^## Batches"; then
+if grep -q "^## Batches" <<< "$CONTENT"; then
   echo ""
   echo "Checking parallel-mode structure..."
 
-  BATCH_FIELD_COUNT=$(echo "$CONTENT" | grep -c '\*\*BATCH\*\*:' || echo "0")
-  DEPENDS_COUNT=$(echo "$CONTENT" | grep -c 'Depends on' || echo "0")
+  BATCH_FIELD_COUNT=$(grep -c '\*\*BATCH\*\*:' <<< "$CONTENT" || true)
+  DEPENDS_COUNT=$(grep -c 'Depends on' <<< "$CONTENT" || true)
 
   if [[ $BATCH_FIELD_COUNT -ge $TASK_COUNT && $TASK_COUNT -gt 0 ]]; then
     success "All tasks have BATCH fields ($BATCH_FIELD_COUNT)"
@@ -293,7 +298,7 @@ PLACEHOLDERS=(
 
 PLACEHOLDER_FOUND=false
 for placeholder in "${PLACEHOLDERS[@]}"; do
-  if echo "$CONTENT" | grep -qi "$placeholder"; then
+  if grep -qi "$placeholder" <<< "$CONTENT"; then
     warning "Found potential placeholder text: $placeholder"
     PLACEHOLDER_FOUND=true
   fi
@@ -316,7 +321,7 @@ if [[ $TASK_COUNT -gt 0 ]]; then
   echo "  Tasks: $TASK_COUNT"
   echo "  ACTION fields: $ACTION_COUNT"
   echo "  VALIDATE fields: $VALIDATE_COUNT"
-  if echo "$CONTENT" | grep -q "^## Batches"; then
+  if grep -q "^## Batches" <<< "$CONTENT"; then
     echo "  Batch fields: $BATCH_FIELD_COUNT"
     echo "  Batch table rows: $BATCH_TABLE_ROWS"
   fi

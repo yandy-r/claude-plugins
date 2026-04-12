@@ -116,6 +116,7 @@ def apply_codex_text_transforms(text: str, aliases: dict[str, str]) -> str:
     output = re.sub(r"\$\{HOME\}/\.claude/", r"${HOME}/.codex/", output)
     output = re.sub(r"\$HOME/\.claude/", r"$HOME/.codex/", output)
     output = output.replace("/.claude/", "/.codex/")
+    output = output.replace("../../_shared/scripts", "../../../shared/scripts")
 
     # Product wording.
     output = output.replace("Claude Code", "Codex")

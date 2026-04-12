@@ -98,12 +98,12 @@ grep -c "^## Batches" "$PLAN_PATH" || echo 0
 
 Decide between **Path A (Sequential)** and **Path B (Parallel)** based on the flag and plan capability:
 
-| `--parallel` flag | Parallel-capable plan | Action                                                                                                                                                                                          |
-| ----------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Yes               | Yes                   | Proceed with **Path B** (parallel batch execution) — no prompt                                                                                                                                  |
-| Yes               | No                    | Warn: _"Plan has no `Batches` section — cannot run in parallel. Falling back to sequential execution."_ → **Path A**                                                                            |
+| `--parallel` flag | Parallel-capable plan | Action                                                                                                                                                                                             |
+| ----------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Yes               | Yes                   | Proceed with **Path B** (parallel batch execution) — no prompt                                                                                                                                     |
+| Yes               | No                    | Warn: _"Plan has no `Batches` section — cannot run in parallel. Falling back to sequential execution."_ → **Path A**                                                                               |
 | No                | Yes                   | Use `ask the user` to prompt: _"This plan is parallel-capable ({N} tasks in {M} batches, max width {X}). Run in parallel or sequential mode?"_. Accept user's choice → **Path A** or **Path B** |
-| No                | No                    | Proceed with **Path A** (sequential) — default, no prompt                                                                                                                                       |
+| No                | No                    | Proceed with **Path A** (sequential) — default, no prompt                                                                                                                                          |
 
 Record the chosen mode as `EXECUTION_MODE=sequential|parallel` for use in Phase 3.
 

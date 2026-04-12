@@ -49,11 +49,11 @@ Plan and apply fixes for code-review findings. Reads a review artifact produced 
 
 Extract flags from `$ARGUMENTS` before treating the remainder as the input:
 
-| Flag                 | Effect                                                                                                          |
-| -------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Flag                 | Effect                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `--parallel`         | Dispatch `review-fixer` agents in parallel per batch. Level 1+2 validation between batches. Fail-stop behavior. |
-| `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).          |
-| `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files.                                   |
+| `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).              |
+| `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files.                                       |
 
 Strip these flags from `$ARGUMENTS` and set `PARALLEL_MODE`, `MIN_SEVERITY`, and `DRY_RUN`. The remaining text is the input selector.
 
@@ -495,8 +495,8 @@ The review file is updated incrementally after each agent returns, so if the run
 
 ## Comparison with related skills
 
-| Skill                | Purpose                                                                                          |
-| -------------------- | ------------------------------------------------------------------------------------------------ |
+| Skill                    | Purpose                                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------ |
 | `/code-review`       | Produces a review artifact with findings and `Status: Open`                                      |
 | `/review-fix` (this) | Consumes a review artifact and applies fixes, updating `Status` to `Fixed` or `Failed`           |
 | `/prp-implement`     | Executes a PRP plan file with per-task validation — a different workflow, different input format |

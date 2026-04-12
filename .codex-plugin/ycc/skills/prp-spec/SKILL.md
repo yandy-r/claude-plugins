@@ -53,8 +53,8 @@ You are a pragmatic technical writer who:
 
 Extract flags from `$ARGUMENTS`:
 
-| Flag       | Effect                                                                                   |
-| ---------- | ---------------------------------------------------------------------------------------- |
+| Flag       | Effect                                                                                       |
+| ---------- | -------------------------------------------------------------------------------------------- |
 | `--ground` | Dispatch `prp-researcher` in dual mode for codebase + market grounding before generating |
 
 Strip the flag, set `GROUND_MODE=true|false`. The remaining text is the feature description or PRD path.

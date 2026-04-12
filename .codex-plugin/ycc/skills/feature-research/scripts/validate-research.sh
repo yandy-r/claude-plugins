@@ -5,11 +5,11 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-RESOLVER="${SCRIPT_DIR}/../../_shared/scripts/resolve-plans-dir.sh"
+RESOLVER="${SCRIPT_DIR}/../../../shared/scripts/resolve-plans-dir.sh"
 
 # Source resolver to get PLANS_ROOT for path resolution
 if [[ -f "$RESOLVER" ]]; then
-    # shellcheck source=../../_shared/scripts/resolve-plans-dir.sh
+    # shellcheck source=../../../shared/scripts/resolve-plans-dir.sh
     source "$RESOLVER"
 fi
 

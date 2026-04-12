@@ -25,10 +25,10 @@ PLAN_FILE="${1:-}"
 
 # Source the shared resolver for consistency
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SHARED_DIR="${SCRIPT_DIR}/../../_shared/scripts"
+SHARED_DIR="${SCRIPT_DIR}/../../../shared/scripts"
 
 if [[ -f "${SHARED_DIR}/resolve-plans-dir.sh" ]]; then
-  # shellcheck source=../../_shared/scripts/resolve-plans-dir.sh
+  # shellcheck source=../../../shared/scripts/resolve-plans-dir.sh
   source "${SHARED_DIR}/resolve-plans-dir.sh" 2>/dev/null || true
 fi
 

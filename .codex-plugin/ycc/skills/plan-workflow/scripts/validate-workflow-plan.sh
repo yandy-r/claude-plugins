@@ -19,10 +19,10 @@ WARNINGS=0
 
 # Source the shared resolver to get PLANS_ROOT for file path validation
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-SHARED_DIR="${SCRIPT_DIR}/../../_shared/scripts"
+SHARED_DIR="${SCRIPT_DIR}/../../../shared/scripts"
 
 if [[ -f "${SHARED_DIR}/resolve-plans-dir.sh" ]]; then
-  # shellcheck source=../../_shared/scripts/resolve-plans-dir.sh
+  # shellcheck source=../../../shared/scripts/resolve-plans-dir.sh
   source "${SHARED_DIR}/resolve-plans-dir.sh"
 fi
 
