@@ -21,6 +21,7 @@ Source type labels:
 | feature-spec  | Feature Spec  |
 | parallel-plan | Parallel Plan |
 | prp-plan      | PRP Plan      |
+| prd           | PRD           |
 
 ## Labels Section (Always)
 
@@ -46,11 +47,11 @@ Source type labels:
 - Child issues: {count}
 ```
 
-For deep-research and feature-spec, include "Deferred / Under Review" and "Research Gaps" tracking sections if applicable.
+For deep-research, feature-spec, and prd, include "Deferred / Under Review" and "Research Gaps" tracking sections if applicable.
 
 ## Child Issues Section (Always)
 
-For deep-research and feature-spec sources:
+For deep-research, feature-spec, and prd sources:
 
 ```markdown
 ## Feature Issues ({total count})
@@ -70,7 +71,7 @@ For parallel-plan and prp-plan sources:
 | 1   | Set up data models | Phase 1     | none         | 3 create | high     |
 ```
 
-## Anti-Scope Section (deep-research and feature-spec only)
+## Anti-Scope Section (deep-research, feature-spec, and prd only)
 
 ```markdown
 ## Anti-Scope Issues ({count})
@@ -106,7 +107,7 @@ Phase 2 (depends on Phase 1):
 - Task 2.2: Add validation [depends on 1.1, 1.2]
 ```
 
-## Decision Issues Section (feature-spec only)
+## Decision Issues Section (feature-spec and prd only)
 
 ```markdown
 ## Decision Issues ({count})

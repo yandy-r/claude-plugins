@@ -15,6 +15,7 @@ Convert planning and research output into structured GitHub issues with tracking
 | feature-spec  | `ycc:feature-research`                   | `docs/plans/*/feature-spec.md`      |
 | parallel-plan | `ycc:parallel-plan`, `ycc:plan-workflow` | `docs/plans/*/parallel-plan.md`     |
 | prp-plan      | `ycc:prp-plan`                           | `docs/prps/plans/*.plan.md`         |
+| prd           | `ycc:prp-prd`                            | `docs/prps/prds/*.prd.md`          |
 
 ## Current Task
 
@@ -56,7 +57,7 @@ Check if GitHub MCP tools are available by looking for tools matching `mcp__gith
 Determine the source path:
 
 1. If `--source PATH` or `--research-dir PATH` is specified, use that path
-2. Otherwise, search for common locations: `docs/plans/`, `docs/prps/plans/`, `docs/research/`, `research/`
+2. Otherwise, search for common locations: `docs/plans/`, `docs/prps/plans/`, `docs/prps/prds/`, `docs/research/`, `research/`
 3. If not found, ask the user to specify the path
 
 ### Step 2: Run Validation
@@ -91,6 +92,7 @@ Read the parsing reference for the detected source type:
 | feature-spec  | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/parse-feature-spec.md`  |
 | parallel-plan | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/parse-parallel-plan.md` |
 | prp-plan      | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/parse-prp-plan.md`      |
+| prd           | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/references/parse-prd.md`           |
 
 Follow the extraction instructions in the reference to produce:
 
@@ -150,10 +152,10 @@ Create all child issues before tracking issues (tracking issues need the child i
 
 Select the template based on source type:
 
-| Source Type                 | Template                                                                     |
-| --------------------------- | ---------------------------------------------------------------------------- |
-| deep-research, feature-spec | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/templates/feature-issue.md` |
-| parallel-plan, prp-plan     | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/templates/task-issue.md`    |
+| Source Type                      | Template                                                                     |
+| -------------------------------- | ---------------------------------------------------------------------------- |
+| deep-research, feature-spec, prd | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/templates/feature-issue.md` |
+| parallel-plan, prp-plan          | `${CLAUDE_PLUGIN_ROOT}/skills/research-to-issues/templates/task-issue.md`    |
 
 **MCP (preferred):** `mcp__github__create_issue` with owner, repo, title, body, labels array.
 
@@ -247,6 +249,7 @@ Type-specific parsing instructions:
 - **`references/parse-feature-spec.md`** -- Feature-spec document extraction
 - **`references/parse-parallel-plan.md`** -- Parallel-plan document extraction
 - **`references/parse-prp-plan.md`** -- PRP plan document extraction
+- **`references/parse-prd.md`** -- PRD document extraction
 
 Shared references:
 

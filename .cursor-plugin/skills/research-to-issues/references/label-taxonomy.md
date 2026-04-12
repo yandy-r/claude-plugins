@@ -27,6 +27,7 @@ Applied automatically based on detected source type:
 | `source:feature-spec`  | `bfd4f2` (light blue) | From feature-research output |
 | `source:parallel-plan` | `bfd4f2` (light blue) | From parallel-plan output    |
 | `source:prp-plan`      | `bfd4f2` (light blue) | From PRP plan output         |
+| `source:prd`           | `bfd4f2` (light blue) | From PRD output              |
 
 ## Type Labels
 
@@ -44,3 +45,4 @@ Applied automatically based on detected source type:
 | feature-spec  | Phase 1 tasks, critical risks    | Phase 2 tasks           | Phase 3+, decisions needed |
 | parallel-plan | Phase 1 tasks, no dependencies   | Middle phase tasks      | Final phase, polish tasks  |
 | prp-plan      | Batch 1 / early tasks            | Middle tasks            | Late tasks, testing tasks  |
+| prd           | Phase 1, Must capabilities       | Phase 2, Should caps    | Phase 3+, Could caps       |

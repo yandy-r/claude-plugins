@@ -9,6 +9,7 @@ set -euo pipefail
 #   feature-spec   - feature-spec.md file
 #   parallel-plan  - parallel-plan.md file
 #   prp-plan       - *.plan.md file
+#   prd            - *.prd.md file
 #
 # Auto-detects type from path/content if --type is not specified.
 #
@@ -98,6 +99,8 @@ else
       DETECTED_TYPE="parallel-plan"
     elif [[ "$BASENAME" == *.plan.md ]]; then
       DETECTED_TYPE="prp-plan"
+    elif [[ "$BASENAME" == *.prd.md ]]; then
+      DETECTED_TYPE="prd"
     else
       # Content-based fallback: check first 40 lines for signature headers
       HEAD_CONTENT=$(head -40 "$SOURCE_PATH" 2>/dev/null || echo "")
@@ -105,6 +108,8 @@ else
         DETECTED_TYPE="parallel-plan"
       elif echo "$HEAD_CONTENT" | grep -q "## Mandatory Reading\|## Step-by-Step Tasks"; then
         DETECTED_TYPE="prp-plan"
+      elif echo "$HEAD_CONTENT" | grep -q "## Problem Statement"; then
+        DETECTED_TYPE="prd"
       elif echo "$HEAD_CONTENT" | grep -q "## Executive Summary"; then
         DETECTED_TYPE="feature-spec"
       else
@@ -210,8 +215,32 @@ else
           echo "INFO: Found approximately $TASK_COUNT tasks"
         fi
         ;;
+      prd)
+        if [[ ! -f "$SOURCE_PATH" ]]; then
+          ERRORS+=("ERROR: prd source must be a file: $SOURCE_PATH")
+        else
+          echo "OK: Source file exists: $SOURCE_PATH"
+          if grep -q "## Problem Statement" "$SOURCE_PATH" 2>/dev/null; then
+            echo "OK: Contains expected ## Problem Statement header"
+          else
+            ERRORS+=("WARNING: Missing ## Problem Statement header -- file may not be a valid PRD")
+          fi
+          if grep -q "## Implementation Phases" "$SOURCE_PATH" 2>/dev/null; then
+            echo "OK: Contains Implementation Phases section"
+            PHASE_COUNT=$(grep -c "^| [0-9]" "$SOURCE_PATH" 2>/dev/null) || PHASE_COUNT=0
+            echo "INFO: Found approximately $PHASE_COUNT phases"
+          else
+            ERRORS+=("WARNING: Missing ## Implementation Phases section")
+          fi
+          if grep -q "## Success Metrics\|## Key Hypothesis" "$SOURCE_PATH" 2>/dev/null; then
+            echo "OK: Contains success/hypothesis structure"
+          else
+            ERRORS+=("WARNING: Missing success metrics or hypothesis section")
+          fi
+        fi
+        ;;
       *)
-        ERRORS+=("ERROR: Unknown source type: $DETECTED_TYPE. Valid types: deep-research, feature-spec, parallel-plan, prp-plan")
+        ERRORS+=("ERROR: Unknown source type: $DETECTED_TYPE. Valid types: deep-research, feature-spec, parallel-plan, prp-plan, prd")
         ;;
     esac
   fi
