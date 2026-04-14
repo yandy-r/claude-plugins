@@ -249,5 +249,9 @@ Structural validation is enforced by `validate-prp-plan.sh` in Phase 6.5. The sc
 
 - Run `/prp-implement <plan-path>` to execute this plan
 - Run `/plan` for quick conversational planning without artifacts
-- Run `/prp-prd` to create a PRD first if scope is unclear
-- Run `/plan-workflow` for the parallel-agent planning track
+- Run `/plan-workflow` for the heavyweight parallel-agent planning track
+
+**Entry points into this skill** — `prp-spec` and `prp-prd` are parallel paths, not sequential:
+
+- Run `/prp-spec` for a lightweight single-pass spec when the problem is clear
+- Run `/prp-prd` for interactive hypothesis-driven discovery when the problem is unclear

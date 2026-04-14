@@ -416,9 +416,19 @@ This will automatically select the next pending phase and create an implementati
 
 ## Integration with ycc
 
+**Pipeline model** — `prp-prd` and `prp-spec` are parallel entry points into `prp-plan`, not sequential steps:
+
+```
+Path A (problem unclear): prp-prd  ──→ prp-plan → prp-implement
+Path B (problem clear):   prp-spec ──→ prp-plan → prp-implement
+```
+
+Use `prp-prd` when the problem needs interactive discovery. Use `$prp-spec` when the problem is already clear and a lightweight, single-pass spec is sufficient.
+
 After PRD generation:
 
 - Use `$prp-plan` to create implementation plans from PRD phases (this workflow is PRD-aware and will find the next pending phase)
+- Use `$prp-spec` for a lightweight single-pass spec when the problem is clear (parallel entry point — feeds into `prp-plan` directly)
 - Use `$plan` for simpler conversational planning without PRD structure
 - Use `$plan-workflow` for the heavyweight parallel-agent planning track instead
 - Use `$save-session` to preserve PRD context across sessions

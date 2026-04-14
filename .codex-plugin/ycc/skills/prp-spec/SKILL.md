@@ -3,17 +3,19 @@ name: prp-spec
 description: Generate a lightweight feature spec for the PRP workflow — single-pass
   with optional codebase/market grounding via prp-researcher. Produces a concise spec
   at docs/prps/specs/{name}.spec.md covering problem statement, requirements, technical
-  approach, integration points, and risks. Accepts a PRD file, free-form description,
-  or starts with clarifying questions. Use when the user asks to "write a spec", "spec
-  out a feature", "quick spec", "create a PRP spec", or says "/prp-spec". For heavyweight
-  multi-agent research, use feature-research instead.
+  approach, integration points, and risks. Accepts a free-form description or starts
+  with clarifying questions. Parallel entry point to prp-prd — use prp-spec when the
+  problem is clear, prp-prd when it needs discovery. Both feed directly into prp-plan.
+  Use when the user asks to "write a spec", "spec out a feature", "quick spec", "create
+  a PRP spec", or says "/prp-spec". For heavyweight multi-agent research, use feature-research
+  instead.
 ---
 
 # PRP Spec
 
-Generate a concise, actionable feature specification in a single pass. Lighter than `feature-research` (no multi-agent team), heavier than a PRD (includes technical approach and integration points).
+Generate a concise, actionable feature specification in a single pass. Lighter than `feature-research` (no multi-agent team), more technically directed than a PRD (includes technical approach and integration points).
 
-> Part of the PRP workflow series.
+> Part of the PRP workflow series. Parallel entry point alongside `prp-prd` — both feed directly into `prp-plan`.
 
 **Core Philosophy**: A spec captures WHAT to build and WHY, with enough technical direction to feed directly into `prp-plan`. It does NOT capture HOW in implementation detail — that is the plan's job.
 
@@ -30,7 +32,14 @@ Generate a concise, actionable feature specification in a single pass. Lighter t
 | Technical approach included   | Full technical specifications      | Problem-first, solution-light   |
 | 1 GATE wait for clarification | Runs without GATEs                 | 6 GATE waits through phases     |
 
-Reach for `feature-research` when external APIs need deep investigation across many domains. Reach for `prp-prd` when the problem itself is unclear. Use this skill when the problem is clear and the goal is a concise, planner-ready spec.
+**Pipeline model** — `prp-spec` and `prp-prd` are parallel entry points into `prp-plan`, not sequential steps:
+
+```
+Path A (problem clear):   prp-spec ──→ prp-plan → prp-implement
+Path B (problem unclear): prp-prd  ──→ prp-plan → prp-implement
+```
+
+Reach for `feature-research` when external APIs need deep investigation across many domains. Reach for `prp-prd` when the problem itself is unclear and needs interactive discovery. Use this skill when the problem is clear and the goal is a concise, planner-ready spec.
 
 ---
 
@@ -57,16 +66,15 @@ Extract flags from `$ARGUMENTS`:
 | ---------- | -------------------------------------------------------------------------------------------- |
 | `--ground` | Dispatch `prp-researcher` in dual mode for codebase + market grounding before generating |
 
-Strip the flag, set `GROUND_MODE=true|false`. The remaining text is the feature description or PRD path.
+Strip the flag, set `GROUND_MODE=true|false`. The remaining text is the feature description or file path.
 
 ### Input Detection
 
-| Input Pattern            | Action                                                           |
-| ------------------------ | ---------------------------------------------------------------- |
-| Path ending in `.prd.md` | Read PRD, extract problem + requirements + phase context as seed |
-| Path to other `.md` file | Read for context, treat as input                                 |
-| Free-form text           | Proceed to Phase 1                                               |
-| Empty                    | Ask the user what to spec                                        |
+| Input Pattern            | Action                                              |
+| ------------------------ | --------------------------------------------------- |
+| Path to `.md` file       | Read for context, treat as input seed               |
+| Free-form text           | Proceed to Phase 1                                  |
+| Empty                    | Ask the user what to spec                           |
 
 ### Feature Name Derivation
 
@@ -234,7 +242,7 @@ Report to the user:
 
 - Review and refine the spec
 - Run `$prp-plan docs/prps/specs/{name}.spec.md` to create an implementation plan
-- Run `$prp-prd` first if a full hypothesis-driven PRD is needed
+- If the problem needs deeper discovery, run `$prp-prd` instead — it feeds into `prp-plan` directly
 ```
 
 ---
@@ -251,16 +259,17 @@ Report to the user:
 
 5. **Do NOT fabricate grounding findings**: If `GROUND_MODE=false` and no researcher ran, leave Rationale/Notes columns empty or marked `TBD` rather than inventing justifications.
 
-6. **Do NOT act as a PRD generator**: This skill is not problem-first and does not run hypothesis questioning. For that, use `$prp-prd`.
+6. **Do NOT act as a PRD generator**: This skill is not problem-first and does not run hypothesis questioning. If the problem is unclear and needs interactive discovery, direct the user to `$prp-prd` instead.
 
 ---
 
 ## Integration
 
-- **Upstream**: Accepts PRD files from `$prp-prd` or free-form descriptions. Can be invoked standalone.
+- **Entry point**: Parallel to `$prp-prd` — use `prp-spec` when the problem is clear, `prp-prd` when it needs interactive discovery. Both feed directly into `prp-plan`.
+- **Input**: Accepts free-form descriptions or starts with clarifying questions. Can be invoked standalone.
 - **Downstream**: Specs feed into `$prp-plan` for implementation planning. `prp-plan` recognizes `.spec.md` files as input.
 - **Grounding**: Optionally dispatches `prp-researcher` in dual mode for codebase + market discovery.
-- **Parallel track**: For heavyweight multi-agent research, use `$feature-research` instead (outputs to `docs/plans/`).
+- **Heavyweight alternative**: For multi-agent research across many domains, use `$feature-research` instead (outputs to `docs/plans/`).
 
 ## Success Criteria
 
