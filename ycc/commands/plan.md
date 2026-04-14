@@ -1,6 +1,6 @@
 ---
 description: Lightweight conversational planner. Restates requirements, identifies risks, outlines phases, then WAITS for explicit user confirmation before touching any code. Pass --parallel to shape the planner's output for parallel execution (Batches section + dependency annotations).
-argument-hint: '<what you want to plan> [--parallel]'
+argument-hint: '[--parallel] <what you want to plan>'
 allowed-tools:
   - Read
   - Grep

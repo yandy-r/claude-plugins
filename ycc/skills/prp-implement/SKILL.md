@@ -1,7 +1,7 @@
 ---
 name: prp-implement
 description: Execute a PRP plan file with continuous validation loops. Detects package manager, prepares git branch, processes tasks with per-task validation, runs all 5 validation levels (static, unit, build, integration, edge cases), writes an implementation report to docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans (those with a Batches section and Depends on annotations) and prompts the user to choose sequential or parallel execution. Pass --parallel to skip the prompt and run tasks in parallel via ycc:implementor agents. Use when the user asks to "execute a PRP plan", "implement from a plan file", "run prp-implement", "parallel PRP implement", or provides a path to a .plan.md file. Adapted from PRPs-agentic-eng by Wirasm.
-argument-hint: '<path/to/plan.md> [--parallel]'
+argument-hint: '[--parallel] <path/to/plan.md>'
 allowed-tools:
   - Read
   - Grep

@@ -1,6 +1,6 @@
 ---
 description: Execute a PRP plan file with per-task validation loops. Detects package manager, prepares git branch, runs 5 validation levels, writes docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans and prompts the user; pass --parallel to force parallel batch execution via ycc:implementor agents.
-argument-hint: '<path/to/plan.md> [--parallel]'
+argument-hint: '[--parallel] <path/to/plan.md>'
 allowed-tools:
   - Read
   - Grep

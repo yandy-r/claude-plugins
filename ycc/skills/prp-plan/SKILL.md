@@ -1,7 +1,7 @@
 ---
 name: prp-plan
 description: Create a comprehensive, self-contained feature implementation plan with codebase pattern extraction and optional external research. Detects whether the input is a PRD (selects next pending phase) or a free-form description, runs deep codebase discovery via ycc:prp-researcher, and writes a single-pass-ready plan to docs/prps/plans/{name}.plan.md. Pass `--parallel` to fan out research across 3 researcher agents and emit a dependency-batched task list ready for parallel execution by prp-implement. Use when the user asks for a "PRP plan", "implementation plan from PRD", "feature plan with patterns to mirror", "parallel PRP plan", or says "/prp-plan". Adapted from PRPs-agentic-eng by Wirasm.
-argument-hint: '<feature description | path/to/prd.md> [--parallel]'
+argument-hint: '[--parallel] <feature description | path/to/prd.md>'
 allowed-tools:
   - Read
   - Grep

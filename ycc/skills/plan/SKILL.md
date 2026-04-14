@@ -1,7 +1,7 @@
 ---
 name: plan
 description: Lightweight conversational planner that dispatches the ycc:planner agent to produce a specific, phased implementation plan with file paths, dependencies, risks, and a testing strategy — then WAITS for explicit user confirmation before any code is written. Pass `--parallel` to instruct the planner to shape its output for parallel execution (Batches summary section, hierarchical step IDs, explicit Depends on annotations). Use for quick planning on a new feature, architectural change, or complex refactor when you do NOT need the heavier parallel-agent plan-workflow or the PRD-driven prp-plan. Use when the user asks to "plan this", "outline an approach", "break this down before I code", "parallel plan", or says "/plan".
-argument-hint: '<what you want to plan> [--parallel]'
+argument-hint: '[--parallel] <what you want to plan>'
 allowed-tools:
   - Read
   - Grep

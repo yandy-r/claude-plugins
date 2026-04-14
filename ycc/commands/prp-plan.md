@@ -1,6 +1,6 @@
 ---
 description: Create a single-pass implementation plan from a feature description or PRD. Runs codebase pattern extraction and optional external research, then writes docs/prps/plans/{name}.plan.md. Pass --parallel to fan out research and emit a dependency-batched plan.
-argument-hint: '<feature description | path/to/prd.md> [--parallel]'
+argument-hint: '[--parallel] <feature description | path/to/prd.md>'
 allowed-tools:
   - Read
   - Grep
