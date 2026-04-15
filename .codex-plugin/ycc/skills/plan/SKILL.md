@@ -1,14 +1,17 @@
 ---
 name: plan
 description: Lightweight conversational planner that dispatches the planner agent
-  to produce a specific, phased implementation plan with file paths, dependencies,
-  risks, and a testing strategy — then WAITS for explicit user confirmation before
-  any code is written. Pass `--parallel` to instruct the planner to shape its output
-  for parallel execution (Batches summary section, hierarchical step IDs, explicit
-  Depends on annotations). Use for quick planning on a new feature, architectural
-  change, or complex refactor when you do NOT need the heavier parallel-agent plan-workflow
-  or the PRD-driven prp-plan. Use when the user asks to "plan this", "outline an approach",
-  "break this down before I code", "parallel plan", or says "/plan".
+  (or a multi-perspective agent team) to produce a specific, phased implementation
+  plan with file paths, dependencies, risks, and a testing strategy — then WAITS for
+  explicit user confirmation before any code is written. Pass `--parallel` to instruct
+  the planner to shape its output for parallel execution (Batches summary section,
+  hierarchical step IDs, explicit Depends on annotations). Pass `--agent-team` to
+  spawn a 3-persona team (architect / risk-analyst / test-strategist) and merge their
+  outputs into a richer plan. Flags are independent and combinable. Use for quick
+  planning on a new feature, architectural change, or complex refactor when you do
+  NOT need the heavier parallel-agent plan-workflow or the PRD-driven prp-plan. Use
+  when the user asks to "plan this", "outline an approach", "break this down before
+  I code", "parallel plan", "multi-perspective plan", or says "/plan".
 ---
 
 # Plan Skill
@@ -21,18 +24,25 @@ Create a comprehensive implementation plan before writing any code. This is the 
 
 ## What This Skill Does
 
-1. **Parse flags and the request** — Extract `--parallel`, then read the user input and any referenced files
-2. **Dispatch `planner`** — Delegate plan construction to the planning specialist agent. In parallel mode, augment the prompt with output-shape directives
-3. **Relay the plan** — Present the agent's plan to the user verbatim
+1. **Parse flags and the request** — Extract `--parallel`, `--agent-team`, `--dry-run`, then read the user input and any referenced files
+2. **Dispatch planner(s)** — Either dispatch a single `planner` (default) or deploy a 3-persona agent team (`--agent-team`). In parallel mode, augment the prompt(s) with output-shape directives
+3. **Merge and relay the plan** — For the single-agent path, relay verbatim. For the team path, merge the 3 teammate outputs into one unified plan
 4. **Wait for confirmation** — MUST receive explicit user approval before proceeding
 
 ## Flags
 
-| Flag         | Effect                                                                                                                                                                                                                                                                                                                                                    |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel` | Instruct the `planner` agent to emit a parallel-capable plan: a `Batches` summary section at the top, hierarchical step IDs (`1.1`, `1.2`, `2.1`), and explicit `Depends on [...]` annotations on every step. Enables in-conversation parallel implementation via `implementor` agents, or file-based handoff to `$prp-implement --parallel`. |
+| Flag           | Effect                                                                                                                                                                                                                                                                                                                                   |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel`   | Instruct the planner(s) to emit a parallel-capable plan: a `Batches` summary section at the top, hierarchical step IDs (`1.1`, `1.2`, `2.1`), and explicit `Depends on [...]` annotations on every step. Enables in-conversation parallel implementation via `implementor` agents, or file-based handoff to `$prp-implement --parallel`. |
+| `--agent-team` | Dispatch a 3-persona planning team (architect / risk-analyst / test-strategist) under a shared `create an agent group`/`the task tracker` with coordinated shutdown. Produces a richer plan by merging structural, risk, and testing perspectives. Heavier than the default single-agent path.                                           |
+| `--dry-run`    | Only valid with `--agent-team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                                                                                                     |
 
-**Note**: `--parallel` on `$plan` shapes the _output_, not the research phase. The `planner` agent already does its own codebase reads; this skill does not fan out to multiple researcher agents. For research fan-out on larger features, use `$prp-plan --parallel`.
+**Flag interaction**:
+
+- `--parallel` and `--agent-team` are **independent and combinable**. `--parallel` shapes the plan's _output format_; `--agent-team` switches the _dispatch mechanism_. Pass both for a multi-perspective plan formatted for parallel execution.
+- `--dry-run` requires `--agent-team` (the single-agent path has nothing to dry-run).
+
+**Note**: `--parallel` on `$plan` shapes the _output_, not the research phase. For research fan-out on larger features, use `$prp-plan --parallel` (sub-agent fan-out) or `$prp-plan --agent-team` (Codex only; shared-task-list coordination).
 
 ## When to Use
 
@@ -50,11 +60,24 @@ Use this skill when:
 
 ### Step 1 — Parse flags and the user's request
 
-**Flag parsing**: Extract `--parallel` from `$ARGUMENTS` before processing. Strip it out and set `PARALLEL_MODE=true|false`. The remaining text is the user's request.
+**Flag parsing**: Extract `--parallel`, `--agent-team`, and `--dry-run` from `$ARGUMENTS` before processing. Strip them out and set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `DRY_RUN=true|false`. The remaining text is the user's request.
 
-Read the stripped `$ARGUMENTS`. If it references a file path, read that file for context. If the request is ambiguous, ask a single focused clarifying question **before** dispatching the agent.
+**Validation**:
 
-### Step 2 — Dispatch the `planner` agent
+- If `DRY_RUN=true` and `AGENT_TEAM_MODE=false` → abort with: `--dry-run requires --agent-team (no-op for the single-agent path).`
+
+Read the stripped `$ARGUMENTS`. If it references a file path, read that file for context. If the request is ambiguous, ask a single focused clarifying question **before** dispatching.
+
+### Step 2 — Dispatch
+
+Choose dispatch path based on `AGENT_TEAM_MODE`:
+
+- **`AGENT_TEAM_MODE=false`** (default) → **Path A**: single `planner` agent.
+- **`AGENT_TEAM_MODE=true`** → **Path B**: 3-persona planning team.
+
+---
+
+### Path A — Single-agent dispatch (default)
 
 Spawn the `planner` custom agent. In the prompt, include:
 
@@ -126,6 +149,132 @@ execution:
    plan? (yes / no / modify)`
 ```
 
+---
+
+### Path B — Agent-team dispatch (`AGENT_TEAM_MODE=true`)
+
+> **MANDATORY — AGENT TEAMS REQUIRED**
+>
+> In Path B you MUST use the agent-team lifecycle. Do NOT mix standalone sub-agents with
+> team dispatch. Every `Agent` call below MUST include `name=` AND `name=`.
+>
+> 1. `create an agent group` FIRST — before any agent spawn
+> 2. `record the task` — register all 3 subtasks in the shared task list
+> 3. `Agent` with `name=` — one message, three calls
+> 4. `the task tracker` — wait for all teammates to mark complete
+> 5. `send follow-up instructions({type:"shutdown_request"})` — shut down all teammates
+> 6. `close the agent group` — clean up
+>
+> If `create an agent group` fails, abort the skill with a clear error. Do NOT silently fall back
+> to Path A. Refer to `~/.codex/plugins/ycc/shared/references/agent-team-dispatch.md`
+> for the full lifecycle contract.
+
+#### B.1 Build the team name
+
+Sanitize the user's request to produce `<sanitized-request>`:
+
+- Lowercase; replace non-`[a-z0-9-]` with `-`; collapse runs of `-`; trim; truncate to
+  **20 characters** max. Fall back to `untitled` if empty.
+
+Team name: `plan-<sanitized-request>`.
+
+#### B.2 Dry-run gate (if `DRY_RUN=true`)
+
+Print:
+
+```
+Team name:   plan-<sanitized-request>
+Teammates:   3
+  - architect       subagent_type=planner                    task=Structural plan, phases, file layout, dependencies
+  - risk-analyst    subagent_type=codebase-research-analyst  task=Risks, edge cases, rollback, migration concerns
+  - test-strategist subagent_type=test-strategy-planner      task=Testing strategy, validation commands, acceptance criteria
+Batches:     1  (batch 1: architect, risk-analyst, test-strategist)
+Dependencies: none  (flat graph)
+```
+
+Do **not** call `create an agent group` or any team/task/agent tools. Exit the skill.
+
+#### B.3 Create the team
+
+```
+create an agent group: name="plan-<sanitized-request>", description="Multi-perspective planning team for: <user request>"
+```
+
+On failure, abort.
+
+#### B.4 Register subtasks
+
+Create 3 tasks in the shared task list (flat graph — no dependencies):
+
+```
+record the task: subject="architect: structural plan for <user request>", description="..."
+record the task: subject="risk-analyst: risks and edge cases for <user request>", description="..."
+record the task: subject="test-strategist: testing strategy for <user request>", description="..."
+```
+
+#### B.5 Spawn the 3 teammates (single message, three Agent calls)
+
+| Teammate name     | `subagent_type`             | Role focus                                                 |
+| ----------------- | --------------------------- | ---------------------------------------------------------- |
+| `architect`       | `planner`                   | Structural plan, phases, file layout, dependencies         |
+| `risk-analyst`    | `codebase-research-analyst` | Risks, edge cases, rollback, migration concerns            |
+| `test-strategist` | `test-strategy-planner`     | Testing strategy, validation commands, acceptance criteria |
+
+Spawn all three in **ONE message** with **THREE `Agent` tool calls**, each with
+`name="plan-<sanitized-request>"` and the role-specific `name` above.
+
+Each teammate's prompt MUST include:
+
+- The user's original request (verbatim)
+- Any file paths or context they referenced
+- The teammate's role focus (from the table) — make it clear what slice of the plan
+  this teammate owns
+- Instruction to coordinate via `send follow-up instructions` if they discover work overlapping another
+  teammate's scope (reference the teammate roster so they know who is working alongside
+  them)
+- If `PARALLEL_MODE=true`: append the same parallel output directives from Path A
+  (section "Parallel prompt") — each teammate should structure its own slice with
+  hierarchical step IDs and `Depends on` annotations
+
+#### B.6 Monitor and collect results
+
+Use `the task tracker` to confirm all 3 tasks are `completed` before merging. If any teammate
+errors, record the failure in `the task tracker` and decide per severity:
+
+- `architect` failure → critical; abort with error, shut down remaining teammates, `close the agent group`.
+- `risk-analyst` or `test-strategist` failure → record "partial plan — {role} did not
+  complete" and proceed with a 2-persona merge, noting the gap in the relayed plan.
+
+#### B.7 Merge outputs
+
+Synthesize the 3 teammate outputs into a single unified plan following the standard
+`planner` Plan Format. Merging rules:
+
+- **Overview / Summary**: use `architect`'s framing.
+- **Architecture Changes / Implementation Steps**: primarily `architect`; fold in
+  `risk-analyst`'s findings as per-step risk callouts or a dedicated `## Risks &
+Mitigations` section.
+- **Testing Strategy / Success Criteria**: use `test-strategist`'s content verbatim.
+- **Batches section** (if `PARALLEL_MODE=true`): use `architect`'s numbering; re-index
+  if `risk-analyst` or `test-strategist` added follow-on steps.
+- End with the standard confirmation prompt: `**WAITING FOR CONFIRMATION**: Proceed
+with this plan? (yes / no / modify)`
+
+#### B.8 Shutdown and cleanup
+
+After merging (success or partial):
+
+```
+send follow-up instructions(to="architect",       message={type:"shutdown_request"})
+send follow-up instructions(to="risk-analyst",    message={type:"shutdown_request"})
+send follow-up instructions(to="test-strategist", message={type:"shutdown_request"})
+close the agent group
+```
+
+Always `close the agent group` — even on abort or partial failure.
+
+---
+
 ### Step 2.5 — Validate the plan before relaying
 
 After the `planner` agent returns its plan, perform these quick checks BEFORE presenting it to the user. Use only the tools already available to this skill.
@@ -166,7 +315,19 @@ If the plan was requested with `--parallel`, verify:
 - At least one `Depends on` annotation exists
 - Step IDs use hierarchical format (N.N)
 
-If any are missing, re-dispatch the planner with a directive to add the missing parallel annotations.
+If any are missing, re-dispatch the planner (or `architect` teammate, if in Path B — but only _after_ `close the agent group` has run; do not try to re-spawn inside a torn-down team) with a directive to add the missing parallel annotations.
+
+#### Check 4: Agent-team merge integrity (`AGENT_TEAM_MODE=true` only)
+
+After Path B merge, verify the unified plan reflects all three perspectives:
+
+- `architect` slice: `## Implementation Steps` (or equivalent) is present and non-empty
+- `risk-analyst` slice: a `## Risks` / `## Risks & Mitigations` section OR per-step risk callouts are present
+- `test-strategist` slice: `## Testing Strategy` is present and non-empty
+
+If the merge dropped a slice (e.g., because a teammate errored), append a visible note:
+
+> **Validation Note**: The {role} perspective could not be included in this plan (teammate error). Review the plan for gaps in {area} before confirming.
 
 ---
 
@@ -181,10 +342,12 @@ Do not touch any code until the user responds.
 Valid user responses:
 
 - **"yes" / "proceed" / "approved"** → proceed to implement
-- **"modify: ..."** → re-dispatch `planner` with the modification request and the previous plan as context
-- **"different approach: ..."** → discard and re-dispatch `planner` with the new direction
+- **"modify: ..."** → re-dispatch the planner (Path A) or re-run Path B (new create an agent group — the previous team was deleted in B.8) with the modification request and the previous plan as context
+- **"different approach: ..."** → discard and re-dispatch Path A or re-run Path B with the new direction
 - **"skip phase N and do phase M first"** → re-dispatch with the reorder request
 - **"no"** → stop, do not implement
+
+**Team-mode re-dispatch note**: Path B's team is `close the agent group`d in Step B.8 _before_ the user sees the plan. Any re-dispatch from this step creates a **new** team (same name is fine — the old one no longer exists) with a fresh set of teammates. Do not attempt to send messages to teammates from the prior team.
 
 ---
 
@@ -197,6 +360,12 @@ Do not summarize, do not touch files, do not run commands beyond read-only analy
 If the user's instructions are unclear after the planner produces a draft, ask a focused clarifying question rather than guessing, then re-dispatch the planner with the clarification.
 
 The `planner` agent owns the plan format, worked examples, sizing/phasing guidance, and red-flag checks. This skill is an orchestration layer — it decides _when_ to plan and _what_ to do with the plan, not _how_ a plan should be structured.
+
+For Path B's team lifecycle contract (sanitization, shutdown sequence, failure policy), refer to:
+
+```
+~/.codex/plugins/ycc/shared/references/agent-team-dispatch.md
+```
 
 ---
 
@@ -229,12 +398,12 @@ Use Option 1 for small features and quick iterations. Use Option 2 when the user
 
 ## Comparison with other ycc planning tracks
 
-| Track                  | When to use                                                                                                                                             |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Track              | When to use                                                                                                                                         |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `$plan` (this one) | Quick conversational plan via `planner` agent. No artifact file. Add `--parallel` to shape the output for parallel execution (no research fan-out). |
-| `$prp-plan`        | Artifact-producing plan with codebase pattern extraction. Single-pass. Add `--parallel` for 3-researcher fan-out + batched plan.                        |
-| `$prp-prd`         | Interactive PRD first, then prp-plan. Problem-first hypothesis workflow.                                                                                |
-| `$plan-workflow`   | Heavyweight parallel-agent planning. Multi-task features. Artifact output.                                                                              |
+| `$prp-plan`        | Artifact-producing plan with codebase pattern extraction. Single-pass. Add `--parallel` for 3-researcher fan-out + batched plan.                    |
+| `$prp-prd`         | Interactive PRD first, then prp-plan. Problem-first hypothesis workflow.                                                                            |
+| `$plan-workflow`   | Heavyweight parallel-agent planning. Multi-task features. Artifact output.                                                                          |
 | `$parallel-plan`   | Lower-level component of `$plan-workflow` for dependency-aware plans.                                                                               |
 
 ### Which `--parallel` should I use?
@@ -242,3 +411,14 @@ Use Option 1 for small features and quick iterations. Use Option 2 when the user
 - **`$plan --parallel`** — You want a quick parallel-capable plan without creating an artifact file. Planner does its own research. Best for small/medium features.
 - **`$prp-plan --parallel`** — You want research fan-out (3 parallel researchers covering 8 categories) plus a full artifact file with patterns to mirror and validation commands. Best for medium/large features where you want a rigorous, auditable plan.
 - **`$plan-workflow`** — You want heavyweight team orchestration with shared context and multi-phase validation. Best for very large features spanning many tasks.
+
+### When to use `--agent-team`
+
+`--agent-team` is a **Codex-only** execution mode. Cursor and Codex bundles ship
+without the team tools (`create an agent group`, `send follow-up instructions`, etc.), so invoking `--agent-team`
+there has no effect — use `--parallel` instead.
+
+- **`$plan --agent-team`** — The task is complex enough that you want architect, risk, and testing perspectives but not heavy enough for an artifact file. Outputs a merged multi-perspective plan in the conversation.
+- **`$plan --parallel --agent-team`** — Same as above, but the merged plan is also formatted for parallel implementation (Batches section, `Depends on` annotations).
+- **`$prp-plan --agent-team`** — Team-coordinated research with shared the task tracker for medium/large features that will produce an artifact file.
+- **`$prp-implement --agent-team`** — Team-coordinated execution with shared the task tracker across all batches. Best for implementation runs where you want coordinated inter-batch shutdown and a single shared task graph.

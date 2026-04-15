@@ -5,10 +5,12 @@ description: Execute a PRP plan file with continuous validation loops. Detects p
   5 validation levels (static, unit, build, integration, edge cases), writes an implementation
   report to docs/prps/reports/, and archives the plan. Auto-detects parallel-capable
   plans (those with a Batches section and Depends on annotations) and prompts the
-  user to choose sequential or parallel execution. Pass --parallel to skip the prompt
-  and run tasks in parallel via implementor agents. Use when the user asks to "execute
-  a PRP plan", "implement from a plan file", "run prp-implement", "parallel PRP implement",
-  or provides a path to a .plan.md file. Adapted from PRPs-agentic-eng by Wirasm.
+  user to choose sequential or parallel execution. Pass `--parallel` to skip the prompt
+  and run tasks in parallel via standalone implementor sub-agents. Pass `--agent-team`
+  (Codex only) to run the same per-batch implementor fan-out under a shared create
+  an agent group/the task tracker with up-front dependency wiring (`addBlockedBy`)
+  and coordinated per-batch shutdown via send follow-up instructions. `--parallel`
+  and `--agent-team` are mutually exclusive.
 ---
 
 # PRP Implement
@@ -29,11 +31,20 @@ Execute a plan file step-by-step with continuous validation. Every change is ver
 
 Extract flags from `$ARGUMENTS` before treating the remainder as a plan path:
 
-| Flag         | Effect                                                                                                                                                                  |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel` | Force parallel execution when the plan is parallel-capable. Skips the interactive prompt. Falls back to sequential with a warning if the plan has no `Batches` section. |
+| Flag           | Effect                                                                                                                                                                                                                                                                                                                                                            |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel`   | Force parallel execution via **standalone sub-agents** when the plan is parallel-capable. Skips the interactive prompt. Falls back to sequential with a warning if the plan has no `Batches` section. Works in Codex, Cursor, and Codex.                                                                                                                          |
+| `--agent-team` | (Codex only) Force parallel execution via an **agent team** with up-front `record the task` + `addBlockedBy` dependency wiring, per-batch teammate spawn, and inter-batch shutdown via `send follow-up instructions`. Aborts (does NOT fall back) if the plan has no `Batches` section. Heavier dispatch with shared task-graph observability across all batches. |
+| `--dry-run`    | Only valid with `--agent-team`. Prints the team name, full task graph (with dependencies), and per-batch teammate roster, then exits without spawning any teammates.                                                                                                                                                                                              |
 
-Strip the flag from `$ARGUMENTS` and set `PARALLEL_FLAG=true|false`. The remaining text is the plan file path.
+Strip the flags from `$ARGUMENTS` and set `PARALLEL_FLAG=true|false`, `AGENT_TEAM_FLAG=true|false`, `DRY_RUN=true|false`. The remaining text is the plan file path.
+
+**Validation**:
+
+- `--parallel` and `--agent-team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --agent-team are mutually exclusive. Pick one.`
+- `--dry-run` requires `--agent-team`. If `DRY_RUN=true` and `AGENT_TEAM_FLAG=false` → abort with: `--dry-run requires --agent-team.`
+
+**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--agent-team` must not be used (those bundles ship without team tools). Use `--parallel` instead.
 
 ### Package Manager Detection
 
@@ -96,16 +107,18 @@ grep -c "^## Batches" "$PLAN_PATH" || echo 0
 
 ### Execution Mode Decision
 
-Decide between **Path A (Sequential)** and **Path B (Parallel)** based on the flag and plan capability:
+Decide between **Path A (Sequential)**, **Path B (Parallel sub-agents)**, and **Path C (Agent team)** based on the flags and plan capability:
 
-| `--parallel` flag | Parallel-capable plan | Action                                                                                                                                                                                             |
-| ----------------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Yes               | Yes                   | Proceed with **Path B** (parallel batch execution) — no prompt                                                                                                                                     |
-| Yes               | No                    | Warn: _"Plan has no `Batches` section — cannot run in parallel. Falling back to sequential execution."_ → **Path A**                                                                               |
-| No                | Yes                   | Use `ask the user` to prompt: _"This plan is parallel-capable ({N} tasks in {M} batches, max width {X}). Run in parallel or sequential mode?"_. Accept user's choice → **Path A** or **Path B** |
-| No                | No                    | Proceed with **Path A** (sequential) — default, no prompt                                                                                                                                          |
+| Flags          | Parallel-capable plan | Action                                                                                                                                                                                                                                                           |
+| -------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--agent-team` | Yes                   | Proceed with **Path C** (agent-team batch execution) — no prompt                                                                                                                                                                                                 |
+| `--agent-team` | No                    | **Abort** with: _"`--agent-team` requires a parallel-capable plan (with `## Batches` section). This plan is sequential — re-run with `--parallel` to fall back to standalone sub-agents, or omit the flag for sequential execution."_ Do NOT silently fall back. |
+| `--parallel`   | Yes                   | Proceed with **Path B** (parallel sub-agent batch execution) — no prompt                                                                                                                                                                                         |
+| `--parallel`   | No                    | Warn: _"Plan has no `Batches` section — cannot run in parallel. Falling back to sequential execution."_ → **Path A**                                                                                                                                             |
+| (none)         | Yes                   | Use `ask the user` to prompt: _"This plan is parallel-capable ({N} tasks in {M} batches, max width {X}). Run sequential / parallel sub-agents / agent team?"_. Accept user's choice → **Path A**, **Path B**, or **Path C**.                                     |
+| (none)         | No                    | Proceed with **Path A** (sequential) — default, no prompt                                                                                                                                                                                                        |
 
-Record the chosen mode as `EXECUTION_MODE=sequential|parallel` for use in Phase 3.
+Record the chosen mode as `EXECUTION_MODE=sequential|parallel|agent_team` for use in Phase 3.
 
 **CHECKPOINT**: Plan loaded. All sections identified. Tasks extracted. Parallel capability detected. Execution mode chosen.
 
@@ -211,6 +224,144 @@ If a batch fails validation:
 
 Proceed to **Phase 4 — VALIDATE** and run the full 5-level validation as normal. Between-batch validation only covered Levels 1 + 2; Phase 4 still runs Levels 3 (build), 4 (integration), and 5 (edge cases).
 
+### Path C — Agent Team Batch Execution (`EXECUTION_MODE=agent_team`)
+
+> **MANDATORY — AGENT TEAMS REQUIRED**
+>
+> In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
+> with team dispatch. Every `Agent` call below MUST include `name=` AND `name=`.
+>
+> 1. `create an agent group` ONCE at the start (single team across all batches)
+> 2. `record the task` for **every task across all batches** up front, with `addBlockedBy`
+>    wiring the dependency graph from the plan's `Depends on` annotations
+> 3. Per batch: spawn teammates (single message, multiple `Agent` calls with
+>    `name=` + `name=`)
+> 4. `the task tracker` to monitor batch completion; run between-batch validation
+> 5. `send follow-up instructions({type:"shutdown_request"})` to all teammates of completed batch
+>    BEFORE spawning next batch
+> 6. `close the agent group` ONCE after final batch (or on abort)
+>
+> If `create an agent group` or up-front `record the task` fails, abort the skill. Refer to
+> `~/.codex/plugins/ycc/shared/references/agent-team-dispatch.md`
+> for the full lifecycle contract.
+
+Process batches sequentially under a single team, with per-batch teammate spawn and
+inter-batch shutdown.
+
+#### C.1 Build the team name
+
+Sanitize the plan basename (strip `.plan.md`, lowercase, kebab, max **20 chars**, fall
+back to `untitled`). Team name: `prpi-<sanitized-plan-basename>`.
+
+#### C.2 Dry-run gate (if `DRY_RUN=true`)
+
+Print:
+
+```
+Team name:    prpi-<sanitized-plan-basename>
+Total tasks:  <N>  (across <M> batches, max parallel width <X>)
+Dependencies: <K edges>  (from plan's `Depends on` annotations)
+
+Batch 1: <comma-separated task IDs>
+Batch 2: <comma-separated task IDs>  (depends on Batch 1)
+...
+Batch M: <comma-separated task IDs>  (depends on Batch M-1)
+
+Per-batch teammate roster:
+  Batch 1:
+    - <task-id-1>  subagent_type=implementor  task=<short>
+    - <task-id-2>  subagent_type=implementor  task=<short>
+  ...
+```
+
+Do **not** call any team/task/agent tools. Exit the skill.
+
+#### C.3 Create the team
+
+```
+create an agent group: name="prpi-<sanitized-plan-basename>", description="PRP-implement team for: <plan basename>"
+```
+
+On failure, abort.
+
+#### C.4 Register ALL tasks up front with dependency graph
+
+For **every task across all batches** in the plan's Step-by-Step Tasks section:
+
+```
+record the task: subject="<task-id>: <task title>", description="<full spec — ACTION, IMPLEMENT, MIRROR, IMPORTS, GOTCHA, VALIDATE>"
+```
+
+Then wire dependencies — for each task `T` with a `Depends on [X, Y, Z]` annotation:
+
+```
+update the task tracker: taskId="<T-id>", addBlockedBy=["<X-id>", "<Y-id>", "<Z-id>"]
+```
+
+This populates the shared task graph **once**, not per batch. Subsequent batches can
+read `the task tracker` to confirm prerequisites are complete.
+
+If any `record the task` or `update the task tracker` fails → `close the agent group`, then abort.
+
+#### C.5 Per-batch loop
+
+For each batch `B1, B2, ... BN` in order (from the plan's `Batches` table):
+
+1. **Identify batch tasks** — Extract all tasks with `BATCH: BN` from the
+   Step-by-Step Tasks section.
+
+2. **Spawn batch teammates** — Single message, multiple `Agent` tool calls, one per
+   task in the batch. Every call MUST include:
+   - `team_name`: `"prpi-<sanitized-plan-basename>"`
+   - `name`: the task ID (e.g., `"1.1"`, `"2.3"`) — must match the `record the task`
+     subject prefix
+   - `subagent_type`: `"implementor"`
+   - `description`: The task title
+   - `prompt`: The complete task spec (ACTION, IMPLEMENT, MIRROR, IMPORTS, GOTCHA,
+     VALIDATE) plus the relevant excerpt from the plan's **Patterns to Mirror**
+     section. Include a directive that the agent must read the MIRROR source file
+     before writing code, must run its own type-check on modified files before
+     reporting complete, and must call `update the task tracker` to mark its task complete.
+
+3. **Wait for batch completion via `the task tracker`** — poll until all tasks in this batch
+   are `completed`. If a teammate messages with an issue, respond via `send follow-up instructions`
+   with guidance.
+
+4. **Between-batch validation (Levels 1 + 2)** — Run the same type-check and unit-test
+   commands as Path B. On failure, **STOP** the parallel pipeline and ask the user via
+   `ask the user`: _"Batch {BN} validation failed. Choose: (1) fix manually and
+   resume from batch {BN+1}, (2) switch to sequential mode for remaining batches,
+   (3) abort."_
+   - If user picks (2) **switch to sequential**: send `send follow-up instructions(shutdown)` to all
+     teammates of the failed batch, `close the agent group`, then continue with Path A logic
+     for remaining batches.
+   - If user picks (3) **abort**: send `send follow-up instructions(shutdown)` to all teammates,
+     `close the agent group`, then exit.
+   - If user picks (1) **resume**: wait for the user to fix; on resume, send
+     `send follow-up instructions(shutdown)` to current batch teammates and proceed to Step 5.
+
+5. **Shut down completed-batch teammates** — Send to every teammate of the just-completed
+   batch:
+
+   ```
+   send follow-up instructions(to="<task-id>", message={type:"shutdown_request"})
+   ```
+
+   Wait for shutdowns to complete before spawning the next batch's teammates.
+
+6. **Track progress** — Log: `[done] Batch BN: K tasks — complete (type-check + tests pass)`
+
+#### C.6 After all batches complete
+
+`close the agent group` once. Then proceed to **Phase 4 — VALIDATE** and run the full 5-level
+validation as normal. Between-batch validation only covered Levels 1 + 2; Phase 4 still
+runs Levels 3 (build), 4 (integration), and 5 (edge cases).
+
+#### Path C failure handling
+
+Same principles as Path B: do NOT auto-retry, do NOT skip a failed batch. Always
+shut down teammates and `close the agent group` before exiting, regardless of success or failure.
+
 ### Handling Deviations
 
 If implementation must deviate from the plan:
@@ -219,7 +370,7 @@ If implementation must deviate from the plan:
 - Note **WHY** it changed
 - Continue with the corrected approach
 - These deviations will be captured in the report
-- In parallel mode, deviations reported by individual implementor agents are collected and included verbatim in the final report
+- In parallel and agent-team modes, deviations reported by individual implementor agents are collected and included verbatim in the final report
 
 **CHECKPOINT**: All tasks executed. Deviations logged.
 
@@ -398,7 +549,7 @@ Report to user:
 
 - **Plan**: [plan file path] → archived to completed/
 - **Branch**: [current branch name]
-- **Mode**: [Sequential | Parallel (N batches, max width X)]
+- **Mode**: [Sequential | Parallel sub-agents (N batches, max width X) | Agent team (N batches, max width X)]
 - **Status**: [done] All tasks complete
 
 ### Validation Summary
@@ -494,3 +645,14 @@ Report to user:
 - Run `$prp-commit` to commit with a descriptive message
 - Run `$prp-pr` to create a pull request
 - Run `$prp-plan <next-phase>` if the PRD has more phases
+
+---
+
+## Agent Team Lifecycle Reference
+
+For Path C's team lifecycle contract (sanitization, shutdown sequence, failure policy,
+multi-batch reuse pattern), refer to:
+
+```
+~/.codex/plugins/ycc/shared/references/agent-team-dispatch.md
+```

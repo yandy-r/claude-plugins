@@ -1,7 +1,7 @@
 ---
 name: prp-plan
-description: Create a comprehensive, self-contained feature implementation plan with codebase pattern extraction and optional external research. Detects whether the input is a PRD (selects next pending phase) or a free-form description, runs deep codebase discovery via prp-researcher, and writes a single-pass-ready plan to docs/prps/plans/{name}.plan.md. Pass `--parallel` to fan out research across 3 researcher agents and emit a dependency-batched task list ready for parallel execution by prp-implement. Use when the user asks for a "PRP plan", "implementation plan from PRD", "feature plan with patterns to mirror", "parallel PRP plan", or says "/prp-plan". Adapted from PRPs-agentic-eng by Wirasm.
-argument-hint: '[--parallel] <feature description | path/to/prd.md>'
+description: Create a comprehensive, self-contained feature implementation plan with codebase pattern extraction and optional external research. Detects whether the input is a PRD (selects next pending phase) or a free-form description, runs deep codebase discovery via prp-researcher, and writes a single-pass-ready plan to docs/prps/plans/{name}.plan.md. Pass `--parallel` to fan out research across 3 standalone researcher sub-agents and emit a dependency-batched task list ready for parallel execution by prp-implement. Pass `--agent-team` (Claude Code only) to run the same 3 researchers under a shared TeamCreate/TaskList with coordinated shutdown — heavier but with a shared task graph and observable progress. `--parallel` and `--agent-team` are mutually exclusive. Use when the user asks for a "PRP plan", "implementation plan from PRD", "feature plan with patterns to mirror", "parallel PRP plan", "team PRP plan", or says "/prp-plan". Adapted from PRPs-agentic-eng by Wirasm.
+argument-hint: '[--parallel | --agent-team] [--dry-run] <feature description | path/to/prd.md>'
 allowed-tools:
   - Read
   - Grep
@@ -13,6 +13,13 @@ allowed-tools:
   - WebFetch
   - AskUserQuestion
   - TodoWrite
+  - TeamCreate
+  - TeamDelete
+  - TaskCreate
+  - TaskUpdate
+  - TaskList
+  - TaskGet
+  - SendMessage
   - Bash(ls:*)
   - Bash(cat:*)
   - Bash(test:*)
@@ -40,11 +47,20 @@ Create a detailed, self-contained implementation plan that captures all codebase
 
 Extract flags from `$ARGUMENTS`:
 
-| Flag         | Effect                                                                                     |
-| ------------ | ------------------------------------------------------------------------------------------ |
-| `--parallel` | Fan out research into 3 parallel researchers; emit tasks with batch/dependency annotations |
+| Flag           | Effect                                                                                                                                                                                                                                               |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel`   | Fan out research into 3 **standalone sub-agent** researchers; emit tasks with batch/dependency annotations. Works in Claude Code, Cursor, and Codex.                                                                                                 |
+| `--agent-team` | (Claude Code only) Fan out the same 3 researchers as **teammates** under a shared `TeamCreate`/`TaskList` with coordinated shutdown via `SendMessage`. Same plan output as `--parallel`, but with shared task-graph observability. Heavier dispatch. |
+| `--dry-run`    | Only valid with `--agent-team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                 |
 
-Strip the flag, set `PARALLEL_MODE=true|false`. Remaining text is the feature description or PRD path.
+Strip the flags. Set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `DRY_RUN=true|false`. Remaining text is the feature description or PRD path.
+
+**Validation**:
+
+- `--parallel` and `--agent-team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --agent-team are mutually exclusive. Pick one.`
+- `--dry-run` requires `--agent-team`. If `DRY_RUN=true` and `AGENT_TEAM_MODE=false` → abort with: `--dry-run requires --agent-team.`
+
+**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--agent-team` must not be used (those bundles ship without team tools). Use `--parallel` instead.
 
 ### Input Detection
 
@@ -98,9 +114,10 @@ Dispatch a single `prp-researcher` agent in codebase mode to cover all 8 categor
 
 **IMPORTANT — Researcher prompt constraints**: Tell the researcher to keep code snippets to **5 lines max** per finding and limit the total response to the discovery table format only — no prose summaries.
 
-### Path B — Parallel (`PARALLEL_MODE=true`)
+### Path B — Parallel sub-agents (`PARALLEL_MODE=true`)
 
-Dispatch **3 `prp-researcher` agents in a SINGLE message**:
+Dispatch **3 `prp-researcher` agents in a SINGLE message** as **standalone
+sub-agents** (no `team_name`):
 
 | Researcher          | Categories                             | Traces                  |
 | ------------------- | -------------------------------------- | ----------------------- |
@@ -111,6 +128,101 @@ Dispatch **3 `prp-researcher` agents in a SINGLE message**:
 **IMPORTANT — Researcher prompt constraints**: Tell each researcher to keep code snippets to **5 lines max** per finding and limit the total response to the discovery table format only — no prose summaries.
 
 After all 3 return: merge tables, de-duplicate, verify all 8 categories covered.
+
+### Path C — Agent team (`AGENT_TEAM_MODE=true`, Claude Code only)
+
+> **MANDATORY — AGENT TEAMS REQUIRED**
+>
+> In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
+> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
+>
+> 1. `TeamCreate` FIRST
+> 2. `TaskCreate` for each researcher
+> 3. `Agent` with `team_name=` — one message, three calls
+> 4. `TaskList` — wait for all teammates to complete
+> 5. `SendMessage({type:"shutdown_request"})` — shut down all 3 teammates
+> 6. `TeamDelete` — clean up
+>
+> If `TeamCreate` fails, abort the skill. Refer to
+> `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/agent-team-dispatch.md`
+> for the full lifecycle contract.
+
+#### C.1 Build the team name
+
+Sanitize the feature name (kebab-case slug; if input is a PRD, use its filename minus
+extension; if free-form text, slugify). Lowercase, kebab, max **20 chars**, fall back
+to `untitled` if empty.
+
+Team name: `prpp-<sanitized-feature>`.
+
+#### C.2 Dry-run gate (if `DRY_RUN=true`)
+
+Print:
+
+```
+Team name:   prpp-<sanitized-feature>
+Teammates:   3
+  - patterns-research  subagent_type=prp-researcher  task=Similar Implementations, Naming, Types | Entry Points, Contracts
+  - quality-research   subagent_type=prp-researcher  task=Error Handling, Logging, Tests | State Changes, Patterns
+  - infra-research     subagent_type=prp-researcher  task=Configuration, Dependencies | Data Flow
+Batches:     1  (batch 1: patterns-research, quality-research, infra-research)
+Dependencies: none  (flat graph)
+```
+
+Do **not** call any team/task/agent tools. Exit the skill.
+
+#### C.3 Create the team
+
+```
+TeamCreate: team_name="prpp-<sanitized-feature>", description="PRP-plan research team for: <feature description>"
+```
+
+On failure, abort.
+
+#### C.4 Register subtasks
+
+Create 3 tasks in the shared task list (flat graph — no dependencies between
+researchers):
+
+```
+TaskCreate: subject="patterns-research: codebase patterns for <feature>", description="Categories: Similar Implementations, Naming, Types. Traces: Entry Points, Contracts."
+TaskCreate: subject="quality-research: codebase quality for <feature>",    description="Categories: Error Handling, Logging, Tests. Traces: State Changes, Patterns."
+TaskCreate: subject="infra-research: codebase infrastructure for <feature>", description="Categories: Configuration, Dependencies. Traces: Data Flow."
+```
+
+#### C.5 Spawn the 3 teammates (single message, three Agent calls)
+
+Use the same researcher categories/traces table from Path B. Spawn all three in **ONE
+message** with **THREE `Agent` tool calls**, each with
+`team_name="prpp-<sanitized-feature>"` and the role-specific `name`
+(`patterns-research`, `quality-research`, `infra-research`), all using
+`subagent_type: "prp-researcher"` in codebase mode.
+
+Apply the same researcher prompt constraints as Path B: 5-line max snippets, discovery
+table format only, no prose summaries.
+
+#### C.6 Monitor and merge
+
+Use `TaskList` to confirm all 3 tasks are `completed` before merging. Merge tables,
+de-duplicate, verify all 8 categories covered — same merge logic as Path B.
+
+If a teammate errors:
+
+- One researcher failure → record gap in the merged table; note the missing categories
+  in the plan's Patterns to Mirror section so the implementor knows to look manually.
+- Two or more failures → abort, shut down remaining teammates, `TeamDelete`, fall
+  through to ask the user whether to retry with `--parallel` (sub-agent mode).
+
+#### C.7 Shutdown and cleanup
+
+```
+SendMessage(to="patterns-research", message={type:"shutdown_request"})
+SendMessage(to="quality-research",  message={type:"shutdown_request"})
+SendMessage(to="infra-research",    message={type:"shutdown_request"})
+TeamDelete
+```
+
+Always `TeamDelete` before continuing to Phase 3.
 
 ---
 
@@ -155,7 +267,7 @@ mkdir -p docs/prps/plans
 
 Read the plan template from `${CURSOR_PLUGIN_ROOT}/skills/prp-plan/references/plan-template.md`.
 
-If `PARALLEL_MODE=true`, also read `${CURSOR_PLUGIN_ROOT}/skills/prp-plan/references/parallel-additions.md`.
+If `PARALLEL_MODE=true` **or** `AGENT_TEAM_MODE=true`, also read `${CURSOR_PLUGIN_ROOT}/skills/prp-plan/references/parallel-additions.md`. Both modes emit the same parallel-capable plan format (Batches section, hierarchical task IDs, `Depends on` annotations) — they only differ in how the research phase was dispatched.
 
 ### Step 2: Write the plan in chunks
 
@@ -225,6 +337,7 @@ Update the phase status from `pending` to `in-progress` and add the plan file pa
 - **External Research**: [topics or "none needed"]
 - **Risks**: [top risk or "none identified"]
 - **Confidence Score**: [1-10]
+- **Research Dispatch**: [Sequential | Parallel sub-agents | Agent team]
 - **Execution Mode**: [Sequential | Parallel (N batches, max width X)]
 
 > Next step: Run `/prp-implement docs/prps/plans/{name}.plan.md` to execute this plan.
@@ -234,7 +347,18 @@ Update the phase status from `pending` to `in-progress` and add the plan file pa
 
 ## Verification
 
-Structural validation is enforced by `validate-prp-plan.sh` in Phase 6.5. The script checks:
+Structural validation is enforced by `validate-prp-plan.sh` in Phase 6.5. The validator
+operates on the written plan file — dispatch mode (`--parallel` vs `--agent-team`) is
+invisible to it, since both modes emit the same plan format.
+
+For Path C's team lifecycle contract (sanitization, shutdown sequence, failure policy),
+refer to:
+
+```
+${CURSOR_PLUGIN_ROOT}/skills/_shared/references/agent-team-dispatch.md
+```
+
+The `validate-prp-plan.sh` script The script checks:
 
 - Required and recommended sections from the PRP plan template
 - Task field completeness (ACTION, VALIDATE required; MIRROR, IMPLEMENT recommended)
