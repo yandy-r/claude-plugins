@@ -1,7 +1,7 @@
 ---
 name: code-review
 description: Dual-mode code review — local uncommitted changes OR a GitHub pull request. Both modes now write a machine-parseable review artifact (Local → docs/prps/reviews/local-{timestamp}-review.md, PR → docs/prps/reviews/pr-{N}-review.md) with sequential finding IDs (F001, F002, ...) and Status fields (Open/Fixed/Failed) so /review-fix can consume and update them in place. Local mode runs a full security + quality pass on the diff. PR mode fetches the PR, reads each changed file in full, builds context from CLAUDE.md and PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build) for detected stacks, assigns severity, and posts the review to GitHub via gh. Pass `--parallel` to fan out the REVIEW phase across 3 specialized code-reviewer agents (correctness, security, quality) and merge findings. Use when the user asks to "review code", "review PR", "check uncommitted changes", "review pr N", "parallel review", or says "/code-review". Adapted from PRPs-agentic-eng by Wirasm.
-argument-hint: '[pr-number | pr-url | blank for local review] [--approve | --request-changes] [--parallel]'
+argument-hint: '[--approve | --request-changes] [--parallel] [pr-number | pr-url | blank for local review]'
 allowed-tools:
   - Read
   - Grep
