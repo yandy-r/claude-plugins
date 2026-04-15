@@ -88,25 +88,43 @@ Use `ycc:plan-workflow` to run the full pipeline, or invoke individual stages.
 
 Cursor loads **skills**, **agents**, and **rules** from `~/.cursor/{skills,agents,rules}/`. Codex uses a **plugin** for skills/MCP plus **custom agents** in `~/.codex/agents/`. This repository maintains generated compatibility trees under **`.cursor-plugin/`** and **`.codex-plugin/`**.
 
-Shared MCP server definitions live in [`mcp-configs/mcp.json`](mcp-configs/mcp.json). The installer adapts them per target:
+Shared MCP server definitions live in [`mcp-configs/mcp.json`](mcp-configs/mcp.json). The installer is organized around **targets** and **steps** — each target exposes a set of steps that can be run by default, added with an additive flag, or isolated with `--only`.
 
-| Target   | What it does                                                                                                                                                                                                                         |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `claude` | Merges `mcpServers` from `mcp-configs/mcp.json` into **user-scoped** `~/.claude.json` (preserves other keys such as `projects`).                                                                                                     |
-| `cursor` | Generates and validates the Cursor bundle, rsyncs `skills/`, `agents/`, and `rules/` into `~/.cursor/`, then copies MCP config to `~/.cursor/mcp.json`.                                                                              |
-| `codex`  | Generates and validates a Codex-native plugin in `.codex-plugin/ycc/`, syncs it to `~/.codex/plugins/ycc/`, syncs generated custom agents to `~/.codex/agents/`, and merges a `ycc` entry into `~/.agents/plugins/marketplace.json`. |
-| `all`    | Runs the `claude`, `cursor`, and `codex` pipelines.                                                                                                                                                                                  |
+| Target   | Steps              | Notes                                                                                                  |
+| -------- | ------------------ | ------------------------------------------------------------------------------------------------------ |
+| `claude` | `settings`, `mcp`  | No default step — pass `--settings`, `--mcp`, or `--only <steps>`.                                     |
+| `cursor` | `base`, `mcp`      | `base` = generate + validate + format + rsync `skills/`, `agents/`, `rules/` into `~/.cursor/`.        |
+| `codex`  | `base`, `settings` | `base` = generate + validate + format + sync plugin & agents + merge `~/.agents/.../marketplace.json`. |
+| `all`    | —                  | Runs `claude`, `cursor`, then `codex`; step flags propagate.                                           |
+
+Step reference:
+
+- `base` — full generator/validator/sync pipeline for the target (cursor/codex only).
+- `settings` — symlinks per-target config files into the IDE's config dir:
+  - claude: `ycc/settings/{settings.json,statusline-command.sh}` → `~/.claude/`
+  - codex: `.codex-plugin/config/{config.toml,default.rules}` → `~/.codex/`
+- `mcp` — shared `mcp-configs/mcp.json` integration:
+  - claude: merges `mcpServers` into `~/.claude.json` (preserves other keys such as `projects`)
+  - cursor: symlinks `mcp-configs/mcp.json` → `~/.cursor/mcp.json` (kept in sync across systems)
 
 ### Install targets
 
 ```bash
-./install.sh --target cursor    # bundle + ~/.cursor/mcp.json
-./install.sh --target claude    # ~/.claude.json merge only
-./install.sh --target codex     # plugin source + ~/.codex/agents + ~/.agents/plugins/marketplace.json
-./install.sh --target all       # claude + cursor + codex
+# Default (no --only): run base step if the target has one, then any additive flags.
+./install.sh --target cursor                        # base only
+./install.sh --target cursor --mcp                  # base + symlink MCP
+./install.sh --target codex --settings              # base + link codex config.toml/default.rules
+./install.sh --target claude --settings --mcp       # symlink settings + merge MCP
+./install.sh --target all --settings --mcp          # everything across all targets
+
+# Exclusive (--only): run exactly the listed steps, nothing else.
+./install.sh --target claude --only mcp             # merge MCP, skip settings link
+./install.sh --target cursor --only mcp             # just the MCP symlink
+./install.sh --target codex  --only settings       # just the codex config symlinks
+./install.sh --target codex  --only base,settings  # equivalent to default + --settings
 ```
 
-The `cursor` target rsyncs `.cursor-plugin/skills/`, `.cursor-plugin/agents/`, and `.cursor-plugin/rules/` into `~/.cursor/` (see [`install.sh`](install.sh) for behavior when a source unit is missing), then installs `mcp-configs/mcp.json` as `~/.cursor/mcp.json`.
+`--settings` and `--mcp` are **additive** on top of the default (`base`) step. `--only <steps>` is **exclusive** and overrides both defaults and additive flags. Invalid steps for a target (e.g. `--only settings` on `cursor`) fail fast with a clear error.
 
 The `codex` target syncs:
 
