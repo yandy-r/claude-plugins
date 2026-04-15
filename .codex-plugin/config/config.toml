@@ -69,6 +69,9 @@ approval_mode = "approve"
 [mcp_servers.github.tools.update_pull_request]
 approval_mode = "approve"
 
+[mcp_servers.github.tools.add_issue_comment]
+approval_mode = "approve"
+
 [mcp_servers.openaiDeveloperDocs]
 url = "https://developers.openai.com/mcp"
 
