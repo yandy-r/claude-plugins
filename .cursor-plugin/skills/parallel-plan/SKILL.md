@@ -1,12 +1,13 @@
 ---
 name: parallel-plan
-description: Create detailed parallel implementation plans by orchestrating analysis and validation agent teams, then synthesizing dependency-aware tasks into parallel-plan.md. Use after shared-context to prepare implementation-ready planning artifacts.
-argument-hint: '[feature-name] [--dry-run]'
+description: Create detailed parallel implementation plans by running analysis and validation stages, then synthesizing dependency-aware tasks into parallel-plan.md. Use after shared-context to prepare implementation-ready planning artifacts. Defaults to standalone parallel sub-agents via Cursor; pass `--team` (Claude Code only) to orchestrate the analysis and validation stages as teammates under a shared TeamCreate/TaskList with coordinated shutdown.
+argument-hint: '[--team] [feature-name] [--dry-run]'
 allowed-tools:
   - Read
   - Grep
   - Glob
   - Write
+  - Task
   - Agent
   - TeamCreate
   - TeamDelete
@@ -45,7 +46,7 @@ After creating planning artifacts and displaying the summary, **STOP COMPLETELY*
 
 # Parallel Implementation Plan Creator
 
-Create `parallel-plan.md` by orchestrating analysis and validation agent teams, synthesizing implementation tasks, and validating plan quality.
+Create `parallel-plan.md` by running analysis and validation stages — standalone sub-agents by default, or agent teams with `--team` (Claude Code only) where teammates share findings with each other — synthesizing implementation tasks, and validating plan quality.
 
 ## Workflow Integration
 
@@ -63,12 +64,23 @@ This skill requires `${feature_dir}/shared.md` and ends after producing analysis
 
 **Target**: `$ARGUMENTS`
 
-Parse arguments:
+Parse arguments (flags first, then the feature name):
 
-- **feature-name**: The name of the feature to plan (matches directory name in `${PLANS_DIR}`)
-- **--dry-run**: Show what would be created without making changes
+- **--team**: Optional. (Claude Code only) Deploy the analysis and validation stages as teammates under a shared `TeamCreate`/`TaskList` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
+- **--dry-run**: Show what would be created without making changes. With `--team`, also prints the team name and teammate roster.
+- **feature-name**: Required. Matches directory name in `${PLANS_DIR}`.
 
-If no feature name provided, abort with usage instructions.
+If no feature name provided, abort with usage instructions:
+
+```
+Usage: /parallel-plan [--team] [feature-name] [--dry-run]
+
+Examples:
+  /parallel-plan user-authentication
+  /parallel-plan payment-integration --dry-run
+  /parallel-plan --team payment-integration
+  /parallel-plan --team --dry-run user-authentication
+```
 
 ---
 
@@ -83,9 +95,15 @@ source ${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/resolve-plans-dir.sh
 feature_dir="$(get_feature_plan_dir "[feature-name]")"
 ```
 
-### Step 2: Validate Prerequisites
+### Step 2: Parse Arguments and Validate Prerequisites
 
-Extract the feature name from `$ARGUMENTS` (first non-flag argument).
+Extract from `$ARGUMENTS`:
+
+1. **--team**: Boolean flag. Set `AGENT_TEAM_MODE=true` if present, else `false`.
+2. **--dry-run**: Boolean flag. Set `DRY_RUN=true` if present, else `false`.
+3. **feature-name**: First non-flag argument (required).
+
+**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools).
 
 Run the prerequisites check script:
 
@@ -115,15 +133,17 @@ Display:
 ```markdown
 # Dry Run: Parallel Plan for [feature-name]
 
-## Team: pp-[feature-name]
+## Dispatch Mode
 
-### Phase 1: Analysis Teammates (3 agents)
+Mode: [standalone sub-agents | agent team pp-[feature-name]]
+
+### Phase 1: Analysis Agents (3)
 
 1. context-synthesizer - Condense planning documentation
 2. code-analyzer - Extract code patterns from relevant files
 3. task-structurer - Suggest task breakdown and phases
 
-### Phase 2: Validation Teammates (3 agents)
+### Phase 2: Validation Agents (3)
 
 1. path-validator - Verify all paths exist
 2. dependency-validator - Check dependency graph
@@ -138,26 +158,43 @@ Display:
 
 ## Execution Model
 
-- Create agent team with analysis teammates (Phase 1)
-- Teammates share findings and cross-reference
-- Validate analysis artifacts
-- Generate plan from condensed analysis
-- Spawn validation teammates (Phase 2)
-- Fix issues and finalize
-- Team cleanup
+- Default (`AGENT_TEAM_MODE=false`): Phase 1 deploys 3 analysis agents as standalone sub-agents in a single message with multiple `Task` calls. No team coordination; each sub-agent writes its assigned `analysis-*.md`. Orchestrator validates, persists, and generates the plan. Phase 2 deploys 3 validation sub-agents the same way. No inter-agent sharing.
+- With `--team` (`AGENT_TEAM_MODE=true`): create team `pp-[feature-name]`, register analysis tasks, spawn 3 analysis teammates under the team, validate, generate plan, register validation tasks, spawn 3 validation teammates, review, then `TeamDelete`. Teammates share findings via `SendMessage`.
 
 ## Next Steps
 
 Remove --dry-run flag to create the plan.
 ```
 
+If `AGENT_TEAM_MODE=true`, additionally print the team roster block:
+
+```
+Team name:      pp-<sanitized-feature-name>
+Teammates:      6 across 2 batches
+  Batch 1 (analysis):
+    - context-synthesizer    subagent_type=codebase-research-analyst  task=Condense planning docs
+    - code-analyzer          subagent_type=codebase-research-analyst  task=Extract code patterns
+    - task-structurer        subagent_type=codebase-research-analyst  task=Suggest task breakdown
+  Batch 2 (validation):
+    - path-validator         subagent_type=explore                     task=Verify file paths exist
+    - dependency-validator   subagent_type=explore                     task=Check dependency graph
+    - completeness-validator subagent_type=codebase-research-analyst   task=Ensure tasks actionable
+```
+
+Do **not** call `TeamCreate`, `TaskCreate`, `Agent`, `Task`, `SendMessage`, or `TeamDelete` in dry-run mode.
+
 **STOP HERE** - do not write files or deploy agents.
 
 ---
 
-## Phase 1: Analysis Team
+## Phase 1: Analysis Stage
 
-### Step 5: Create the Team
+### Step 5: Team Setup (if `--team`)
+
+If `AGENT_TEAM_MODE=false`, skip this step entirely — the default path dispatches standalone sub-agents in Step 8.
+
+If `AGENT_TEAM_MODE=true`, follow the universal lifecycle contract at
+`${CURSOR_PLUGIN_ROOT}/skills/_shared/references/agent-team-dispatch.md`.
 
 Create an agent team for the planning workflow:
 
@@ -165,13 +202,19 @@ Create an agent team for the planning workflow:
 TeamCreate: team_name="pp-[feature-name]", description="Planning team for [feature-name] parallel plan"
 ```
 
-### Step 6: Create Analysis Tasks
+On failure, abort the skill with the `TeamCreate` error message. Do NOT silently fall back to sub-agent mode.
 
-Create 3 tasks in the shared task list:
+### Step 6: Create Analysis Tasks (if `--team`)
+
+If `AGENT_TEAM_MODE=false`, skip this step entirely — standalone `Task` dispatch does not use the shared task list.
+
+If `AGENT_TEAM_MODE=true`, create 3 tasks in the shared task list:
 
 1. **"Synthesize planning context for [feature-name]"** — Condense planning docs into actionable summary
 2. **"Analyze code patterns for [feature-name]"** — Extract code patterns from relevant files
 3. **"Suggest task structure for [feature-name]"** — Propose task breakdown and phases
+
+If `TaskCreate` fails for any task, call `TeamDelete` and abort.
 
 ### Step 7: Read Analysis Prompt Templates
 
@@ -181,28 +224,56 @@ Read the analysis prompt templates:
 cat ${CURSOR_PLUGIN_ROOT}/skills/parallel-plan/templates/analysis-prompts.md
 ```
 
-### Step 8: Spawn Analysis Teammates
+### Step 8: Spawn Analysis Agents
 
-**CRITICAL**: Spawn all 3 teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="pp-[feature-name]"`.
+| Name / Teammate `name` | Subagent Type               | Model  | Focus                  | Output File           |
+| ---------------------- | --------------------------- | ------ | ---------------------- | --------------------- |
+| `context-synthesizer`  | `codebase-research-analyst` | sonnet | Condense planning docs | `analysis-context.md` |
+| `code-analyzer`        | `codebase-research-analyst` | sonnet | Extract code patterns  | `analysis-code.md`    |
+| `task-structurer`      | `codebase-research-analyst` | sonnet | Suggest task breakdown | `analysis-tasks.md`   |
 
-| Teammate Name         | Subagent Type               | Model  | Focus                  | Output File           |
-| --------------------- | --------------------------- | ------ | ---------------------- | --------------------- |
-| `context-synthesizer` | `codebase-research-analyst` | sonnet | Condense planning docs | `analysis-context.md` |
-| `code-analyzer`       | `codebase-research-analyst` | sonnet | Extract code patterns  | `analysis-code.md`    |
-| `task-structurer`     | `codebase-research-analyst` | sonnet | Suggest task breakdown | `analysis-tasks.md`   |
-
-**Model Assignment**: Pass `model: "sonnet"` for all analysis teammates.
+**Model Assignment**: Pass `model: "sonnet"` for all analysis agents.
 
 Use the prompts from `analysis-prompts.md` with variables substituted:
 
 - `{{FEATURE_NAME}}` - The feature directory name
 - `{{FEATURE_DIR}}` - Full output directory path (`${feature_dir}`, resolved in Step 1)
 
-**Why use teammates**: This prevents loading 50-100K+ tokens of raw files into main context. Teammates read everything and return 5-10K tokens of condensed, actionable analysis.
+**Why this is parallelized**: This prevents loading 50-100K+ tokens of raw files into main context. The analysis agents read everything and return 5-10K tokens of condensed, actionable analysis.
+
+#### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
+
+**CRITICAL**: Deploy all 3 analysis agents in a **SINGLE message** with **MULTIPLE `Task` tool calls**. No `team_name` — standalone dispatch. Each `Task` call uses the `subagent_type` and `model` from the table above and the corresponding prompt from `analysis-prompts.md`.
+
+In this mode there is no shared task list; rely on each `Task`'s return value plus the artifact checks in Steps 10–11 to confirm completion. Inter-agent `SendMessage` coordination is not available — each sub-agent works independently from the prompt alone.
+
+#### Path B — Agent team (`AGENT_TEAM_MODE=true`)
+
+> **MANDATORY — AGENT TEAMS REQUIRED**
+>
+> In Path B you MUST follow the agent-team lifecycle at
+> `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/agent-team-dispatch.md`.
+> Do NOT mix standalone `Task` calls with team dispatch.
+
+All 3 `TaskCreate` entries were registered up front in Step 6 — do not re-create them here.
+
+Spawn all 3 teammates in **ONE message** with **THREE `Agent` tool calls**. Every call MUST include:
+
+- `team_name = "pp-[feature-name]"`
+- `name = "<teammate-name>"` (from the table above — must match the `TaskCreate` subject prefix)
+- `subagent_type` and `model` from the table above
+- The analysis-specific prompt from `analysis-prompts.md`
+
+After spawning, use `TaskList` to confirm all 3 tasks are `completed` before proceeding to Step 10.
 
 ### Step 9: Monitor Analysis Progress
 
-Wait for teammates to complete. Use `TaskList` to check progress. When all 3 analysis tasks are complete, proceed to validation.
+Wait for all 3 analysis agents to complete their work.
+
+- **Path A (standalone, default)**: rely on `Task` return values; each sub-agent writes its `analysis-*.md` artifact before returning.
+- **Path B (`--team`)**: use `TaskList` to check progress. Teammates share findings with each other via `SendMessage`. If a teammate gets stuck, send them guidance via `SendMessage`.
+
+When all 3 analysis tasks are complete, proceed to validation.
 
 ---
 
@@ -231,9 +302,11 @@ ${CURSOR_PLUGIN_ROOT}/skills/parallel-plan/scripts/persist-or-fail.sh "${feature
 
 **Do NOT proceed to plan generation until `persist-or-fail.sh` exits 0.**
 
-### Step 12: Shut Down Analysis Teammates
+### Step 12: Shut Down Analysis Teammates (if `--team`)
 
-Send shutdown requests to all analysis teammates:
+If `AGENT_TEAM_MODE=false`, skip this step — standalone sub-agents return on their own.
+
+Otherwise, send shutdown requests to all analysis teammates:
 
 ```
 SendMessage to each teammate: message={type: "shutdown_request"}
@@ -347,11 +420,13 @@ For each task ensure:
 
 ---
 
-## Phase 5: Validation Team
+## Phase 5: Validation Stage
 
-### Step 16: Create Validation Tasks
+### Step 16: Create Validation Tasks (if `--team`)
 
-Create 3 validation tasks in the shared task list:
+If `AGENT_TEAM_MODE=false`, skip this step entirely — standalone `Task` dispatch does not use the shared task list.
+
+If `AGENT_TEAM_MODE=true`, create 3 validation tasks in the shared task list:
 
 1. **"Validate file paths in [feature-name] plan"** — Verify all referenced files exist
 2. **"Validate dependency graph in [feature-name] plan"** — Check for circular/invalid dependencies
@@ -363,11 +438,9 @@ Create 3 validation tasks in the shared task list:
 cat ${CURSOR_PLUGIN_ROOT}/skills/parallel-plan/templates/validation-prompts.md
 ```
 
-### Step 18: Spawn Validation Teammates
+### Step 18: Spawn Validation Agents
 
-**CRITICAL**: Spawn all 3 validation teammates in a **SINGLE message** with **MULTIPLE Agent tool calls**, each with `team_name="pp-[feature-name]"`.
-
-| Teammate Name            | Subagent Type               | Model  | Focus                                   |
+| Name / Teammate `name`   | Subagent Type               | Model  | Focus                                   |
 | ------------------------ | --------------------------- | ------ | --------------------------------------- |
 | `path-validator`         | `explore`                   | haiku  | Verify all referenced files exist       |
 | `dependency-validator`   | `explore`                   | haiku  | Check for circular/invalid dependencies |
@@ -375,20 +448,33 @@ cat ${CURSOR_PLUGIN_ROOT}/skills/parallel-plan/templates/validation-prompts.md
 
 **Model Assignment**: Pass `model: "haiku"` for path-validator and dependency-validator, `model: "sonnet"` for completeness-validator.
 
+#### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
+
+**CRITICAL**: Deploy all 3 validation agents in a **SINGLE message** with **MULTIPLE `Task` tool calls**. No `team_name`. Each `Task` call uses the `subagent_type` and `model` from the table above and the corresponding prompt from `validation-prompts.md`. Rely on each `Task`'s return value for validator findings.
+
+#### Path B — Agent team (`AGENT_TEAM_MODE=true`)
+
+Spawn all 3 validation teammates in **ONE message** with **THREE `Agent` tool calls**, each with `team_name="pp-[feature-name]"` and the matching `name=` from the table above. The 3 validation tasks registered in Step 16 are used here.
+
+After spawning, use `TaskList` to confirm all 3 tasks are `completed`.
+
 ### Step 19: Review Validation Results
 
 After validators complete:
 
-- Review findings from each validator (check their messages and task completions)
+- **Path A (standalone, default)**: review each `Task` return value for validator findings.
+- **Path B (`--team`)**: review findings from each validator (check their messages and task completions).
 - Fix any issues identified:
   - Correct invalid file paths
   - Resolve circular dependencies
   - Add missing details to incomplete tasks
-- Re-run validation if significant changes made
+- Re-run validation if significant changes made.
 
-### Step 20: Shut Down Validation Teammates
+### Step 20: Shut Down Validation Teammates (if `--team`)
 
-Send shutdown requests to all validation teammates.
+If `AGENT_TEAM_MODE=false`, skip this step — standalone sub-agents return on their own.
+
+Otherwise, send shutdown requests to all validation teammates.
 
 ---
 
@@ -404,9 +490,11 @@ ${CURSOR_PLUGIN_ROOT}/skills/parallel-plan/scripts/validate-parallel-plan.sh "${
 
 Report any structural issues found.
 
-### Step 22: Clean Up Team
+### Step 22: Clean Up Team (if `--team`)
 
-Delete the team and its resources:
+If `AGENT_TEAM_MODE=false`, skip this step — there is no team to tear down.
+
+Otherwise, delete the team and its resources:
 
 ```
 TeamDelete
@@ -429,11 +517,11 @@ ${feature_dir}/parallel-plan.md
 - ${feature_dir}/analysis-code.md (Code pattern analysis)
 - ${feature_dir}/analysis-tasks.md (Task structure suggestions)
 
-## Team Summary
+## Dispatch Summary
 
-- Team: pp-[feature-name]
-- Phase 1: 3 analysis teammates (shared findings with each other)
-- Phase 2: 3 validation teammates (cross-checked each other)
+- Mode: [standalone sub-agents | agent team pp-[feature-name]]
+- Phase 1: 3 analysis agents [standalone via Task | teammates that shared findings]
+- Phase 2: 3 validation agents [standalone via Task | teammates that cross-checked each other]
 
 ## Plan Overview
 
@@ -456,7 +544,7 @@ Phase 2: [count] tasks ([X] independent)
 
 ## Context Efficiency
 
-- Analysis teammates condensed context from ~50-100K tokens to ~5-10K tokens
+- Analysis agents condensed context from ~50-100K tokens to ~5-10K tokens
 - Main context preserved for plan generation and validation
 
 ## Next Steps (FOR USER - NOT FOR THIS SKILL)
@@ -516,7 +604,7 @@ The overall plan must have:
 - **STOP AFTER SUMMARY** - After displaying the completion summary, stop completely
 - **DO NOT CHAIN** - Do not automatically proceed to implement-plan
 - **PERSIST ARTIFACTS** - All 3 analysis files must exist before plan generation
-- **CLEAN UP TEAM** - Always delete the team before completing
+- **CLEAN UP TEAM (Path B only)** - Always `TeamDelete` before completing when a team was created
 
 ## Output Contract
 
@@ -531,13 +619,13 @@ All files are written to `${feature_dir}/` (resolved via `resolve-plans-dir.sh`)
 
 **Contract Rules**:
 
-1. Each teammate MUST write its own output file using the Write tool
-2. Each teammate MUST share key findings with relevant teammates via SendMessage
-3. The team lead MUST run `validate-analysis-artifacts.sh` after teammates complete (Step 10)
-4. The team lead MUST run `persist-or-fail.sh` as a mandatory pre-generation gate (Step 11)
-5. If validation fails, the team lead MUST message the failing teammate to fix their output
+1. Each analysis agent MUST write its own output file using the Write tool
+2. In Path B (`--team`), each teammate MUST share key findings with relevant teammates via SendMessage. In Path A (standalone), inter-agent sharing is unavailable — each sub-agent works independently.
+3. The orchestrator MUST run `validate-analysis-artifacts.sh` after agents complete (Step 10)
+4. The orchestrator MUST run `persist-or-fail.sh` as a mandatory pre-generation gate (Step 11)
+5. If validation fails, the orchestrator MUST message the failing teammate (Path B) or re-dispatch the sub-agent (Path A) to fix their output
 6. No file may be skipped or deferred — `persist-or-fail.sh` must exit 0 before plan generation
-7. The team MUST be cleaned up (TeamDelete) before skill completion
+7. In Path B, the team MUST be cleaned up (TeamDelete) before skill completion
 
 ## Monorepo Support
 
@@ -556,18 +644,19 @@ scope: local
 
 ## Important Notes
 
-- **You are the team lead** - coordinate analysis and validation teams
-- **Create team first** - use TeamCreate before spawning teammates
-- **Spawn teammates in parallel** - single message with multiple Agent calls
+- **You are the planning orchestrator** - coordinate analysis and validation stages
+- **Choose dispatch mode from `$ARGUMENTS`** - default is standalone sub-agents via `Task`; `--team` switches to teammates under `TeamCreate`/`TaskList`
+- **Team setup first (Path B only)** - call `TeamCreate` and register analysis tasks before spawning teammates
+- **Spawn in parallel** - a single message with multiple `Task` calls (Path A) or multiple `Agent` calls with `team_name=` + `name=` (Path B)
 - **Pass model parameters** - use `model: "sonnet"` for analysis agents, `model: "haiku"` for path/dependency validators, `model: "sonnet"` for completeness-validator
-- **Teammates share findings** - they communicate with each other via SendMessage
-- **Two phases** - analysis teammates first, then validation teammates
-- **Shut down between phases** - shut down analysis teammates before spawning validators
-- **Validate with scripts** - run validation scripts after teammates complete
-- **Message on failure** - if validation fails, message the relevant teammate
+- **Teammates share findings (Path B only)** - inter-teammate `SendMessage` coordination is unavailable to standalone sub-agents
+- **Two stages** - analysis first, then validation
+- **Shut down between stages (Path B only)** - shut down analysis teammates before spawning validators
+- **Validate with scripts** - run validation scripts after agents complete
+- **Message on failure (Path B)** - if validation fails, message the relevant teammate; in Path A, re-dispatch a sub-agent
 - **Preserve main context** - read condensed analysis files (~5-10K tokens) instead of raw source files (~50-100K+ tokens)
 - **Maximize parallelism** - prefer independent tasks over sequential chains
 - **Be specific** - include exact file paths and clear instructions
 - **Quality over speed** - a well-structured plan saves time during implementation
-- **Clean up team** - always TeamDelete before completing
+- **Clean up team (Path B only)** - always `TeamDelete` before completing when a team was created
 - **Monorepo aware** - automatically resolves correct plans directory

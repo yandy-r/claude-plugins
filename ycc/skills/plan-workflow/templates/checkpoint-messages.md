@@ -11,7 +11,11 @@ Use this template when `--dry-run` flag is present:
 ```markdown
 # Dry Run: Plan Workflow for {{FEATURE_NAME}}
 
-## Mode
+## Dispatch Mode
+
+[standalone sub-agents | agent team pw-{{FEATURE_NAME}}]
+
+## Execution Mode
 
 [Standard (10 agents) / Optimized (7 agents)]
 
@@ -75,6 +79,15 @@ Agents to deploy:
 ### Planning Files
 
 - {{FEATURE_DIR}}/parallel-plan.md
+
+## Execution Model
+
+- Default (`AGENT_TEAM_MODE=false`): each stage deploys its agents as standalone sub-agents in a single message with multiple `Task` calls. No team coordination; each sub-agent writes its assigned artifact and returns. Orchestrator validates and synthesizes between stages.
+- With `--team` (`AGENT_TEAM_MODE=true`): create team `pw-{{FEATURE_NAME}}` once up front, register each stage's tasks, spawn teammates per stage (research → analysis → validation) with `SendMessage` coordination and `TaskList` progress tracking, shut down between stages, then `TeamDelete` at the end.
+
+If `--team` was passed, the above plan additionally includes team `pw-{{FEATURE_NAME}}` with the corresponding teammate roster.
+
+Do **not** call `TeamCreate`, `TaskCreate`, `Agent`, `Task`, `SendMessage`, or `TeamDelete` in dry-run mode.
 
 ## Next Steps
 

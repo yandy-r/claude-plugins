@@ -2,12 +2,15 @@
 name: plan-workflow
 description: Unified planning workflow - research, analyze, and generate parallel
   implementation plans in one command. Combines shared-context and parallel-plan with
-  checkpoint support and agent team coordination.
+  checkpoint support. Default is standalone parallel sub-agents via the parallel agent
+  workflow. Pass `--team` (Codex only) to orchestrate research, analysis, and validation
+  stages as teammates under a shared create an agent group/the task tracker with coordinated
+  shutdown.
 ---
 
 # Unified Planning Workflow
 
-Single command to research, analyze, and plan feature implementation using coordinated agent teams. This skill combines the functionality of `shared-context` and `parallel-plan` with optimizations and checkpoint support.
+Single command to research, analyze, and plan feature implementation. Default dispatch is standalone parallel sub-agents via the `Task` tool; pass `--team` (Codex only) to run each stage as teammates under a shared `create an agent group`/`the task tracker` with coordinated shutdown and inter-teammate `send follow-up instructions` coordination. This skill combines the functionality of `shared-context` and `parallel-plan` with optimizations and checkpoint support.
 
 ## Workflow Overview
 
@@ -30,21 +33,23 @@ Single command to research, analyze, and plan feature implementation using coord
 
 **Target**: `$ARGUMENTS`
 
-Parse arguments:
+Parse arguments (flags first, then the feature name):
 
-- **feature-name**: Required. Directory name in `${PLANS_DIR}/`
+- **--team**: Optional. (Codex only) Deploy research, analysis, and validation stages as teammates under a shared `create an agent group`/`the task tracker` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
 - **--research-only**: Stop after research phase (creates shared.md only)
 - **--plan-only**: Skip research, use existing shared.md
 - **--no-checkpoint**: No pause between research and planning
 - **--optimized**: Use 7-agent optimized deployment (default: 10-agent standard)
-- **--dry-run**: Show execution plan without running
+- **--dry-run**: Show execution plan without running. With `--team`, also prints the team name and teammate roster.
+- **feature-name**: Required. Directory name in `${PLANS_DIR}/`
 
 If no feature name provided, abort with usage instructions:
 
 ```
-Usage: /plan-workflow [feature-name] [options]
+Usage: /plan-workflow [--team] [options] [feature-name]
 
 Options:
+  --team            (Codex only) Dispatch stages as agent team (default: standalone sub-agents)
   --research-only   Stop after research phase (creates shared.md only)
   --plan-only       Skip research, use existing shared.md
   --no-checkpoint   No pause between research and planning (default: checkpoint enabled)
@@ -56,7 +61,8 @@ Examples:
   /plan-workflow payment-integration --no-checkpoint
   /plan-workflow api-refactor --research-only
   /plan-workflow user-auth --plan-only
-  /plan-workflow new-feature --optimized --dry-run
+  /plan-workflow --team new-feature --optimized
+  /plan-workflow --team --dry-run new-feature
 ```
 
 ---
@@ -67,14 +73,17 @@ Examples:
 
 Extract from `$ARGUMENTS`:
 
-1. **feature-name**: First non-flag argument
-2. **Flags**: Check for presence of each flag
+1. **--team**: Boolean flag. Set `AGENT_TEAM_MODE=true` if present, else `false`.
+2. **--research-only / --plan-only / --no-checkpoint / --optimized / --dry-run**: Boolean flags. Set each corresponding variable if present.
+3. **feature-name**: First non-flag argument (required).
 
 Validate the feature name:
 
 - Must be provided
 - Should use kebab-case (lowercase with hyphens)
 - No special characters except hyphens
+
+**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools).
 
 ### Step 2: Resolve Plans Directory
 
@@ -137,15 +146,22 @@ Display the "Dry Run" section from the template with appropriate values substitu
 
 ---
 
-## Phase 1: Create Team and Research (unless --plan-only)
+## Phase 1: Research Stage (unless --plan-only)
 
-### Step 7: Create the Team
+### Step 7: Team Setup (if `--team`)
+
+If `AGENT_TEAM_MODE=false`, skip this step entirely — the default path dispatches standalone sub-agents in Step 10.
+
+If `AGENT_TEAM_MODE=true`, follow the universal lifecycle contract at
+`~/.codex/plugins/ycc/shared/references/agent-team-dispatch.md`.
 
 Create an agent team for the entire workflow:
 
 ```
 create an agent group: name="pw-[feature-name]", description="Planning workflow team for [feature-name]"
 ```
+
+On failure, abort the skill with the `create an agent group` error message. Do NOT silently fall back to sub-agent mode.
 
 ### Step 8: Read Research Prompts
 
@@ -155,34 +171,61 @@ Read the research prompts template:
 cat ~/.codex/plugins/ycc/skills/plan-workflow/templates/research-agents.md
 ```
 
-### Step 9: Create Research Tasks
+### Step 9: Create Research Tasks (if `--team`)
 
-Create 4 tasks in the shared task list:
+If `AGENT_TEAM_MODE=false`, skip this step entirely — standalone `Task` dispatch does not use the shared task list.
+
+If `AGENT_TEAM_MODE=true`, create 4 tasks in the shared task list:
 
 1. **"Research architecture for [feature-name]"**
 2. **"Research patterns for [feature-name]"**
 3. **"Research integrations for [feature-name]"**
 4. **"Research documentation for [feature-name]"**
 
-### Step 10: Spawn Research Teammates
+If `record the task` fails for any task, call `close the agent group` and abort.
 
-**CRITICAL**: Spawn all 4 teammates in a **SINGLE message** with **MULTIPLE parallel agent runs**.
+### Step 10: Spawn Research Agents
 
-| Teammate Name             | Subagent Type               | Output File                | Model  | Focus                                    |
+| Name / Teammate `name`    | Subagent Type               | Output File                | Model  | Focus                                    |
 | ------------------------- | --------------------------- | -------------------------- | ------ | ---------------------------------------- |
 | `architecture-researcher` | `codebase-research-analyst` | `research-architecture.md` | sonnet | System structure, components, data flow  |
 | `patterns-researcher`     | `codebase-research-analyst` | `research-patterns.md`     | sonnet | Existing patterns, conventions, examples |
 | `integration-researcher`  | `codebase-research-analyst` | `research-integration.md`  | sonnet | APIs, databases, external systems        |
 | `docs-researcher`         | `codebase-research-analyst` | `research-docs.md`         | sonnet | Relevant documentation files             |
 
-**Model Assignment**: Pass `model: "sonnet"` for all research teammates.
+**Model Assignment**: Pass `model: "sonnet"` for all research agents.
 
-Each teammate writes findings to `${feature_dir}/[output-file]`.
+Each agent writes findings to `${feature_dir}/[output-file]`.
 
 Use the prompts from `research-agents.md` with variables substituted:
 
 - `{{FEATURE_NAME}}` - The feature directory name
 - `{{FEATURE_DIR}}` - Full output directory path (`${feature_dir}`, resolved in Step 2)
+
+#### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
+
+**CRITICAL**: Deploy all 4 research agents in a **SINGLE message** with **MULTIPLE `Task` tool calls**. No `team_name` — standalone dispatch. Each `Task` call uses the `subagent_type` and `model` from the table above and the corresponding prompt from `research-agents.md`.
+
+In this mode there is no shared task list; rely on each `Task`'s return value plus the artifact check in Step 11 to confirm completion. Inter-agent `send follow-up instructions` coordination is not available — each sub-agent works independently from the prompt alone.
+
+#### Path B — Agent team (`AGENT_TEAM_MODE=true`)
+
+> **MANDATORY — AGENT TEAMS REQUIRED**
+>
+> In Path B you MUST follow the agent-team lifecycle at
+> `~/.codex/plugins/ycc/shared/references/agent-team-dispatch.md`.
+> Do NOT mix standalone `Task` calls with team dispatch.
+
+All 4 `record the task` entries were registered up front in Step 9 — do not re-create them here.
+
+Spawn all 4 teammates in **ONE message** with **FOUR `Agent` tool calls**. Every call MUST include:
+
+- `team_name = "pw-[feature-name]"`
+- `name = "<teammate-name>"` (from the table above — must match the `record the task` subject prefix)
+- `subagent_type` and `model` from the table above
+- The researcher-specific prompt from `research-agents.md`
+
+After spawning, use `the task tracker` to confirm all 4 tasks are `completed` before proceeding to Step 11.
 
 ---
 
@@ -190,19 +233,26 @@ Use the prompts from `research-agents.md` with variables substituted:
 
 ### Step 11: Validate Research Artifacts
 
-After all research teammates complete (check via the task tracker), validate all research files:
+After all research agents complete, validate all research files:
+
+- **Path A (standalone, default)**: rely on `Task` return values; each sub-agent writes its `research-*.md` artifact before returning.
+- **Path B (`--team`)**: check via `the task tracker` that all 4 research tasks are `completed`.
+
+Then run:
 
 ```bash
 ~/.codex/plugins/ycc/skills/shared-context/scripts/validate-research-artifacts.sh "${feature_dir}"
 ```
 
-If validation fails: message the relevant teammate to fix their output, wait for correction, rerun validation until pass.
+If validation fails: in Path B, message the relevant teammate to fix their output; in Path A, re-dispatch a sub-agent. Wait for correction, rerun validation until pass.
 
 **Do not proceed to shared.md synthesis until validation passes.**
 
-### Step 12: Shut Down Research Teammates
+### Step 12: Shut Down Research Teammates (if `--team`)
 
-Send shutdown requests to all research teammates:
+If `AGENT_TEAM_MODE=false`, skip this step — standalone sub-agents return on their own.
+
+Otherwise, send shutdown requests to all research teammates:
 
 ```
 send follow-up instructions to each teammate: a shutdown request
@@ -270,21 +320,23 @@ If user chooses "Review shared.md first":
 
 If user chooses "Stop here":
 
-- Clean up team (close the agent group)
+- If `AGENT_TEAM_MODE=true`, clean up team (`close the agent group`). In standalone mode there is no team to tear down.
 - Display completion summary for research phase only
 - **STOP** - do not proceed to planning
 
 ---
 
-## Phase 5: Analysis Team (unless --research-only or --optimized)
+## Phase 5: Analysis Stage (unless --research-only or --optimized)
 
 > **MANDATORY**: This phase MUST run in standard mode, including when `--plan-only` is used.
-> The `--plan-only` flag skips Research (Phases 1-4), NOT Analysis. Analysis teammates produce
+> The `--plan-only` flag skips Research (Phases 1-4), NOT Analysis. Analysis agents produce
 > the `analysis-*.md` files required by Phase 8 (Plan Generation).
 
-### Step 17: Create Team (if --plan-only)
+### Step 17: Create Team (if `--team` and --plan-only)
 
-If `--plan-only` was used (team doesn't exist yet):
+If `AGENT_TEAM_MODE=false`, skip this step entirely — standalone mode has no team.
+
+If `AGENT_TEAM_MODE=true` and `--plan-only` was used (team doesn't exist yet):
 
 ```
 create an agent group: name="pw-[feature-name]", description="Planning workflow team for [feature-name]"
@@ -298,32 +350,40 @@ In standard mode (not --optimized), read analysis prompts:
 cat ~/.codex/plugins/ycc/skills/plan-workflow/templates/planning-agents.md
 ```
 
-### Step 19: Create Analysis Tasks
+### Step 19: Create Analysis Tasks (if `--team`)
 
-Create 3 analysis tasks in the shared task list:
+If `AGENT_TEAM_MODE=false`, skip this step entirely — standalone `Task` dispatch does not use the shared task list.
+
+If `AGENT_TEAM_MODE=true`, create 3 analysis tasks in the shared task list:
 
 1. **"Synthesize planning context for [feature-name]"**
 2. **"Analyze code patterns for [feature-name]"**
 3. **"Suggest task structure for [feature-name]"**
 
-### Step 20: Spawn Analysis Teammates
+### Step 20: Spawn Analysis Agents
 
-**CRITICAL**: Spawn all 3 teammates in a **SINGLE message** with **MULTIPLE parallel agent runs**.
+| Name / Teammate `name` | Subagent Type               | Output File           | Model  | Focus                  |
+| ---------------------- | --------------------------- | --------------------- | ------ | ---------------------- |
+| `context-synthesizer`  | `codebase-research-analyst` | `analysis-context.md` | sonnet | Condense planning docs |
+| `code-analyzer`        | `codebase-research-analyst` | `analysis-code.md`    | sonnet | Extract code patterns  |
+| `task-structurer`      | `codebase-research-analyst` | `analysis-tasks.md`   | sonnet | Suggest task breakdown |
 
-| Teammate Name         | Subagent Type               | Output File           | Model  | Focus                  |
-| --------------------- | --------------------------- | --------------------- | ------ | ---------------------- |
-| `context-synthesizer` | `codebase-research-analyst` | `analysis-context.md` | sonnet | Condense planning docs |
-| `code-analyzer`       | `codebase-research-analyst` | `analysis-code.md`    | sonnet | Extract code patterns  |
-| `task-structurer`     | `codebase-research-analyst` | `analysis-tasks.md`   | sonnet | Suggest task breakdown |
+**Model Assignment**: Pass `model: "sonnet"` for all analysis agents.
 
-**Model Assignment**: Pass `model: "sonnet"` for all analysis teammates.
-
-Each teammate writes to `${feature_dir}/[output-file]`.
+Each agent writes to `${feature_dir}/[output-file]`.
 
 Use the prompts from `planning-agents.md` with variables substituted:
 
 - `{{FEATURE_NAME}}` - The feature directory name
 - `{{FEATURE_DIR}}` - Full output directory path (`${feature_dir}`, resolved in Step 2)
+
+#### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
+
+**CRITICAL**: Deploy all 3 analysis agents in a **SINGLE message** with **MULTIPLE `Task` tool calls**. No `team_name`. Each `Task` call uses the `subagent_type` and `model` from the table above and the corresponding prompt from `planning-agents.md`.
+
+#### Path B — Agent team (`AGENT_TEAM_MODE=true`)
+
+Spawn all 3 teammates in **ONE message** with **THREE `Agent` tool calls** and the matching `name=` from the table above. The 3 analysis tasks registered in Step 19 are used here. After spawning, use `the task tracker` to confirm all 3 tasks are `completed`.
 
 ---
 
@@ -331,14 +391,19 @@ Use the prompts from `planning-agents.md` with variables substituted:
 
 ### Step 21: First Validation Check
 
-After analysis teammates complete (check via the task tracker), validate all analysis files:
+After analysis agents complete, validate all analysis files:
+
+- **Path A (standalone, default)**: rely on `Task` return values; each sub-agent writes its `analysis-*.md` artifact before returning.
+- **Path B (`--team`)**: check via `the task tracker` that all 3 analysis tasks are `completed`.
+
+Then run:
 
 ```bash
 ~/.codex/plugins/ycc/skills/parallel-plan/scripts/validate-analysis-artifacts.sh "${feature_dir}"
 ```
 
 If validation passes → skip to Step 22 (Pre-Generation Gate).
-If validation fails → message the relevant teammate to fix their output, wait, re-validate.
+If validation fails → in Path B, message the relevant teammate; in Path A, re-dispatch a sub-agent. Wait, re-validate.
 
 ### Step 22: Pre-Generation Gate (MANDATORY — cannot be skipped)
 
@@ -353,9 +418,11 @@ Run the pre-generation gate script:
 
 **Do NOT proceed to plan generation until `persist-or-fail.sh` exits 0.**
 
-### Step 23: Shut Down Analysis Teammates
+### Step 23: Shut Down Analysis Teammates (if `--team`)
 
-Send shutdown requests to all analysis teammates.
+If `AGENT_TEAM_MODE=false`, skip this step — standalone sub-agents return on their own.
+
+Otherwise, send shutdown requests to all analysis teammates.
 
 ---
 
@@ -405,7 +472,7 @@ Fix any structural issues found.
 
 ---
 
-## Phase 9: Validation Team
+## Phase 9: Validation Stage
 
 ### Step 28: Read Validation Prompts
 
@@ -413,7 +480,11 @@ Fix any structural issues found.
 cat ~/.codex/plugins/ycc/skills/plan-workflow/templates/validation-agents.md
 ```
 
-### Step 29: Create Validation Tasks
+### Step 29: Create Validation Tasks (if `--team`)
+
+If `AGENT_TEAM_MODE=false`, skip this step entirely — standalone `Task` dispatch does not use the shared task list.
+
+If `AGENT_TEAM_MODE=true`:
 
 **Standard Mode**: Create 3 validation tasks:
 
@@ -426,47 +497,60 @@ cat ~/.codex/plugins/ycc/skills/plan-workflow/templates/validation-agents.md
 1. **"Validate paths and dependencies in [feature-name] plan"**
 2. **"Validate task completeness in [feature-name] plan"**
 
-### Step 30: Spawn Validation Teammates
+### Step 30: Spawn Validation Agents
 
-**Standard Mode**: Spawn 3 teammates:
+**Standard Mode**: 3 agents:
 
-| Teammate Name            | Subagent Type               | Model  | Focus                                   |
+| Name / Teammate `name`   | Subagent Type               | Model  | Focus                                   |
 | ------------------------ | --------------------------- | ------ | --------------------------------------- |
 | `path-validator`         | `explore`                   | haiku  | Verify all referenced files exist       |
 | `dependency-validator`   | `explore`                   | haiku  | Check for circular/invalid dependencies |
 | `completeness-validator` | `codebase-research-analyst` | sonnet | Ensure tasks are actionable             |
 
-**Optimized Mode**: Spawn 2 teammates:
+**Optimized Mode**: 2 agents:
 
-| Teammate Name            | Subagent Type               | Model  | Focus                           |
+| Name / Teammate `name`   | Subagent Type               | Model  | Focus                           |
 | ------------------------ | --------------------------- | ------ | ------------------------------- |
 | `path-dep-validator`     | `explore`                   | haiku  | Verify paths + dependency graph |
 | `completeness-validator` | `codebase-research-analyst` | sonnet | Task quality + completeness     |
 
 **Model Assignment**: Pass `model: "haiku"` for path/dependency validators, `model: "sonnet"` for completeness-validator.
 
+#### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
+
+**CRITICAL**: Deploy all validation agents (3 in standard, 2 in optimized) in a **SINGLE message** with **MULTIPLE `Task` tool calls**. No `team_name`. Each `Task` call uses the `subagent_type` and `model` from the relevant table above and the corresponding prompt from `validation-agents.md`. Rely on each `Task`'s return value for validator findings.
+
+#### Path B — Agent team (`AGENT_TEAM_MODE=true`)
+
+Spawn all validation teammates in **ONE message** with matching `Agent` tool calls and the matching `name=` from the table above. The validation tasks registered in Step 29 are used here. After spawning, use `the task tracker` to confirm all tasks are `completed`.
+
 ### Step 31: Review and Fix Issues
 
-After validators complete (check via the task tracker):
+After validators complete:
 
-- Review findings from each validator
+- **Path A (standalone, default)**: review each `Task` return value for validator findings.
+- **Path B (`--team`)**: review findings via `the task tracker` and teammate messages.
 - Fix any issues identified:
   - Correct invalid file paths
   - Resolve circular dependencies
   - Add missing details to incomplete tasks
-- Re-run validation if significant changes made
+- Re-run validation if significant changes made.
 
-### Step 32: Shut Down Validation Teammates
+### Step 32: Shut Down Validation Teammates (if `--team`)
 
-Send shutdown requests to all validation teammates.
+If `AGENT_TEAM_MODE=false`, skip this step — standalone sub-agents return on their own.
+
+Otherwise, send shutdown requests to all validation teammates.
 
 ---
 
 ## Phase 10: Summary
 
-### Step 33: Clean Up Team
+### Step 33: Clean Up Team (if `--team`)
 
-Delete the team and its resources:
+If `AGENT_TEAM_MODE=false`, skip this step — there is no team to tear down.
+
+Otherwise, delete the team and its resources:
 
 ```
 close the agent group
@@ -503,15 +587,15 @@ Provide a comprehensive summary:
 
 - ${feature_dir}/parallel-plan.md
 
-## Team Summary
+## Dispatch Summary
 
-- Team: pw-[feature-name]
-- Mode: [standard/optimized]
-- Research teammates: 4
-- Analysis teammates: [3/0 depending on mode]
-- Validation teammates: [3/2 depending on mode]
-- Total teammates: [10/7]
-- Inter-agent sharing: Enabled (teammates shared findings within each phase)
+- Dispatch Mode: [standalone sub-agents | agent team pw-[feature-name]]
+- Execution Mode: [standard/optimized]
+- Research agents: 4
+- Analysis agents: [3/0 depending on execution mode]
+- Validation agents: [3/2 depending on execution mode]
+- Total agents: [10/7]
+- Inter-agent sharing: [Disabled (Path A) | Enabled — teammates shared findings within each phase (Path B)]
 
 ## Plan Overview
 
@@ -543,9 +627,9 @@ When `--optimized` flag is used, the workflow changes:
 
 ### Optimized Agent Architecture
 
-Instead of separate research (4) + analysis (3) teammates, deploy 5 unified teammates:
+Instead of separate research (4) + analysis (3) agents, deploy 5 unified agents:
 
-| Unified Teammate      | Combines                            | Output                     | Model  |
+| Unified Agent         | Combines                            | Output                     | Model  |
 | --------------------- | ----------------------------------- | -------------------------- | ------ |
 | `arch-analyst`        | Arch Research + Context Synthesizer | `analysis-architecture.md` | sonnet |
 | `pattern-analyst`     | Pattern Research + Code Analyzer    | `analysis-patterns.md`     | sonnet |
@@ -553,13 +637,18 @@ Instead of separate research (4) + analysis (3) teammates, deploy 5 unified team
 | `docs-analyst`        | Doc Research                        | `analysis-docs.md`         | sonnet |
 | `task-planner`        | Task Structure Agent                | `analysis-tasks.md`        | sonnet |
 
-**Model Assignment**: Pass `model: "sonnet"` for all unified teammates.
+**Model Assignment**: Pass `model: "sonnet"` for all unified agents.
 
-These teammates produce combined research+analysis output, skipping Phase 5 entirely.
+These agents produce combined research+analysis output, skipping Phase 5 entirely.
 
-Validation uses 2 teammates instead of 3 (Path + Dependency merged).
+Validation uses 2 agents instead of 3 (Path + Dependency merged).
 
-**Total**: 7 teammates instead of 10, 2 phases instead of 3.
+Dispatch follows the same Path A / Path B split as standard mode:
+
+- **Path A (standalone, default)**: spawn all 5 unified agents in a single message with 5 `Task` calls.
+- **Path B (`--team`)**: register 5 unified tasks up front, then spawn 5 teammates in a single message with `name="pw-[feature-name]"`.
+
+**Total**: 7 agents instead of 10, 2 stages instead of 3.
 
 ---
 
@@ -626,14 +715,14 @@ All files are written to `${feature_dir}/` (resolved via `resolve-plans-dir.sh`)
 
 **Contract Rules**:
 
-1. Each teammate MUST write its own output file using the Write tool
-2. Each teammate MUST share key findings with relevant teammates via send follow-up instructions
-3. The team lead MUST run `validate-research-artifacts.sh` before generating shared.md (Step 11)
-4. The team lead MUST run `validate-analysis-artifacts.sh` after analysis teammates complete (Step 21)
-5. The team lead MUST run `persist-or-fail.sh` as a mandatory pre-generation gate (Step 22)
-6. If validation fails, the team lead MUST message the failing teammate to fix their output
+1. Each agent MUST write its own output file using the Write tool
+2. In Path B (`--team`), each teammate MUST share key findings with relevant teammates via send follow-up instructions. In Path A (standalone), inter-agent sharing is unavailable — each sub-agent works independently.
+3. The orchestrator MUST run `validate-research-artifacts.sh` before generating shared.md (Step 11)
+4. The orchestrator MUST run `validate-analysis-artifacts.sh` after analysis agents complete (Step 21)
+5. The orchestrator MUST run `persist-or-fail.sh` as a mandatory pre-generation gate (Step 22)
+6. If validation fails, the orchestrator MUST message the failing teammate (Path B) or re-dispatch the sub-agent (Path A)
 7. No file may be skipped or deferred — `persist-or-fail.sh` must exit 0 before plan generation
-8. The team MUST be cleaned up (close the agent group) before skill completion
+8. In Path B, the team MUST be cleaned up (close the agent group) before skill completion
 
 ---
 
@@ -669,15 +758,16 @@ scope: local
 
 ## Important Notes
 
-- **You are the team lead** - coordinate all phases of the workflow
-- **One team for entire workflow** - create once, use across all phases
-- **Spawn teammates in parallel** - single message with multiple Agent calls per phase
+- **You are the planning orchestrator** - coordinate all phases of the workflow
+- **Choose dispatch mode from `$ARGUMENTS`** - default is standalone sub-agents via `Task`; `--team` switches to teammates under `create an agent group`/`the task tracker`
+- **One team for entire workflow (Path B only)** - create once, use across all phases
+- **Spawn in parallel** - a single message per phase with multiple `Task` calls (Path A) or multiple `Agent` calls with `name=` + `name=` (Path B)
 - **Pass model parameters** - use `model: "sonnet"` for research/analysis agents, `model: "haiku"` for path/dependency validators, `model: "sonnet"` for completeness-validator
-- **Teammates share findings** - they communicate with each other via send follow-up instructions
-- **Shut down between phases** - shut down teammates before spawning new ones for next phase
-- **Validate with scripts** - run validation scripts after teammates complete
-- **Message on failure** - if validation fails, message the relevant teammate
+- **Teammates share findings (Path B only)** - inter-teammate `send follow-up instructions` coordination is unavailable to standalone sub-agents
+- **Shut down between phases (Path B only)** - shut down teammates before spawning new ones for next phase
+- **Validate with scripts** - run validation scripts after agents complete
+- **Message on failure (Path B)** - if validation fails, message the relevant teammate; in Path A, re-dispatch a sub-agent
 - **Preserve context** - read condensed analysis, not raw files
 - **Validate thoroughly** - multiple validation passes ensure quality
-- **Clean up team** - always close the agent group before completing
+- **Clean up team (Path B only)** - always `close the agent group` before completing when a team was created
 - **Monorepo aware** - automatically resolves correct plans directory via `resolve-plans-dir.sh`
