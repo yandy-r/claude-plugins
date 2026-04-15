@@ -1,6 +1,6 @@
 ---
 description: Code review — local uncommitted changes or a GitHub PR (pass PR number/URL for PR mode). Runs security + quality checks, executes validation commands, writes an artifact, and posts the review. Pass --parallel to fan out the review phase across 3 specialized reviewer agents (correctness, security, quality) and merge findings.
-argument-hint: '[pr-number | pr-url | blank for local review] [--approve | --request-changes] [--parallel]'
+argument-hint: '[--approve | --request-changes] [--parallel] [pr-number | pr-url | blank for local review]'
 allowed-tools:
   - Read
   - Grep
