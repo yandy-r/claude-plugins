@@ -22,12 +22,13 @@ Team names follow the pattern: `<skill-prefix>-<sanitized-context>`.
 
 **Skill prefixes** (do not change):
 
-| Skill           | Prefix  | Example                 |
-| --------------- | ------- | ----------------------- |
-| `plan`          | `plan-` | `plan-add-rate-limit`   |
-| `prp-plan`      | `prpp-` | `prpp-billing-webhooks` |
-| `prp-implement` | `prpi-` | `prpi-user-auth-flow`   |
-| `deep-research` | `drpr-` | `drpr-ai-deployment`    |
+| Skill            | Prefix  | Example                 |
+| ---------------- | ------- | ----------------------- |
+| `plan`           | `plan-` | `plan-add-rate-limit`   |
+| `prp-plan`       | `prpp-` | `prpp-billing-webhooks` |
+| `prp-implement`  | `prpi-` | `prpi-user-auth-flow`   |
+| `implement-plan` | `impl-` | `impl-user-auth-flow`   |
+| `deep-research`  | `drpr-` | `drpr-ai-deployment`    |
 
 If the sanitized context would be empty (e.g., only symbols), fall back to
 `untitled`.
