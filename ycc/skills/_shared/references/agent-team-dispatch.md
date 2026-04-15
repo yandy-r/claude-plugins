@@ -1,7 +1,7 @@
 # Agent Team Dispatch — Canonical Lifecycle Reference
 
-Used by `ycc:plan`, `ycc:prp-plan`, and `ycc:prp-implement` when the `--team` flag
-is passed. This file documents the universal TeamCreate → TaskCreate → Agent →
+Used by `ycc:plan`, `ycc:prp-plan`, `ycc:prp-implement`, and `ycc:deep-research`
+when the `--team` flag is passed. This file documents the universal TeamCreate → TaskCreate → Agent →
 TaskList → SendMessage → TeamDelete lifecycle. Individual skills own their teammate
 roster and prompt templates; only the mechanism lives here.
 
@@ -27,6 +27,7 @@ Team names follow the pattern: `<skill-prefix>-<sanitized-context>`.
 | `ycc:plan`          | `plan-` | `plan-add-rate-limit`   |
 | `ycc:prp-plan`      | `prpp-` | `prpp-billing-webhooks` |
 | `ycc:prp-implement` | `prpi-` | `prpi-user-auth-flow`   |
+| `ycc:deep-research` | `drpr-` | `drpr-ai-deployment`    |
 
 If the sanitized context would be empty (e.g., only symbols), fall back to
 `untitled`.

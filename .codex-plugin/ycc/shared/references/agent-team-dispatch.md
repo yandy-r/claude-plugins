@@ -1,7 +1,7 @@
 # Agent Team Dispatch — Canonical Lifecycle Reference
 
-Used by `plan`, `prp-plan`, and `prp-implement` when the `--team` flag
-is passed. This file documents the universal create an agent group → record the task → Agent →
+Used by `plan`, `prp-plan`, `prp-implement`, and `deep-research`
+when the `--team` flag is passed. This file documents the universal create an agent group → record the task → Agent →
 the task tracker → send follow-up instructions → close the agent group lifecycle. Individual skills own their teammate
 roster and prompt templates; only the mechanism lives here.
 
@@ -22,11 +22,12 @@ Team names follow the pattern: `<skill-prefix>-<sanitized-context>`.
 
 **Skill prefixes** (do not change):
 
-| Skill               | Prefix  | Example                 |
-| ------------------- | ------- | ----------------------- |
+| Skill           | Prefix  | Example                 |
+| --------------- | ------- | ----------------------- |
 | `plan`          | `plan-` | `plan-add-rate-limit`   |
 | `prp-plan`      | `prpp-` | `prpp-billing-webhooks` |
 | `prp-implement` | `prpi-` | `prpi-user-auth-flow`   |
+| `deep-research` | `drpr-` | `drpr-ai-deployment`    |
 
 If the sanitized context would be empty (e.g., only symbols), fall back to
 `untitled`.
@@ -133,13 +134,13 @@ continuing.
 
 ## 4. Failure Policy
 
-| Failure                        | Response                                                         |
-| ------------------------------ | ---------------------------------------------------------------- |
-| `create an agent group` fails             | Abort skill; report error. Do NOT fall back silently.            |
-| `record the task` fails             | `close the agent group`, then abort.                                        |
-| Teammate returns error         | Record failure in the task tracker; decide per skill (continue / abort). |
-| Between-batch validation fails | Shutdown current batch, ask user (fix / sequential / abort).     |
-| User aborts mid-run            | `send follow-up instructions(shutdown)` to active teammates, then `close the agent group`.  |
+| Failure                        | Response                                                                                   |
+| ------------------------------ | ------------------------------------------------------------------------------------------ |
+| `create an agent group` fails  | Abort skill; report error. Do NOT fall back silently.                                      |
+| `record the task` fails        | `close the agent group`, then abort.                                                       |
+| Teammate returns error         | Record failure in the task tracker; decide per skill (continue / abort).                   |
+| Between-batch validation fails | Shutdown current batch, ask user (fix / sequential / abort).                               |
+| User aborts mid-run            | `send follow-up instructions(shutdown)` to active teammates, then `close the agent group`. |
 
 Never leave a team live after the skill exits.
 
