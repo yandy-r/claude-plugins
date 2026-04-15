@@ -1,7 +1,7 @@
 ---
 name: orchestrate
-description: Orchestrate multiple specialized agents to accomplish complex tasks efficiently through intelligent task decomposition, parallel execution, and result synthesis.
-argument-hint: '[task-description] [--dry-run] [--plan-only] [--sequential]'
+description: Orchestrate multiple specialized agents in parallel to accomplish complex tasks. Decomposes the task, deploys implementor agents in dependency-resolved batches, and synthesizes results. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList, up-front TaskCreate/addBlockedBy dependency wiring, and coordinated inter-batch shutdown via SendMessage.
+argument-hint: '[--team] [--dry-run] [--plan-only] [--sequential] <task-description>'
 allowed-tools:
   - Read
   - Grep
@@ -22,46 +22,44 @@ allowed-tools:
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/scripts/*.sh:*)'
 ---
 
-## MANDATORY — AGENT TEAMS REQUIRED
-
-**You MUST use agent teams for this skill. Do NOT use standalone sub-agents.**
-
-1. **TeamCreate** FIRST — before spawning any agents
-2. **TaskCreate** — register all subtasks in the shared task list
-3. **Agent with `team_name`** — every agent spawn MUST include the `team_name` parameter
-4. **SendMessage** — shut down teammates between batches
-5. **TeamDelete** — clean up when done
-
-If you spawn an agent WITHOUT `team_name`, you are doing it wrong. Stop and fix it.
-
----
-
 # Multi-Agent Orchestration Skill
 
 You are an orchestration expert coordinating multiple specialized agents to accomplish complex tasks. **Your role is to coordinate agents, not do the work yourself.**
+
+Parallelism is the baseline of this skill — every batch's tasks dispatch concurrently. The only choice is **how** the implementor agents are dispatched:
+
+- **Standalone sub-agents** (default) — plain `Agent` calls per batch, no shared task list. Works in Claude Code, Cursor, and Codex.
+- **Agent team** (`--team`, Claude Code only) — single `TeamCreate` with all subtasks registered up front (`TaskCreate` + `addBlockedBy` for dependency wiring), per-batch teammate spawn, coordinated inter-batch shutdown via `SendMessage`, and `TeamDelete` at the end. Adds shared task-graph observability across all batches.
 
 ## Current Task
 
 **Orchestrating**: `$ARGUMENTS`
 
-Parse the arguments:
+Parse flags first, then treat the remainder as the task description:
 
-- **task-description**: The complex task to orchestrate (required, can be multi-word)
-- **--dry-run**: Show orchestration plan without deploying agents
-- **--plan-only**: Create orchestration plan file without execution
-- **--sequential**: Force sequential execution (for tightly dependent tasks)
+- `--team` — (Claude Code only) Dispatch each batch's agents under a shared `TeamCreate` with up-front `TaskCreate` + `addBlockedBy` dependency wiring and per-batch shutdown via `SendMessage`. Aborts if invoked from a Cursor or Codex bundle (team tools are absent there).
+- `--dry-run` — Show the orchestration plan without deploying agents. With `--team`, also prints the team name and per-batch teammate roster.
+- `--plan-only` — Create orchestration plan file at `docs/orchestration/[sanitized-task].md` without execution.
+- `--sequential` — Force sequential execution (single-task batches, for tightly dependent tasks).
+- `<task-description>`: The complex task to orchestrate (required, can be multi-word).
 
-If no task description provided, abort with usage instructions:
+Strip flags from `$ARGUMENTS` and set `TEAM_FLAG=true|false`, `DRY_RUN=true|false`, `PLAN_ONLY=true|false`, `SEQUENTIAL=true|false`. Join the remaining non-flag tokens into `TASK_DESCRIPTION`.
+
+If no task description is provided after stripping flags, abort with usage instructions:
 
 ```
-Usage: /orchestrate [task-description] [--dry-run] [--plan-only] [--sequential]
+Usage: /ycc:orchestrate [--team] [--dry-run] [--plan-only] [--sequential] <task-description>
 
 Examples:
-  /orchestrate "Implement user authentication with tests and docs"
-  /orchestrate "Debug payment processing failure" --dry-run
-  /orchestrate "Refactor database layer" --plan-only
-  /orchestrate "Update API documentation across all services"
+  /ycc:orchestrate "Implement user authentication with tests and docs"
+  /ycc:orchestrate --team "Implement user authentication with tests and docs"
+  /ycc:orchestrate --dry-run "Debug payment processing failure"
+  /ycc:orchestrate --plan-only "Refactor database layer"
+  /ycc:orchestrate --sequential "Migrate legacy config"
+  /ycc:orchestrate --team --dry-run "Update API documentation across all services"
 ```
+
+**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must abort with a clear message. Those bundles ship without team tools (`TeamCreate`, `TaskCreate`, `SendMessage`, etc.). The default standalone sub-agent path is the only execution mode available there.
 
 ---
 
@@ -115,31 +113,55 @@ cat ${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/references/task-breakdown.md
 
 This template provides patterns for breaking down tasks by feature area, technical layer, cross-cutting concerns, and dependencies.
 
-### Step 5: Create Team and Register Subtasks
+### Step 5: Register Subtasks
+
+Branch on `TEAM_FLAG`:
+
+- `TEAM_FLAG=false` → **Path A (default)**: register subtasks locally via `TodoWrite`. No team is created. Skip to Step 6.
+- `TEAM_FLAG=true` → **Path B**: create the team and register all subtasks up front with dependency wiring (5a–5c below).
+
+#### Path A — Local todos (default)
+
+Using **TodoWrite**, register each subtask as a todo item:
+
+```
+- id: "subtask-1", content: "[Subtask 1 title] — agent: [agent-type] — depends: [none/list]", status: "pending"
+- id: "subtask-2", content: "[Subtask 2 title] — agent: [agent-type] — depends: [subtask-1]", status: "pending"
+```
+
+Track batch completion in-context after each batch's `Agent` calls return.
+
+#### Path B — Agent team (`--team` only)
+
+> If `DRY_RUN=true` or `PLAN_ONLY=true`, **skip 5a–5c and proceed directly to Step 10**. Team creation is not needed for dry-run or plan-only output; compute the sanitized team name in-memory only.
 
 **5a: Create the orchestration team:**
 
-Sanitize the task description to create a team name (lowercase, hyphens, max 20 chars):
+Sanitize the task description to create a team name (lowercase, replace non-alphanumeric with `-`, collapse runs, trim, cap at **20 chars**, fall back to `untitled` if empty). Team name: `orch-<sanitized-task>`.
 
 ```
-TeamCreate: team_name="orch-[sanitized-task]", description="Orchestration team for: [task description]"
+TeamCreate: team_name="orch-<sanitized-task>", description="Orchestration team for: <task description>"
 ```
+
+On failure, abort.
 
 **5b: Create subtasks in the shared task list:**
 
-Using **TaskCreate**, register each subtask:
+For **every subtask across all batches**, use **TaskCreate**:
 
 ```
-TaskCreate: subject="[subtask-N]: [Description]", description="Agent: [agent-type]. Dependencies: [none/list]. Scope: [details]. Expected output: [deliverables]."
+TaskCreate: subject="[subtask-N]: [Description]", description="Agent: [agent-type]. Scope: [details]. Expected output: [deliverables]."
 ```
 
-**5c: Set up dependencies:**
+**5c: Wire up dependencies up front:**
 
-For subtasks with dependencies, use **TaskUpdate** with `addBlockedBy`:
+For each subtask `T` with dependencies `[X, Y, Z]`, use **TaskUpdate** with `addBlockedBy`:
 
 ```
-TaskUpdate: taskId="[subtask-2-id]", addBlockedBy=["[subtask-1-id]"]
+TaskUpdate: taskId="<T-id>", addBlockedBy=["<X-id>", "<Y-id>", "<Z-id>"]
 ```
+
+This populates the shared task graph **once**, not per batch. If any `TaskCreate` or `TaskUpdate` fails → `TeamDelete`, then abort.
 
 ### Step 6: Validate Task Decomposition
 
@@ -204,17 +226,12 @@ For each subtask, prepare:
 
 ### Step 10: Check for Dry Run or Plan-Only Mode
 
-If `--dry-run` is present in `$ARGUMENTS`:
+If `--dry-run` is present:
 
-Display:
+**Default dry-run (no `--team`)** — display the batch roster only:
 
 ```markdown
 # Dry Run: Orchestration Plan for [Task]
-
-## Team
-
-- Name: orch-[sanitized-task]
-- Teammates share findings within each batch
 
 ## Task Analysis
 
@@ -255,14 +272,33 @@ Display:
 Remove --dry-run flag to execute the orchestration.
 ```
 
-Clean up the team with `TeamDelete`, then **STOP HERE** — do not deploy agents.
+**`--team --dry-run`** — also print the team name and per-batch teammate roster:
+
+```
+Team name:    orch-<sanitized-task>
+Total subtasks: <N>  (across <M> batches, max parallel width <X>)
+Dependencies: <K edges>
+
+Batch 1: <comma-separated subtask IDs>
+Batch 2: <comma-separated subtask IDs>  (depends on Batch 1)
+...
+Batch M: <comma-separated subtask IDs>  (depends on Batch M-1)
+
+Per-batch teammate roster:
+  Batch 1:
+    - subtask-1  subagent_type=<agent-type>  focus=<short>
+    - subtask-2  subagent_type=<agent-type>  focus=<short>
+  ...
+```
+
+Do **not** call `TeamCreate`, `TaskCreate`, `Agent`, `SendMessage`, or `TeamDelete` in dry-run mode. **STOP HERE**.
 
 If `--plan-only` is present:
 
 - Create the plan as `docs/orchestration/[sanitized-task-name].md`
 - Save the complete orchestration plan for later execution
 - Display the plan location and summary
-- Clean up the team with `TeamDelete`
+- No team cleanup required — team creation is skipped entirely in plan-only mode
 - **STOP HERE** — do not deploy agents
 
 ---
@@ -282,43 +318,90 @@ If `--sequential` flag is present, create single-task batches.
 
 ### Step 12: Deploy Batch
 
+Branch on `TEAM_FLAG`:
+
+- `TEAM_FLAG=false` → **Path A — Standalone sub-agent batches** (default).
+- `TEAM_FLAG=true` → **Path B — Agent team batches**.
+
+---
+
+#### Path A — Standalone Sub-Agent Batches (default)
+
+For each batch, do the following **in order**:
+
+**1. Build the per-batch agent list** — determine each subtask's name, agent type, focus, and deliverables.
+
+**2. Spawn ALL batch agents in a SINGLE message** using MULTIPLE `Agent` tool calls. **No `team_name`, no `name`, no `TaskCreate`** — standalone sub-agent semantics. Each prompt must use the **Path A coordination block** from `agent-prompts.md` (standalone implementor — no inter-agent coordination).
+
+```
+Agent(
+  subagent_type = "nodejs-backend-architect",
+  description = "Implement auth system",
+  prompt = [substituted template with Path A coordination block]
+)
+Agent(
+  subagent_type = "test-strategy-planner",
+  description = "Create auth test plan",
+  prompt = [substituted template with Path A coordination block]
+)
+Agent(
+  subagent_type = "documentation-writer",
+  description = "Document auth API",
+  prompt = [substituted template with Path A coordination block]
+)
+```
+
+**3. Wait for batch completion** — `Agent` calls block until each sub-agent returns. Completion is implicit when all parallel calls in the single message return.
+
+**4. Process results** — review each returned summary. Update the corresponding `TodoWrite` items to `completed`.
+
+**5. Handle failures** — if a subtask fails, note the failure, determine if dependent subtasks can proceed, and continue with independent subtasks.
+
+**6. Identify next batch** — scan the `TodoWrite` list for pending subtasks whose dependencies are now all `completed`. If subtasks remain but none are unblocked, report deadlock and stop.
+
+No `SendMessage` shutdown needed in Path A — there are no teammates to shut down.
+
+---
+
+#### Path B — Agent Team Batches (`--team`)
+
 For each batch, do the following **in order**:
 
 **1. Build the teammate list** for this batch — list each subtask's name and description so teammates know who else is working in parallel. Substitute into `{{BATCH_TEAMMATES}}`.
 
-**2. Spawn ALL batch teammates in a SINGLE message** using MULTIPLE Agent tool calls. Every call MUST include `team_name`:
+**2. Spawn ALL batch teammates in a SINGLE message** using MULTIPLE `Agent` tool calls. Every call MUST include `team_name` AND `name`:
 
 ```
 Agent(
-  team_name = "orch-[sanitized-task]",
+  team_name = "orch-<sanitized-task>",
   name = "subtask-1",
   subagent_type = "nodejs-backend-architect",
   description = "Implement auth system",
-  prompt = [substituted template with team communication section]
+  prompt = [substituted template with Path B Team Communication section]
 )
 Agent(
-  team_name = "orch-[sanitized-task]",
+  team_name = "orch-<sanitized-task>",
   name = "subtask-2",
   subagent_type = "test-strategy-planner",
   description = "Create auth test plan",
-  prompt = [substituted template with team communication section]
+  prompt = [substituted template with Path B Team Communication section]
 )
 Agent(
-  team_name = "orch-[sanitized-task]",
+  team_name = "orch-<sanitized-task>",
   name = "subtask-3",
   subagent_type = "documentation-writer",
   description = "Document auth API",
-  prompt = [substituted template with team communication section]
+  prompt = [substituted template with Path B Team Communication section]
 )
 ```
 
-Each agent's prompt MUST include the Team Communication section from the agent-prompts.md templates, with `{{BATCH_NUMBER}}` and `{{BATCH_TEAMMATES}}` substituted.
+Each agent's prompt MUST include the Path B Team Communication section from `agent-prompts.md`, with `{{BATCH_NUMBER}}` and `{{BATCH_TEAMMATES}}` substituted.
 
-**3. Monitor progress** — use `TaskList` to check when all batch tasks are complete. If a teammate messages you with an issue, respond with guidance.
+**3. Monitor progress** — use `TaskList` to check when all batch tasks are complete. If a teammate messages you with an issue, respond via `SendMessage` with guidance.
 
 **4. Handle failures** — if a subtask fails, note the failure, determine if dependent subtasks can proceed, and continue with independent subtasks.
 
-**5. Shut down batch teammates** — send `SendMessage(to="subtask-[N]", message={type: "shutdown_request"})` to each teammate. Wait for shutdowns before next batch.
+**5. Shut down batch teammates** — send `SendMessage(to="subtask-<N>", message={type: "shutdown_request"})` to each teammate of the just-completed batch. Wait for shutdowns before next batch.
 
 **6. Identify next batch** — check `TaskList` for pending tasks with all blockers completed. If tasks remain but none are unblocked, report deadlock and stop.
 
@@ -357,11 +440,14 @@ Verify that agent outputs work together:
 
 ### Step 16: Clean Up Team
 
-Delete the team and its resources:
+Gated on `TEAM_FLAG`:
 
-```
-TeamDelete
-```
+- `TEAM_FLAG=false` → No team was created. Skip this step.
+- `TEAM_FLAG=true` → Delete the team and its resources:
+
+  ```
+  TeamDelete
+  ```
 
 ### Step 17: Final Summary
 
@@ -370,12 +456,16 @@ Provide comprehensive completion summary:
 ```markdown
 # Orchestration Complete: [Task]
 
-## Team Summary
+## Execution Mode
 
-- Team: orch-[sanitized-task]
+[Standalone sub-agents | Agent team (team: orch-<sanitized-task>)]
+
+## Team Summary (Path B only)
+
+- Team: orch-<sanitized-task>
 - Total teammates spawned: [count across all batches]
 - Batches executed: [count]
-- Inter-agent sharing: Enabled (teammates shared findings within batches)
+- Inter-agent sharing: Enabled (teammates shared findings within batches via SendMessage)
 
 ## Execution Summary
 
@@ -465,16 +555,14 @@ Each agent assignment must have:
 
 The orchestration must:
 
-- [ ] Create team before spawning any agents
-- [ ] Register all subtasks in shared task list
-- [ ] Deploy independent tasks as teammates (single message, multiple Agent calls with team_name)
+- [ ] Parse flags and set `TEAM_FLAG`, `DRY_RUN`, `PLAN_ONLY`, `SEQUENTIAL` before any side effects
+- [ ] Deploy independent tasks in parallel (single message, multiple `Agent` calls)
 - [ ] Respect dependency ordering between batches
-- [ ] Track progress via TaskList
-- [ ] Shut down teammates between batches via SendMessage
+- [ ] Track progress via `TodoWrite` (Path A) or `TaskList` (Path B)
 - [ ] Handle failures gracefully
 - [ ] Synthesize results on completion
 - [ ] Verify integration between agent outputs
-- [ ] Clean up team with TeamDelete
+- [ ] In Path B: create team before spawning agents, include `team_name` + `name` on every `Agent` call, shut down teammates between batches via `SendMessage`, and clean up with `TeamDelete`
 
 ### Result Quality Checklist
 
@@ -494,14 +582,12 @@ The final result must have:
 ### Coordination Principles
 
 1. **Delegate Everything**: Only coordinate; don't implement yourself
-2. **Create Team First**: Always TeamCreate before spawning agents
-3. **Maximize Parallelism**: Run independent tasks simultaneously
-4. **Clear Boundaries**: Ensure no overlap between agents
-5. **Single Goal**: Keep all agents aligned to the main objective
-6. **Monitor via TaskList**: Track progress through the shared task list
-7. **Shut Down Between Batches**: Clean up teammates before spawning new ones
-8. **Synthesize Results**: Integrate outputs into coherent whole
-9. **Clean Up Team**: Always TeamDelete before completing
+2. **Maximize Parallelism**: Run independent tasks simultaneously
+3. **Clear Boundaries**: Ensure no overlap between agents
+4. **Single Goal**: Keep all agents aligned to the main objective
+5. **Track Progress**: `TodoWrite` in Path A, `TaskList` in Path B
+6. **Synthesize Results**: Integrate outputs into coherent whole
+7. **Path B additions**: `TeamCreate` before spawning; every `Agent` call with `team_name=` and `name=`; `SendMessage` shutdown between batches; `TeamDelete` on completion
 
 ### When to Use Sequential Mode
 
@@ -544,15 +630,13 @@ Use `--plan-only` flag when:
 ## Important Notes
 
 - **You are the orchestrator** — coordinate agents, don't implement
-- **Create team first** — TeamCreate before spawning any agents
-- **Deploy as teammates** — single message with multiple Agent calls, each with team_name
-- **Teammates share findings** — they communicate within batches via SendMessage
+- **Parallelism is the baseline** — every batch dispatches concurrently regardless of path
+- **Default dispatch is standalone sub-agents** — `--team` is an opt-in for shared task-graph observability in Claude Code
+- **Deploy in batches** — single message with multiple `Agent` calls per batch
 - **Respect dependencies** — never start a subtask before its dependencies complete
-- **Maximize parallelism** — run all independent subtasks simultaneously
-- **Shut down between batches** — shut down teammates before spawning next batch
 - **Handle failures** — continue with independent subtasks if one fails
-- **Track via TaskList** — monitor teammate progress through shared task list
-- **Clean up team** — always TeamDelete before completing
+- **Track progress** — `TodoWrite` updates (Path A) or `TaskList` (Path B)
+- **Path B only** — create team first, include `team_name` + `name` on every spawn, shut down teammates between batches via `SendMessage`, and call `TeamDelete` on completion
 - **Quality over speed** — ensure proper coordination and integration
 
 ---
@@ -578,3 +662,14 @@ Use `--plan-only` flag when:
 ### Issue: Unclear what to orchestrate
 
 **Solution**: Ask clarifying questions before decomposition, use dry-run to preview, iterate on plan
+
+---
+
+## Agent Team Lifecycle Reference
+
+For Path B's team lifecycle contract (sanitization, shutdown sequence, failure policy,
+multi-batch reuse pattern), refer to:
+
+```
+${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/agent-team-dispatch.md
+```

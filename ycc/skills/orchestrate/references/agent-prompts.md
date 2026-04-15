@@ -1,6 +1,11 @@
 # Agent Prompt Templates
 
-Standard prompt templates for common orchestration patterns. Use these to ensure consistent, high-quality agent instructions. All templates include a Team Communication section for agent team coordination.
+Standard prompt templates for common orchestration patterns. Use these to ensure consistent, high-quality agent instructions.
+
+Every template contains a coordination section that must be swapped based on the dispatch path chosen by the `orchestrate` skill:
+
+- **Path A — Standalone sub-agents (default)**: replace the embedded `## Team Communication` block with the **Path A Coordination Block** defined below.
+- **Path B — Agent team (`--team`)**: keep the embedded `## Team Communication` block and substitute `{{BATCH_NUMBER}}` + `{{BATCH_TEAMMATES}}`.
 
 ---
 
@@ -21,12 +26,38 @@ All templates support these variables:
 
 ---
 
-## Team Communication Section (Include in ALL Prompts)
+## Path A Coordination Block (default — standalone sub-agents)
 
-Insert this section into every agent prompt template:
+When the skill is running **without** `--team`, replace each template's `## Team Communication` section with this block:
 
 ```markdown
-## Team Communication
+## Coordination
+
+You are a standalone implementor — no inter-agent coordination, no shared task list, no SendMessage. You are running in parallel with other sub-agents, but you cannot see or communicate with them.
+
+### Task Execution
+
+1. Read all context files listed in "Required Reading"
+2. Implement your subtask exactly as specified
+3. Validate your work (lint, parse, type-check where applicable)
+4. Return a complete summary covering:
+   - Files created
+   - Files modified
+   - Decisions made and why
+   - Any issues, blockers, or surprises encountered
+   - Integration notes that dependent subtasks will need
+```
+
+The orchestrator uses your returned summary to decide how to proceed with dependent subtasks.
+
+---
+
+## Path B Team Communication Section (Include ONLY with `--team`)
+
+When the skill is running **with** `--team`, insert this section into every agent prompt template (substituting `{{BATCH_NUMBER}}` and `{{BATCH_TEAMMATES}}`):
+
+```markdown
+## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
 
 You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
 
@@ -113,7 +144,7 @@ Create/modify these files:
 
 {{CONSTRAINTS}}
 
-## Team Communication
+## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
 
 You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
 
@@ -178,7 +209,7 @@ Perform systematic root cause analysis to identify WHY this bug is occurring.
 
 {{CONTEXT_FILES}}
 
-## Team Communication
+## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
 
 You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
 
@@ -236,7 +267,7 @@ Read the diagnostic report: {{DIAGNOSTIC_REPORT_PATH}}
 3. **Add Safety**: Include validation or checks to prevent recurrence
 4. **Follow Patterns**: Match existing error handling patterns
 
-## Team Communication
+## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
 
 You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
 
@@ -291,7 +322,7 @@ Analyze the current implementation for refactoring: {{TASK}}
 4. **Risks**: Identify risks in refactoring
 5. **Approach**: Recommend refactoring strategy
 
-## Team Communication
+## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
 
 You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
 
@@ -348,7 +379,7 @@ The recommended approach is: [Summary from analysis]
 
 {{CONSTRAINTS}}
 
-## Team Communication
+## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
 
 You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
 
@@ -417,7 +448,7 @@ Create/update:
 4. **Structure**: Use clear headings and organization
 5. **Cross-References**: Link to related documentation
 
-## Team Communication
+## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
 
 You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
 
@@ -475,7 +506,7 @@ Create a comprehensive test plan covering:
 4. **Edge Cases**: Boundary conditions and error scenarios
 5. **Performance Tests**: If applicable
 
-## Team Communication
+## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
 
 You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
 
@@ -546,7 +577,7 @@ For each endpoint:
 5. **Response Format**: Consistent JSON structure
 6. **Status Codes**: Use appropriate HTTP status codes
 
-## Team Communication
+## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
 
 You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
 
@@ -626,7 +657,7 @@ Review existing schema:
 -- [Rollback changes]
 ```
 
-## Team Communication
+## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
 
 You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
 
@@ -661,8 +692,8 @@ Provide: Migration file created, tables/columns added, indexes created, rollback
 ## Best Practices for Using Templates
 
 1. **Always fill all variables**: Don't leave placeholders like {{TASK}} in the actual prompt
-2. **Always include Team Communication**: Every agent prompt MUST have the team section
-3. **Substitute BATCH_TEAMMATES**: List the other teammates in the same batch
+2. **Select the right coordination block**: Path A (standalone) in default mode, Path B (Team Communication) only when `--team` is passed. Never include the Path B block in Path A prompts — there are no teammates to communicate with.
+3. **Substitute BATCH_TEAMMATES (Path B only)**: List the other teammates in the same batch
 4. **Add specific context**: Templates are starting points — add project-specific details
 5. **Adjust scope**: Narrow or expand based on subtask complexity
 6. **Include examples**: Reference actual files from the codebase
