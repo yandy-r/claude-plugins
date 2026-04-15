@@ -79,19 +79,19 @@ You are a pragmatic technical writer who:
 
 Extract flags from `$ARGUMENTS`:
 
-| Flag       | Effect                                                                                       |
-| ---------- | -------------------------------------------------------------------------------------------- |
+| Flag       | Effect                                                                                   |
+| ---------- | ---------------------------------------------------------------------------------------- |
 | `--ground` | Dispatch `prp-researcher` in dual mode for codebase + market grounding before generating |
 
 Strip the flag, set `GROUND_MODE=true|false`. The remaining text is the feature description or file path.
 
 ### Input Detection
 
-| Input Pattern            | Action                                              |
-| ------------------------ | --------------------------------------------------- |
-| Path to `.md` file       | Read for context, treat as input seed               |
-| Free-form text           | Proceed to Phase 1                                  |
-| Empty                    | Ask the user what to spec                           |
+| Input Pattern      | Action                                |
+| ------------------ | ------------------------------------- |
+| Path to `.md` file | Read for context, treat as input seed |
+| Free-form text     | Proceed to Phase 1                    |
+| Empty              | Ask the user what to spec             |
 
 ### Feature Name Derivation
 

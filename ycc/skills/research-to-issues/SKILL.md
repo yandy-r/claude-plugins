@@ -15,7 +15,7 @@ Convert planning and research output into structured GitHub issues with tracking
 | feature-spec  | `ycc:feature-research`                   | `docs/plans/*/feature-spec.md`      |
 | parallel-plan | `ycc:parallel-plan`, `ycc:plan-workflow` | `docs/plans/*/parallel-plan.md`     |
 | prp-plan      | `ycc:prp-plan`                           | `docs/prps/plans/*.plan.md`         |
-| prd           | `ycc:prp-prd`                            | `docs/prps/prds/*.prd.md`          |
+| prd           | `ycc:prp-prd`                            | `docs/prps/prds/*.prd.md`           |
 
 ## Current Task
 

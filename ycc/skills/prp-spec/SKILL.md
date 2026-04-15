@@ -87,11 +87,11 @@ Strip the flag, set `GROUND_MODE=true|false`. The remaining text is the feature 
 
 ### Input Detection
 
-| Input Pattern            | Action                                              |
-| ------------------------ | --------------------------------------------------- |
-| Path to `.md` file       | Read for context, treat as input seed               |
-| Free-form text           | Proceed to Phase 1                                  |
-| Empty                    | Ask the user what to spec                           |
+| Input Pattern      | Action                                |
+| ------------------ | ------------------------------------- |
+| Path to `.md` file | Read for context, treat as input seed |
+| Free-form text     | Proceed to Phase 1                    |
+| Empty              | Ask the user what to spec             |
 
 ### Feature Name Derivation
 

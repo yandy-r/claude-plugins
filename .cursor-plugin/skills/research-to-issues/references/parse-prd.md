@@ -6,21 +6,21 @@ Extraction instructions for `*.prd.md` documents produced by `prp-prd`.
 
 A single file at `docs/prps/prds/[feature-name].prd.md` containing:
 
-| Section                    | What to Extract                                     |
-| -------------------------- | --------------------------------------------------- |
-| `## Problem Statement`     | Project name, problem description for all issues    |
-| `## Evidence`              | Context block for tracking issues                   |
-| `## Proposed Solution`     | Solution summary for all issue bodies               |
-| `## Key Hypothesis`        | Success hypothesis for tracking issue context        |
-| `## What We're NOT Building` | Anti-scope items become deferred issues           |
-| `## Success Metrics`       | Tracking issue success criteria                     |
-| `## Open Questions`        | Open questions become decision issues               |
-| `## Users & Context`       | User context for issue bodies                       |
-| `## Solution Detail`       | Core Capabilities (MoSCoW) for feature extraction   |
-| `## Technical Approach`    | Architecture notes, risks for context blocks        |
-| `## Implementation Phases` | Phase/task structure for issue hierarchy             |
-| `## Decisions Log`         | Resolved decisions as context (not separate issues) |
-| `## Research Summary`      | Additional context for tracking issues              |
+| Section                      | What to Extract                                     |
+| ---------------------------- | --------------------------------------------------- |
+| `## Problem Statement`       | Project name, problem description for all issues    |
+| `## Evidence`                | Context block for tracking issues                   |
+| `## Proposed Solution`       | Solution summary for all issue bodies               |
+| `## Key Hypothesis`          | Success hypothesis for tracking issue context       |
+| `## What We're NOT Building` | Anti-scope items become deferred issues             |
+| `## Success Metrics`         | Tracking issue success criteria                     |
+| `## Open Questions`          | Open questions become decision issues               |
+| `## Users & Context`         | User context for issue bodies                       |
+| `## Solution Detail`         | Core Capabilities (MoSCoW) for feature extraction   |
+| `## Technical Approach`      | Architecture notes, risks for context blocks        |
+| `## Implementation Phases`   | Phase/task structure for issue hierarchy            |
+| `## Decisions Log`           | Resolved decisions as context (not separate issues) |
+| `## Research Summary`        | Additional context for tracking issues              |
 
 ## Step 1: Extract Project Context
 
@@ -141,13 +141,13 @@ Risk items do NOT become separate issues. Instead, append relevant risks as a co
 
 ## Issue Mapping
 
-| Source Element                         | Issue Type                        | Template            |
-| -------------------------------------- | --------------------------------- | ------------------- |
-| Each phase from Implementation Phases  | 1 tracking issue                  | `tracking-issue.md` |
-| Each Must/Should capability per phase  | 1 child issue under its phase     | `feature-issue.md`  |
-| Each Could capability                  | 1 child issue (low priority)      | `feature-issue.md`  |
-| Each Won't item / anti-scope entry     | 1 deferred issue                  | `feature-issue.md`  |
-| Each open question                     | 1 decision issue (no parent)      | `feature-issue.md`  |
+| Source Element                        | Issue Type                    | Template            |
+| ------------------------------------- | ----------------------------- | ------------------- |
+| Each phase from Implementation Phases | 1 tracking issue              | `tracking-issue.md` |
+| Each Must/Should capability per phase | 1 child issue under its phase | `feature-issue.md`  |
+| Each Could capability                 | 1 child issue (low priority)  | `feature-issue.md`  |
+| Each Won't item / anti-scope entry    | 1 deferred issue              | `feature-issue.md`  |
+| Each open question                    | 1 decision issue (no parent)  | `feature-issue.md`  |
 
 ## Priority Classification
 
