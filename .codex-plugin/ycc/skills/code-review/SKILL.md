@@ -8,10 +8,8 @@ description: Dual-mode code review — local uncommitted changes OR a GitHub pul
   fetches the PR, reads each changed file in full, builds context from AGENTS.md and
   PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build)
   for detected stacks, assigns severity, and posts the review to GitHub via gh. Pass
-  `--parallel` to fan out the REVIEW phase across 3 specialized code-reviewer agents
-  (correctness, security, quality) and merge findings. Use when the user asks to "review
-  code", "review PR", "check uncommitted changes", "review pr N", "parallel review",
-  or says "/code-review".
+  `--parallel` to fan out the REVIEW phase across 3 standalone code-reviewer sub-agents
+  (correctness, security, quality) and merge findings.
 ---
 
 # Code Review
@@ -26,15 +24,22 @@ description: Dual-mode code review — local uncommitted changes OR a GitHub pul
 
 Before selecting mode, extract flags from `$ARGUMENTS`:
 
-| Flag                | Effect                                                                                                                              |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                             |
-| `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                  |
-| `--parallel`        | Fan out the REVIEW phase across 3 `code-reviewer` agents (correctness, security, quality) dispatched in parallel and merge findings |
+| Flag                | Effect                                                                                                                                                                                                                                                                                                            |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                                                                                                                                                                                                           |
+| `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                                                                                                                                                                                                |
+| `--parallel`        | Fan out the REVIEW phase across 3 **standalone** `code-reviewer` sub-agents (correctness, security, quality) dispatched in parallel and merge findings. Works in Codex, Cursor, and Codex.                                                                                                              |
+| `--team`            | (Codex only) Fan out the REVIEW phase across the same 3 `code-reviewer` reviewers, but dispatched as an **agent team** with up-front `record the task`, shared `the task tracker` observability, inter-reviewer coordination via `send follow-up instructions`, and coordinated shutdown before merge. Heavier dispatch, richer communication. |
 
-Strip these from `$ARGUMENTS` and set `PARALLEL_MODE=true|false`. The remaining text is the mode selector (PR number/URL or blank for local).
+Strip these from `$ARGUMENTS` and set `PARALLEL_MODE=true|false` and `AGENT_TEAM_MODE=true|false`. The remaining text is the mode selector (PR number/URL or blank for local).
 
-Parallel mode applies to **both** Local Review Mode (Phase 2) and PR Review Mode (Phase 3). All other phases are unchanged.
+**Validation**:
+
+- `--parallel` and `--team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --team are mutually exclusive. Pick one.`
+
+**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools — `create an agent group`, `send follow-up instructions`, etc.). Use `--parallel` instead.
+
+Parallel mode and team mode both apply to **both** Local Review Mode (Phase 2) and PR Review Mode (Phase 3). All other phases are unchanged.
 
 ---
 
@@ -62,9 +67,15 @@ If no changed files, stop: "Nothing to review."
 
 ### Phase 2 — REVIEW
 
-The shape of this phase depends on `PARALLEL_MODE`.
+The shape of this phase depends on `PARALLEL_MODE` and `AGENT_TEAM_MODE`:
 
-#### Path A — Single-Pass Review (default, `PARALLEL_MODE=false`)
+| Flags              | Path                                     |
+| ------------------ | ---------------------------------------- |
+| Neither set        | **Path A** — single-pass review (default) |
+| `PARALLEL_MODE`    | **Path B** — 3 parallel sub-agent reviewers |
+| `AGENT_TEAM_MODE`  | **Path C** — 3-reviewer agent team       |
+
+#### Path A — Single-Pass Review (default, neither flag set)
 
 Read each changed file in full. Check for:
 
@@ -94,9 +105,9 @@ Read each changed file in full. Check for:
 - Missing tests for new code
 - Accessibility issues (a11y)
 
-#### Path B — Parallel Review (`PARALLEL_MODE=true`)
+#### Path B — Parallel Sub-Agent Review (`PARALLEL_MODE=true`)
 
-Dispatch **3 `code-reviewer` agents in parallel** in a SINGLE message with MULTIPLE `Agent` tool calls. Each agent reads all changed files and applies its assigned focus:
+Dispatch **3 standalone `code-reviewer` sub-agents in parallel** in a SINGLE message with MULTIPLE `Agent` tool calls. Each agent reads all changed files and applies its assigned focus:
 
 | Reviewer               | Focus           | Checklist Items                                                                                                               |
 | ---------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
@@ -142,6 +153,84 @@ After all 3 reviewers return, **merge findings**:
 4. Attach the reviewer source to each finding (`[correctness]`, `[security]`, `[quality]`) for traceability
 
 Pass the merged findings to Phase 3 (REPORT) as if they came from a single-pass review.
+
+#### Path C — Agent Team Review (`AGENT_TEAM_MODE=true`, Codex only)
+
+> **MANDATORY — AGENT TEAMS REQUIRED**
+>
+> In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
+> with team dispatch. Every `Agent` call below MUST include `name=` AND `name=`.
+>
+> 1. `create an agent group` once at the start
+> 2. `record the task` for all 3 reviewer subtasks up front (flat graph — no dependencies)
+> 3. Spawn 3 teammates: single message, three `Agent` calls with `name=` + `name=`
+> 4. `the task tracker` to monitor until all reviewers mark complete
+> 5. `send follow-up instructions({type:"shutdown_request"})` to all 3 teammates
+> 6. `close the agent group` before merging
+>
+> If `create an agent group` or `record the task` fails, abort the skill. Refer to
+> `~/.codex/plugins/ycc/shared/references/agent-team-dispatch.md`
+> for the full lifecycle contract.
+
+Same 3-reviewer roster as Path B, but dispatched as a coordinated team with a shared task list. Use this when reviewers may surface overlapping findings (e.g., a security hole that's also a correctness bug) and you want them to cross-reference each other via `send follow-up instructions` during review.
+
+##### C.1 Build the team name
+
+Team name: `crev-local-<YYYYMMDD-HHMMSS>`. Use the same timestamp you will use later when writing the review artifact so the team name and the output filename share a traceable identifier.
+
+##### C.2 Create the team
+
+```
+create an agent group: name="crev-local-<timestamp>", description="Code review team for uncommitted local changes"
+```
+
+On failure, abort.
+
+##### C.3 Register subtasks
+
+Create 3 tasks in the shared task list (flat graph — reviewers are independent):
+
+```
+record the task: subject="correctness-reviewer: code-quality review of uncommitted changes", description="<full reviewer prompt>"
+record the task: subject="security-reviewer: security review of uncommitted changes",        description="<full reviewer prompt>"
+record the task: subject="quality-reviewer: best-practices review of uncommitted changes",   description="<full reviewer prompt>"
+```
+
+If any `record the task` fails → `close the agent group`, then abort.
+
+##### C.4 Spawn the 3 reviewers (single message, three Agent calls)
+
+Dispatch all three teammates in **ONE message** with **THREE `Agent` tool calls**. Every call MUST include:
+
+- `team_name`: `"crev-local-<timestamp>"`
+- `name`: the reviewer name (`correctness-reviewer`, `security-reviewer`, `quality-reviewer`) — must match the `record the task` subject prefix
+- `subagent_type`: `"code-reviewer"`
+- `description`: One-line task title (e.g., `"Code-quality review of local changes"`)
+- `prompt`: The same reviewer prompt used in Path B (changed files, focus + checklist items, severity rubric, expected findings format) PLUS a note that the teammate shares a task list with two sibling reviewers (name them) and may `send follow-up instructions` them if it discovers a finding that overlaps their scope, and must call `update the task tracker` to mark its task complete before returning.
+
+##### C.5 Monitor and collect results
+
+Use `the task tracker` to confirm all 3 tasks are `completed` before merging. If a teammate messages the orchestrator, respond via `send follow-up instructions`. Failure policy:
+
+- All 3 error → `close the agent group`, abort with a clear error.
+- 1 or 2 error → record "partial review — {role} did not complete" and proceed with the remaining reviewers' findings. Note the gap in the Phase 3 artifact Summary.
+
+##### C.6 Shutdown and cleanup
+
+After all teammates have marked their tasks complete (or been recorded as failed):
+
+```
+send follow-up instructions(to="correctness-reviewer", message={type:"shutdown_request"})
+send follow-up instructions(to="security-reviewer",    message={type:"shutdown_request"})
+send follow-up instructions(to="quality-reviewer",     message={type:"shutdown_request"})
+close the agent group
+```
+
+Always `close the agent group` — even on abort or partial failure.
+
+##### C.7 Merge findings
+
+Apply the same merge procedure as Path B (combine by severity, de-dupe at `file:line`, sort by file path, attach reviewer source tags). Pass the merged findings to Phase 3 (REPORT).
 
 ### Phase 3 — REPORT
 
@@ -227,9 +316,15 @@ gh pr diff <NUMBER> --name-only | while IFS= read -r file; do
 done
 ```
 
-The shape of this phase depends on `PARALLEL_MODE`.
+The shape of this phase depends on `PARALLEL_MODE` and `AGENT_TEAM_MODE`:
 
-#### Path A — Single-Pass Review (default, `PARALLEL_MODE=false`)
+| Flags              | Path                                     |
+| ------------------ | ---------------------------------------- |
+| Neither set        | **Path A** — single-pass review (default) |
+| `PARALLEL_MODE`    | **Path B** — 3 parallel sub-agent reviewers |
+| `AGENT_TEAM_MODE`  | **Path C** — 3-reviewer agent team       |
+
+#### Path A — Single-Pass Review (default, neither flag set)
 
 Apply the review checklist across 7 categories:
 
@@ -243,9 +338,9 @@ Apply the review checklist across 7 categories:
 | **Completeness**       | Missing tests, missing error handling, incomplete migrations, missing docs    |
 | **Maintainability**    | Dead code, magic numbers, deep nesting, unclear naming, missing types         |
 
-#### Path B — Parallel Review (`PARALLEL_MODE=true`)
+#### Path B — Parallel Sub-Agent Review (`PARALLEL_MODE=true`)
 
-Dispatch **3 `code-reviewer` agents in parallel** in a SINGLE message with MULTIPLE `Agent` tool calls. Each agent reads all changed files at the PR head revision and applies its assigned category slice:
+Dispatch **3 standalone `code-reviewer` sub-agents in parallel** in a SINGLE message with MULTIPLE `Agent` tool calls. Each agent reads all changed files at the PR head revision and applies its assigned category slice:
 
 | Reviewer               | Categories                             | What to Check                                                                                                                                                             |
 | ---------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -294,6 +389,86 @@ After all 3 reviewers return, **merge findings**:
 Pass the merged findings to Phase 4 (VALIDATE) and downstream phases as if they came from a single-pass review.
 
 **Note**: Validation commands (Phase 4) still run sequentially in the main skill — parallelization here only applies to the review pass.
+
+#### Path C — Agent Team Review (`AGENT_TEAM_MODE=true`, Codex only)
+
+> **MANDATORY — AGENT TEAMS REQUIRED**
+>
+> In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
+> with team dispatch. Every `Agent` call below MUST include `name=` AND `name=`.
+>
+> 1. `create an agent group` once at the start
+> 2. `record the task` for all 3 reviewer subtasks up front (flat graph — no dependencies)
+> 3. Spawn 3 teammates: single message, three `Agent` calls with `name=` + `name=`
+> 4. `the task tracker` to monitor until all reviewers mark complete
+> 5. `send follow-up instructions({type:"shutdown_request"})` to all 3 teammates
+> 6. `close the agent group` before merging
+>
+> If `create an agent group` or `record the task` fails, abort the skill. Refer to
+> `~/.codex/plugins/ycc/shared/references/agent-team-dispatch.md`
+> for the full lifecycle contract.
+
+Same 3-reviewer roster and category split as Path B, but dispatched as a coordinated team with a shared task list. Use this for larger PRs where reviewers will likely surface overlapping findings (e.g., a security hole that's also a correctness bug, or a performance issue that stems from a pattern violation) and you want them to cross-reference via `send follow-up instructions` during review.
+
+##### C.1 Build the team name
+
+Team name: `crev-pr-<NUMBER>`. Use the PR number directly (no sanitization needed since PR numbers are always digits).
+
+##### C.2 Create the team
+
+```
+create an agent group: name="crev-pr-<NUMBER>", description="Code review team for PR #<NUMBER>: <PR title>"
+```
+
+On failure, abort.
+
+##### C.3 Register subtasks
+
+Create 3 tasks in the shared task list (flat graph — reviewers are independent):
+
+```
+record the task: subject="correctness-reviewer: correctness/type-safety/completeness review for PR #<NUMBER>", description="<full reviewer prompt>"
+record the task: subject="security-reviewer: security/performance review for PR #<NUMBER>",                    description="<full reviewer prompt>"
+record the task: subject="quality-reviewer: pattern-compliance/maintainability review for PR #<NUMBER>",       description="<full reviewer prompt>"
+```
+
+If any `record the task` fails → `close the agent group`, then abort.
+
+##### C.4 Spawn the 3 reviewers (single message, three Agent calls)
+
+Dispatch all three teammates in **ONE message** with **THREE `Agent` tool calls**. Every call MUST include:
+
+- `team_name`: `"crev-pr-<NUMBER>"`
+- `name`: the reviewer name (`correctness-reviewer`, `security-reviewer`, `quality-reviewer`) — must match the `record the task` subject prefix
+- `subagent_type`: `"code-reviewer"`
+- `description`: One-line task title (e.g., `"Correctness review for PR #42"`)
+- `prompt`: The same reviewer prompt used in Path B (PR number, head revision, list of changed files, Phase 2 context — AGENTS.md rules, PRP artifacts, PR description, assigned categories, severity rubric, expected findings format) PLUS a note that the teammate shares a task list with two sibling reviewers (name them) and may `send follow-up instructions` them if it discovers a finding that overlaps their scope, and must call `update the task tracker` to mark its task complete before returning.
+
+##### C.5 Monitor and collect results
+
+Use `the task tracker` to confirm all 3 tasks are `completed` before merging. If a teammate messages the orchestrator, respond via `send follow-up instructions`. Failure policy:
+
+- All 3 error → `close the agent group`, abort with a clear error.
+- 1 or 2 error → record "partial review — {role} did not complete" and proceed with the remaining reviewers' findings. Note the gap in the Phase 6 artifact Summary.
+
+##### C.6 Shutdown and cleanup
+
+After all teammates have marked their tasks complete (or been recorded as failed):
+
+```
+send follow-up instructions(to="correctness-reviewer", message={type:"shutdown_request"})
+send follow-up instructions(to="security-reviewer",    message={type:"shutdown_request"})
+send follow-up instructions(to="quality-reviewer",     message={type:"shutdown_request"})
+close the agent group
+```
+
+Always `close the agent group` — even on abort or partial failure.
+
+##### C.7 Merge findings
+
+Apply the same merge procedure as Path B (combine by severity, de-dupe at `file:line`, sort by file path, attach reviewer source tags). Pass the merged findings to Phase 4 (VALIDATE).
+
+**Note**: Validation commands (Phase 4), decision (Phase 5), report (Phase 6), and publish (Phase 7) all still run sequentially in the main skill — team-based coordination applies only to the review pass.
 
 Assign severity to each finding:
 
@@ -550,8 +725,8 @@ Both Local Review Mode and PR Review Mode write an artifact using this exact for
 
 Every finding MUST have a `Status` field. Valid values:
 
-| Status | Meaning                                                                                                  |
-| ------ | -------------------------------------------------------------------------------------------------------- |
+| Status | Meaning                                                                                                      |
+| ------ | ------------------------------------------------------------------------------------------------------------ |
 | Open   | Default on first write. Not yet processed by `$review-fix`, or below the fix skill's severity threshold. |
 | Fixed  | Successfully fixed by `$review-fix`. Set by the fix skill — code-review itself never writes this.        |
 | Failed | Attempted by `$review-fix` but the fix broke validation. Set by the fix skill.                           |
@@ -578,3 +753,14 @@ Findings missing a `Suggested fix` line are valid but will be **skipped** by `$r
 - **No `gh` CLI and no GitHub MCP**: Fall back to local-only review (read the diff, skip GitHub publish). Warn user.
 - **Diverged branches**: Suggest `git fetch origin && git rebase origin/<base>` before review.
 - **Large PRs (>50 files)**: Warn about review scope. Focus on source changes first, then tests, then config/docs.
+
+---
+
+## Agent Team Lifecycle Reference
+
+For Path C's team lifecycle contract (sanitization, shutdown sequence, failure policy),
+refer to:
+
+```
+~/.codex/plugins/ycc/shared/references/agent-team-dispatch.md
+```

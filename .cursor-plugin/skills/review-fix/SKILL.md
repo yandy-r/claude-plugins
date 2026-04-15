@@ -1,7 +1,7 @@
 ---
 name: review-fix
-description: Plan and apply fixes for findings from a code-review artifact produced by /code-review. Parses the review file (local or PR), filters findings by severity threshold, groups them into dependency-safe batches (same-file findings stay together, different files can run in parallel), dispatches review-fixer agents to apply each fix, updates the Status field in the source review file in place (Open → Fixed or Failed), runs validation after changes, and writes a fix report to docs/prps/reviews/fixes/. Pass `--parallel` to fan out independent fixes across parallel review-fixer agents. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to change the minimum severity threshold (default HIGH). Pass `--dry-run` to preview the fix plan without applying changes. Use when the user asks to "fix review findings", "apply review fixes", "review-fix PR 42", "fix the code review", or says "/review-fix". Adapted from PRPs-agentic-eng by Wirasm.
-argument-hint: '<path/to/review.md | pr-number | blank> [--parallel] [--severity <level>] [--dry-run]'
+description: Plan and apply fixes for findings from a code-review artifact produced by /code-review. Parses the review file (local or PR), filters findings by severity threshold, groups them into dependency-safe batches (same-file findings stay together, different files can run in parallel), dispatches review-fixer agents to apply each fix, updates the Status field in the source review file in place (Open → Fixed or Failed), runs validation after changes, and writes a fix report to docs/prps/reviews/fixes/. Pass `--parallel` to fan out independent fixes across parallel standalone review-fixer sub-agents. Pass `--team` (Claude Code only) to run the same per-batch fan-out as a coordinated agent team with up-front TaskCreate, shared TaskList across all batches, and per-batch shutdown via SendMessage. `--parallel` and `--team` are mutually exclusive. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to change the minimum severity threshold (default HIGH). Pass `--dry-run` to preview the fix plan (and team graph, if combined with --team) without applying changes. Use when the user asks to "fix review findings", "apply review fixes", "review-fix PR 42", "fix the code review", "team review-fix", or says "/review-fix". Adapted from PRPs-agentic-eng by Wirasm.
+argument-hint: '<path/to/review.md | pr-number | blank> [--parallel | --team] [--severity <level>] [--dry-run]'
 allowed-tools:
   - Read
   - Grep
@@ -12,6 +12,13 @@ allowed-tools:
   - Agent
   - AskUserQuestion
   - TodoWrite
+  - TeamCreate
+  - TeamDelete
+  - TaskCreate
+  - TaskUpdate
+  - TaskList
+  - TaskGet
+  - SendMessage
   - Bash(ls:*)
   - Bash(cat:*)
   - Bash(test:*)
@@ -49,13 +56,20 @@ Plan and apply fixes for code-review findings. Reads a review artifact produced 
 
 Extract flags from `$ARGUMENTS` before treating the remainder as the input:
 
-| Flag                 | Effect                                                                                                          |
-| -------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `--parallel`         | Dispatch `review-fixer` agents in parallel per batch. Level 1+2 validation between batches. Fail-stop behavior. |
-| `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).          |
-| `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files.                                   |
+| Flag                 | Effect                                                                                                                                                                                                                                                                                                                                         |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel`         | Dispatch `review-fixer` agents as **standalone sub-agents** in parallel per batch. Level 1+2 validation between batches. Fail-stop behavior. Works in Claude Code, Cursor, and Codex.                                                                                                                                                      |
+| `--team`             | (Claude Code only) Same per-batch fixer fan-out as `--parallel`, but dispatched as an **agent team**: `TeamCreate` once, `TaskCreate` for all eligible findings up front (flat graph — batches are orchestrator-controlled, not task-graph-controlled), per-batch spawn + shutdown via `SendMessage`. Aborts if no eligible findings exist.    |
+| `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).                                                                                                                                                                                                                                         |
+| `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files. When combined with `--team`, also print the team name and per-batch teammate roster.                                                                                                                                                                             |
 
-Strip these flags from `$ARGUMENTS` and set `PARALLEL_MODE`, `MIN_SEVERITY`, and `DRY_RUN`. The remaining text is the input selector.
+Strip these flags from `$ARGUMENTS` and set `PARALLEL_MODE`, `AGENT_TEAM_MODE`, `MIN_SEVERITY`, and `DRY_RUN`. The remaining text is the input selector.
+
+**Validation**:
+
+- `--parallel` and `--team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --team are mutually exclusive. Pick one.`
+
+**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools). Use `--parallel` instead.
 
 ### Input Resolution
 
@@ -244,12 +258,14 @@ Batch 2 (HIGH, 2 fixes, 1 file with 2 findings):
 
 ### Dry-run gate
 
-If `DRY_RUN=true`, stop here. Print a reminder:
+If `DRY_RUN=true` and `AGENT_TEAM_MODE=false`, stop here. Print a reminder:
 
 ```
 Dry run complete. To apply fixes, re-run without --dry-run:
-  /review-fix $REVIEW_FILE [--parallel] [--severity <level>]
+  /review-fix $REVIEW_FILE [--parallel | --team] [--severity <level>]
 ```
+
+If `DRY_RUN=true` and `AGENT_TEAM_MODE=true`, defer the final exit to Phase 4 C.2 so the team name and per-batch teammate roster can be printed alongside the fix plan. Do NOT proceed to any team/task/agent tool calls.
 
 **CHECKPOINT**: Plan built. Batches computed. User has seen the plan.
 
@@ -257,7 +273,13 @@ Dry run complete. To apply fixes, re-run without --dry-run:
 
 ## Phase 4 — EXECUTE
 
-Branch based on `PARALLEL_MODE`.
+Branch based on `PARALLEL_MODE` and `AGENT_TEAM_MODE`:
+
+| Flags              | Path                                               |
+| ------------------ | -------------------------------------------------- |
+| Neither set        | **Path A** — sequential execution (default)        |
+| `PARALLEL_MODE`    | **Path B** — parallel standalone sub-agent batches |
+| `AGENT_TEAM_MODE`  | **Path C** — agent-team batch execution            |
 
 ### Path A — Sequential Execution (default)
 
@@ -279,9 +301,9 @@ For each finding or group:
 
 5. **Continue** to the next finding. Do NOT stop on a failure — continue processing remaining findings so the user gets a full picture.
 
-### Path B — Parallel Execution (`PARALLEL_MODE=true`)
+### Path B — Parallel Sub-Agent Execution (`PARALLEL_MODE=true`)
 
-Process batches sequentially; within each batch, dispatch all review-fixer agents in parallel.
+Process batches sequentially; within each batch, dispatch all review-fixer agents as standalone sub-agents in parallel.
 
 For each batch:
 
@@ -319,6 +341,139 @@ If a `review-fixer` agent returns `STATUS: Failed`:
 - Mark the finding as `Failed` in the review file.
 - Include the agent's `BLOCKER` and `RECOMMENDATION` in the fix report.
 - Continue with remaining findings.
+
+### Path C — Agent Team Execution (`AGENT_TEAM_MODE=true`, Claude Code only)
+
+> **MANDATORY — AGENT TEAMS REQUIRED**
+>
+> In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
+> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
+>
+> 1. `TeamCreate` ONCE at the start (single team across all batches)
+> 2. `TaskCreate` for **every eligible finding (or same-file group) across all batches**
+>    up front. Flat graph — no `addBlockedBy` wiring, because batch ordering is
+>    orchestrator-controlled, not task-graph-controlled. Each batch is processed only
+>    after the previous one's teammates are shut down.
+> 3. Per batch: spawn teammates (single message, multiple `Agent` calls with
+>    `team_name=` + `name=`)
+> 4. `TaskList` to confirm batch completion; run between-batch validation
+> 5. `SendMessage({type:"shutdown_request"})` to all teammates of completed batch
+>    BEFORE spawning next batch
+> 6. `TeamDelete` ONCE after final batch (or on abort)
+>
+> If `TeamCreate` or up-front `TaskCreate` fails, abort the skill. Refer to
+> `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/agent-team-dispatch.md`
+> for the full lifecycle contract.
+
+Process batches sequentially under a single team, with per-batch teammate spawn and inter-batch shutdown. Use this when the fix run spans many findings across multiple batches and you want a shared task graph for audit/visibility, or when fixers should be able to cross-reference each other via `SendMessage` (e.g., if fixing F003 reveals the same root cause as F007 in a different file).
+
+#### C.1 Build the team name
+
+Derive `<sanitized-review-name>` from the source review file basename:
+
+- Strip the `.md` extension.
+- Lowercase; replace non-`[a-z0-9-]` with `-`; collapse runs of `-`; trim; truncate to **20 characters** max.
+- Fall back to `untitled` if empty.
+
+Team name: `rfix-<sanitized-review-name>`.
+
+Example: `docs/prps/reviews/pr-42-review.md` → `rfix-pr-42-review`.
+Example: `docs/prps/reviews/local-20260408-143022-review.md` → `rfix-local-20260408-1` (truncated to 20 chars).
+
+#### C.2 Dry-run gate (if `DRY_RUN=true`)
+
+The Phase 3 plan has already been printed. Additionally print:
+
+```
+Team name:    rfix-<sanitized-review-name>
+Total tasks:  <M>  (eligible findings, across <B> batches, max parallel width <W>)
+Dependencies: none  (batches are orchestrator-controlled; task graph is flat)
+
+Per-batch teammate roster:
+  Batch 1 (<severity>, <count> fixes):
+    - <task-id-1>  subagent_type=review-fixer  finding=<F###: short>
+    - <task-id-2>  subagent_type=review-fixer  finding=<F###: short>
+  Batch 2 (...):
+    ...
+```
+
+Do **not** call any team/task/agent tools. Exit the skill.
+
+#### C.3 Create the team
+
+```
+TeamCreate: team_name="rfix-<sanitized-review-name>", description="Review-fix team for: <source review basename>"
+```
+
+On failure, abort.
+
+#### C.4 Register ALL eligible tasks up front (flat graph)
+
+For **every eligible finding or same-file group across all batches** (from the Phase 3 plan):
+
+```
+TaskCreate: subject="<task-id>: fix <F###> in <file>", description="<full Finding spec — Shape A for single finding, Shape B for same-file group — plus SOURCE REVIEW FILE and PROJECT TYPE-CHECK COMMAND>"
+```
+
+Use stable task IDs derived from the primary finding ID, e.g.:
+
+- Single finding `F042` in `src/api.ts` → task id `f042`
+- Same-file group `F004, F005` in `src/utils/fmt.ts` → task id `f004-f005`
+
+**No `addBlockedBy` wiring.** Batch ordering is enforced by the orchestrator (per-batch spawn + shutdown), not by the shared task graph. The shared task list's role in Path C is observability and inter-fixer communication, not dependency resolution.
+
+If any `TaskCreate` fails → `TeamDelete`, then abort.
+
+#### C.5 Per-batch loop
+
+For each batch `B1, B2, ... BN` in order (from the Phase 3 plan):
+
+1. **Identify batch tasks** — Extract all task IDs for findings (or same-file groups) in this batch.
+
+2. **Spawn batch teammates** — Single message, multiple `Agent` tool calls, one per finding or same-file group in the batch. Every call MUST include:
+   - `team_name`: `"rfix-<sanitized-review-name>"`
+   - `name`: the task ID (e.g., `"f042"`, `"f004-f005"`) — must match the `TaskCreate` subject prefix
+   - `subagent_type`: `"review-fixer"`
+   - `description`: One-line fix title (e.g., `"Fix F042: missing null check in api.ts"`)
+   - `prompt`: The Finding spec (Shape A or Shape B) plus `SOURCE REVIEW FILE`, `PROJECT TYPE-CHECK COMMAND`, and a directive that the teammate shares a task list with sibling fixers (list their task IDs) and may `SendMessage` them if a related finding becomes relevant, and must call `TaskUpdate` to mark its task complete before returning.
+
+3. **Wait for batch completion via `TaskList`** — poll until all tasks in this batch are `completed`. If a teammate messages with an issue, respond via `SendMessage` with guidance.
+
+4. **Collect results and update the review file** — For each completed task, the teammate returns `STATUS: Fixed` or `STATUS: Failed`:
+   - For each `STATUS: Fixed` → `Edit` the review file to update that finding's `**Status**: Open` → `**Status**: Fixed`
+   - For each `STATUS: Failed` → `Edit` the review file to update that finding's `**Status**: Open` → `**Status**: Failed`
+
+5. **Between-batch validation (Levels 1 + 2)** — After each batch (except the last), run:
+
+   ```bash
+   $TYPECHECK_CMD
+   $TEST_CMD
+   ```
+
+   - If both pass: log `[done] Batch N: K fixes — validation pass` and proceed.
+   - If either fails: **STOP** the pipeline. Use `AskUserQuestion`:
+     - "Resume sequentially from next batch" — shut down current batch, `TeamDelete`, continue with Path A logic for remaining batches.
+     - "Switch to parallel sub-agents for remaining batches" — shut down current batch, `TeamDelete`, continue with Path B for remaining batches.
+     - "Abort and leave current state as-is" — shut down current batch, `TeamDelete`, exit.
+     - "Skip remaining findings and jump to Phase 5 (verify + report)" — shut down current batch, `TeamDelete`, jump to Phase 5.
+
+6. **Shut down completed-batch teammates** — Send to every teammate of the just-completed batch:
+
+   ```
+   SendMessage(to="<task-id>", message={type:"shutdown_request"})
+   ```
+
+   Wait for shutdowns to complete before spawning the next batch's teammates.
+
+7. **Track progress** in todos per batch, not per finding.
+
+#### C.6 After all batches complete
+
+`TeamDelete` once. Then proceed to **Phase 5 — VERIFY** as normal.
+
+#### Path C failure handling
+
+Same principles as Path B: do NOT auto-retry failed fixes, do NOT skip a failed batch. Always shut down teammates and `TeamDelete` before exiting, regardless of success or failure. Review file updates happen incrementally after each batch returns, so an aborted Path C run leaves the source review file reflecting the last completed batch's state.
 
 **CHECKPOINT**: All eligible batches processed. Review file updated with Fixed/Failed statuses. Deviations logged.
 
@@ -359,7 +514,7 @@ Derive the report filename from the source review:
 
 **Source**: <source review path>
 **Applied**: <ISO date>
-**Mode**: Sequential | Parallel (N batches, max width W)
+**Mode**: Sequential | Parallel sub-agents (N batches, max width W) | Agent team (N batches, max width W)
 **Severity threshold**: <CRITICAL|HIGH|MEDIUM|LOW>
 
 ## Summary
@@ -429,7 +584,7 @@ Report to the user:
 
 **Source**: <source review path>
 **Report**: docs/prps/reviews/fixes/<name>-fixes.md
-**Mode**: Sequential | Parallel (N batches, max width W)
+**Mode**: Sequential | Parallel sub-agents (N batches, max width W) | Agent team (N batches, max width W)
 
 ### This Run
 - Eligible: M
@@ -495,8 +650,8 @@ The review file is updated incrementally after each agent returns, so if the run
 
 ## Comparison with related skills
 
-| Skill                | Purpose                                                                                          |
-| -------------------- | ------------------------------------------------------------------------------------------------ |
+| Skill                    | Purpose                                                                                          |
+| ------------------------ | ------------------------------------------------------------------------------------------------ |
 | `/code-review`       | Produces a review artifact with findings and `Status: Open`                                      |
 | `/review-fix` (this) | Consumes a review artifact and applies fixes, updating `Status` to `Fixed` or `Failed`           |
 | `/prp-implement`     | Executes a PRP plan file with per-task validation — a different workflow, different input format |
@@ -510,5 +665,16 @@ The review file is updated incrementally after each agent returns, so if the run
 - **No scope creep**: Each `review-fixer` agent is scope-disciplined — it fixes exactly what the finding specifies. If the fix reveals a larger issue, the agent reports it, but the skill does not chase down related problems.
 - **Resumable**: Re-running on the same review file skips already-processed findings.
 - **Audit trail**: The combination of (a) updated source review file and (b) fix report gives a complete history of what was attempted, what succeeded, and why.
-- **Parallel safety**: Parallel mode never dispatches two agents to the same file concurrently.
+- **Parallel safety**: Parallel mode (both Path B sub-agents and Path C agent team) never dispatches two agents to the same file concurrently — same-file findings always travel together in one fixer.
 - **No auto-commit**: The skill reports success and suggests `/git-workflow` as the next step. It does not commit changes itself.
+
+---
+
+## Agent Team Lifecycle Reference
+
+For Path C's team lifecycle contract (sanitization, shutdown sequence, failure policy,
+multi-batch reuse pattern), refer to:
+
+```
+${CURSOR_PLUGIN_ROOT}/skills/_shared/references/agent-team-dispatch.md
+```
