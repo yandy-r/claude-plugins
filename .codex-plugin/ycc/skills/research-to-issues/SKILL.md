@@ -15,13 +15,13 @@ Convert planning and research output into structured GitHub issues with tracking
 
 ## Supported Source Types
 
-| Source Type   | Produced By                              | Input Path Pattern                  |
-| ------------- | ---------------------------------------- | ----------------------------------- |
-| deep-research | `deep-research`                      | Directory with `RESEARCH-REPORT.md` |
-| feature-spec  | `feature-research`                   | `docs/plans/*/feature-spec.md`      |
+| Source Type   | Produced By                      | Input Path Pattern                  |
+| ------------- | -------------------------------- | ----------------------------------- |
+| deep-research | `deep-research`                  | Directory with `RESEARCH-REPORT.md` |
+| feature-spec  | `feature-research`               | `docs/plans/*/feature-spec.md`      |
 | parallel-plan | `parallel-plan`, `plan-workflow` | `docs/plans/*/parallel-plan.md`     |
-| prp-plan      | `prp-plan`                           | `docs/prps/plans/*.plan.md`         |
-| prd           | `prp-prd`                            | `docs/prps/prds/*.prd.md`           |
+| prp-plan      | `prp-plan`                       | `docs/prps/plans/*.plan.md`         |
+| prd           | `prp-prd`                        | `docs/prps/prds/*.prd.md`           |
 
 ## Current Task
 
@@ -92,8 +92,8 @@ Display the detected source type and source path to the user for confirmation be
 
 Read the parsing reference for the detected source type:
 
-| Detected Type | Reference File                                                                      |
-| ------------- | ----------------------------------------------------------------------------------- |
+| Detected Type | Reference File                                                                     |
+| ------------- | ---------------------------------------------------------------------------------- |
 | deep-research | `~/.codex/plugins/ycc/skills/research-to-issues/references/parse-deep-research.md` |
 | feature-spec  | `~/.codex/plugins/ycc/skills/research-to-issues/references/parse-feature-spec.md`  |
 | parallel-plan | `~/.codex/plugins/ycc/skills/research-to-issues/references/parse-parallel-plan.md` |
@@ -158,8 +158,8 @@ Create all child issues before tracking issues (tracking issues need the child i
 
 Select the template based on source type:
 
-| Source Type                      | Template                                                                     |
-| -------------------------------- | ---------------------------------------------------------------------------- |
+| Source Type                      | Template                                                                    |
+| -------------------------------- | --------------------------------------------------------------------------- |
 | deep-research, feature-spec, prd | `~/.codex/plugins/ycc/skills/research-to-issues/templates/feature-issue.md` |
 | parallel-plan, prp-plan          | `~/.codex/plugins/ycc/skills/research-to-issues/templates/task-issue.md`    |
 

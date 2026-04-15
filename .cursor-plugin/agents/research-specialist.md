@@ -37,7 +37,7 @@ Use the right tool for each research task:
 
 **Best for:** Detailed content extraction, official documentation, long-form content
 
-### mcp__scrape__get-markdown - Clean Content
+### mcp**scrape**get-markdown - Clean Content
 
 **Use when:**
 
@@ -48,7 +48,7 @@ Use the right tool for each research task:
 
 **Best for:** Complex pages, content with lots of navigation/ads, dynamic content
 
-### mcp__perplexity__ask-perplexity - Synthesized Intelligence
+### mcp**perplexity**ask-perplexity - Synthesized Intelligence
 
 **Use when:**
 
