@@ -1,7 +1,7 @@
 ---
 name: review-fix
 description: Plan and apply fixes for findings from a code-review artifact produced by /ycc:code-review. Parses the review file (local or PR), filters findings by severity threshold, groups them into dependency-safe batches (same-file findings stay together, different files can run in parallel), dispatches ycc:review-fixer agents to apply each fix, updates the Status field in the source review file in place (Open → Fixed or Failed), runs validation after changes, and writes a fix report to docs/prps/reviews/fixes/. Pass `--parallel` to fan out independent fixes across parallel standalone review-fixer sub-agents. Pass `--team` (Claude Code only) to run the same per-batch fan-out as a coordinated agent team with up-front TaskCreate, shared TaskList across all batches, and per-batch shutdown via SendMessage. `--parallel` and `--team` are mutually exclusive. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to change the minimum severity threshold (default HIGH). Pass `--dry-run` to preview the fix plan (and team graph, if combined with --team) without applying changes. Use when the user asks to "fix review findings", "apply review fixes", "review-fix PR 42", "fix the code review", "team review-fix", or says "/review-fix". Adapted from PRPs-agentic-eng by Wirasm.
-argument-hint: '<path/to/review.md | pr-number | blank> [--parallel | --team] [--severity <level>] [--dry-run]'
+argument-hint: '[--parallel | --team] [--severity <level>] [--dry-run] <path/to/review.md | pr-number | blank>'
 allowed-tools:
   - Read
   - Grep
@@ -56,12 +56,12 @@ Plan and apply fixes for code-review findings. Reads a review artifact produced 
 
 Extract flags from `$ARGUMENTS` before treating the remainder as the input:
 
-| Flag                 | Effect                                                                                                                                                                                                                                                                                                                                         |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel`         | Dispatch `ycc:review-fixer` agents as **standalone sub-agents** in parallel per batch. Level 1+2 validation between batches. Fail-stop behavior. Works in Claude Code, Cursor, and Codex.                                                                                                                                                      |
-| `--team`             | (Claude Code only) Same per-batch fixer fan-out as `--parallel`, but dispatched as an **agent team**: `TeamCreate` once, `TaskCreate` for all eligible findings up front (flat graph — batches are orchestrator-controlled, not task-graph-controlled), per-batch spawn + shutdown via `SendMessage`. Aborts if no eligible findings exist.    |
-| `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).                                                                                                                                                                                                                                         |
-| `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files. When combined with `--team`, also print the team name and per-batch teammate roster.                                                                                                                                                                             |
+| Flag                 | Effect                                                                                                                                                                                                                                                                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel`         | Dispatch `ycc:review-fixer` agents as **standalone sub-agents** in parallel per batch. Level 1+2 validation between batches. Fail-stop behavior. Works in Claude Code, Cursor, and Codex.                                                                                                                                                   |
+| `--team`             | (Claude Code only) Same per-batch fixer fan-out as `--parallel`, but dispatched as an **agent team**: `TeamCreate` once, `TaskCreate` for all eligible findings up front (flat graph — batches are orchestrator-controlled, not task-graph-controlled), per-batch spawn + shutdown via `SendMessage`. Aborts if no eligible findings exist. |
+| `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).                                                                                                                                                                                                                                      |
+| `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files. When combined with `--team`, also print the team name and per-batch teammate roster.                                                                                                                                                                          |
 
 Strip these flags from `$ARGUMENTS` and set `PARALLEL_MODE`, `AGENT_TEAM_MODE`, `MIN_SEVERITY`, and `DRY_RUN`. The remaining text is the input selector.
 
@@ -275,11 +275,11 @@ If `DRY_RUN=true` and `AGENT_TEAM_MODE=true`, defer the final exit to Phase 4 C.
 
 Branch based on `PARALLEL_MODE` and `AGENT_TEAM_MODE`:
 
-| Flags              | Path                                               |
-| ------------------ | -------------------------------------------------- |
-| Neither set        | **Path A** — sequential execution (default)        |
-| `PARALLEL_MODE`    | **Path B** — parallel standalone sub-agent batches |
-| `AGENT_TEAM_MODE`  | **Path C** — agent-team batch execution            |
+| Flags             | Path                                               |
+| ----------------- | -------------------------------------------------- |
+| Neither set       | **Path A** — sequential execution (default)        |
+| `PARALLEL_MODE`   | **Path B** — parallel standalone sub-agent batches |
+| `AGENT_TEAM_MODE` | **Path C** — agent-team batch execution            |
 
 ### Path A — Sequential Execution (default)
 

@@ -32,12 +32,12 @@ Plan and apply fixes for code-review findings. Reads a review artifact produced 
 
 Extract flags from `$ARGUMENTS` before treating the remainder as the input:
 
-| Flag                 | Effect                                                                                                                                                                                                                                                                                                                                         |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel`         | Dispatch `review-fixer` agents as **standalone sub-agents** in parallel per batch. Level 1+2 validation between batches. Fail-stop behavior. Works in Codex, Cursor, and Codex.                                                                                                                                                      |
-| `--team`             | (Codex only) Same per-batch fixer fan-out as `--parallel`, but dispatched as an **agent team**: `create an agent group` once, `record the task` for all eligible findings up front (flat graph — batches are orchestrator-controlled, not task-graph-controlled), per-batch spawn + shutdown via `send follow-up instructions`. Aborts if no eligible findings exist.    |
-| `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).                                                                                                                                                                                                                                         |
-| `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files. When combined with `--team`, also print the team name and per-batch teammate roster.                                                                                                                                                                             |
+| Flag                 | Effect                                                                                                                                                                                                                                                                                                                                                                |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel`         | Dispatch `review-fixer` agents as **standalone sub-agents** in parallel per batch. Level 1+2 validation between batches. Fail-stop behavior. Works in Codex, Cursor, and Codex.                                                                                                                                                                                       |
+| `--team`             | (Codex only) Same per-batch fixer fan-out as `--parallel`, but dispatched as an **agent team**: `create an agent group` once, `record the task` for all eligible findings up front (flat graph — batches are orchestrator-controlled, not task-graph-controlled), per-batch spawn + shutdown via `send follow-up instructions`. Aborts if no eligible findings exist. |
+| `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).                                                                                                                                                                                                                                                                |
+| `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files. When combined with `--team`, also print the team name and per-batch teammate roster.                                                                                                                                                                                                    |
 
 Strip these flags from `$ARGUMENTS` and set `PARALLEL_MODE`, `AGENT_TEAM_MODE`, `MIN_SEVERITY`, and `DRY_RUN`. The remaining text is the input selector.
 
@@ -251,11 +251,11 @@ If `DRY_RUN=true` and `AGENT_TEAM_MODE=true`, defer the final exit to Phase 4 C.
 
 Branch based on `PARALLEL_MODE` and `AGENT_TEAM_MODE`:
 
-| Flags              | Path                                               |
-| ------------------ | -------------------------------------------------- |
-| Neither set        | **Path A** — sequential execution (default)        |
-| `PARALLEL_MODE`    | **Path B** — parallel standalone sub-agent batches |
-| `AGENT_TEAM_MODE`  | **Path C** — agent-team batch execution            |
+| Flags             | Path                                               |
+| ----------------- | -------------------------------------------------- |
+| Neither set       | **Path A** — sequential execution (default)        |
+| `PARALLEL_MODE`   | **Path B** — parallel standalone sub-agent batches |
+| `AGENT_TEAM_MODE` | **Path C** — agent-team batch execution            |
 
 ### Path A — Sequential Execution (default)
 
@@ -626,8 +626,8 @@ The review file is updated incrementally after each agent returns, so if the run
 
 ## Comparison with related skills
 
-| Skill                    | Purpose                                                                                          |
-| ------------------------ | ------------------------------------------------------------------------------------------------ |
+| Skill                | Purpose                                                                                          |
+| -------------------- | ------------------------------------------------------------------------------------------------ |
 | `$code-review`       | Produces a review artifact with findings and `Status: Open`                                      |
 | `$review-fix` (this) | Consumes a review artifact and applies fixes, updating `Status` to `Fixed` or `Failed`           |
 | `$prp-implement`     | Executes a PRP plan file with per-task validation — a different workflow, different input format |

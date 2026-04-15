@@ -1,6 +1,6 @@
 ---
 description: Plan and apply fixes for findings from a code-review artifact. Parses the review file, filters by severity, dispatches review-fixer agents to apply each fix, updates Status in place (Open → Fixed/Failed), and writes a fix report. Pass --parallel for standalone sub-agent batch execution, --team (Claude Code only) for agent-team batch execution with shared TaskList and up-front dependency wiring, --severity <level> to change the threshold (default HIGH), or --dry-run to preview the plan.
-argument-hint: '<path/to/review.md | pr-number | blank> [--parallel | --team] [--severity <level>] [--dry-run]'
+argument-hint: '[--parallel | --team] [--severity <level>] [--dry-run] <path/to/review.md | pr-number | blank>'
 allowed-tools:
   - Read
   - Grep
