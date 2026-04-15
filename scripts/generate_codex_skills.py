@@ -101,9 +101,20 @@ def iter_source_files() -> list[Path]:
     return sorted(path for path in SRC_SKILLS_DIR.rglob("*") if path.is_file())
 
 
+OWNED_SUBDIRS = (
+    PLUGIN_SKILLS_DIR.relative_to(PLUGIN_ROOT),
+    PLUGIN_SHARED_DIR.relative_to(PLUGIN_ROOT),
+)
+
+
 def prune_orphans(dest_root: Path, expected_files: set[Path]) -> None:
+    # Only prune files under subdirectories this generator owns. Other files
+    # (e.g. .codex-plugin/plugin.json, .mcp.json) belong to generate_codex_plugin.py
+    # and must be left alone.
+    owned_roots = [dest_root / sub for sub in OWNED_SUBDIRS if (dest_root / sub).is_dir()]
+
     existing_files = sorted(
-        (path for path in dest_root.rglob("*") if path.is_file()),
+        (path for root in owned_roots for path in root.rglob("*") if path.is_file()),
         key=lambda path: len(path.parts),
         reverse=True,
     )
@@ -113,12 +124,12 @@ def prune_orphans(dest_root: Path, expected_files: set[Path]) -> None:
             path.unlink()
 
     existing_dirs = sorted(
-        (path for path in dest_root.rglob("*") if path.is_dir()),
+        (path for root in owned_roots for path in root.rglob("*") if path.is_dir()),
         key=lambda path: len(path.parts),
         reverse=True,
     )
     for path in existing_dirs:
-        if path == dest_root:
+        if path in owned_roots:
             continue
         try:
             next(path.iterdir())

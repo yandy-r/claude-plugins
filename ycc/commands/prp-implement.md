@@ -1,6 +1,6 @@
 ---
-description: Execute a PRP plan file with per-task validation loops. Detects package manager, prepares git branch, runs 5 validation levels, writes docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans and prompts the user; pass --parallel to force parallel batch execution via ycc:implementor agents.
-argument-hint: '[--parallel] <path/to/plan.md>'
+description: Execute a PRP plan file with per-task validation loops. Detects package manager, prepares git branch, runs 5 validation levels, writes docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans and prompts the user; pass --parallel to force standalone sub-agent batch execution, or --team (Claude Code only) to force agent-team batch execution with shared TaskList and up-front dependency wiring.
+argument-hint: '[--parallel | --team] [--dry-run] <path/to/plan.md>'
 allowed-tools:
   - Read
   - Grep
@@ -11,6 +11,13 @@ allowed-tools:
   - Agent
   - AskUserQuestion
   - TodoWrite
+  - TeamCreate
+  - TeamDelete
+  - TaskCreate
+  - TaskUpdate
+  - TaskList
+  - TaskGet
+  - SendMessage
   - Bash(ls:*)
   - Bash(cat:*)
   - Bash(test:*)
@@ -42,20 +49,27 @@ The skill walks the plan's Step-by-Step Tasks, runs immediate validation after e
 **Execution modes**:
 
 - **Sequential** (default) — Process one task at a time with per-task type-check.
-- **Parallel** — Process batches sequentially, with tasks in each batch dispatched to `ycc:implementor` agents in parallel. Between batches, runs type-check + unit tests. Requires a plan with a `## Batches` section (produced by `/ycc:prp-plan --parallel`).
+- **Parallel sub-agents** — Process batches sequentially, with tasks in each batch dispatched to standalone `ycc:implementor` sub-agents in parallel. Between batches, runs type-check + unit tests. Requires a plan with a `## Batches` section (produced by `/ycc:prp-plan --parallel` or `--team`). Works in Claude Code, Cursor, and Codex.
+- **Agent team** — (Claude Code only) Same batch flow as parallel sub-agents, but under a single `TeamCreate` with all tasks registered up front (`TaskCreate` + `addBlockedBy` dep wiring) and coordinated per-batch shutdown via `SendMessage`. Shared task-graph observability across all batches. Cursor and Codex bundles lack team tools; use `--parallel` there.
 
 **Flags**:
 
-- `--parallel` — Force parallel execution. Skips the interactive prompt when the plan is parallel-capable. Falls back to sequential with a warning if the plan has no `Batches` section.
+- `--parallel` — Force parallel sub-agent execution. Skips the interactive prompt when the plan is parallel-capable. Falls back to sequential with a warning if the plan has no `Batches` section.
+- `--team` — (Claude Code only) Force agent-team execution. **Aborts** (does not fall back) if the plan has no `Batches` section — agent-team mode requires a parallel-capable plan.
+- `--dry-run` — Only valid with `--team`. Prints the team name, full task graph with dependencies, and per-batch teammate roster, then exits without spawning any teammates.
 
-**Auto-detection**: If you omit the flag and the plan is parallel-capable, the skill prompts you to choose sequential or parallel mode before executing.
+`--parallel` and `--team` are **mutually exclusive** — pick one.
+
+**Auto-detection**: If you omit both flags and the plan is parallel-capable, the skill prompts you to choose sequential / parallel sub-agents / agent team before executing.
 
 ```
-Usage: /ycc:prp-implement [--parallel] <path/to/plan.md>
+Usage: /ycc:prp-implement [--parallel | --team] [--dry-run] <path/to/plan.md>
 
 Examples:
   /ycc:prp-implement docs/prps/plans/rate-limiting.plan.md              # auto-detect, prompt if parallel-capable
-  /ycc:prp-implement --parallel docs/prps/plans/rate-limiting.plan.md   # force parallel batch execution
+  /ycc:prp-implement --parallel docs/prps/plans/rate-limiting.plan.md   # force parallel sub-agent batch execution
+  /ycc:prp-implement --team docs/prps/plans/rate-limiting.plan.md       # force agent-team batch execution
+  /ycc:prp-implement --team --dry-run docs/prps/plans/rate-limiting.plan.md  # preview team graph
 
 Next step after implementation completes:
   /ycc:prp-pr            # Create a pull request
