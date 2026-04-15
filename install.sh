@@ -46,38 +46,51 @@ link_file() {
 
 usage() {
     cat <<EOF
-Usage: $(basename "$0") --target <target> [--settings] [--mcp]
+Usage: $(basename "$0") --target <target> [--settings] [--mcp] [--only <steps>]
 
 Sync plugin assets to an IDE configuration directory.
 
 Options:
   --target <target>   Target: claude, cursor, codex, or all
-  --settings          Opt-in: symlink per-target settings/rules files into the IDE's
-                      config dir (claude: settings.json + statusline-command.sh;
-                      codex: config.toml + default.rules; cursor: none).
-  --mcp               (claude/all only) Merge mcp-configs/mcp.json mcpServers into
-                      ~/.claude.json. Opt-in; MCP is normally covered by plugins.
+  --settings          Additive: also run the target's 'settings' step.
+  --mcp               Additive: also run the target's 'mcp' step.
+  --only <steps>      Exclusive: run only the comma-separated steps
+                      (e.g. --only settings, --only mcp,settings).
+                      Overrides defaults and --settings/--mcp.
   --help              Show this help message
 
-Targets:
-  claude   With --settings, symlink ycc/settings/{settings.json,statusline-command.sh}
-           into ~/.claude/. With --mcp, also merge mcp-configs/mcp.json mcpServers
-           into ~/.claude.json. Without either flag, the claude target is a no-op.
-  cursor   Generate Cursor-native agents/skills/rules, validate, rsync bundle to
-           ~/.cursor/, then copy MCP config to ~/.cursor/mcp.json (unaffected by
-           --settings; cursor has no managed per-user rules file here).
-  codex    Generate Codex-native plugin + agents, validate, sync plugin source to
-           ~/.codex/plugins/ycc, sync agents to ~/.codex/agents, and merge the ycc
-           entry into ~/.agents/plugins/marketplace.json. With --settings, also
-           symlink .codex-plugin/config/{config.toml,default.rules} into ~/.codex/.
-  all      Run claude then cursor then codex pipelines (flags propagate)
+Semantics:
+  Default (no --only):
+    - Run the target's 'base' step (if any).
+    - Additionally run 'settings' / 'mcp' if their flag is passed.
+  With --only <steps>:
+    - Run exactly the listed steps. Nothing else.
+
+Target steps:
+  claude   settings | mcp
+           settings: symlink ycc/settings/{settings.json,statusline-command.sh}
+                     into ~/.claude/.
+           mcp:      merge mcp-configs/mcp.json mcpServers into ~/.claude.json.
+           (no base; claude is flag-driven.)
+  cursor   base | mcp
+           base:     generate + validate + format + rsync bundle to ~/.cursor/.
+           mcp:      symlink mcp-configs/mcp.json → ~/.cursor/mcp.json.
+  codex    base | settings
+           base:     generate + validate + format + rsync plugin & agents +
+                     merge marketplace entry.
+           settings: symlink .codex-plugin/config/{config.toml,default.rules}
+                     into ~/.codex/.
+  all      Run claude then cursor then codex; step selection propagates.
 
 Examples:
-  $(basename "$0") --target claude --settings
   $(basename "$0") --target claude --settings --mcp
-  $(basename "$0") --target cursor
-  $(basename "$0") --target codex --settings
-  $(basename "$0") --target all --settings
+  $(basename "$0") --target claude --only mcp
+  $(basename "$0") --target cursor                # base only
+  $(basename "$0") --target cursor --mcp          # base + mcp
+  $(basename "$0") --target cursor --only mcp     # mcp only
+  $(basename "$0") --target codex --settings      # base + settings
+  $(basename "$0") --target codex --only settings # settings only
+  $(basename "$0") --target all --settings --mcp
 EOF
 }
 
@@ -176,9 +189,6 @@ PY
 # MCP: Cursor (~/.cursor/mcp.json)
 # ---------------------------------------------------------------------------
 sync_cursor_mcp_json() {
-    local cursor_dir="${HOME}/.cursor"
-    local dest="${cursor_dir}/mcp.json"
-
     if [[ ! -f "${MCP_CONFIG_SRC}" ]]; then
         err "MCP source not found: ${MCP_CONFIG_SRC}"
         exit 1
@@ -188,26 +198,76 @@ sync_cursor_mcp_json() {
         exit 1
     fi
 
-    mkdir -p "${cursor_dir}"
-    install -m0644 "${MCP_CONFIG_SRC}" "${dest}"
-    info "Synced MCP config → ${dest}"
+    link_file "${MCP_CONFIG_SRC}" "${HOME}/.cursor/mcp.json"
 }
 
 # ---------------------------------------------------------------------------
-# Claude target (MCP only)
+# Step selection
+# ---------------------------------------------------------------------------
+# step_enabled <step> <target_valid_steps_csv>
+# Decides whether <step> should run for the current target.
+# - If --only was passed: run iff <step> is in the --only list.
+# - Else: 'base' always runs; 'settings'/'mcp' run only if their flag is set.
+# The target's valid steps are used for validation by validate_only_steps().
+step_enabled() {
+    local step="$1"
+    if [[ ${#ONLY_STEPS[@]} -gt 0 ]]; then
+        local s
+        for s in "${ONLY_STEPS[@]}"; do
+            [[ "$s" == "$step" ]] && return 0
+        done
+        return 1
+    fi
+    case "$step" in
+        base)     return 0 ;;
+        settings) [[ "${SETTINGS:-0}" == "1" ]] ;;
+        mcp)      [[ "${MCP:-0}" == "1" ]] ;;
+        *)        return 1 ;;
+    esac
+}
+
+# validate_only_steps <target> <valid_steps_csv>
+# If --only was passed, ensure every requested step is valid for the target.
+validate_only_steps() {
+    local target="$1"
+    local valid_csv="$2"
+    [[ ${#ONLY_STEPS[@]} -eq 0 ]] && return 0
+
+    local -a valid
+    IFS=',' read -r -a valid <<< "$valid_csv"
+    local requested found v
+    for requested in "${ONLY_STEPS[@]}"; do
+        found=0
+        for v in "${valid[@]}"; do
+            [[ "$v" == "$requested" ]] && { found=1; break; }
+        done
+        if [[ $found -eq 0 ]]; then
+            err "--only step '${requested}' is not valid for target '${target}' (valid: ${valid_csv})"
+            exit 1
+        fi
+    done
+}
+
+# ---------------------------------------------------------------------------
+# Claude target (settings + mcp; no base)
 # ---------------------------------------------------------------------------
 sync_claude_target() {
-    if [[ "${LINK_SETTINGS:-0}" == "1" ]]; then
-        printf '\n%sClaude: link settings + statusline (opt-in)%s\n' "${BOLD}" "${NC}"
+    validate_only_steps "claude" "settings,mcp"
+
+    local ran=0
+    if step_enabled settings; then
+        printf '\n%sClaude: link settings + statusline%s\n' "${BOLD}" "${NC}"
         link_file "${SCRIPT_DIR}/ycc/settings/settings.json"         "${HOME}/.claude/settings.json"
         link_file "${SCRIPT_DIR}/ycc/settings/statusline-command.sh" "${HOME}/.claude/statusline-command.sh"
+        ran=1
     fi
-    if [[ "${MCP_MERGE:-0}" == "1" ]]; then
-        printf '\n%sClaude: merge MCP into ~/.claude.json (opt-in)%s\n' "${BOLD}" "${NC}"
+    if step_enabled mcp; then
+        printf '\n%sClaude: merge MCP into ~/.claude.json%s\n' "${BOLD}" "${NC}"
         merge_claude_mcp_json
+        ran=1
     fi
-    if [[ "${LINK_SETTINGS:-0}" != "1" && "${MCP_MERGE:-0}" != "1" ]]; then
-        warn "Claude target is a no-op without --settings or --mcp"
+    if [[ $ran -eq 0 ]]; then
+        warn "Claude target ran no steps (pass --settings, --mcp, or --only ...)"
     fi
     printf '\n%sClaude sync complete.%s\n' "${BOLD}" "${NC}"
 }
@@ -292,9 +352,11 @@ PY
 }
 
 # ---------------------------------------------------------------------------
-# Cursor sync (bundle + MCP)
+# Cursor sync (base + optional MCP)
 # ---------------------------------------------------------------------------
 sync_cursor_target() {
+    validate_only_steps "cursor" "base,mcp"
+
     local cursor_dir="${HOME}/.cursor"
     local scripts_dir="${SCRIPT_DIR}/scripts"
 
@@ -303,162 +365,209 @@ sync_cursor_target() {
 
     mkdir -p "${cursor_dir}"
 
-    if [[ ! -d "${CURSOR_PLUGIN_DIR}" ]]; then
-        err "Cursor plugin source directory not found: ${CURSOR_PLUGIN_DIR}"
-        exit 1
+    local do_base=0 do_mcp=0
+    step_enabled base && do_base=1
+    step_enabled mcp && do_mcp=1
+
+    if [[ $do_base -eq 0 && $do_mcp -eq 0 ]]; then
+        warn "Cursor target ran no steps"
+        printf '\n%sCursor sync complete.%s\n' "${BOLD}" "${NC}"
+        return 0
     fi
 
-    local gen_agents="${scripts_dir}/generate-cursor-agents.sh"
-    local gen_skills="${scripts_dir}/generate-cursor-skills.sh"
-    local gen_rules="${scripts_dir}/generate-cursor-rules.sh"
-    local val_agents="${scripts_dir}/validate-cursor-agents.sh"
-    local val_skills="${scripts_dir}/validate-cursor-skills.sh"
-    local val_rules="${scripts_dir}/validate-cursor-rules.sh"
+    local total=0
+    [[ $do_base -eq 1 ]] && total=$((total + 4))
+    [[ $do_mcp -eq 1 ]] && total=$((total + 1))
+    local step=0
 
-    local s
-    for s in "${gen_agents}" "${gen_skills}" "${gen_rules}" "${val_agents}" "${val_skills}" "${val_rules}"; do
-        if [[ ! -f "${s}" ]]; then
-            err "Missing required script: ${s}"
+    if [[ $do_base -eq 1 ]]; then
+        if [[ ! -d "${CURSOR_PLUGIN_DIR}" ]]; then
+            err "Cursor plugin source directory not found: ${CURSOR_PLUGIN_DIR}"
             exit 1
         fi
-        if [[ ! -r "${s}" ]]; then
-            err "Script not readable: ${s}"
-            exit 1
-        fi
-    done
 
-    printf '\n%s[1/5] Generate Cursor-native bundle%s\n' "${BOLD}" "${NC}"
-    info "Running generate-cursor-agents.sh"
-    bash "${gen_agents}"
-    info "Running generate-cursor-skills.sh"
-    bash "${gen_skills}"
-    info "Running generate-cursor-rules.sh"
-    bash "${gen_rules}"
+        local gen_agents="${scripts_dir}/generate-cursor-agents.sh"
+        local gen_skills="${scripts_dir}/generate-cursor-skills.sh"
+        local gen_rules="${scripts_dir}/generate-cursor-rules.sh"
+        local val_agents="${scripts_dir}/validate-cursor-agents.sh"
+        local val_skills="${scripts_dir}/validate-cursor-skills.sh"
+        local val_rules="${scripts_dir}/validate-cursor-rules.sh"
 
-    printf '\n%s[2/5] Validate generated bundle%s\n' "${BOLD}" "${NC}"
-    info "Running validate-cursor-agents.sh"
-    bash "${val_agents}"
-    info "Running validate-cursor-skills.sh"
-    bash "${val_skills}"
-    info "Running validate-cursor-rules.sh"
-    bash "${val_rules}"
+        local s
+        for s in "${gen_agents}" "${gen_skills}" "${gen_rules}" "${val_agents}" "${val_skills}" "${val_rules}"; do
+            if [[ ! -f "${s}" ]]; then
+                err "Missing required script: ${s}"
+                exit 1
+            fi
+            if [[ ! -r "${s}" ]]; then
+                err "Script not readable: ${s}"
+                exit 1
+            fi
+        done
 
-    printf '\n%s[3/5] Format modified repository files%s\n' "${BOLD}" "${NC}"
-    run_repo_style_format_modified
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Generate Cursor-native bundle%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        info "Running generate-cursor-agents.sh"
+        bash "${gen_agents}"
+        info "Running generate-cursor-skills.sh"
+        bash "${gen_skills}"
+        info "Running generate-cursor-rules.sh"
+        bash "${gen_rules}"
 
-    printf '\n%s[4/5] Sync bundle to ~/.cursor%s\n' "${BOLD}" "${NC}"
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Validate generated bundle%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        info "Running validate-cursor-agents.sh"
+        bash "${val_agents}"
+        info "Running validate-cursor-skills.sh"
+        bash "${val_skills}"
+        info "Running validate-cursor-rules.sh"
+        bash "${val_rules}"
 
-    local managed_units=(skills agents rules)
-    local unit
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Format modified repository files%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        run_repo_style_format_modified
 
-    for unit in "${managed_units[@]}"; do
-        local src_unit="${CURSOR_PLUGIN_DIR}/${unit}/"
-        local dest_unit="${cursor_dir}/${unit}/"
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Sync bundle to ~/.cursor%s\n' "${BOLD}" "$step" "$total" "${NC}"
 
-        if [[ -d "${src_unit}" ]]; then
-            mkdir -p "${dest_unit}"
-            rsync -av --delete "${src_unit}" "${dest_unit}"
-            info "Synced ${unit}/ → ${dest_unit}"
-        elif [[ -d "${dest_unit}" ]]; then
-            rm -rf "${dest_unit}"
-            warn "Removed ${dest_unit} (missing from .cursor-plugin)"
-        else
-            warn "Source not found, skipping: ${src_unit}"
-        fi
-    done
+        local managed_units=(skills agents rules)
+        local unit
+        for unit in "${managed_units[@]}"; do
+            local src_unit="${CURSOR_PLUGIN_DIR}/${unit}/"
+            local dest_unit="${cursor_dir}/${unit}/"
 
-    printf '\n%s[5/5] Sync MCP to ~/.cursor/mcp.json%s\n' "${BOLD}" "${NC}"
-    sync_cursor_mcp_json
+            if [[ -d "${src_unit}" ]]; then
+                mkdir -p "${dest_unit}"
+                rsync -av --delete "${src_unit}" "${dest_unit}"
+                info "Synced ${unit}/ → ${dest_unit}"
+            elif [[ -d "${dest_unit}" ]]; then
+                rm -rf "${dest_unit}"
+                warn "Removed ${dest_unit} (missing from .cursor-plugin)"
+            else
+                warn "Source not found, skipping: ${src_unit}"
+            fi
+        done
+    fi
+
+    if [[ $do_mcp -eq 1 ]]; then
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Sync MCP to ~/.cursor/mcp.json%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        sync_cursor_mcp_json
+    fi
 
     printf '\n%sCursor sync complete.%s\n' "${BOLD}" "${NC}"
 }
 
 # ---------------------------------------------------------------------------
-# Codex sync (plugin source + agents + marketplace)
+# Codex sync (base: plugin + agents + marketplace; settings: config link)
 # ---------------------------------------------------------------------------
 sync_codex_target() {
+    validate_only_steps "codex" "base,settings"
+
     local codex_plugins_dir="${HOME}/.codex/plugins"
     local codex_plugin_dest="${codex_plugins_dir}/ycc"
     local codex_agents_dest="${HOME}/.codex/agents"
     local scripts_dir="${SCRIPT_DIR}/scripts"
 
+    local do_base=0 do_settings=0
+    step_enabled base && do_base=1
+    step_enabled settings && do_settings=1
+
+    if [[ $do_base -eq 0 && $do_settings -eq 0 ]]; then
+        warn "Codex target ran no steps"
+        printf '\n%sCodex sync complete.%s\n' "${BOLD}" "${NC}"
+        return 0
+    fi
+
     command -v python3 >/dev/null 2>&1 || { err "python3 is required but not found"; exit 1; }
-    command -v rsync >/dev/null 2>&1 || { err "rsync is required but not found"; exit 1; }
+    [[ $do_base -eq 1 ]] && { command -v rsync >/dev/null 2>&1 || { err "rsync is required but not found"; exit 1; }; }
 
-    mkdir -p "${codex_plugins_dir}" "${codex_agents_dest}"
+    local total=0
+    [[ $do_base -eq 1 ]] && total=$((total + 5))
+    [[ $do_settings -eq 1 ]] && total=$((total + 1))
+    local step=0
 
-    if [[ ! -d "${SCRIPT_DIR}/.codex-plugin" ]]; then
-        err "Codex plugin source directory not found: ${SCRIPT_DIR}/.codex-plugin"
-        exit 1
-    fi
-    if [[ ! -d "${CODEX_PLUGIN_DIR}" ]]; then
-        err "Codex plugin bundle root not found: ${CODEX_PLUGIN_DIR}"
-        exit 1
-    fi
-    if [[ ! -d "${CODEX_AGENTS_DIR}" ]]; then
-        err "Codex agent source directory not found: ${CODEX_AGENTS_DIR}"
-        exit 1
-    fi
+    if [[ $do_base -eq 1 ]]; then
+        mkdir -p "${codex_plugins_dir}" "${codex_agents_dest}"
 
-    local gen_plugin="${scripts_dir}/generate-codex-plugin.sh"
-    local gen_skills="${scripts_dir}/generate-codex-skills.sh"
-    local gen_agents="${scripts_dir}/generate-codex-agents.sh"
-    local val_plugin="${scripts_dir}/validate-codex-plugin.sh"
-    local val_skills="${scripts_dir}/validate-codex-skills.sh"
-    local val_agents="${scripts_dir}/validate-codex-agents.sh"
-
-    local s
-    for s in "${gen_plugin}" "${gen_skills}" "${gen_agents}" "${val_plugin}" "${val_skills}" "${val_agents}"; do
-        if [[ ! -f "${s}" ]]; then
-            err "Missing required script: ${s}"
+        if [[ ! -d "${SCRIPT_DIR}/.codex-plugin" ]]; then
+            err "Codex plugin source directory not found: ${SCRIPT_DIR}/.codex-plugin"
             exit 1
         fi
-        if [[ ! -r "${s}" ]]; then
-            err "Script not readable: ${s}"
+        if [[ ! -d "${CODEX_PLUGIN_DIR}" ]]; then
+            err "Codex plugin bundle root not found: ${CODEX_PLUGIN_DIR}"
             exit 1
         fi
-    done
+        if [[ ! -d "${CODEX_AGENTS_DIR}" ]]; then
+            err "Codex agent source directory not found: ${CODEX_AGENTS_DIR}"
+            exit 1
+        fi
 
-    local total_steps=5
-    [[ "${LINK_SETTINGS:-0}" == "1" ]] && total_steps=6
+        local gen_plugin="${scripts_dir}/generate-codex-plugin.sh"
+        local gen_skills="${scripts_dir}/generate-codex-skills.sh"
+        local gen_agents="${scripts_dir}/generate-codex-agents.sh"
+        local val_plugin="${scripts_dir}/validate-codex-plugin.sh"
+        local val_skills="${scripts_dir}/validate-codex-skills.sh"
+        local val_agents="${scripts_dir}/validate-codex-agents.sh"
 
-    printf '\n%s[1/%d] Generate Codex-native bundle%s\n' "${BOLD}" "${total_steps}" "${NC}"
-    info "Running generate-codex-skills.sh"
-    bash "${gen_skills}"
-    info "Running generate-codex-agents.sh"
-    bash "${gen_agents}"
-    info "Running generate-codex-plugin.sh"
-    bash "${gen_plugin}"
+        local s
+        for s in "${gen_plugin}" "${gen_skills}" "${gen_agents}" "${val_plugin}" "${val_skills}" "${val_agents}"; do
+            if [[ ! -f "${s}" ]]; then
+                err "Missing required script: ${s}"
+                exit 1
+            fi
+            if [[ ! -r "${s}" ]]; then
+                err "Script not readable: ${s}"
+                exit 1
+            fi
+        done
 
-    printf '\n%s[2/%d] Validate generated bundle%s\n' "${BOLD}" "${total_steps}" "${NC}"
-    info "Running validate-codex-skills.sh"
-    bash "${val_skills}"
-    info "Running validate-codex-agents.sh"
-    bash "${val_agents}"
-    info "Running validate-codex-plugin.sh"
-    bash "${val_plugin}"
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Generate Codex-native bundle%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        info "Running generate-codex-skills.sh"
+        bash "${gen_skills}"
+        info "Running generate-codex-agents.sh"
+        bash "${gen_agents}"
+        info "Running generate-codex-plugin.sh"
+        bash "${gen_plugin}"
 
-    printf '\n%s[3/%d] Format modified repository files%s\n' "${BOLD}" "${total_steps}" "${NC}"
-    run_repo_style_format_modified
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Validate generated bundle%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        info "Running validate-codex-skills.sh"
+        bash "${val_skills}"
+        info "Running validate-codex-agents.sh"
+        bash "${val_agents}"
+        info "Running validate-codex-plugin.sh"
+        bash "${val_plugin}"
 
-    printf '\n%s[4/%d] Sync plugin source + agents%s\n' "${BOLD}" "${total_steps}" "${NC}"
-    mkdir -p "${codex_plugin_dest}" "${codex_agents_dest}"
-    rsync -av --delete "${CODEX_PLUGIN_DIR}/" "${codex_plugin_dest}/"
-    info "Synced Codex plugin source → ${codex_plugin_dest}"
-    rsync -av --delete "${CODEX_AGENTS_DIR}/" "${codex_agents_dest}/"
-    info "Synced Codex custom agents → ${codex_agents_dest}"
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Format modified repository files%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        run_repo_style_format_modified
 
-    printf '\n%s[5/%d] Sync user marketplace entry%s\n' "${BOLD}" "${total_steps}" "${NC}"
-    merge_codex_marketplace_json
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Sync plugin source + agents%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        mkdir -p "${codex_plugin_dest}" "${codex_agents_dest}"
+        rsync -av --delete "${CODEX_PLUGIN_DIR}/" "${codex_plugin_dest}/"
+        info "Synced Codex plugin source → ${codex_plugin_dest}"
+        rsync -av --delete "${CODEX_AGENTS_DIR}/" "${codex_agents_dest}/"
+        info "Synced Codex custom agents → ${codex_agents_dest}"
 
-    if [[ "${LINK_SETTINGS:-0}" == "1" ]]; then
-        printf '\n%s[6/%d] Link Codex config files (opt-in)%s\n' "${BOLD}" "${total_steps}" "${NC}"
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Sync user marketplace entry%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        merge_codex_marketplace_json
+    fi
+
+    if [[ $do_settings -eq 1 ]]; then
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Link Codex config files%s\n' "${BOLD}" "$step" "$total" "${NC}"
         link_file "${SCRIPT_DIR}/.codex-plugin/config/config.toml"   "${HOME}/.codex/config.toml"
         link_file "${SCRIPT_DIR}/.codex-plugin/config/default.rules" "${HOME}/.codex/rules/default.rules"
     fi
 
     printf '\n%sCodex sync complete.%s\n' "${BOLD}" "${NC}"
-    warn "Restart Codex, then open /plugins and install ycc from your local marketplace if it is not already installed."
+    if [[ $do_base -eq 1 ]]; then
+        warn "Restart Codex, then open /plugins and install ycc from your local marketplace if it is not already installed."
+    fi
 }
 
 # ---------------------------------------------------------------------------
@@ -474,8 +583,9 @@ sync_all_targets() {
 # Argument parsing
 # ---------------------------------------------------------------------------
 TARGET=""
-MCP_MERGE=0
-LINK_SETTINGS=0
+MCP=0
+SETTINGS=0
+ONLY_STEPS=()
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -484,12 +594,21 @@ while [[ $# -gt 0 ]]; do
             TARGET="$2"
             shift 2
             ;;
+        --only)
+            [[ $# -lt 2 ]] && { err "--only requires a comma-separated list of steps"; exit 1; }
+            IFS=',' read -r -a ONLY_STEPS <<< "$2"
+            if [[ ${#ONLY_STEPS[@]} -eq 0 ]]; then
+                err "--only requires at least one step"
+                exit 1
+            fi
+            shift 2
+            ;;
         --mcp)
-            MCP_MERGE=1
+            MCP=1
             shift
             ;;
         --settings)
-            LINK_SETTINGS=1
+            SETTINGS=1
             shift
             ;;
         --help|-h)
@@ -510,15 +629,14 @@ if [[ -z "${TARGET}" ]]; then
     exit 1
 fi
 
-if [[ "${MCP_MERGE}" == "1" && "${TARGET}" != "claude" && "${TARGET}" != "all" ]]; then
-    warn "--mcp has no effect for target '${TARGET}'; ignored"
+if [[ ${#ONLY_STEPS[@]} -gt 0 ]]; then
+    if [[ "${SETTINGS}" == "1" ]]; then
+        warn "--settings is ignored when --only is used"
+    fi
+    if [[ "${MCP}" == "1" ]]; then
+        warn "--mcp is ignored when --only is used"
+    fi
 fi
-
-if [[ "${LINK_SETTINGS}" == "1" && "${TARGET}" == "cursor" ]]; then
-    warn "--settings has no effect for target 'cursor'; ignored"
-fi
-
-export MCP_MERGE LINK_SETTINGS
 
 case "${TARGET}" in
     claude)
