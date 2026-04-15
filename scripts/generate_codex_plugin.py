@@ -22,7 +22,6 @@ from generate_codex_common import (
     SOURCE_PLUGIN_PATH,
 )
 
-
 REPOSITORY_URL = "https://github.com/yandy-r/claude-plugins"
 
 
@@ -102,9 +101,13 @@ def write_json(path: Path, payload: dict) -> None:
 
 def write_all(dest_root: Path, dry_run: bool) -> set[Path]:
     files: set[Path] = set()
-    manifest_path = dest_root / PLUGIN_MANIFEST_PATH.relative_to(CODEX_PLUGIN_CONTAINER.parent)
+    manifest_path = dest_root / PLUGIN_MANIFEST_PATH.relative_to(
+        CODEX_PLUGIN_CONTAINER.parent
+    )
     mcp_path = dest_root / PLUGIN_MCP_PATH.relative_to(CODEX_PLUGIN_CONTAINER.parent)
-    marketplace_path = dest_root / REPO_MARKETPLACE_PATH.relative_to(CODEX_PLUGIN_CONTAINER.parent)
+    marketplace_path = dest_root / REPO_MARKETPLACE_PATH.relative_to(
+        CODEX_PLUGIN_CONTAINER.parent
+    )
 
     files.add(manifest_path.relative_to(dest_root))
     files.add(mcp_path.relative_to(dest_root))
@@ -154,8 +157,12 @@ def run_check() -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--check", action="store_true", help="Exit 1 if generated output drifts")
-    parser.add_argument("--dry-run", action="store_true", help="Print what would be written")
+    parser.add_argument(
+        "--check", action="store_true", help="Exit 1 if generated output drifts"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print what would be written"
+    )
     args = parser.parse_args()
 
     if args.check:

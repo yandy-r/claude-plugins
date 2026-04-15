@@ -87,7 +87,10 @@ def apply_skills_text_transforms(s: str) -> str:
         "available agents in a parallel agent run",
         "available agents in Cursor",
     )
-    s = s.replace("List of all valid agent types from Task tool", "List of all valid agent types for Cursor")
+    s = s.replace(
+        "List of all valid agent types from Task tool",
+        "List of all valid agent types for Cursor",
+    )
     s = s.replace("Use the Task tool with", "Use parallel agents with")
 
     s = re.sub(
@@ -109,7 +112,9 @@ def apply_skills_text_transforms(s: str) -> str:
 
     s = s.replace("main Claude session", "main Cursor session")
     s = s.replace("Claude is running ", "When running ")
-    s = re.sub(r"\bClaude API with structured output\b", "LLM API with structured output", s)
+    s = re.sub(
+        r"\bClaude API with structured output\b", "LLM API with structured output", s
+    )
     s = s.replace("closing Claude Code", "closing the session")
     s = s.replace("Claude home directory", "Cursor home directory")
     s = s.replace("Claude CLI", "Cursor CLI")
@@ -280,7 +285,10 @@ def main() -> None:
 
     if args.check:
         if not DST_DIR.is_dir():
-            print(f"Missing {DST_DIR}; run generator without --check first.", file=sys.stderr)
+            print(
+                f"Missing {DST_DIR}; run generator without --check first.",
+                file=sys.stderr,
+            )
             sys.exit(1)
         sys.exit(run_check())
 

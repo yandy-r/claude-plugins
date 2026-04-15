@@ -11,7 +11,6 @@ from typing import Any
 
 import yaml
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 YCC_DIR = REPO_ROOT / "ycc"
 SRC_SKILLS_DIR = YCC_DIR / "skills"
@@ -126,10 +125,16 @@ def apply_codex_text_transforms(text: str, aliases: dict[str, str]) -> str:
     output = output.replace("the main Claude session", "the main Codex session")
     output = output.replace("Restart Claude CLI", "Restart Codex")
     output = output.replace("Claude CLI logs", "Codex logs")
-    output = output.replace("set up Claude CLI environment", "set up the Codex environment")
+    output = output.replace(
+        "set up Claude CLI environment", "set up the Codex environment"
+    )
     output = output.replace("closing Claude Code", "closing Codex")
     output = output.replace("a live Claude Code session", "a live Codex session")
-    output = re.sub(r"\bClaude API with structured output\b", "LLM API with structured output", output)
+    output = re.sub(
+        r"\bClaude API with structured output\b",
+        "LLM API with structured output",
+        output,
+    )
 
     # Skill/command references.
     output = re.sub(
@@ -146,17 +151,17 @@ def apply_codex_text_transforms(text: str, aliases: dict[str, str]) -> str:
     # Claude-specific agent/tool phrasing -> Codex-native wording.
     output = re.sub(
         r'Use the Task tool with \*\*`subagent_type: "([^"]+)"`\*\*',
-        lambda match: f'Spawn the `{map_namespaced_reference(match.group(1), aliases)}` custom agent',
+        lambda match: f"Spawn the `{map_namespaced_reference(match.group(1), aliases)}` custom agent",
         output,
     )
     output = re.sub(
         r'Use the Agent tool with `subagent_type: "([^"]+)"`',
-        lambda match: f'Spawn the `{map_namespaced_reference(match.group(1), aliases)}` custom agent',
+        lambda match: f"Spawn the `{map_namespaced_reference(match.group(1), aliases)}` custom agent",
         output,
     )
     output = re.sub(
         r'`subagent_type: "([^"]+)"`',
-        lambda match: f'`{map_namespaced_reference(match.group(1), aliases)}`',
+        lambda match: f"`{map_namespaced_reference(match.group(1), aliases)}`",
         output,
     )
     output = re.sub(

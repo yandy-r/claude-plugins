@@ -90,7 +90,9 @@ def extract_first_heading(body: str) -> str | None:
 
 
 def title_case_stem(stem: str) -> str:
-    return " ".join(w.capitalize() for w in stem.replace("-", " ").replace("_", " ").split())
+    return " ".join(
+        w.capitalize() for w in stem.replace("-", " ").replace("_", " ").split()
+    )
 
 
 def default_description(rel: Path, body: str) -> str:
@@ -262,7 +264,11 @@ def prune_orphans(dest: Path, source_rels: set[Path]) -> None:
             continue
         if rel not in source_rels:
             p.unlink()
-    dirs = sorted({d for d in dest.rglob("*") if d.is_dir()}, key=lambda x: len(x.parts), reverse=True)
+    dirs = sorted(
+        {d for d in dest.rglob("*") if d.is_dir()},
+        key=lambda x: len(x.parts),
+        reverse=True,
+    )
     for d in dirs:
         if d == dest:
             continue
@@ -305,24 +311,35 @@ def lint_generated_rules() -> int:
     for path in sorted(DST_DIR.rglob("*.mdc")):
         raw = path.read_text(encoding="utf-8")
         if not raw.startswith("---\n"):
-            print(f"MISSING frontmatter: {path.relative_to(REPO_ROOT)}", file=sys.stderr)
+            print(
+                f"MISSING frontmatter: {path.relative_to(REPO_ROOT)}", file=sys.stderr
+            )
             errors += 1
             continue
         end = raw.find("\n---\n", 4)
         if end == -1:
-            print(f"MALFORMED frontmatter: {path.relative_to(REPO_ROOT)}", file=sys.stderr)
+            print(
+                f"MALFORMED frontmatter: {path.relative_to(REPO_ROOT)}", file=sys.stderr
+            )
             errors += 1
             continue
         fm_text = raw[4:end]
         data = yaml.safe_load(fm_text) or {}
         if "description" not in data:
-            print(f"MISSING description: {path.relative_to(REPO_ROOT)}", file=sys.stderr)
+            print(
+                f"MISSING description: {path.relative_to(REPO_ROOT)}", file=sys.stderr
+            )
             errors += 1
         if "alwaysApply" not in data:
-            print(f"MISSING alwaysApply: {path.relative_to(REPO_ROOT)}", file=sys.stderr)
+            print(
+                f"MISSING alwaysApply: {path.relative_to(REPO_ROOT)}", file=sys.stderr
+            )
             errors += 1
         if not data.get("alwaysApply") and "globs" not in data:
-            print(f"MISSING globs (scoped rule): {path.relative_to(REPO_ROOT)}", file=sys.stderr)
+            print(
+                f"MISSING globs (scoped rule): {path.relative_to(REPO_ROOT)}",
+                file=sys.stderr,
+            )
             errors += 1
     return errors
 
@@ -368,7 +385,10 @@ def main() -> None:
 
     if args.check:
         if not DST_DIR.is_dir():
-            print(f"Missing {DST_DIR}; run generator without --check first.", file=sys.stderr)
+            print(
+                f"Missing {DST_DIR}; run generator without --check first.",
+                file=sys.stderr,
+            )
             sys.exit(1)
         sys.exit(run_check())
 
