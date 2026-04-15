@@ -41,12 +41,12 @@ git status --short
 git log origin/<base>..HEAD --oneline
 ```
 
-| Check                   | Condition                                           | Action if Failed                                                                          |
-| ----------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Not on base branch      | Current branch ≠ base                               | Stop: "Switch to a feature branch first."                                                 |
+| Check                   | Condition                                           | Action if Failed                                                                              |
+| ----------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Not on base branch      | Current branch ≠ base                               | Stop: "Switch to a feature branch first."                                                     |
 | Clean working directory | No uncommitted changes                              | Warn: "You have uncommitted changes. Commit or stash first. Use `/prp-commit` to commit." |
-| Has commits ahead       | `git log origin/<base>..HEAD` not empty             | Stop: "No commits ahead of `<base>`. Nothing to PR."                                      |
-| No existing PR          | `gh pr list --head <branch> --json number` is empty | Stop: "PR already exists: #<number>. Use `gh pr view <number> --web` to open it."         |
+| Has commits ahead       | `git log origin/<base>..HEAD` not empty             | Stop: "No commits ahead of `<base>`. Nothing to PR."                                          |
+| No existing PR          | `gh pr list --head <branch> --json number` is empty | Stop: "PR already exists: #<number>. Use `gh pr view <number> --web` to open it."             |
 
 If all checks pass, proceed.
 
@@ -211,7 +211,7 @@ Next steps:
 
 ## When to use this vs `/git-workflow --pr`
 
-| Use `/prp-pr` when                | Use `/git-workflow --pr` when                      |
+| Use `/prp-pr` when            | Use `/git-workflow --pr` when                  |
 | --------------------------------- | -------------------------------------------------- |
 | Your commits are already in place | You want to commit and PR in one flow              |
 | You want a focused PR-only tool   | You want documentation agents to update docs first |
