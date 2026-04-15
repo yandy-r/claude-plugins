@@ -22,8 +22,8 @@ Team names follow the pattern: `<skill-prefix>-<sanitized-context>`.
 
 **Skill prefixes** (do not change):
 
-| Skill           | Prefix  | Example                 |
-| --------------- | ------- | ----------------------- |
+| Skill               | Prefix  | Example                 |
+| ------------------- | ------- | ----------------------- |
 | `plan`          | `plan-` | `plan-add-rate-limit`   |
 | `prp-plan`      | `prpp-` | `prpp-billing-webhooks` |
 | `prp-implement` | `prpi-` | `prpi-user-auth-flow`   |
