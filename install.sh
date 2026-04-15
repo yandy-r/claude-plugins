@@ -50,6 +50,35 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
+# Repo formatting (modified files via scripts/style.sh)
+# Only stacks present in this repo: Markdown/JSON (prettier) and Python (black).
+# style.sh format has no shell formatter; Rust/TS/Go are omitted to avoid requiring
+# those toolchains or failing on unrelated stacks.
+# ---------------------------------------------------------------------------
+run_repo_style_format_modified() {
+    local style_sh="${SCRIPT_DIR}/scripts/style.sh"
+
+    if [[ ! -f "${style_sh}" ]]; then
+        err "style script not found: ${style_sh}"
+        exit 1
+    fi
+    if [[ ! -r "${style_sh}" ]]; then
+        err "style script not readable: ${style_sh}"
+        exit 1
+    fi
+    if [[ ! -x "${style_sh}" ]]; then
+        err "style script not executable: ${style_sh}"
+        exit 1
+    fi
+
+    info "Running scripts/style.sh format --modified --docs --python"
+    PROJECT_ROOT="${SCRIPT_DIR}" bash "${style_sh}" format --modified --docs --python
+
+    info "Running scripts/style.sh lint --modified --fix --python --shell"
+    PROJECT_ROOT="${SCRIPT_DIR}" bash "${style_sh}" lint --modified --fix --python --shell
+}
+
+# ---------------------------------------------------------------------------
 # MCP: Claude Code (~/.claude.json root mcpServers)
 # ---------------------------------------------------------------------------
 merge_claude_mcp_json() {
@@ -256,7 +285,7 @@ sync_cursor_target() {
         fi
     done
 
-    printf '\n%s[1/4] Generate Cursor-native bundle%s\n' "${BOLD}" "${NC}"
+    printf '\n%s[1/5] Generate Cursor-native bundle%s\n' "${BOLD}" "${NC}"
     info "Running generate-cursor-agents.sh"
     bash "${gen_agents}"
     info "Running generate-cursor-skills.sh"
@@ -264,7 +293,7 @@ sync_cursor_target() {
     info "Running generate-cursor-rules.sh"
     bash "${gen_rules}"
 
-    printf '\n%s[2/4] Validate generated bundle%s\n' "${BOLD}" "${NC}"
+    printf '\n%s[2/5] Validate generated bundle%s\n' "${BOLD}" "${NC}"
     info "Running validate-cursor-agents.sh"
     bash "${val_agents}"
     info "Running validate-cursor-skills.sh"
@@ -272,7 +301,10 @@ sync_cursor_target() {
     info "Running validate-cursor-rules.sh"
     bash "${val_rules}"
 
-    printf '\n%s[3/4] Sync bundle to ~/.cursor%s\n' "${BOLD}" "${NC}"
+    printf '\n%s[3/5] Format modified repository files%s\n' "${BOLD}" "${NC}"
+    run_repo_style_format_modified
+
+    printf '\n%s[4/5] Sync bundle to ~/.cursor%s\n' "${BOLD}" "${NC}"
 
     local managed_units=(skills agents rules)
     local unit
@@ -293,7 +325,7 @@ sync_cursor_target() {
         fi
     done
 
-    printf '\n%s[4/4] Sync MCP to ~/.cursor/mcp.json%s\n' "${BOLD}" "${NC}"
+    printf '\n%s[5/5] Sync MCP to ~/.cursor/mcp.json%s\n' "${BOLD}" "${NC}"
     sync_cursor_mcp_json
 
     printf '\n%sCursor sync complete.%s\n' "${BOLD}" "${NC}"
@@ -345,7 +377,7 @@ sync_codex_target() {
         fi
     done
 
-    printf '\n%s[1/4] Generate Codex-native bundle%s\n' "${BOLD}" "${NC}"
+    printf '\n%s[1/5] Generate Codex-native bundle%s\n' "${BOLD}" "${NC}"
     info "Running generate-codex-skills.sh"
     bash "${gen_skills}"
     info "Running generate-codex-agents.sh"
@@ -353,7 +385,7 @@ sync_codex_target() {
     info "Running generate-codex-plugin.sh"
     bash "${gen_plugin}"
 
-    printf '\n%s[2/4] Validate generated bundle%s\n' "${BOLD}" "${NC}"
+    printf '\n%s[2/5] Validate generated bundle%s\n' "${BOLD}" "${NC}"
     info "Running validate-codex-skills.sh"
     bash "${val_skills}"
     info "Running validate-codex-agents.sh"
@@ -361,14 +393,17 @@ sync_codex_target() {
     info "Running validate-codex-plugin.sh"
     bash "${val_plugin}"
 
-    printf '\n%s[3/4] Sync plugin source + agents%s\n' "${BOLD}" "${NC}"
+    printf '\n%s[3/5] Format modified repository files%s\n' "${BOLD}" "${NC}"
+    run_repo_style_format_modified
+
+    printf '\n%s[4/5] Sync plugin source + agents%s\n' "${BOLD}" "${NC}"
     mkdir -p "${codex_plugin_dest}" "${codex_agents_dest}"
     rsync -av --delete "${CODEX_PLUGIN_DIR}/" "${codex_plugin_dest}/"
     info "Synced Codex plugin source → ${codex_plugin_dest}"
     rsync -av --delete "${CODEX_AGENTS_DIR}/" "${codex_agents_dest}/"
     info "Synced Codex custom agents → ${codex_agents_dest}"
 
-    printf '\n%s[4/4] Sync user marketplace entry%s\n' "${BOLD}" "${NC}"
+    printf '\n%s[5/5] Sync user marketplace entry%s\n' "${BOLD}" "${NC}"
     merge_codex_marketplace_json
 
     printf '\n%sCodex sync complete.%s\n' "${BOLD}" "${NC}"
