@@ -22,30 +22,62 @@ info()  { printf "${GREEN}[ok]${NC}  %s\n" "$1"; }
 warn()  { printf "${YELLOW}[!!]${NC}  %s\n" "$1"; }
 err()   { printf "${RED}[err]${NC} %s\n" "$1" >&2; }
 
+# link_file <src> <dest>
+# - Ensures parent of <dest> exists.
+# - If <dest> is already a symlink pointing at <src>, does nothing.
+# - Otherwise, removes any existing file/symlink at <dest> and creates a symlink.
+# - Errors if <src> is missing. Refuses to operate on a directory at <dest>.
+link_file() {
+    local src="$1"
+    local dest="$2"
+    [[ -e "$src" ]] || { err "source not found: $src"; exit 1; }
+    if [[ -d "$dest" && ! -L "$dest" ]]; then
+        err "refusing to replace directory with symlink: $dest"
+        exit 1
+    fi
+    mkdir -p "$(dirname "$dest")"
+    if [[ -L "$dest" && "$(readlink "$dest")" == "$src" ]]; then
+        info "link up-to-date: $dest -> $src"
+        return 0
+    fi
+    ln -sfn "$src" "$dest"
+    info "linked $dest -> $src"
+}
+
 usage() {
     cat <<EOF
-Usage: $(basename "$0") --target <target>
+Usage: $(basename "$0") --target <target> [--settings] [--mcp]
 
 Sync plugin assets to an IDE configuration directory.
 
 Options:
   --target <target>   Target: claude, cursor, codex, or all
+  --settings          Opt-in: symlink per-target settings/rules files into the IDE's
+                      config dir (claude: settings.json + statusline-command.sh;
+                      codex: config.toml + default.rules; cursor: none).
+  --mcp               (claude/all only) Merge mcp-configs/mcp.json mcpServers into
+                      ~/.claude.json. Opt-in; MCP is normally covered by plugins.
   --help              Show this help message
 
 Targets:
-  claude   Merge mcp-configs/mcp.json mcpServers into ~/.claude.json (user scope)
+  claude   With --settings, symlink ycc/settings/{settings.json,statusline-command.sh}
+           into ~/.claude/. With --mcp, also merge mcp-configs/mcp.json mcpServers
+           into ~/.claude.json. Without either flag, the claude target is a no-op.
   cursor   Generate Cursor-native agents/skills/rules, validate, rsync bundle to
-           ~/.cursor/, then copy MCP config to ~/.cursor/mcp.json
+           ~/.cursor/, then copy MCP config to ~/.cursor/mcp.json (unaffected by
+           --settings; cursor has no managed per-user rules file here).
   codex    Generate Codex-native plugin + agents, validate, sync plugin source to
-           ~/.codex/plugins/ycc, sync agents to ~/.codex/agents, and merge the
-           ycc entry into ~/.agents/plugins/marketplace.json
-  all      Run claude then cursor then codex pipelines
+           ~/.codex/plugins/ycc, sync agents to ~/.codex/agents, and merge the ycc
+           entry into ~/.agents/plugins/marketplace.json. With --settings, also
+           symlink .codex-plugin/config/{config.toml,default.rules} into ~/.codex/.
+  all      Run claude then cursor then codex pipelines (flags propagate)
 
 Examples:
-  $(basename "$0") --target claude
+  $(basename "$0") --target claude --settings
+  $(basename "$0") --target claude --settings --mcp
   $(basename "$0") --target cursor
-  $(basename "$0") --target codex
-  $(basename "$0") --target all
+  $(basename "$0") --target codex --settings
+  $(basename "$0") --target all --settings
 EOF
 }
 
@@ -165,8 +197,18 @@ sync_cursor_mcp_json() {
 # Claude target (MCP only)
 # ---------------------------------------------------------------------------
 sync_claude_target() {
-    printf '\n%sClaude: merge MCP into ~/.claude.json%s\n' "${BOLD}" "${NC}"
-    merge_claude_mcp_json
+    if [[ "${LINK_SETTINGS:-0}" == "1" ]]; then
+        printf '\n%sClaude: link settings + statusline (opt-in)%s\n' "${BOLD}" "${NC}"
+        link_file "${SCRIPT_DIR}/ycc/settings/settings.json"         "${HOME}/.claude/settings.json"
+        link_file "${SCRIPT_DIR}/ycc/settings/statusline-command.sh" "${HOME}/.claude/statusline-command.sh"
+    fi
+    if [[ "${MCP_MERGE:-0}" == "1" ]]; then
+        printf '\n%sClaude: merge MCP into ~/.claude.json (opt-in)%s\n' "${BOLD}" "${NC}"
+        merge_claude_mcp_json
+    fi
+    if [[ "${LINK_SETTINGS:-0}" != "1" && "${MCP_MERGE:-0}" != "1" ]]; then
+        warn "Claude target is a no-op without --settings or --mcp"
+    fi
     printf '\n%sClaude sync complete.%s\n' "${BOLD}" "${NC}"
 }
 
@@ -377,7 +419,10 @@ sync_codex_target() {
         fi
     done
 
-    printf '\n%s[1/5] Generate Codex-native bundle%s\n' "${BOLD}" "${NC}"
+    local total_steps=5
+    [[ "${LINK_SETTINGS:-0}" == "1" ]] && total_steps=6
+
+    printf '\n%s[1/%d] Generate Codex-native bundle%s\n' "${BOLD}" "${total_steps}" "${NC}"
     info "Running generate-codex-skills.sh"
     bash "${gen_skills}"
     info "Running generate-codex-agents.sh"
@@ -385,7 +430,7 @@ sync_codex_target() {
     info "Running generate-codex-plugin.sh"
     bash "${gen_plugin}"
 
-    printf '\n%s[2/5] Validate generated bundle%s\n' "${BOLD}" "${NC}"
+    printf '\n%s[2/%d] Validate generated bundle%s\n' "${BOLD}" "${total_steps}" "${NC}"
     info "Running validate-codex-skills.sh"
     bash "${val_skills}"
     info "Running validate-codex-agents.sh"
@@ -393,18 +438,24 @@ sync_codex_target() {
     info "Running validate-codex-plugin.sh"
     bash "${val_plugin}"
 
-    printf '\n%s[3/5] Format modified repository files%s\n' "${BOLD}" "${NC}"
+    printf '\n%s[3/%d] Format modified repository files%s\n' "${BOLD}" "${total_steps}" "${NC}"
     run_repo_style_format_modified
 
-    printf '\n%s[4/5] Sync plugin source + agents%s\n' "${BOLD}" "${NC}"
+    printf '\n%s[4/%d] Sync plugin source + agents%s\n' "${BOLD}" "${total_steps}" "${NC}"
     mkdir -p "${codex_plugin_dest}" "${codex_agents_dest}"
     rsync -av --delete "${CODEX_PLUGIN_DIR}/" "${codex_plugin_dest}/"
     info "Synced Codex plugin source → ${codex_plugin_dest}"
     rsync -av --delete "${CODEX_AGENTS_DIR}/" "${codex_agents_dest}/"
     info "Synced Codex custom agents → ${codex_agents_dest}"
 
-    printf '\n%s[5/5] Sync user marketplace entry%s\n' "${BOLD}" "${NC}"
+    printf '\n%s[5/%d] Sync user marketplace entry%s\n' "${BOLD}" "${total_steps}" "${NC}"
     merge_codex_marketplace_json
+
+    if [[ "${LINK_SETTINGS:-0}" == "1" ]]; then
+        printf '\n%s[6/%d] Link Codex config files (opt-in)%s\n' "${BOLD}" "${total_steps}" "${NC}"
+        link_file "${SCRIPT_DIR}/.codex-plugin/config/config.toml"   "${HOME}/.codex/config.toml"
+        link_file "${SCRIPT_DIR}/.codex-plugin/config/default.rules" "${HOME}/.codex/rules/default.rules"
+    fi
 
     printf '\n%sCodex sync complete.%s\n' "${BOLD}" "${NC}"
     warn "Restart Codex, then open /plugins and install ycc from your local marketplace if it is not already installed."
@@ -423,6 +474,8 @@ sync_all_targets() {
 # Argument parsing
 # ---------------------------------------------------------------------------
 TARGET=""
+MCP_MERGE=0
+LINK_SETTINGS=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -430,6 +483,14 @@ while [[ $# -gt 0 ]]; do
             [[ $# -lt 2 ]] && { err "--target requires an argument"; exit 1; }
             TARGET="$2"
             shift 2
+            ;;
+        --mcp)
+            MCP_MERGE=1
+            shift
+            ;;
+        --settings)
+            LINK_SETTINGS=1
+            shift
             ;;
         --help|-h)
             usage
@@ -448,6 +509,16 @@ if [[ -z "${TARGET}" ]]; then
     usage
     exit 1
 fi
+
+if [[ "${MCP_MERGE}" == "1" && "${TARGET}" != "claude" && "${TARGET}" != "all" ]]; then
+    warn "--mcp has no effect for target '${TARGET}'; ignored"
+fi
+
+if [[ "${LINK_SETTINGS}" == "1" && "${TARGET}" == "cursor" ]]; then
+    warn "--settings has no effect for target 'cursor'; ignored"
+fi
+
+export MCP_MERGE LINK_SETTINGS
 
 case "${TARGET}" in
     claude)
