@@ -10,7 +10,7 @@ description: >
   Use when the user asks to "write a spec", "spec out a feature", "quick spec",
   "create a PRP spec", or says "/prp-spec".
   For heavyweight multi-agent research, use ycc:feature-research instead.
-argument-hint: '[feature description | path/to/context.md] [--ground]'
+argument-hint: '[--ground] [feature description | path/to/context.md]'
 allowed-tools:
   - Read
   - Grep

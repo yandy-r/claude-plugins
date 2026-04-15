@@ -3,7 +3,7 @@ description: >
   Generate a lightweight feature spec for the PRP workflow — single-pass with optional
   codebase/market grounding. Writes to docs/prps/specs/. Sits between prp-prd and prp-plan,
   or works standalone.
-argument-hint: '[feature description | path/to/prd.md] [--ground]'
+argument-hint: '[--ground] [feature description | path/to/context.md]'
 allowed-tools:
   - Read
   - Grep
