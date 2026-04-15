@@ -1,7 +1,7 @@
 ---
 name: plan
-description: Lightweight conversational planner that dispatches the ycc:planner agent (or a multi-perspective agent team) to produce a specific, phased implementation plan with file paths, dependencies, risks, and a testing strategy — then WAITS for explicit user confirmation before any code is written. Pass `--parallel` to instruct the planner to shape its output for parallel execution (Batches summary section, hierarchical step IDs, explicit Depends on annotations). Pass `--agent-team` to spawn a 3-persona team (architect / risk-analyst / test-strategist) and merge their outputs into a richer plan. Flags are independent and combinable. Use for quick planning on a new feature, architectural change, or complex refactor when you do NOT need the heavier parallel-agent plan-workflow or the PRD-driven prp-plan. Use when the user asks to "plan this", "outline an approach", "break this down before I code", "parallel plan", "multi-perspective plan", or says "/plan".
-argument-hint: '[--parallel] [--agent-team] [--dry-run] <what you want to plan>'
+description: Lightweight conversational planner that dispatches the ycc:planner agent (or a multi-perspective agent team) to produce a specific, phased implementation plan with file paths, dependencies, risks, and a testing strategy — then WAITS for explicit user confirmation before any code is written. Pass `--parallel` to instruct the planner to shape its output for parallel execution (Batches summary section, hierarchical step IDs, explicit Depends on annotations). Pass `--team` to spawn a 3-persona team (architect / risk-analyst / test-strategist) and merge their outputs into a richer plan. Flags are independent and combinable. Use for quick planning on a new feature, architectural change, or complex refactor when you do NOT need the heavier parallel-agent plan-workflow or the PRD-driven prp-plan. Use when the user asks to "plan this", "outline an approach", "break this down before I code", "parallel plan", "multi-perspective plan", or says "/plan".
+argument-hint: '[--parallel] [--team] [--dry-run] <what you want to plan>'
 allowed-tools:
   - Read
   - Grep
@@ -32,25 +32,25 @@ Create a comprehensive implementation plan before writing any code. This is the 
 
 ## What This Skill Does
 
-1. **Parse flags and the request** — Extract `--parallel`, `--agent-team`, `--dry-run`, then read the user input and any referenced files
-2. **Dispatch planner(s)** — Either dispatch a single `ycc:planner` (default) or deploy a 3-persona agent team (`--agent-team`). In parallel mode, augment the prompt(s) with output-shape directives
+1. **Parse flags and the request** — Extract `--parallel`, `--team`, `--dry-run`, then read the user input and any referenced files
+2. **Dispatch planner(s)** — Either dispatch a single `ycc:planner` (default) or deploy a 3-persona agent team (`--team`). In parallel mode, augment the prompt(s) with output-shape directives
 3. **Merge and relay the plan** — For the single-agent path, relay verbatim. For the team path, merge the 3 teammate outputs into one unified plan
 4. **Wait for confirmation** — MUST receive explicit user approval before proceeding
 
 ## Flags
 
-| Flag           | Effect                                                                                                                                                                                                                                                                                                                                           |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--parallel`   | Instruct the planner(s) to emit a parallel-capable plan: a `Batches` summary section at the top, hierarchical step IDs (`1.1`, `1.2`, `2.1`), and explicit `Depends on [...]` annotations on every step. Enables in-conversation parallel implementation via `ycc:implementor` agents, or file-based handoff to `/ycc:prp-implement --parallel`. |
-| `--agent-team` | Dispatch a 3-persona planning team (architect / risk-analyst / test-strategist) under a shared `TeamCreate`/`TaskList` with coordinated shutdown. Produces a richer plan by merging structural, risk, and testing perspectives. Heavier than the default single-agent path.                                                                      |
-| `--dry-run`    | Only valid with `--agent-team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                                                                                                             |
+| Flag         | Effect                                                                                                                                                                                                                                                                                                                                           |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--parallel` | Instruct the planner(s) to emit a parallel-capable plan: a `Batches` summary section at the top, hierarchical step IDs (`1.1`, `1.2`, `2.1`), and explicit `Depends on [...]` annotations on every step. Enables in-conversation parallel implementation via `ycc:implementor` agents, or file-based handoff to `/ycc:prp-implement --parallel`. |
+| `--team`     | Dispatch a 3-persona planning team (architect / risk-analyst / test-strategist) under a shared `TeamCreate`/`TaskList` with coordinated shutdown. Produces a richer plan by merging structural, risk, and testing perspectives. Heavier than the default single-agent path.                                                                      |
+| `--dry-run`  | Only valid with `--team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                                                                                                                   |
 
 **Flag interaction**:
 
-- `--parallel` and `--agent-team` are **independent and combinable**. `--parallel` shapes the plan's _output format_; `--agent-team` switches the _dispatch mechanism_. Pass both for a multi-perspective plan formatted for parallel execution.
-- `--dry-run` requires `--agent-team` (the single-agent path has nothing to dry-run).
+- `--parallel` and `--team` are **independent and combinable**. `--parallel` shapes the plan's _output format_; `--team` switches the _dispatch mechanism_. Pass both for a multi-perspective plan formatted for parallel execution.
+- `--dry-run` requires `--team` (the single-agent path has nothing to dry-run).
 
-**Note**: `--parallel` on `/ycc:plan` shapes the _output_, not the research phase. For research fan-out on larger features, use `/ycc:prp-plan --parallel` (sub-agent fan-out) or `/ycc:prp-plan --agent-team` (Claude Code only; shared-task-list coordination).
+**Note**: `--parallel` on `/ycc:plan` shapes the _output_, not the research phase. For research fan-out on larger features, use `/ycc:prp-plan --parallel` (sub-agent fan-out) or `/ycc:prp-plan --team` (Claude Code only; shared-task-list coordination).
 
 ## When to Use
 
@@ -68,11 +68,11 @@ Use this skill when:
 
 ### Step 1 — Parse flags and the user's request
 
-**Flag parsing**: Extract `--parallel`, `--agent-team`, and `--dry-run` from `$ARGUMENTS` before processing. Strip them out and set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `DRY_RUN=true|false`. The remaining text is the user's request.
+**Flag parsing**: Extract `--parallel`, `--team`, and `--dry-run` from `$ARGUMENTS` before processing. Strip them out and set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `DRY_RUN=true|false`. The remaining text is the user's request.
 
 **Validation**:
 
-- If `DRY_RUN=true` and `AGENT_TEAM_MODE=false` → abort with: `--dry-run requires --agent-team (no-op for the single-agent path).`
+- If `DRY_RUN=true` and `AGENT_TEAM_MODE=false` → abort with: `--dry-run requires --team (no-op for the single-agent path).`
 
 Read the stripped `$ARGUMENTS`. If it references a file path, read that file for context. If the request is ambiguous, ask a single focused clarifying question **before** dispatching.
 
@@ -420,13 +420,13 @@ Use Option 1 for small features and quick iterations. Use Option 2 when the user
 - **`/ycc:prp-plan --parallel`** — You want research fan-out (3 parallel researchers covering 8 categories) plus a full artifact file with patterns to mirror and validation commands. Best for medium/large features where you want a rigorous, auditable plan.
 - **`/ycc:plan-workflow`** — You want heavyweight team orchestration with shared context and multi-phase validation. Best for very large features spanning many tasks.
 
-### When to use `--agent-team`
+### When to use `--team`
 
-`--agent-team` is a **Claude Code-only** execution mode. Cursor and Codex bundles ship
-without the team tools (`TeamCreate`, `SendMessage`, etc.), so invoking `--agent-team`
+`--team` is a **Claude Code-only** execution mode. Cursor and Codex bundles ship
+without the team tools (`TeamCreate`, `SendMessage`, etc.), so invoking `--team`
 there has no effect — use `--parallel` instead.
 
-- **`/ycc:plan --agent-team`** — The task is complex enough that you want architect, risk, and testing perspectives but not heavy enough for an artifact file. Outputs a merged multi-perspective plan in the conversation.
-- **`/ycc:plan --parallel --agent-team`** — Same as above, but the merged plan is also formatted for parallel implementation (Batches section, `Depends on` annotations).
-- **`/ycc:prp-plan --agent-team`** — Team-coordinated research with shared TaskList for medium/large features that will produce an artifact file.
-- **`/ycc:prp-implement --agent-team`** — Team-coordinated execution with shared TaskList across all batches. Best for implementation runs where you want coordinated inter-batch shutdown and a single shared task graph.
+- **`/ycc:plan --team`** — The task is complex enough that you want architect, risk, and testing perspectives but not heavy enough for an artifact file. Outputs a merged multi-perspective plan in the conversation.
+- **`/ycc:plan --parallel --team`** — Same as above, but the merged plan is also formatted for parallel implementation (Batches section, `Depends on` annotations).
+- **`/ycc:prp-plan --team`** — Team-coordinated research with shared TaskList for medium/large features that will produce an artifact file.
+- **`/ycc:prp-implement --team`** — Team-coordinated execution with shared TaskList across all batches. Best for implementation runs where you want coordinated inter-batch shutdown and a single shared task graph.

@@ -6,9 +6,9 @@ description: Create a comprehensive, self-contained feature implementation plan 
   codebase discovery via prp-researcher, and writes a single-pass-ready plan to docs/prps/plans/{name}.plan.md.
   Pass `--parallel` to fan out research across 3 standalone researcher sub-agents
   and emit a dependency-batched task list ready for parallel execution by prp-implement.
-  Pass `--agent-team` (Codex only) to run the same 3 researchers under a shared create
+  Pass `--team` (Codex only) to run the same 3 researchers under a shared create
   an agent group/the task tracker with coordinated shutdown — heavier but with a shared
-  task graph and observable progress. `--parallel` and `--agent-team` are mutually
+  task graph and observable progress. `--parallel` and `--team` are mutually
   exclusive. Use when the user asks for a "PRP plan", "implementation plan from PRD",
   "feature plan with patterns to mirror", "parallel PRP plan", "team PRP plan", or
   says "/prp-plan". Adapted from PRPs-agentic-eng by Wirasm.
@@ -32,20 +32,20 @@ Create a detailed, self-contained implementation plan that captures all codebase
 
 Extract flags from `$ARGUMENTS`:
 
-| Flag           | Effect                                                                                                                                                                                                                                                                            |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel`   | Fan out research into 3 **standalone sub-agent** researchers; emit tasks with batch/dependency annotations. Works in Codex, Cursor, and Codex.                                                                                                                                    |
-| `--agent-team` | (Codex only) Fan out the same 3 researchers as **teammates** under a shared `create an agent group`/`the task tracker` with coordinated shutdown via `send follow-up instructions`. Same plan output as `--parallel`, but with shared task-graph observability. Heavier dispatch. |
-| `--dry-run`    | Only valid with `--agent-team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                                              |
+| Flag         | Effect                                                                                                                                                                                                                                                                            |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel` | Fan out research into 3 **standalone sub-agent** researchers; emit tasks with batch/dependency annotations. Works in Codex, Cursor, and Codex.                                                                                                                                    |
+| `--team`     | (Codex only) Fan out the same 3 researchers as **teammates** under a shared `create an agent group`/`the task tracker` with coordinated shutdown via `send follow-up instructions`. Same plan output as `--parallel`, but with shared task-graph observability. Heavier dispatch. |
+| `--dry-run`  | Only valid with `--team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                                                    |
 
 Strip the flags. Set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `DRY_RUN=true|false`. Remaining text is the feature description or PRD path.
 
 **Validation**:
 
-- `--parallel` and `--agent-team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --agent-team are mutually exclusive. Pick one.`
-- `--dry-run` requires `--agent-team`. If `DRY_RUN=true` and `AGENT_TEAM_MODE=false` → abort with: `--dry-run requires --agent-team.`
+- `--parallel` and `--team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --team are mutually exclusive. Pick one.`
+- `--dry-run` requires `--team`. If `DRY_RUN=true` and `AGENT_TEAM_MODE=false` → abort with: `--dry-run requires --team.`
 
-**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--agent-team` must not be used (those bundles ship without team tools). Use `--parallel` instead.
+**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools). Use `--parallel` instead.
 
 ### Input Detection
 
@@ -333,7 +333,7 @@ Update the phase status from `pending` to `in-progress` and add the plan file pa
 ## Verification
 
 Structural validation is enforced by `validate-prp-plan.sh` in Phase 6.5. The validator
-operates on the written plan file — dispatch mode (`--parallel` vs `--agent-team`) is
+operates on the written plan file — dispatch mode (`--parallel` vs `--team`) is
 invisible to it, since both modes emit the same plan format.
 
 For Path C's team lifecycle contract (sanitization, shutdown sequence, failure policy),

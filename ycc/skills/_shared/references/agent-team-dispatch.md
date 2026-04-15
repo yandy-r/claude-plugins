@@ -1,6 +1,6 @@
 # Agent Team Dispatch — Canonical Lifecycle Reference
 
-Used by `ycc:plan`, `ycc:prp-plan`, and `ycc:prp-implement` when the `--agent-team` flag
+Used by `ycc:plan`, `ycc:prp-plan`, and `ycc:prp-implement` when the `--team` flag
 is passed. This file documents the universal TeamCreate → TaskCreate → Agent →
 TaskList → SendMessage → TeamDelete lifecycle. Individual skills own their teammate
 roster and prompt templates; only the mechanism lives here.
@@ -35,7 +35,7 @@ If the sanitized context would be empty (e.g., only symbols), fall back to
 
 ## 2. Lifecycle (6 steps)
 
-Every `--agent-team` run MUST perform these steps in order. Deviation corrupts the
+Every `--team` run MUST perform these steps in order. Deviation corrupts the
 shared task list or leaves orphaned teammates.
 
 ### Step 1 — TeamCreate
@@ -147,7 +147,7 @@ Never leave a team live after the skill exits.
 
 ## 5. Dry-Run Semantics
 
-If the skill is invoked with both `--agent-team` and `--dry-run` (where the skill
+If the skill is invoked with both `--team` and `--dry-run` (where the skill
 supports dry-run), print:
 
 ```

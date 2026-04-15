@@ -6,11 +6,11 @@ description: Execute a PRP plan file with continuous validation loops. Detects p
   report to docs/prps/reports/, and archives the plan. Auto-detects parallel-capable
   plans (those with a Batches section and Depends on annotations) and prompts the
   user to choose sequential or parallel execution. Pass `--parallel` to skip the prompt
-  and run tasks in parallel via standalone implementor sub-agents. Pass `--agent-team`
+  and run tasks in parallel via standalone implementor sub-agents. Pass `--team`
   (Codex only) to run the same per-batch implementor fan-out under a shared create
   an agent group/the task tracker with up-front dependency wiring (`addBlockedBy`)
   and coordinated per-batch shutdown via send follow-up instructions. `--parallel`
-  and `--agent-team` are mutually exclusive.
+  and `--team` are mutually exclusive.
 ---
 
 # PRP Implement
@@ -31,20 +31,20 @@ Execute a plan file step-by-step with continuous validation. Every change is ver
 
 Extract flags from `$ARGUMENTS` before treating the remainder as a plan path:
 
-| Flag           | Effect                                                                                                                                                                                                                                                                                                                                                            |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel`   | Force parallel execution via **standalone sub-agents** when the plan is parallel-capable. Skips the interactive prompt. Falls back to sequential with a warning if the plan has no `Batches` section. Works in Codex, Cursor, and Codex.                                                                                                                          |
-| `--agent-team` | (Codex only) Force parallel execution via an **agent team** with up-front `record the task` + `addBlockedBy` dependency wiring, per-batch teammate spawn, and inter-batch shutdown via `send follow-up instructions`. Aborts (does NOT fall back) if the plan has no `Batches` section. Heavier dispatch with shared task-graph observability across all batches. |
-| `--dry-run`    | Only valid with `--agent-team`. Prints the team name, full task graph (with dependencies), and per-batch teammate roster, then exits without spawning any teammates.                                                                                                                                                                                              |
+| Flag         | Effect                                                                                                                                                                                                                                                                                                                                                            |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel` | Force parallel execution via **standalone sub-agents** when the plan is parallel-capable. Skips the interactive prompt. Falls back to sequential with a warning if the plan has no `Batches` section. Works in Codex, Cursor, and Codex.                                                                                                                          |
+| `--team`     | (Codex only) Force parallel execution via an **agent team** with up-front `record the task` + `addBlockedBy` dependency wiring, per-batch teammate spawn, and inter-batch shutdown via `send follow-up instructions`. Aborts (does NOT fall back) if the plan has no `Batches` section. Heavier dispatch with shared task-graph observability across all batches. |
+| `--dry-run`  | Only valid with `--team`. Prints the team name, full task graph (with dependencies), and per-batch teammate roster, then exits without spawning any teammates.                                                                                                                                                                                                    |
 
 Strip the flags from `$ARGUMENTS` and set `PARALLEL_FLAG=true|false`, `AGENT_TEAM_FLAG=true|false`, `DRY_RUN=true|false`. The remaining text is the plan file path.
 
 **Validation**:
 
-- `--parallel` and `--agent-team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --agent-team are mutually exclusive. Pick one.`
-- `--dry-run` requires `--agent-team`. If `DRY_RUN=true` and `AGENT_TEAM_FLAG=false` → abort with: `--dry-run requires --agent-team.`
+- `--parallel` and `--team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --team are mutually exclusive. Pick one.`
+- `--dry-run` requires `--team`. If `DRY_RUN=true` and `AGENT_TEAM_FLAG=false` → abort with: `--dry-run requires --team.`
 
-**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--agent-team` must not be used (those bundles ship without team tools). Use `--parallel` instead.
+**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools). Use `--parallel` instead.
 
 ### Package Manager Detection
 
@@ -109,14 +109,14 @@ grep -c "^## Batches" "$PLAN_PATH" || echo 0
 
 Decide between **Path A (Sequential)**, **Path B (Parallel sub-agents)**, and **Path C (Agent team)** based on the flags and plan capability:
 
-| Flags          | Parallel-capable plan | Action                                                                                                                                                                                                                                                           |
-| -------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--agent-team` | Yes                   | Proceed with **Path C** (agent-team batch execution) — no prompt                                                                                                                                                                                                 |
-| `--agent-team` | No                    | **Abort** with: _"`--agent-team` requires a parallel-capable plan (with `## Batches` section). This plan is sequential — re-run with `--parallel` to fall back to standalone sub-agents, or omit the flag for sequential execution."_ Do NOT silently fall back. |
-| `--parallel`   | Yes                   | Proceed with **Path B** (parallel sub-agent batch execution) — no prompt                                                                                                                                                                                         |
-| `--parallel`   | No                    | Warn: _"Plan has no `Batches` section — cannot run in parallel. Falling back to sequential execution."_ → **Path A**                                                                                                                                             |
-| (none)         | Yes                   | Use `ask the user` to prompt: _"This plan is parallel-capable ({N} tasks in {M} batches, max width {X}). Run sequential / parallel sub-agents / agent team?"_. Accept user's choice → **Path A**, **Path B**, or **Path C**.                                     |
-| (none)         | No                    | Proceed with **Path A** (sequential) — default, no prompt                                                                                                                                                                                                        |
+| Flags        | Parallel-capable plan | Action                                                                                                                                                                                                                                                     |
+| ------------ | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--team`     | Yes                   | Proceed with **Path C** (agent-team batch execution) — no prompt                                                                                                                                                                                           |
+| `--team`     | No                    | **Abort** with: _"`--team` requires a parallel-capable plan (with `## Batches` section). This plan is sequential — re-run with `--parallel` to fall back to standalone sub-agents, or omit the flag for sequential execution."_ Do NOT silently fall back. |
+| `--parallel` | Yes                   | Proceed with **Path B** (parallel sub-agent batch execution) — no prompt                                                                                                                                                                                   |
+| `--parallel` | No                    | Warn: _"Plan has no `Batches` section — cannot run in parallel. Falling back to sequential execution."_ → **Path A**                                                                                                                                       |
+| (none)       | Yes                   | Use `ask the user` to prompt: _"This plan is parallel-capable ({N} tasks in {M} batches, max width {X}). Run sequential / parallel sub-agents / agent team?"_. Accept user's choice → **Path A**, **Path B**, or **Path C**.                               |
+| (none)       | No                    | Proceed with **Path A** (sequential) — default, no prompt                                                                                                                                                                                                  |
 
 Record the chosen mode as `EXECUTION_MODE=sequential|parallel|agent_team` for use in Phase 3.
 
