@@ -9,13 +9,13 @@ Convert planning and research output into structured GitHub issues with tracking
 
 ## Supported Source Types
 
-| Source Type   | Produced By                              | Input Path Pattern                  |
-| ------------- | ---------------------------------------- | ----------------------------------- |
-| deep-research | `deep-research`                      | Directory with `RESEARCH-REPORT.md` |
-| feature-spec  | `feature-research`                   | `docs/plans/*/feature-spec.md`      |
+| Source Type   | Produced By                      | Input Path Pattern                  |
+| ------------- | -------------------------------- | ----------------------------------- |
+| deep-research | `deep-research`                  | Directory with `RESEARCH-REPORT.md` |
+| feature-spec  | `feature-research`               | `docs/plans/*/feature-spec.md`      |
 | parallel-plan | `parallel-plan`, `plan-workflow` | `docs/plans/*/parallel-plan.md`     |
-| prp-plan      | `prp-plan`                           | `docs/prps/plans/*.plan.md`         |
-| prd           | `prp-prd`                            | `docs/prps/prds/*.prd.md`           |
+| prp-plan      | `prp-plan`                       | `docs/prps/plans/*.plan.md`         |
+| prd           | `prp-prd`                        | `docs/prps/prds/*.prd.md`           |
 
 ## Current Task
 

@@ -112,8 +112,8 @@ Next steps:
 
 ## Examples
 
-| You say                                  | What happens                                               |
-| ---------------------------------------- | ---------------------------------------------------------- |
+| You say                              | What happens                                               |
+| ------------------------------------ | ---------------------------------------------------------- |
 | `/prp-commit`                        | Stages all, auto-generates message                         |
 | `/prp-commit staged`                 | Commits only what's already staged                         |
 | `/prp-commit *.ts`                   | Stages all TypeScript files, commits                       |
@@ -125,7 +125,7 @@ Next steps:
 
 ## When to use this vs `/git-workflow`
 
-| Use `/prp-commit` when                        | Use `/git-workflow` when                     |
+| Use `/prp-commit` when                            | Use `/git-workflow` when                         |
 | ------------------------------------------------- | ------------------------------------------------ |
 | You want a quick, single commit                   | You want commit + documentation updates          |
 | You have a clear scope or natural-language filter | You want to run documentation agents in parallel |

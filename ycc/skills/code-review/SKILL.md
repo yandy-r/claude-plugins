@@ -47,11 +47,11 @@ allowed-tools:
 
 Before selecting mode, extract flags from `$ARGUMENTS`:
 
-| Flag                | Effect                                                                                                                                                                                                                                                                                                            |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                                                                                                                                                                                                           |
-| `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                                                                                                                                                                                                |
-| `--parallel`        | Fan out the REVIEW phase across 3 **standalone** `ycc:code-reviewer` sub-agents (correctness, security, quality) dispatched in parallel and merge findings. Works in Claude Code, Cursor, and Codex.                                                                                                              |
+| Flag                | Effect                                                                                                                                                                                                                                                                                                                      |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                                                                                                                                                                                                                     |
+| `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                                                                                                                                                                                                          |
+| `--parallel`        | Fan out the REVIEW phase across 3 **standalone** `ycc:code-reviewer` sub-agents (correctness, security, quality) dispatched in parallel and merge findings. Works in Claude Code, Cursor, and Codex.                                                                                                                        |
 | `--team`            | (Claude Code only) Fan out the REVIEW phase across the same 3 `ycc:code-reviewer` reviewers, but dispatched as an **agent team** with up-front `TaskCreate`, shared `TaskList` observability, inter-reviewer coordination via `SendMessage`, and coordinated shutdown before merge. Heavier dispatch, richer communication. |
 
 Strip these from `$ARGUMENTS` and set `PARALLEL_MODE=true|false` and `AGENT_TEAM_MODE=true|false`. The remaining text is the mode selector (PR number/URL or blank for local).
@@ -92,11 +92,11 @@ If no changed files, stop: "Nothing to review."
 
 The shape of this phase depends on `PARALLEL_MODE` and `AGENT_TEAM_MODE`:
 
-| Flags              | Path                                     |
-| ------------------ | ---------------------------------------- |
-| Neither set        | **Path A** — single-pass review (default) |
-| `PARALLEL_MODE`    | **Path B** — 3 parallel sub-agent reviewers |
-| `AGENT_TEAM_MODE`  | **Path C** — 3-reviewer agent team       |
+| Flags             | Path                                        |
+| ----------------- | ------------------------------------------- |
+| Neither set       | **Path A** — single-pass review (default)   |
+| `PARALLEL_MODE`   | **Path B** — 3 parallel sub-agent reviewers |
+| `AGENT_TEAM_MODE` | **Path C** — 3-reviewer agent team          |
 
 #### Path A — Single-Pass Review (default, neither flag set)
 
@@ -341,11 +341,11 @@ done
 
 The shape of this phase depends on `PARALLEL_MODE` and `AGENT_TEAM_MODE`:
 
-| Flags              | Path                                     |
-| ------------------ | ---------------------------------------- |
-| Neither set        | **Path A** — single-pass review (default) |
-| `PARALLEL_MODE`    | **Path B** — 3 parallel sub-agent reviewers |
-| `AGENT_TEAM_MODE`  | **Path C** — 3-reviewer agent team       |
+| Flags             | Path                                        |
+| ----------------- | ------------------------------------------- |
+| Neither set       | **Path A** — single-pass review (default)   |
+| `PARALLEL_MODE`   | **Path B** — 3 parallel sub-agent reviewers |
+| `AGENT_TEAM_MODE` | **Path C** — 3-reviewer agent team          |
 
 #### Path A — Single-Pass Review (default, neither flag set)
 

@@ -32,11 +32,11 @@ Create a detailed, self-contained implementation plan that captures all codebase
 
 Extract flags from `$ARGUMENTS`:
 
-| Flag         | Effect                                                                                                                                                                                                                                               |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel` | Fan out research into 3 **standalone sub-agent** researchers; emit tasks with batch/dependency annotations. Works in Codex, Cursor, and Codex.                                                                                                 |
+| Flag         | Effect                                                                                                                                                                                                                                                                            |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel` | Fan out research into 3 **standalone sub-agent** researchers; emit tasks with batch/dependency annotations. Works in Codex, Cursor, and Codex.                                                                                                                                    |
 | `--team`     | (Codex only) Fan out the same 3 researchers as **teammates** under a shared `create an agent group`/`the task tracker` with coordinated shutdown via `send follow-up instructions`. Same plan output as `--parallel`, but with shared task-graph observability. Heavier dispatch. |
-| `--dry-run`  | Only valid with `--team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                       |
+| `--dry-run`  | Only valid with `--team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                                                    |
 
 Strip the flags. Set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `DRY_RUN=true|false`. Remaining text is the feature description or PRD path.
 
