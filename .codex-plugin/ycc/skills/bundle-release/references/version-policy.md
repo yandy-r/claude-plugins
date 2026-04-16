@@ -6,12 +6,12 @@ The following files carry version information for the `ycc` bundle. Only hand-ed
 files are modified directly; regenerated files are produced by running the listed
 generator script.
 
-| File                             | Kind        | Maintained by                      |
-| -------------------------------- | ----------- | ---------------------------------- |
+| File                              | Kind        | Maintained by                      |
+| --------------------------------- | ----------- | ---------------------------------- |
 | `ycc/.codex-plugin/plugin.json`  | hand-edited | `bundle-release` `bump-version.sh` |
 | `.codex-plugin/marketplace.json` | hand-edited | `bundle-release` `bump-version.sh` |
-| `.codex-plugin/ycc/**`           | regenerated | `scripts/generate-codex-plugin.sh` |
-| `.cursor-plugin/**`              | regenerated | `scripts/sync.sh --only cursor`    |
+| `.codex-plugin/ycc/**`            | regenerated | `scripts/generate-codex-plugin.sh` |
+| `.cursor-plugin/**`               | regenerated | `scripts/sync.sh --only cursor`    |
 
 ## Parity Rule
 

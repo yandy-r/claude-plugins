@@ -52,11 +52,11 @@ Invoke the matching skill with `$ARGUMENTS` passed through.
 
 ### Agent
 
-| Field                | Value                                                          |
-| -------------------- | -------------------------------------------------------------- |
-| Path                 | `ycc/agents/<kebab-name>.md`                                   |
-| Required frontmatter | `name`, `description`                                          |
-| Optional frontmatter | `tools`, `model`                                               |
+| Field                | Value                                             |
+| -------------------- | ------------------------------------------------- |
+| Path                 | `ycc/agents/<kebab-name>.md`                      |
+| Required frontmatter | `name`, `description`                             |
+| Optional frontmatter | `tools`, `model`                                  |
 | Invocation           | Invoked by skills and commands via the parallel agent workflow |
 
 The agent body is the system prompt. Agents are invoked by skills or commands, not
@@ -67,11 +67,11 @@ adding it.
 
 ### Shared Helper Script
 
-| Field       | Value                                                |
-| ----------- | ---------------------------------------------------- |
-| Path        | `ycc/skills/_shared/scripts/<kebab-name>.sh`         |
-| Sourced via | `~/.codex/plugins/ycc/shared/scripts/<name>.sh`      |
-| Threshold   | Only create when two or more distinct skills need it |
+| Field       | Value                                                    |
+| ----------- | -------------------------------------------------------- |
+| Path        | `ycc/skills/_shared/scripts/<kebab-name>.sh`             |
+| Sourced via | `~/.codex/plugins/ycc/shared/scripts/<name>.sh` |
+| Threshold   | Only create when two or more distinct skills need it     |
 
 All scripts must start with `#!/usr/bin/env bash` and use `set -euo pipefail`. Write
 output to stdout and errors to stderr. Exit 0 on success, 1 on error.
