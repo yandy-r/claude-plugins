@@ -210,12 +210,17 @@ def render_inventory_json(inventory: dict[str, Any]) -> str:
 
 
 def _region_pattern(marker: str) -> re.Pattern[str]:
-    """Return a compiled regex that matches the full BEGIN/END block for *marker*."""
+    """Return a compiled regex that matches the full BEGIN/END block for *marker*.
+
+    Both markers must be alone on their own line — this prevents documentation
+    that mentions the marker names (e.g. inside backticks or list items) from
+    being accidentally rewritten.
+    """
     return re.compile(
-        r'(<!-- BEGIN:' + re.escape(marker) + r' -->)'
-        r'.*?'
-        r'(<!-- END:' + re.escape(marker) + r' -->)',
-        re.DOTALL,
+        r"^<!-- BEGIN:" + re.escape(marker) + r" -->$"
+        r".*?"
+        r"^<!-- END:" + re.escape(marker) + r" -->$",
+        re.DOTALL | re.MULTILINE,
     )
 
 
@@ -230,25 +235,32 @@ def render_counts_region(
         f"**{nc} slash commands** (1-to-1 with skills), "
         f"and **{na} agents**."
     )
-    return f"<!-- BEGIN:{MARKER_COUNTS} -->\n{body}\n<!-- END:{MARKER_COUNTS} -->"
+    return f"<!-- BEGIN:{MARKER_COUNTS} -->\n\n{body}\n\n<!-- END:{MARKER_COUNTS} -->"
 
 
 def render_commands_region(commands: list[dict[str, str]]) -> str:
-    header = (
-        "| Command / Skill           | Purpose"
-        "                                                                    |\n"
-        "| ------------------------- | "
-        "-------------------------------------------------------------------------- |"
-    )
-    rows: list[str] = []
+    # Emit a markdown table whose column widths match what Prettier would produce
+    # after formatting: each column padded to the widest cell in that column.
+    headers = ("Command / Skill", "Purpose")
+    rows: list[tuple[str, str]] = []
     for cmd in commands:
         col1 = f"`/ycc:{cmd['name']}`"
         col2 = short_description(cmd["description"])
-        rows.append(f"| {col1:<25} | {col2:<74} |")
-    table = header + "\n" + "\n".join(rows)
+        rows.append((col1, col2))
+
+    w1 = max(len(headers[0]), *(len(r[0]) for r in rows))
+    w2 = max(len(headers[1]), *(len(r[1]) for r in rows))
+
+    lines = [
+        f"| {headers[0]:<{w1}} | {headers[1]:<{w2}} |",
+        f"| {'-' * w1} | {'-' * w2} |",
+    ]
+    lines.extend(f"| {r[0]:<{w1}} | {r[1]:<{w2}} |" for r in rows)
+    table = "\n".join(lines)
+
     return (
-        f"<!-- BEGIN:{MARKER_COMMANDS} -->\n"
-        f"{table}\n"
+        f"<!-- BEGIN:{MARKER_COMMANDS} -->\n\n"
+        f"{table}\n\n"
         f"<!-- END:{MARKER_COMMANDS} -->"
     )
 
@@ -256,11 +268,7 @@ def render_commands_region(commands: list[dict[str, str]]) -> str:
 def render_agents_region(agents: list[dict[str, str]]) -> str:
     na = len(agents)
     body = f"The plugin bundles **{na}** specialized agents covering codebase analysis, language experts (Go, Rust, Python, TypeScript), reviewers, planners, documenters, and infrastructure architects."
-    return (
-        f"<!-- BEGIN:{MARKER_AGENTS} -->\n"
-        f"{body}\n"
-        f"<!-- END:{MARKER_AGENTS} -->"
-    )
+    return f"<!-- BEGIN:{MARKER_AGENTS} -->\n\n{body}\n\n<!-- END:{MARKER_AGENTS} -->"
 
 
 def rewrite_readme(
