@@ -25,6 +25,10 @@
       "description": "Dual-mode code review \u2014 local uncommitted changes OR a GitHub pull request. Both modes now write a machine-parseable review artifact (Local \u2192 docs/prps/reviews/local-{timestamp}-review.md, PR \u2192 docs/prps/reviews/pr-{N}-review.md) with sequential finding IDs (F001, F002, ...) and Status fields (Open/Fixed/Failed) so /ycc:review-fix can consume and update them in place. Local mode runs a full security + quality pass on the diff. PR mode fetches the PR, reads each changed file in full, builds context from CLAUDE.md and PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build) for detected stacks, assigns severity, and posts the review to GitHub via gh. Pass `--parallel` to fan out the REVIEW phase across 3 standalone ycc:code-reviewer sub-agents (correctness, security, quality) and merge findings. Pass `--team` (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList, per-reviewer task tracking, and inter-reviewer communication via SendMessage. `--parallel` and `--team` are mutually exclusive. Use when the user asks to \"review code\", \"review PR\", \"check uncommitted changes\", \"review pr N\", \"parallel review\", \"team review\", or says \"/code-review\". Adapted from PRPs-agentic-eng by Wirasm."
     },
     {
+      "name": "compatibility-audit",
+      "description": "This skill should be used when the user asks to \"audit ycc compatibility\", \"check Cursor/Codex bundle health\", \"verify cross-target parity\", \"run a compatibility report for ycc\", \"is ycc ready to release\", \"are the generated bundles up to date\", \"check if the bundles are in sync\", \"validate generated targets\", \"are Cursor and Codex bundles current\", \"check bundle drift\", \"report on target feature gaps\", or when the user wants a structured per-target health report covering drift detection, install-assumption validation, and feature-capability gaps across the Claude, Cursor, and Codex targets without bumping versions or committing anything.\n"
+    },
+    {
       "name": "deep-research",
       "description": "Conduct strategic multi-perspective research using the Asymmetric Research Squad methodology with 8 specialized personas. Deploys parallel research agents covering historical, contrarian, analogical, systems, journalistic, archaeological, futurist, and negative-space perspectives. Pass `--team` (Claude Code only) to deploy the 14 research agents as teammates under a shared `TeamCreate`/`TaskList` with coordinated shutdown; default is standalone parallel sub-agents. Use for comprehensive research on complex topics requiring diverse viewpoints, competitive analysis, or strategic intelligence gathering."
     },
@@ -55,6 +59,10 @@
     {
       "name": "go-testing",
       "description": "Go testing patterns including table-driven tests, subtests, benchmarks, fuzzing, and test coverage. Follows TDD methodology with idiomatic Go practices. Use when the user is writing Go tests, adding test coverage to Go code, asks about table-driven tests, t.Run subtests, t.Helper/t.Cleanup/t.TempDir, testing.B benchmarks, Go 1.18+ fuzzing (f.Fuzz), httptest handler testing, golden files, interface-based mocks, or wants TDD guidance for a Go project."
+    },
+    {
+      "name": "hooks-workflow",
+      "description": "This skill should be used when the user asks to \"generate hook config\", \"configure Claude hooks from ycc rules\", \"apply ycc hooks\", \"cross-target hook setup\", \"hook matrix for this repo\", \"turn hook guidance into settings.json\", or \"verify my hook config\". It converts existing rule-file hook guidance into real, target-appropriate hook configuration. The skill reads hook recommendations from the resolved language rules file(s), consults the target-capability matrix to determine what is actually supported on the requested target, and emits only the config that the target can execute. Per-target boundaries are enforced explicitly: Claude receives a concrete JSON hooks fragment, Cursor receives rule-embedded advisory guidance where supported, and Codex always receives an advisory-only fragment. The skill never claims parity across targets and never fabricates config for an unsupported target.\n"
     },
     {
       "name": "implement-plan",
@@ -183,6 +191,10 @@
       "description": "Code review \u2014 local uncommitted changes or a GitHub PR (pass PR number/URL for PR mode). Runs security + quality checks, executes validation commands, writes an artifact, and posts the review. Pass --parallel to fan out the review phase across 3 specialized reviewer agents (correctness, security, quality) and merge findings. Pass --team (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList and per-reviewer task tracking."
     },
     {
+      "name": "compatibility-audit",
+      "description": "Audit cross-target compatibility of the ycc bundle across Claude, Cursor, and Codex targets"
+    },
+    {
       "name": "deep-research",
       "description": "Conduct strategic multi-perspective research using the Asymmetric Research Squad methodology with 8 specialized personas. Deploys parallel research agents covering historical, contrarian, analogical, systems, journalistic, archaeological, futurist, and negative-space perspectives. Pass --team (Claude Code only) to deploy the 14 research agents as teammates under a shared TeamCreate/TaskList with coordinated shutdown; default is standalone parallel sub-agents. Use for comprehensive research on complex topics requiring diverse viewpoints, competitive analysis, or strategic intelligence gathering."
     },
@@ -213,6 +225,10 @@
     {
       "name": "go-testing",
       "description": "Go testing patterns including table-driven tests, subtests, benchmarks, fuzzing, and test coverage. Follows TDD methodology with idiomatic Go practices. Use when the user is writing Go tests, adding test coverage to Go code, asks about table-driven tests, t.Run subtests, t.Helper/t.Cleanup/t.TempDir, testing.B benchmarks, Go 1.18+ fuzzing (f.Fuzz), httptest handler testing, golden files, interface-based mocks, or wants TDD guidance for a Go project."
+    },
+    {
+      "name": "hooks-workflow",
+      "description": "Generate target-aware hook configuration from ycc rule guidance with graceful fallbacks."
     },
     {
       "name": "implement-plan",
@@ -514,14 +530,12 @@
     }
   ],
   "counts": {
-    "skills": 39,
-    "commands": 38,
+    "skills": 41,
+    "commands": 40,
     "agents": 50
   },
   "parity": {
-    "skills_without_commands": [
-      "karpathy-guidelines"
-    ],
+    "skills_without_commands": ["karpathy-guidelines"],
     "commands_without_skills": []
   }
 }
