@@ -55,5 +55,9 @@
       "name": "claude-plugins-official",
       "url": "https://raw.githubusercontent.com/anthropics/claude-plugins-official/main/marketplace.json"
     }
-  ]
+  ],
+  "skipAutoPermissionPrompt": true,
+  "permissions": {
+    "defaultMode": "auto"
+  }
 }
