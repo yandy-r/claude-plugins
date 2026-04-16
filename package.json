@@ -1,0 +1,12 @@
+{
+  "name": "ycc",
+  "description": "Scripts for YCC",
+  "scripts": {
+    "lint": "scripts/lint.sh",
+    "lint:modified": "scripts/lint.sh --modified",
+    "lint:fix": "scripts/lint.sh --fix",
+    "lint:fix:modified": "scripts/lint.sh --fix --modified",
+    "format": "scripts/format.sh",
+    "format:modified": "scripts/format.sh --modified"
+  }
+}

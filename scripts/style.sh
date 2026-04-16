@@ -103,7 +103,7 @@ detect_docs_project() {
     [[ -f "$target_dir/.prettierrc.json" ]] ||
     [[ -f "$target_dir/.prettierrc.yml" ]] ||
     [[ -f "$target_dir/.prettierrc.yaml" ]] ||
-    directory_has_suffixes "$target_dir" ".md" ".mdx" ".json" ".jsonc"
+    directory_has_suffixes "$target_dir" ".md" ".mdx" ".json" ".jsonc" ".yaml" ".yml"
 }
 
 detect_python_project() {
@@ -213,7 +213,7 @@ run_ts_lint() {
     local -a ts_biome_files=()
     local -a ts_typecheck_files=()
     mapfile -t ts_biome_files < <(list_modified_repo_paths "$ts_prefix" \
-      ".ts" ".tsx" ".js" ".jsx" ".mjs" ".cjs" ".mts" ".cts" ".json" ".jsonc" ".css")
+      ".ts" ".tsx" ".js" ".jsx" ".mjs" ".cjs" ".mts" ".cts" ".css")
     mapfile -t ts_typecheck_files < <(list_modified_repo_paths "$ts_prefix" \
       ".ts" ".tsx" ".mts" ".cts")
 
@@ -432,7 +432,7 @@ run_ts_format() {
   if (( modified_only )); then
     local -a ts_files=()
     mapfile -t ts_files < <(list_modified_repo_paths "$ts_prefix" \
-      ".ts" ".tsx" ".js" ".jsx" ".mjs" ".cjs" ".mts" ".cts" ".json" ".jsonc" ".css")
+      ".ts" ".tsx" ".js" ".jsx" ".mjs" ".cjs" ".mts" ".cts" ".css")
 
     if (( ${#ts_files[@]} == 0 )); then
       echo "=== TypeScript/JavaScript ==="
@@ -457,7 +457,7 @@ run_docs_format() {
   local modified_only="$1"
 
   if ! detect_docs_project; then
-    print_skip "Markdown/JSON" "no package.json, prettier config, or docs files found in ${DOCS_PROJECT_DIR}"
+    print_skip "Markdown/JSON/YAML" "no package.json, prettier config, or docs files found in ${DOCS_PROJECT_DIR}"
     return 0
   fi
 
@@ -478,22 +478,22 @@ run_docs_format() {
 
   local -a docs_files=()
   if (( modified_only )); then
-    mapfile -t docs_files < <(list_modified_repo_paths "$docs_prefix" ".md" ".mdx" ".json" ".jsonc")
+    mapfile -t docs_files < <(list_modified_repo_paths "$docs_prefix" ".md" ".mdx" ".json" ".jsonc" ".yaml" ".yml")
     if (( ${#docs_files[@]} == 0 )); then
-      echo "=== Markdown/JSON ==="
-      echo "No modified Markdown or JSON files."
+      echo "=== Markdown/JSON/YAML ==="
+      echo "No modified Markdown, JSON, or YAML files."
       return 0
     fi
   else
-    mapfile -t docs_files < <(list_repo_paths "$docs_prefix" ".md" ".mdx" ".json" ".jsonc")
+    mapfile -t docs_files < <(list_repo_paths "$docs_prefix" ".md" ".mdx" ".json" ".jsonc" ".yaml" ".yml")
     if (( ${#docs_files[@]} == 0 )); then
-      echo "=== Markdown/JSON ==="
-      echo "No Markdown or JSON files found."
+      echo "=== Markdown/JSON/YAML ==="
+      echo "No Markdown, JSON, or YAML files found."
       return 0
     fi
   fi
 
-  echo "=== Markdown/JSON: prettier ==="
+  echo "=== Markdown/JSON/YAML: prettier ==="
   local -a docs_relative_files=()
   mapfile -t docs_relative_files < <(relativize_paths "$DOCS_PROJECT_DIR" "${docs_files[@]}")
   (cd "$DOCS_PROJECT_DIR" && npx prettier --write "${docs_relative_files[@]}" "${prettier_args[@]}")
@@ -635,7 +635,7 @@ Options:
   --modified  Limit file-based formatting to modified git files
   --rust      Rust only (rustfmt)
   --ts        TypeScript / JavaScript only (biome)
-  --docs      Markdown / JSON only (prettier)
+  --docs      Markdown / JSON / YAML only (prettier)
   --python    Python only (black)
   --go        Go only (gofmt + goimports)
   --all       All supported formatters (default)
