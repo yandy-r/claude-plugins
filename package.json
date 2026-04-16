@@ -2,11 +2,11 @@
   "name": "ycc",
   "description": "Scripts for YCC",
   "scripts": {
-    "lint": "scripts/lint.sh",
-    "lint:modified": "scripts/lint.sh --modified",
-    "lint:fix": "scripts/lint.sh --fix",
-    "lint:fix:modified": "scripts/lint.sh --fix --modified",
-    "format": "scripts/format.sh",
-    "format:modified": "scripts/format.sh --modified"
+    "lint": "scripts/lint.sh --python --shell",
+    "lint:modified": "scripts/lint.sh --modified --python --shell",
+    "lint:fix": "scripts/lint.sh --fix --python --shell",
+    "lint:fix:modified": "scripts/lint.sh --fix --modified --python --shell",
+    "format": "scripts/format.sh --python --docs",
+    "format:modified": "scripts/format.sh --modified --python --docs"
   }
 }
