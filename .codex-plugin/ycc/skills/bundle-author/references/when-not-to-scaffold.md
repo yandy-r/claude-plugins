@@ -80,4 +80,5 @@ can always add it later when the consuming skill is written.
 
 ---
 
-See also: `surface-map.md` (this directory), `AGENTS.md` (repo root).
+See also: `surface-map.md` (this directory), `AGENTS.md` (repo root), and the Scope &
+Guardrails section of `CONTRIBUTING.md` (repo root) for the policy-level view.

@@ -71,6 +71,8 @@ The plugin bundles **50** specialized agents covering codebase analysis, languag
 - **Cursor:** generated, Cursor-native copies live in [`.cursor-plugin/agents/`](.cursor-plugin/agents/) (produced from `ycc/agents/` — see [Cursor IDE sync](#cursor-ide-sync)).
 - **Codex:** generated, Codex-native custom-agent TOMLs live in [`.codex-plugin/agents/`](.codex-plugin/agents/) (produced from `ycc/agents/` and synced to `~/.codex/agents/` by `install.sh --target codex`).
 
+**Contributing:** before proposing a new skill, command, or agent, read the Scope & Guardrails policy in [`CONTRIBUTING.md`](CONTRIBUTING.md#scope--guardrails).
+
 ## Installation
 
 ```bash
