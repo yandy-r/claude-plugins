@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Check prerequisites for deep research skill
+# Check prerequisites for deep research skill.
+# Run BEFORE `mkdir -p` — this script is read-only and has no side effects.
+# The skill creates the output directory tree after this check passes.
 
 set -euo pipefail
 
@@ -15,6 +17,7 @@ usage() {
 Usage: $(basename "$0") OUTPUT_DIR
 
 Check prerequisites for deep research execution.
+Run BEFORE \`mkdir -p\` — no directories are created by this script.
 
 Arguments:
     OUTPUT_DIR    The output directory for research artifacts
@@ -48,12 +51,27 @@ else
     echo -e "${GREEN}✓${NC} Output directory does not exist (will be created)"
 fi
 
-# Check if required directories can be created
+# Check if required directories can be created.
+# Walk up to the nearest existing ancestor so a not-yet-created parent is not
+# a hard failure — the skill calls `mkdir -p` after this script exits.
 PARENT_DIR=$(dirname "$OUTPUT_DIR")
-if [ ! -d "$PARENT_DIR" ]; then
-    echo -e "${RED}✗ Error:${NC} Parent directory does not exist: $PARENT_DIR"
-    echo "  Please create the parent directory first."
-    ERRORS=$((ERRORS + 1))
+NEAREST_ANCESTOR="$PARENT_DIR"
+while [ ! -d "$NEAREST_ANCESTOR" ]; do
+    NEAREST_ANCESTOR=$(dirname "$NEAREST_ANCESTOR")
+done
+
+if [ "$NEAREST_ANCESTOR" != "$PARENT_DIR" ]; then
+    # Parent does not exist yet; check that the nearest ancestor is writable
+    # so the skill's mkdir -p will succeed.
+    if [ ! -w "$NEAREST_ANCESTOR" ]; then
+        echo -e "${RED}✗ Error:${NC} Cannot write to ancestor directory: $NEAREST_ANCESTOR"
+        echo "  The skill needs to create $PARENT_DIR but the nearest writable"
+        echo "  ancestor does not permit writes."
+        ERRORS=$((ERRORS + 1))
+    else
+        echo -e "${GREEN}✓${NC} Parent directory does not exist yet (will be created by the skill)" >&2
+        echo -e "${GREEN}✓${NC} Nearest existing ancestor is writable: $NEAREST_ANCESTOR"
+    fi
 elif [ ! -w "$PARENT_DIR" ]; then
     echo -e "${RED}✗ Error:${NC} Parent directory is not writable: $PARENT_DIR"
     ERRORS=$((ERRORS + 1))
@@ -91,10 +109,11 @@ check_command "ls" "yes"
 check_command "rg" "no"
 check_command "fd" "no"
 
-# Check disk space
+# Check disk space against the nearest existing ancestor (PARENT_DIR may not
+# exist yet; NEAREST_ANCESTOR is guaranteed to exist at this point).
 echo ""
 echo "Checking disk space..."
-AVAILABLE_KB=$(df -k "$PARENT_DIR" | awk 'NR==2 {print $4}')
+AVAILABLE_KB=$(df -k "$NEAREST_ANCESTOR" | awk 'NR==2 {print $4}')
 AVAILABLE_MB=$((AVAILABLE_KB / 1024))
 
 if [ "$AVAILABLE_MB" -lt 10 ]; then

@@ -1,0 +1,446 @@
+#!/usr/bin/env python3
+"""
+Generate the canonical inventory of ycc skills, commands, and agents, and
+rewrite the three GENERATED-* regions in README.md.
+
+Outputs:
+  docs/inventory.json  -- pretty-printed JSON manifest (sorted, stable key order)
+  README.md            -- three marker regions rewritten in-place
+
+Modes:
+  (default)   Write both outputs.  Print a summary to stderr.
+  --dry-run   Print what would be written without touching files.
+  --check     Regenerate in memory, diff against current on-disk state.
+              Exits 1 on any difference; exits 0 if everything matches.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+import tempfile
+from pathlib import Path
+from typing import Any
+
+try:
+    import yaml as _yaml
+
+    def _load_yaml(text: str) -> Any:
+        return _yaml.safe_load(text)
+
+except ImportError:
+    _yaml = None  # type: ignore[assignment]
+
+    def _load_yaml(text: str) -> Any:  # type: ignore[misc]
+        """Minimal tolerant YAML parser: extracts top-level string scalars only."""
+        result: dict[str, str] = {}
+        for line in text.splitlines():
+            m = re.match(r'^([a-zA-Z_][a-zA-Z0-9_-]*):\s*(.*)', line)
+            if m:
+                key, val = m.group(1), m.group(2).strip()
+                if val.startswith(('"', "'")):
+                    val = val.strip('"\'')
+                result[key] = val
+        return result
+
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+SKILLS_DIR = REPO_ROOT / "ycc" / "skills"
+COMMANDS_DIR = REPO_ROOT / "ycc" / "commands"
+AGENTS_DIR = REPO_ROOT / "ycc" / "agents"
+INVENTORY_PATH = REPO_ROOT / "docs" / "inventory.json"
+README_PATH = REPO_ROOT / "README.md"
+
+SHORT_DESC_LIMIT = 180
+
+# README marker names
+MARKER_COUNTS = "GENERATED-COUNTS"
+MARKER_COMMANDS = "GENERATED-COMMANDS"
+MARKER_AGENTS = "GENERATED-AGENTS"
+
+
+# ---------------------------------------------------------------------------
+# Frontmatter parsing
+# ---------------------------------------------------------------------------
+
+
+def _strip_preamble(text: str) -> str:
+    """Remove stray lines before the first YAML frontmatter opener."""
+    if text.startswith("---"):
+        return text
+    for i, line in enumerate(text.splitlines(keepends=True)):
+        if line.strip() == "---":
+            return "".join(text.splitlines(keepends=True)[i:])
+    return text
+
+
+def parse_frontmatter(text: str) -> dict[str, Any]:
+    """Return the frontmatter dict from a Markdown file (empty dict if absent)."""
+    stripped = _strip_preamble(text)
+    if not stripped.startswith("---\n"):
+        return {}
+    end = stripped.find("\n---\n", 4)
+    if end == -1:
+        return {}
+    raw = stripped[4:end]
+    if not raw.strip():
+        return {}
+    data = _load_yaml(raw)
+    if not isinstance(data, dict):
+        return {}
+    return data
+
+
+def short_description(full: str) -> str:
+    """Return a single-line short form of a description for the README table."""
+    if not full:
+        return ""
+    # Collapse newlines and extra whitespace
+    single = re.sub(r'\s+', ' ', str(full)).strip()
+    # Take text up to the first sentence-ending punctuation
+    m = re.search(r'([.!?])\s', single)
+    if m:
+        candidate = single[: m.start() + 1]
+        if len(candidate) <= SHORT_DESC_LIMIT:
+            return candidate
+    if len(single) <= SHORT_DESC_LIMIT:
+        return single
+    return single[:SHORT_DESC_LIMIT].rstrip() + "..."
+
+
+# ---------------------------------------------------------------------------
+# Discovery
+# ---------------------------------------------------------------------------
+
+
+def discover_skills() -> list[dict[str, str]]:
+    """Return sorted list of {name, description} dicts for all valid skills."""
+    entries: list[dict[str, str]] = []
+    for skill_dir in sorted(SKILLS_DIR.iterdir()):
+        if not skill_dir.is_dir():
+            continue
+        if skill_dir.name.startswith("_"):
+            continue
+        skill_md = skill_dir / "SKILL.md"
+        if not skill_md.exists():
+            continue
+        fm = parse_frontmatter(skill_md.read_text(encoding="utf-8"))
+        entries.append(
+            {
+                "name": fm.get("name") or skill_dir.name,
+                "description": str(fm.get("description") or ""),
+            }
+        )
+    return sorted(entries, key=lambda e: e["name"])
+
+
+def discover_commands() -> list[dict[str, str]]:
+    """Return sorted list of {name, description} dicts for all command *.md files."""
+    entries: list[dict[str, str]] = []
+    for cmd_md in sorted(COMMANDS_DIR.glob("*.md")):
+        fm = parse_frontmatter(cmd_md.read_text(encoding="utf-8"))
+        entries.append(
+            {
+                "name": cmd_md.stem,
+                "description": str(fm.get("description") or ""),
+            }
+        )
+    return sorted(entries, key=lambda e: e["name"])
+
+
+def discover_agents() -> list[dict[str, str]]:
+    """Return sorted list of {name, description} dicts for all agent *.md files."""
+    entries: list[dict[str, str]] = []
+    for agent_md in sorted(AGENTS_DIR.glob("*.md")):
+        fm = parse_frontmatter(agent_md.read_text(encoding="utf-8"))
+        entries.append(
+            {
+                "name": agent_md.stem,
+                "description": str(fm.get("description") or ""),
+            }
+        )
+    return sorted(entries, key=lambda e: e["name"])
+
+
+def compute_parity(
+    skills: list[dict[str, str]],
+    commands: list[dict[str, str]],
+) -> dict[str, list[str]]:
+    skill_names = {e["name"] for e in skills}
+    command_names = {e["name"] for e in commands}
+    return {
+        "skills_without_commands": sorted(skill_names - command_names),
+        "commands_without_skills": sorted(command_names - skill_names),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Inventory JSON builder
+# ---------------------------------------------------------------------------
+
+
+def build_inventory(
+    skills: list[dict[str, str]],
+    commands: list[dict[str, str]],
+    agents: list[dict[str, str]],
+    parity: dict[str, list[str]],
+) -> dict[str, Any]:
+    return {
+        "skills": skills,
+        "commands": commands,
+        "agents": agents,
+        "counts": {
+            "skills": len(skills),
+            "commands": len(commands),
+            "agents": len(agents),
+        },
+        "parity": parity,
+    }
+
+
+def render_inventory_json(inventory: dict[str, Any]) -> str:
+    return json.dumps(inventory, indent=2) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# README region rewriting
+# ---------------------------------------------------------------------------
+
+
+def _region_pattern(marker: str) -> re.Pattern[str]:
+    """Return a compiled regex that matches the full BEGIN/END block for *marker*."""
+    return re.compile(
+        r'(<!-- BEGIN:' + re.escape(marker) + r' -->)'
+        r'.*?'
+        r'(<!-- END:' + re.escape(marker) + r' -->)',
+        re.DOTALL,
+    )
+
+
+def render_counts_region(
+    skills: list[dict[str, str]],
+    commands: list[dict[str, str]],
+    agents: list[dict[str, str]],
+) -> str:
+    ns, nc, na = len(skills), len(commands), len(agents)
+    body = (
+        f"The source plugin ships **{ns} skills**, "
+        f"**{nc} slash commands** (1-to-1 with skills), "
+        f"and **{na} agents**."
+    )
+    return f"<!-- BEGIN:{MARKER_COUNTS} -->\n{body}\n<!-- END:{MARKER_COUNTS} -->"
+
+
+def render_commands_region(commands: list[dict[str, str]]) -> str:
+    header = (
+        "| Command / Skill           | Purpose"
+        "                                                                    |\n"
+        "| ------------------------- | "
+        "-------------------------------------------------------------------------- |"
+    )
+    rows: list[str] = []
+    for cmd in commands:
+        col1 = f"`/ycc:{cmd['name']}`"
+        col2 = short_description(cmd["description"])
+        rows.append(f"| {col1:<25} | {col2:<74} |")
+    table = header + "\n" + "\n".join(rows)
+    return (
+        f"<!-- BEGIN:{MARKER_COMMANDS} -->\n"
+        f"{table}\n"
+        f"<!-- END:{MARKER_COMMANDS} -->"
+    )
+
+
+def render_agents_region(agents: list[dict[str, str]]) -> str:
+    na = len(agents)
+    body = f"The plugin bundles **{na}** specialized agents covering codebase analysis, language experts (Go, Rust, Python, TypeScript), reviewers, planners, documenters, and infrastructure architects."
+    return (
+        f"<!-- BEGIN:{MARKER_AGENTS} -->\n"
+        f"{body}\n"
+        f"<!-- END:{MARKER_AGENTS} -->"
+    )
+
+
+def rewrite_readme(
+    readme_text: str,
+    skills: list[dict[str, str]],
+    commands: list[dict[str, str]],
+    agents: list[dict[str, str]],
+) -> str:
+    """Return readme_text with all three GENERATED-* regions replaced."""
+    result = readme_text
+
+    result = _region_pattern(MARKER_COUNTS).sub(
+        render_counts_region(skills, commands, agents), result
+    )
+    result = _region_pattern(MARKER_COMMANDS).sub(
+        render_commands_region(commands), result
+    )
+    result = _region_pattern(MARKER_AGENTS).sub(
+        render_agents_region(agents), result
+    )
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Modes
+# ---------------------------------------------------------------------------
+
+
+def run_generate(
+    skills: list[dict[str, str]],
+    commands: list[dict[str, str]],
+    agents: list[dict[str, str]],
+    parity: dict[str, list[str]],
+    inventory: dict[str, Any],
+    dry_run: bool,
+) -> None:
+    json_content = render_inventory_json(inventory)
+    readme_text = README_PATH.read_text(encoding="utf-8")
+    new_readme = rewrite_readme(readme_text, skills, commands, agents)
+
+    if dry_run:
+        print(f"Would write {INVENTORY_PATH.relative_to(REPO_ROOT)} ({len(json_content)} bytes):")
+        print("--- inventory.json (first 40 lines) ---")
+        for line in json_content.splitlines()[:40]:
+            print(line)
+        print()
+        print(f"Would rewrite {README_PATH.relative_to(REPO_ROOT)} ({len(new_readme)} bytes)")
+        print("--- GENERATED-COUNTS region ---")
+        print(render_counts_region(skills, commands, agents))
+        print()
+        print("--- GENERATED-COMMANDS region (first 10 rows) ---")
+        cmd_region_lines = render_commands_region(commands).splitlines()
+        for line in cmd_region_lines[:12]:
+            print(line)
+        if len(cmd_region_lines) > 12:
+            print(f"  ... ({len(cmd_region_lines) - 12} more lines)")
+        print()
+        print("--- GENERATED-AGENTS region ---")
+        print(render_agents_region(agents))
+    else:
+        INVENTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+        INVENTORY_PATH.write_text(json_content, encoding="utf-8")
+        print(f"Wrote {INVENTORY_PATH.relative_to(REPO_ROOT)}", file=sys.stderr)
+        README_PATH.write_text(new_readme, encoding="utf-8")
+        print(f"Rewrote {README_PATH.relative_to(REPO_ROOT)}", file=sys.stderr)
+
+    _print_summary(skills, commands, agents, parity)
+
+
+def run_check(
+    skills: list[dict[str, str]],
+    commands: list[dict[str, str]],
+    agents: list[dict[str, str]],
+    parity: dict[str, list[str]],
+    inventory: dict[str, Any],
+) -> int:
+    """Check mode: regenerate in memory and diff against on-disk state."""
+    diffs: list[str] = []
+
+    # Check inventory.json
+    json_content = render_inventory_json(inventory)
+    if not INVENTORY_PATH.exists():
+        diffs.append(f"MISSING: {INVENTORY_PATH.relative_to(REPO_ROOT)}")
+    else:
+        existing_json = INVENTORY_PATH.read_text(encoding="utf-8")
+        if existing_json != json_content:
+            diffs.append(f"DRIFT: {INVENTORY_PATH.relative_to(REPO_ROOT)}")
+            _show_text_diff(existing_json, json_content, str(INVENTORY_PATH.relative_to(REPO_ROOT)))
+
+    # Check README.md regions
+    if not README_PATH.exists():
+        diffs.append(f"MISSING: {README_PATH.relative_to(REPO_ROOT)}")
+    else:
+        readme_text = README_PATH.read_text(encoding="utf-8")
+        new_readme = rewrite_readme(readme_text, skills, commands, agents)
+        if readme_text != new_readme:
+            diffs.append(f"DRIFT: {README_PATH.relative_to(REPO_ROOT)} (GENERATED-* regions)")
+            _show_text_diff(readme_text, new_readme, str(README_PATH.relative_to(REPO_ROOT)))
+
+    if diffs:
+        print("Inventory is out of date. Run: python3 scripts/generate_inventory.py", file=sys.stderr)
+        for line in diffs:
+            print(f"  {line}", file=sys.stderr)
+        return 1
+
+    print("Inventory is up to date.", file=sys.stderr)
+    _print_summary(skills, commands, agents, parity)
+    return 0
+
+
+def _show_text_diff(old: str, new: str, label: str) -> None:
+    """Print a simple unified-style summary of changed lines."""
+    old_lines = old.splitlines()
+    new_lines = new.splitlines()
+    changed = sum(
+        1 for a, b in zip(old_lines, new_lines) if a != b
+    )
+    added = max(0, len(new_lines) - len(old_lines))
+    removed = max(0, len(old_lines) - len(new_lines))
+    print(
+        f"    {label}: ~{changed} changed line(s), +{added}/-{removed} lines",
+        file=sys.stderr,
+    )
+
+
+def _print_summary(
+    skills: list[dict[str, str]],
+    commands: list[dict[str, str]],
+    agents: list[dict[str, str]],
+    parity: dict[str, list[str]],
+) -> None:
+    print(
+        f"Summary: {len(skills)} skills, {len(commands)} commands, {len(agents)} agents",
+        file=sys.stderr,
+    )
+    swc = parity["skills_without_commands"]
+    cws = parity["commands_without_skills"]
+    if swc:
+        print(f"  skills without commands: {', '.join(swc)}", file=sys.stderr)
+    else:
+        print("  skills without commands: (none)", file=sys.stderr)
+    if cws:
+        print(f"  commands without skills: {', '.join(cws)}", file=sys.stderr)
+    else:
+        print("  commands without skills: (none)", file=sys.stderr)
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print what would be written without touching files",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help=(
+            "Regenerate in memory and diff against docs/inventory.json and "
+            "README.md GENERATED-* regions. Exit 1 on any difference."
+        ),
+    )
+    args = parser.parse_args()
+
+    skills = discover_skills()
+    commands = discover_commands()
+    agents = discover_agents()
+    parity = compute_parity(skills, commands)
+    inventory = build_inventory(skills, commands, agents, parity)
+
+    if args.check:
+        sys.exit(run_check(skills, commands, agents, parity, inventory))
+
+    run_generate(skills, commands, agents, parity, inventory, dry_run=args.dry_run)
+
+
+if __name__ == "__main__":
+    main()

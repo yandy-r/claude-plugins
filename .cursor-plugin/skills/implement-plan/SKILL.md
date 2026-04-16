@@ -261,7 +261,7 @@ For each task in the batch, deploy an implementor with:
 
 | Field         | Value                                      |
 | ------------- | ------------------------------------------ |
-| subagent_type | `implementor`                              |
+| subagent_type | `implementor`                          |
 | description   | "Implement [Task ID]: [Title]"             |
 | prompt        | Use template with task details substituted |
 
