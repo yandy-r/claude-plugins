@@ -113,3 +113,6 @@ enabled = true
 
 [apps.connector_76869538009648d5b282a4bb21c3d157.tools.github_label_pr]
 approval_mode = "approve"
+
+[apps.connector_76869538009648d5b282a4bb21c3d157.tools.github_add_review_to_pr]
+approval_mode = "approve"
