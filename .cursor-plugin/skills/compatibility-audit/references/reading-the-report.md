@@ -1,6 +1,6 @@
 # Reading the compatibility-audit report
 
-This document explains how to interpret the output of `compatibility-audit`: the
+This document explains how to interpret the output of `ycc:compatibility-audit`: the
 structure of the human-format report, what each per-target verdict means, and how to act
 on the most common failure classes.
 
@@ -21,8 +21,9 @@ A failure here means the bundle cannot be trusted for release.
 
 **Install assumptions** — output of `audit-install-assumptions.sh`. Verifies that every
 artifact uses the expected install-path convention, has a valid shebang where required,
-and that no raw plugin-root variable reference was leaked verbatim into a generated bundle
-(generators must rewrite these to absolute paths).
+and that plugin-root variable references are rewritten target-appropriately (kept as
+`${CLAUDE_PLUGIN_ROOT}` in the Claude source tree; rewritten to the installed plugin's
+absolute path in generated Cursor and Codex bundles).
 
 **Feature-vs-matrix** — output of `audit-target-features.sh`. Cross-references
 capabilities in the source tree against `target-capability-matrix.md`. Features present
@@ -67,7 +68,7 @@ root:
 ```
 
 `sync.sh` regenerates all three targets; `validate.sh` confirms structural correctness.
-After both exit 0, re-run `compatibility-audit` to confirm the drift block clears.
+After both exit 0, re-run `ycc:compatibility-audit` to confirm the drift block clears.
 
 Do not hand-edit `.cursor-plugin/` or `.codex-plugin/`. Those paths are generator-owned.
 
@@ -80,7 +81,7 @@ Checks are keyed by short codes. One-liner remediation per group:
 **Claude (C1-C4)**
 
 - `C1` — `plugin.json` missing or malformed; fix and validate with
-  `python3 -m json.tool ycc/.cursor-plugin/plugin.json`.
+  `python3 -m json.tool ycc/.claude-plugin/plugin.json`.
 - `C2` — version mismatch between `plugin.json` and `marketplace.json`; align them.
 - `C3` — skill or agent directory missing its required `.md` file; create or restore it.
 - `C4` — script not executable; run `chmod +x` on the flagged file.

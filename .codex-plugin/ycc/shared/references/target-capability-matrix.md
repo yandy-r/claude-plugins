@@ -41,7 +41,7 @@ Follow these rules exactly or the parser will misread cells:
 ## Notes
 
 **COMMANDS:cursor**
-Cursor does not natively execute Codex slash commands as installable artifacts. The
+Cursor does not natively execute Claude Code slash commands as installable artifacts. The
 `ycc` command layer is surfaced to Cursor users only through rule-embedded guidance in
 `.cursor-plugin/`. Interactive slash-command dispatch is not available.
 
@@ -51,12 +51,12 @@ via the plugin bundle; the `ycc/commands/` source tree has no Codex analog.
 
 **AGENTS:cursor**
 Cursor supports background agents (`docs.cursor.com/ko/background-agents`) but does not
-consume Codex agent `.md` definitions directly. Agents are adapted as Cursor rules or
+consume Claude Code agent `.md` definitions directly. Agents are adapted as Cursor rules or
 referenced via the generated `.cursor-plugin/` bundle. Full parity is not guaranteed.
 
 **HOOKS.PreToolUse:cursor**
-Cursor does not expose a native PreToolUse hook execution surface equivalent to Codex's
-`~/.codex/settings.json` hooks. Existing repo hook guidance (e.g., `ycc/rules/*/hooks.md`)
+Cursor does not expose a native PreToolUse hook execution surface equivalent to Claude Code's
+`~/.claude/settings.json` hooks. Existing repo hook guidance (e.g., `ycc/rules/*/hooks.md`)
 is embedded as rule-file notes, not executed by a hook runner.
 
 **HOOKS.PostToolUse:cursor**
@@ -78,18 +78,18 @@ Same constraint as HOOKS.PreToolUse:codex.
 
 **MCP:codex**
 MCP integration is referenced in the Codex customization docs
-(`developers.openai.com/codex/concepts/customization`) but is less mature than the Codex
+(`developers.openai.com/codex/concepts/customization`) but is less mature than the Claude Code
 or Cursor MCP surfaces. Treat as partial until a verified stable API is documented.
 
 **DANGEROUS_MODE:cursor**
-The `--dangerously-skip-permissions` flag is a Codex CLI concept with no equivalent in
+The `--dangerously-skip-permissions` flag is a Claude Code CLI concept with no equivalent in
 Cursor.
 
 **DANGEROUS_MODE:codex**
-No equivalent to Codex's dangerous mode exists in the Codex runtime.
+No equivalent to Claude Code's dangerous mode exists in the Codex runtime.
 
 **INSTALL_PATH:claude**
-Installed at `~/.codex/plugins/ycc/` or the workspace `.codex-plugin/` directory.
+Installed at `~/.claude/plugins/ycc/` or the workspace `.claude-plugin/` directory.
 
 **INSTALL_PATH:cursor**
 Generated bundle lives at `.cursor-plugin/`; consumed by Cursor from the repo root.
@@ -115,8 +115,8 @@ After updating a cell value, also update the corresponding note in the Notes sec
 one if absent), and re-run the compatibility audit:
 
 ```
-compatibility-audit
+ycc:compatibility-audit
 ```
 
-If the change affects generated bundles, follow the regeneration steps in `AGENTS.md` under
+If the change affects generated bundles, follow the regeneration steps in `CLAUDE.md` under
 "Testing Changes".

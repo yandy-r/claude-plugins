@@ -232,7 +232,7 @@ def render_counts_region(
     ns, nc, na = len(skills), len(commands), len(agents)
     body = (
         f"The source plugin ships **{ns} skills**, "
-        f"**{nc} slash commands** (1-to-1 with skills), "
+        f"**{nc} slash commands** (most skills have a matching command), "
         f"and **{na} agents**."
     )
     return f"<!-- BEGIN:{MARKER_COUNTS} -->\n\n{body}\n\n<!-- END:{MARKER_COUNTS} -->"

@@ -35,12 +35,30 @@ case "$FORMAT" in human|json) ;;
   *) echo "audit-install-assumptions.sh: unknown --format: $FORMAT" >&2; usage >&2; exit 2 ;; esac
 
 # Resolve REPO_ROOT
+# Prefer the runtime-injected CLAUDE_PLUGIN_ROOT (set when the skill runs from an
+# installed plugin). Fall back to walking up from SCRIPT_DIR for dev/source-tree use.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
-REPO_ROOT=""; candidate="$SCRIPT_DIR"
-while [[ "$candidate" != "/" ]]; do
-  [[ -f "$candidate/.cursor-plugin/marketplace.json" ]] && { REPO_ROOT="$candidate"; break; }
-  candidate="$(dirname "$candidate")"
-done
+REPO_ROOT=""
+if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" && -d "${CLAUDE_PLUGIN_ROOT}" ]]; then
+  # Normalize trailing slash and accept the value directly as REPO_ROOT-equivalent.
+  # Downstream code references REPO_ROOT for .claude-plugin/, .cursor-plugin/,
+  # .codex-plugin/ and ycc/.claude-plugin/ — these all live at the repo root.
+  # When CLAUDE_PLUGIN_ROOT points at the installed plugin (e.g. the 'ycc/' dir),
+  # walk up once so downstream paths resolve to the repo containing the three bundles.
+  cand="${CLAUDE_PLUGIN_ROOT%/}"
+  # If cand itself contains .claude-plugin/marketplace.json, use it; else walk up.
+  while [[ "$cand" != "/" && -z "$REPO_ROOT" ]]; do
+    [[ -f "$cand/.claude-plugin/marketplace.json" ]] && REPO_ROOT="$cand"
+    cand="$(dirname "$cand")"
+  done
+fi
+if [[ -z "$REPO_ROOT" ]]; then
+  candidate="$SCRIPT_DIR"
+  while [[ "$candidate" != "/" ]]; do
+    [[ -f "$candidate/.claude-plugin/marketplace.json" ]] && { REPO_ROOT="$candidate"; break; }
+    candidate="$(dirname "$candidate")"
+  done
+fi
 [[ -z "$REPO_ROOT" ]] && { echo "audit-install-assumptions.sh: repo root not found" >&2; exit 2; }
 echo "audit-install-assumptions.sh: repo root is $REPO_ROOT" >&2
 
@@ -58,8 +76,8 @@ json_ok() { set +e; python3 -m json.tool "$1" >/dev/null 2>&1; local r=$?; set -
 # Claude checks
 # ---------------------------------------------------------------------------
 run_claude_checks() {
-  local mkt="${REPO_ROOT}/.cursor-plugin/marketplace.json"
-  local plugin="${REPO_ROOT}/ycc/.cursor-plugin/plugin.json"
+  local mkt="${REPO_ROOT}/.claude-plugin/marketplace.json"
+  local plugin="${REPO_ROOT}/ycc/.claude-plugin/plugin.json"
 
   json_ok "$mkt" && record "claude" "C1" "PASS" "" \
     || { record "claude" "C1" "FAIL" "${mkt} is not valid JSON"; return; }
@@ -105,16 +123,29 @@ run_cursor_checks() {
   [[ ${#miss[@]} -eq 0 ]] && record "cursor" "CR2" "PASS" "" \
     || record "cursor" "CR2" "FAIL" "missing: ${miss[*]}"
 
+  # Cross-target meta files are copied verbatim by the generator (see
+  # VERBATIM_SKILL_FILES in scripts/generate_cursor_skills.py). They
+  # intentionally reference CLAUDE_* identifiers because they describe all
+  # three targets, so they must be excluded from residue scans.
+  local cr_excludes=(
+    --exclude-dir=compatibility-audit
+    --exclude="support-notes.md"
+    --exclude="target-capability-matrix.md"
+  )
+
   local hits
-  # Plugin-root variable residue check. The string is constructed at runtime
-  # so this script can be copied into non-Claude bundles without triggering
-  # their content-policy validators.
+  # CR3: plugin-root variable residue in code/config files.
+  # Pattern is constructed at runtime so this script does not trigger
+  # target-bundle content-policy validators when copied verbatim.
   local pr_token pr_pattern
   pr_token="CLAUDE_PLUGIN"
   pr_pattern="${pr_token}_ROOT"
-  set +e; hits=$(grep -rl "${pr_pattern}" "${cdir}" 2>/dev/null | head -5); set -e
+  set +e
+  hits=$(grep -rl --include='*.json' --include='*.sh' --include='*.toml' --include='*.yaml' --include='*.yml' \
+    "${cr_excludes[@]}" -- "${pr_pattern}" "${cdir}" 2>/dev/null | head -5)
+  set -e
   [[ -z "$hits" ]] && record "cursor" "CR3" "PASS" "" \
-    || record "cursor" "CR3" "FAIL" "plugin-root variable residue in: $(printf '%s ' $hits)"
+    || record "cursor" "CR3" "FAIL" "plugin-root variable residue in code/config: $(printf '%s ' "$hits")"
 
   # CR4: Claude config-path residue in NON-markdown files. Markdown prose may
   # legitimately reference the settings.json path as advisory documentation.
@@ -126,10 +157,10 @@ run_cursor_checks() {
   cc_label=".${cc_token}/"
   set +e
   hits=$(grep -rl --include='*.json' --include='*.sh' --include='*.toml' --include='*.yaml' --include='*.yml' \
-    -- "${cc_pattern}" "${cdir}" 2>/dev/null | head -5)
+    "${cr_excludes[@]}" -- "${cc_pattern}" "${cdir}" 2>/dev/null | head -5)
   set -e
   [[ -z "$hits" ]] && record "cursor" "CR4" "PASS" "" \
-    || record "cursor" "CR4" "FAIL" "${cc_label} residue in code/config: $(printf '%s ' $hits)"
+    || record "cursor" "CR4" "FAIL" "${cc_label} residue in code/config: $(printf '%s ' "$hits")"
 }
 
 # ---------------------------------------------------------------------------

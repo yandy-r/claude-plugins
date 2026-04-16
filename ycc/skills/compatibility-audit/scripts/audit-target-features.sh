@@ -92,10 +92,35 @@ case "$FORMAT" in
 esac
 
 # ---------------------------------------------------------------------------
-# Resolve REPO_ROOT by walking up to .claude-plugin/marketplace.json
+# Resolve MATRIX_FILE and REPO_ROOT
+#
+# MATRIX_FILE: prefer ${CLAUDE_PLUGIN_ROOT} (installed plugin layout) where the
+#   matrix lives at ${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/...
+#   Fall back to locating the repo root via upward walk and resolving under
+#   ycc/skills/_shared/references/.
+#
+# REPO_ROOT: always resolved via the upward walk (independent of MATRIX_FILE),
+#   so downstream surface walkers (SKILLS_DIR, COMMANDS_DIR, AGENTS_DIR) work
+#   correctly regardless of which MATRIX_FILE path was chosen.
 # ---------------------------------------------------------------------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+
+MATRIX_FILE=""
+MATRIX_REL="ycc/skills/_shared/references/target-capability-matrix.md"
+
+# Prefer runtime-injected CLAUDE_PLUGIN_ROOT (installed plugin). Under that layout,
+# the matrix lives at "${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/...".
+if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
+  cand_matrix="${CLAUDE_PLUGIN_ROOT%/}/skills/_shared/references/target-capability-matrix.md"
+  if [[ -f "$cand_matrix" ]]; then
+    MATRIX_FILE="$cand_matrix"
+    MATRIX_REL="${cand_matrix#${CLAUDE_PLUGIN_ROOT%/}/}"
+  fi
+fi
+
+# Always resolve REPO_ROOT via upward walk so that surface walkers
+# (SKILLS_DIR, COMMANDS_DIR, AGENTS_DIR) resolve correctly under ${REPO_ROOT}/ycc/.
 REPO_ROOT=""
 candidate="$SCRIPT_DIR"
 while [[ "$candidate" != "/" ]]; do
@@ -107,12 +132,16 @@ while [[ "$candidate" != "/" ]]; do
 done
 
 if [[ -z "$REPO_ROOT" ]]; then
-  echo "audit-target-features.sh: cannot locate repo root (no .claude-plugin/marketplace.json found above $SCRIPT_DIR)" >&2
+  echo "audit-target-features.sh: cannot locate repo root (no .claude-plugin/marketplace.json above $SCRIPT_DIR)" >&2
   exit 2
 fi
 
-MATRIX_FILE="${REPO_ROOT}/ycc/skills/_shared/references/target-capability-matrix.md"
-MATRIX_REL="ycc/skills/_shared/references/target-capability-matrix.md"
+# Fallback: resolve matrix under repo when CLAUDE_PLUGIN_ROOT was absent or
+# did not contain the matrix file.
+if [[ -z "$MATRIX_FILE" ]]; then
+  MATRIX_FILE="${REPO_ROOT}/ycc/skills/_shared/references/target-capability-matrix.md"
+  MATRIX_REL="ycc/skills/_shared/references/target-capability-matrix.md"
+fi
 
 if [[ ! -f "$MATRIX_FILE" ]]; then
   echo "audit-target-features.sh: matrix file not found: $MATRIX_FILE" >&2
@@ -471,63 +500,53 @@ emit_human() {
 # ---------------------------------------------------------------------------
 
 emit_json() {
-  local tmpdir
-  tmpdir="$(mktemp -d)"
-
-  # Write findings to temp files for Python to read
-  local i=0
-  while [[ $i -lt $TOTAL_FINDINGS ]]; do
-    printf '%s' "${FIND_SURFACE[$i]}"  > "${tmpdir}/surf_${i}"
-    printf '%s' "${FIND_CAP[$i]}"     > "${tmpdir}/cap_${i}"
-    printf '%s' "${FIND_TARGET[$i]}"  > "${tmpdir}/tgt_${i}"
-    printf '%s' "${FIND_VERDICT[$i]}" > "${tmpdir}/vrd_${i}"
-    i=$((i + 1))
-  done
-
+  local as_of_line="$1"
+  # Single Python invocation: pass all findings as argv (n surfaces, then n caps,
+  # then n targets, then n verdicts). No temp files, no per-finding subshells.
   python3 - \
-    "$TOTAL_FINDINGS" \
-    "$tmpdir" \
     "$MATRIX_REL" \
     "$SURFACES_AUDITED" \
     "$COUNT_SUPPORTED" \
     "$COUNT_PARTIAL" \
     "$COUNT_UNSUPPORTED" \
     "$FINAL_RC" \
+    "$as_of_line" \
+    "$TOTAL_FINDINGS" \
+    "${FIND_SURFACE[@]+"${FIND_SURFACE[@]}"}" \
+    "${FIND_CAP[@]+"${FIND_CAP[@]}"}" \
+    "${FIND_TARGET[@]+"${FIND_TARGET[@]}"}" \
+    "${FIND_VERDICT[@]+"${FIND_VERDICT[@]}"}" \
     <<'PYEOF'
 import json, sys
 from datetime import datetime, timezone
 
-n             = int(sys.argv[1])
-tmpdir        = sys.argv[2]
-matrix_rel    = sys.argv[3]
-total_surfs   = int(sys.argv[4])
-cnt_supported = int(sys.argv[5])
-cnt_partial   = int(sys.argv[6])
-cnt_unsupp    = int(sys.argv[7])
-final_rc      = int(sys.argv[8])
+matrix_rel    = sys.argv[1]
+total_surfs   = int(sys.argv[2])
+cnt_supported = int(sys.argv[3])
+cnt_partial   = int(sys.argv[4])
+cnt_unsupp    = int(sys.argv[5])
+final_rc      = int(sys.argv[6])
+as_of_matrix  = sys.argv[7]
+n             = int(sys.argv[8])
 
-def rd(p):
-    try:
-        return open(p).read()
-    except FileNotFoundError:
-        return ""
+rest     = sys.argv[9:]
+surfs    = rest[0:n]
+caps     = rest[n:2*n]
+targets  = rest[2*n:3*n]
+verdicts = rest[3*n:4*n]
 
 findings = [
-    {
-        "surface":    rd(f"{tmpdir}/surf_{i}"),
-        "capability": rd(f"{tmpdir}/cap_{i}"),
-        "target":     rd(f"{tmpdir}/tgt_{i}"),
-        "verdict":    rd(f"{tmpdir}/vrd_{i}"),
-    }
+    {"surface": surfs[i], "capability": caps[i], "target": targets[i], "verdict": verdicts[i]}
     for i in range(n)
 ]
 
 print(json.dumps({
-    "as_of":         datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "as_of_matrix": as_of_matrix,
+    "as_of_run":    datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "matrix_source": matrix_rel,
-    "findings":      findings,
+    "findings":     findings,
     "summary": {
-        "total":       n,
+        "total":       len(findings),
         "supported":   cnt_supported,
         "partial":     cnt_partial,
         "unsupported": cnt_unsupp,
@@ -535,8 +554,6 @@ print(json.dumps({
     "ok": final_rc == 0,
 }, indent=2))
 PYEOF
-
-  rm -rf "$tmpdir"
 }
 
 # ---------------------------------------------------------------------------
@@ -546,7 +563,7 @@ PYEOF
 if [[ "$FORMAT" == "human" ]]; then
   emit_human
 else
-  emit_json
+  emit_json "$AS_OF_LINE"
 fi
 
 exit $FINAL_RC

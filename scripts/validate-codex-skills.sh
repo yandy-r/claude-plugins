@@ -40,8 +40,32 @@ if errors:
 PY
 
 echo "== Content policy (generated skills) =="
+# Allow-list: these files are copied verbatim by the Codex generator because
+# they describe all three deployment targets. The same Claude-specific
+# references the content policy normally forbids are intentional here.
+# Must mirror VERBATIM_SKILL_FILES in scripts/generate_codex_common.py.
+# Note: _shared/references/target-capability-matrix.md is remapped to
+# .codex-plugin/ycc/shared/ (outside SKILLS_DIR) so it never reaches this loop.
+VERBATIM=(
+  "${SKILLS_DIR}/hooks-workflow/references/support-notes.md"
+  "${SKILLS_DIR}/hooks-workflow/scripts/build-hook-config.sh"
+  "${SKILLS_DIR}/compatibility-audit/scripts/audit-install-assumptions.sh"
+  "${SKILLS_DIR}/compatibility-audit/scripts/audit-target-features.sh"
+  "${SKILLS_DIR}/compatibility-audit/references/reading-the-report.md"
+)
+is_verbatim() {
+  local f="$1" v
+  for v in "${VERBATIM[@]}"; do
+    [[ "$f" == "$v" ]] && return 0
+  done
+  return 1
+}
+
 BAD=0
 while IFS= read -r -d '' f; do
+  if is_verbatim "$f"; then
+    continue
+  fi
   if grep -qE '/ycc:|\bycc:|CLAUDE_PLUGIN_ROOT|~/.claude/|\.claude-plugin/|TeamCreate|TeamDelete|TaskCreate|TaskUpdate|TaskList|TaskGet|SendMessage|AskUserQuestion|TodoWrite|subagent_type:' "$f" 2>/dev/null; then
     echo "FORBIDDEN pattern in $f:" >&2
     grep -nE '/ycc:|\bycc:|CLAUDE_PLUGIN_ROOT|~/.claude/|\.claude-plugin/|TeamCreate|TeamDelete|TaskCreate|TaskUpdate|TaskList|TaskGet|SendMessage|AskUserQuestion|TodoWrite|subagent_type:' "$f" >&2 || true

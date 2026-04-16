@@ -30,6 +30,24 @@ SOURCE_MCP_PATH = REPO_ROOT / "mcp-configs" / "mcp.json"
 
 HOME_INSTALL_PLUGIN_ROOT = "~/.codex/plugins/ycc"
 
+VERBATIM_SKILL_FILES: frozenset[str] = frozenset(
+    {
+        "_shared/references/target-capability-matrix.md",
+        "hooks-workflow/references/support-notes.md",
+        "hooks-workflow/scripts/build-hook-config.sh",
+        "compatibility-audit/scripts/audit-install-assumptions.sh",
+        "compatibility-audit/scripts/audit-target-features.sh",
+        "compatibility-audit/references/reading-the-report.md",
+    }
+)
+"""Skill-tree source files that must be copied verbatim into the Codex bundle.
+
+They describe or check all three deployment targets literally, so any blind text
+replacement (.claude-plugin/ -> .codex-plugin/, Claude Code -> Codex,
+~/.claude/ -> ~/.codex/, etc.) produces semantically wrong output.
+Paths are source-relative to ``ycc/skills/``.
+"""
+
 
 def strip_preamble_before_frontmatter(text: str) -> str:
     """Remove stray lines before the first YAML frontmatter opener."""

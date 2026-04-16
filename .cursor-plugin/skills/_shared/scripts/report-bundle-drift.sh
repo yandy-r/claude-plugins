@@ -152,9 +152,9 @@ print_human_section() {
       else
         echo "- ${name}: FAIL"
         if [[ -n "${COMBINED[$i]}" ]]; then
-          echo "${COMBINED[$i]}" | head -3 | sed 's/^/  /'
+          while IFS= read -r line; do printf '  %s\n' "$line"; done < <(printf '%s\n' "${COMBINED[$i]}" | head -3)
           echo "  ---"
-          echo "${COMBINED[$i]}" | sed 's/^/  /'
+          while IFS= read -r line; do printf '  %s\n' "$line"; done <<< "${COMBINED[$i]}"
         fi
       fi
     fi

@@ -21,8 +21,9 @@ A failure here means the bundle cannot be trusted for release.
 
 **Install assumptions** — output of `audit-install-assumptions.sh`. Verifies that every
 artifact uses the expected install-path convention, has a valid shebang where required,
-and that no raw plugin-root variable reference was leaked verbatim into a generated bundle
-(generators must rewrite these to absolute paths).
+and that plugin-root variable references are rewritten target-appropriately (kept as
+`${CLAUDE_PLUGIN_ROOT}` in the Claude source tree; rewritten to the installed plugin's
+absolute path in generated Cursor and Codex bundles).
 
 **Feature-vs-matrix** — output of `audit-target-features.sh`. Cross-references
 capabilities in the source tree against `target-capability-matrix.md`. Features present

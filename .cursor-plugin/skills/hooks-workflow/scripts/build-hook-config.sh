@@ -105,17 +105,34 @@ esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 REPO_ROOT=""
-candidate="$SCRIPT_DIR"
-while [[ "$candidate" != "/" ]]; do
-  if [[ -f "$candidate/.cursor-plugin/marketplace.json" ]]; then
-    REPO_ROOT="$candidate"
-    break
-  fi
-  candidate="$(dirname "$candidate")"
-done
+
+# Prefer runtime-injected CURSOR_PLUGIN_ROOT (installed plugin). The plugin root
+# typically points at the "ycc/" dir; walk up once to reach the repo root that
+# contains .cursor-plugin/marketplace.json.
+if [[ -n "${CURSOR_PLUGIN_ROOT:-}" && -d "${CURSOR_PLUGIN_ROOT}" ]]; then
+  cand="${CURSOR_PLUGIN_ROOT%/}"
+  while [[ "$cand" != "/" && -z "$REPO_ROOT" ]]; do
+    if [[ -f "$cand/.cursor-plugin/marketplace.json" ]]; then
+      REPO_ROOT="$cand"
+    fi
+    cand="$(dirname "$cand")"
+  done
+fi
+
+# Fallback: walk up from SCRIPT_DIR.
+if [[ -z "$REPO_ROOT" ]]; then
+  candidate="$SCRIPT_DIR"
+  while [[ "$candidate" != "/" ]]; do
+    if [[ -f "$candidate/.cursor-plugin/marketplace.json" ]]; then
+      REPO_ROOT="$candidate"
+      break
+    fi
+    candidate="$(dirname "$candidate")"
+  done
+fi
 
 if [[ -z "$REPO_ROOT" ]]; then
-  echo "build-hook-config.sh: cannot locate repo root (no .cursor-plugin/marketplace.json above $SCRIPT_DIR)" >&2
+  echo "build-hook-config.sh: cannot locate repo root (no .cursor-plugin/marketplace.json above $SCRIPT_DIR or under CURSOR_PLUGIN_ROOT)" >&2
   exit 2
 fi
 
@@ -171,7 +188,9 @@ matrix_cell() {
     claude) col=2 ;; cursor) col=3 ;; codex) col=4 ;;
   esac
   local raw
-  raw="$(grep -m1 "| ${capability} |" "$MATRIX_FILE" 2>/dev/null || true)"
+  # Tolerate variable column-alignment whitespace in the matrix table
+  # (e.g. "| HOOKS.PreToolUse  |" padded for the widest row).
+  raw="$(grep -m1 -E "^\| *${capability} +\|" "$MATRIX_FILE" 2>/dev/null || true)"
   [[ -z "$raw" ]] && { echo ""; return; }
   echo "$raw" | awk -F'|' -v c="$((col + 1))" '{ gsub(/^[[:space:]]+|[[:space:]]+$/, "", $c); print $c }'
 }
@@ -281,12 +300,17 @@ done
 
 render_template() {
   local tmpl_file="$1" lang="$2" ev="$3" cmd="$4" matcher="$5"
-  sed \
-    -e "s/{{LANGUAGE}}/${lang}/g" \
-    -e "s/{{EVENT}}/${ev}/g" \
-    -e "s/{{COMMAND}}/${cmd}/g" \
-    -e "s/{{MATCHER}}/${matcher}/g" \
-    "$tmpl_file"
+  python3 - "$tmpl_file" "$lang" "$ev" "$cmd" "$matcher" <<'PYEOF'
+import sys
+tmpl_file, lang, ev, cmd, matcher = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
+with open(tmpl_file, 'r') as f:
+    text = f.read()
+text = text.replace('{{LANGUAGE}}', lang)
+text = text.replace('{{EVENT}}', ev)
+text = text.replace('{{COMMAND}}', cmd)
+text = text.replace('{{MATCHER}}', matcher)
+sys.stdout.write(text)
+PYEOF
 }
 
 # Collect per-event command/advisory lines into a single string

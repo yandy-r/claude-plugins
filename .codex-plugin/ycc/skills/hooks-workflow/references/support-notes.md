@@ -3,7 +3,7 @@
 ## Overview
 
 This document records the per-target hook maturity for the three deployment targets
-supported by the `ycc` bundle: Codex, Cursor, and Codex. The verdicts here are
+supported by the `ycc` bundle: Claude Code, Cursor, and Codex. The verdicts here are
 derived from the authoritative source at
 `ycc/skills/_shared/references/target-capability-matrix.md`; this file provides the
 prose rationale and link context that the matrix table cannot. The core stance is that
@@ -11,23 +11,23 @@ the `hooks-workflow` skill refuses to fabricate config for an unsupported target
 Cross-platform hook parity does not exist, and this document explains why rather than
 papering over the gaps.
 
-## Codex
+## Claude Code
 
-Hook support on Codex is production-grade and is the primary target for this skill.
+Hook support on Claude Code is production-grade and is the primary target for this skill.
 
 - **PreToolUse**
   - Status: supported
   - Documentation: Anthropic hooks guide — https://docs.anthropic.com/en/docs/claude-code/hooks-guide
-  - Config location: `~/.codex/settings.json` (global) or `.claude/settings.json` in the
+  - Config location: `~/.claude/settings.json` (global) or `.claude/settings.json` in the
     repo root (project-local). Project-local settings take precedence when both exist.
-  - Execution model: Codex invokes the hook command as a subprocess with the tool
+  - Execution model: Claude Code invokes the hook command as a subprocess with the tool
     invocation JSON serialized to stdin. The hook may exit non-zero to block the tool call.
 
 - **PostToolUse**
   - Status: supported
   - Documentation: see PreToolUse link above; the same hooks guide covers all event types.
-  - Config location: same as PreToolUse — `~/.codex/settings.json` or `.claude/settings.json`.
-  - Execution model: Codex invokes the hook command after the tool returns. The hook
+  - Config location: same as PreToolUse — `~/.claude/settings.json` or `.claude/settings.json`.
+  - Execution model: Claude Code invokes the hook command after the tool returns. The hook
     receives the tool result on stdin. A non-zero exit does not roll back the tool result but
     is surfaced as a warning.
 
@@ -35,7 +35,7 @@ Hook support on Codex is production-grade and is the primary target for this ski
   - Status: supported
   - Documentation: see PreToolUse link above.
   - Config location: same as above.
-  - Execution model: Codex invokes the Stop hook when the model signals it has finished
+  - Execution model: Claude Code invokes the Stop hook when the model signals it has finished
     a turn. The hook command receives a JSON summary on stdin. A non-zero exit causes Claude
     Code to surface the error before terminating the turn.
 
@@ -44,7 +44,7 @@ Hook support on Codex is production-grade and is the primary target for this ski
 Status: **partial**
 
 Cursor does not run hooks natively. There is no execution surface equivalent to Claude
-Code's `~/.codex/settings.json` hooks runner. The `hooks-workflow` skill therefore
+Code's `~/.claude/settings.json` hooks runner. The `hooks-workflow` skill therefore
 cannot produce executable hook config for a Cursor target. Instead, the skill emits
 `.mdc` rule fragments that embed advisory text describing what the hook would do if
 Cursor had native hook support. These fragments are written to
@@ -96,7 +96,7 @@ a common placeholder set. Build scripts substitute these values at generation ti
   directory name.
 
 - `{{EVENT}}` — the hook event name, one of `PreToolUse`, `PostToolUse`, or `Stop`.
-  Matches the key used in the Codex `settings.json` hooks object and in the
+  Matches the key used in the Claude Code `settings.json` hooks object and in the
   capability matrix row prefix.
 
 - `{{COMMAND}}` — the shell command string extracted from the resolved rules file. This
@@ -104,7 +104,7 @@ a common placeholder set. Build scripts substitute these values at generation ti
   the emitted artifact. For Cursor and Codex targets, this command is advisory; it is
   not executed by the target runtime.
 
-- `{{MATCHER}}` — the Codex tool matcher string (e.g. a tool name like `Bash` or
+- `{{MATCHER}}` — the Claude Code tool matcher string (e.g. a tool name like `Bash` or
   a glob pattern). May be an empty string for events that do not scope to a specific
   tool. On Cursor and Codex targets, the matcher is written as a comment only.
 
@@ -117,7 +117,7 @@ Before editing capability verdicts here, update the matrix first:
 2. Update the corresponding Notes entry in the same file.
 3. Update the prose section in this document to reflect the new verdict and its
    rationale.
-4. Re-run the compatibility audit via `compatibility-audit` to confirm no
+4. Re-run the compatibility audit via `ycc:compatibility-audit` to confirm no
    downstream assertions are broken.
 
 Do not change the status labels in this document without first changing the matrix. The

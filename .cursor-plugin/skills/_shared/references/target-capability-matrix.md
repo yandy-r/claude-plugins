@@ -56,7 +56,7 @@ referenced via the generated `.cursor-plugin/` bundle. Full parity is not guaran
 
 **HOOKS.PreToolUse:cursor**
 Cursor does not expose a native PreToolUse hook execution surface equivalent to Claude Code's
-`~/.cursor/settings.json` hooks. Existing repo hook guidance (e.g., `ycc/rules/*/hooks.md`)
+`~/.claude/settings.json` hooks. Existing repo hook guidance (e.g., `ycc/rules/*/hooks.md`)
 is embedded as rule-file notes, not executed by a hook runner.
 
 **HOOKS.PostToolUse:cursor**
@@ -89,7 +89,7 @@ Cursor.
 No equivalent to Claude Code's dangerous mode exists in the Codex runtime.
 
 **INSTALL_PATH:claude**
-Installed at `~/.cursor/plugins/ycc/` or the workspace `.cursor-plugin/` directory.
+Installed at `~/.claude/plugins/ycc/` or the workspace `.claude-plugin/` directory.
 
 **INSTALL_PATH:cursor**
 Generated bundle lives at `.cursor-plugin/`; consumed by Cursor from the repo root.
@@ -115,7 +115,7 @@ After updating a cell value, also update the corresponding note in the Notes sec
 one if absent), and re-run the compatibility audit:
 
 ```
-compatibility-audit
+ycc:compatibility-audit
 ```
 
 If the change affects generated bundles, follow the regeneration steps in `CLAUDE.md` under

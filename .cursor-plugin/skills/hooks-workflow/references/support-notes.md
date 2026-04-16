@@ -18,7 +18,7 @@ Hook support on Claude Code is production-grade and is the primary target for th
 - **PreToolUse**
   - Status: supported
   - Documentation: Anthropic hooks guide — https://docs.anthropic.com/en/docs/claude-code/hooks-guide
-  - Config location: `~/.cursor/settings.json` (global) or `.claude/settings.json` in the
+  - Config location: `~/.claude/settings.json` (global) or `.claude/settings.json` in the
     repo root (project-local). Project-local settings take precedence when both exist.
   - Execution model: Claude Code invokes the hook command as a subprocess with the tool
     invocation JSON serialized to stdin. The hook may exit non-zero to block the tool call.
@@ -26,7 +26,7 @@ Hook support on Claude Code is production-grade and is the primary target for th
 - **PostToolUse**
   - Status: supported
   - Documentation: see PreToolUse link above; the same hooks guide covers all event types.
-  - Config location: same as PreToolUse — `~/.cursor/settings.json` or `.claude/settings.json`.
+  - Config location: same as PreToolUse — `~/.claude/settings.json` or `.claude/settings.json`.
   - Execution model: Claude Code invokes the hook command after the tool returns. The hook
     receives the tool result on stdin. A non-zero exit does not roll back the tool result but
     is surfaced as a warning.
@@ -44,7 +44,7 @@ Hook support on Claude Code is production-grade and is the primary target for th
 Status: **partial**
 
 Cursor does not run hooks natively. There is no execution surface equivalent to Claude
-Code's `~/.cursor/settings.json` hooks runner. The `hooks-workflow` skill therefore
+Code's `~/.claude/settings.json` hooks runner. The `hooks-workflow` skill therefore
 cannot produce executable hook config for a Cursor target. Instead, the skill emits
 `.mdc` rule fragments that embed advisory text describing what the hook would do if
 Cursor had native hook support. These fragments are written to
@@ -117,7 +117,7 @@ Before editing capability verdicts here, update the matrix first:
 2. Update the corresponding Notes entry in the same file.
 3. Update the prose section in this document to reflect the new verdict and its
    rationale.
-4. Re-run the compatibility audit via `compatibility-audit` to confirm no
+4. Re-run the compatibility audit via `ycc:compatibility-audit` to confirm no
    downstream assertions are broken.
 
 Do not change the status labels in this document without first changing the matrix. The

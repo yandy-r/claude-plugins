@@ -55,6 +55,17 @@ esac
 [[ -z "$CONFIG_FILE" ]] && { echo "verify-hooks.sh: config-file is required" >&2; usage >&2; exit 2; }
 [[ ! -f "$CONFIG_FILE" ]] && { echo "verify-hooks.sh: file not found: $CONFIG_FILE" >&2; exit 2; }
 
+# Preflight: required binaries.
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "verify-hooks.sh: python3 not found in PATH" >&2
+  exit 2
+fi
+
+if [[ "$PROBE_BINARIES" == "true" ]] && ! command -v timeout >/dev/null 2>&1; then
+  echo "verify-hooks.sh: 'timeout' not found in PATH but required for --probe-binaries" >&2
+  exit 2
+fi
+
 # ---------------------------------------------------------------------------
 # Check tracking
 # ---------------------------------------------------------------------------
@@ -108,7 +119,7 @@ PYEOF
     if [[ "$PROBE_BINARIES" == "true" ]]; then
       resolved="$(command -v "$token" 2>/dev/null || true)"
       if [[ -z "$resolved" ]]; then
-        add_check "$check_id" "FAIL" "command=\`${command}\` | probe: command not found"
+        add_check "$check_id" "FAIL" "event=${event} command=\`${command}\` | probe: command not found"
       else
         if timeout 3s "$token" --help >/dev/null 2>&1; then
           probe_detail="$token --help OK"
@@ -117,10 +128,10 @@ PYEOF
         else
           probe_detail="$token resolved (nonzero exit on --help/--version; binary present)"
         fi
-        add_check "$check_id" "PASS" "command=\`${command}\` | probe: $probe_detail"
+        add_check "$check_id" "PASS" "event=${event} command=\`${command}\` | probe: $probe_detail"
       fi
     else
-      add_check "$check_id" "PASS" "command=\`${command}\` (no probe; --probe-binaries not set)"
+      add_check "$check_id" "PASS" "event=${event} command=\`${command}\` (no probe; --probe-binaries not set)"
     fi
   done <<< "$commands_raw"
 }
