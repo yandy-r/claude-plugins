@@ -8,7 +8,7 @@ A single Claude Code plugin (`ycc`) bundling workflow orchestration, parallel pl
 
 <!-- BEGIN:GENERATED-COUNTS -->
 
-The source plugin ships **37 skills**, **36 slash commands** (1-to-1 with skills), and **50 agents**.
+The source plugin ships **39 skills**, **38 slash commands** (1-to-1 with skills), and **50 agents**.
 
 <!-- END:GENERATED-COUNTS -->
 
@@ -17,6 +17,8 @@ The source plugin ships **37 skills**, **36 slash commands** (1-to-1 with skills
 | Command / Skill           | Purpose                                                                                                                                                                                 |
 | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/ycc:ask`                | Ask questions about the codebase without making changes - get guidance, impact analysis, or comparisons                                                                                 |
+| `/ycc:bundle-author`      | Scaffold new source-of-truth content in the ycc bundle (skill, optional matching command and agent)                                                                                     |
+| `/ycc:bundle-release`     | Prepare a ycc bundle release — preflight, bump, regenerate, validate, draft notes (no auto-commit)                                                                                      |
 | `/ycc:clean`              | Orchestrate parallel cleanup agents to find and remove unnecessary project files                                                                                                        |
 | `/ycc:code-report`        | Generate structured implementation reports documenting changes made during plan execution.                                                                                              |
 | `/ycc:code-review`        | Code review — local uncommitted changes or a GitHub PR (pass PR number/URL for PR mode).                                                                                                |

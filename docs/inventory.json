@@ -5,6 +5,14 @@
       "description": "This skill should be used when the user asks questions about the codebase without requesting changes, such as \"how does X work?\", \"where is Y implemented?\", \"explain this code\", \"walk me through X\", \"what does this do?\", \"what would I need to change for X?\", \"if I change X what breaks?\", \"compare how A and B handle X\", or any exploratory question about code structure, architecture, or implementation. Also triggered by the /ask command."
     },
     {
+      "name": "bundle-author",
+      "description": "This skill should be used when the user asks to \"scaffold a new ycc skill\", \"add a skill to the bundle\", \"extend ycc\", \"create a new command under ycc\", \"add an agent to ycc\", or when the user wants to author new source-of-truth content in the ycc/ bundle (skills, commands, agents). Contributor workflow \u2014 not a generic plugin scaffolder. Respects the source-of-truth / regenerated-bundle split."
+    },
+    {
+      "name": "bundle-release",
+      "description": "This skill should be used when the user asks to \"release ycc\", \"bump ycc version\", \"prepare a ycc release\", \"cut a new ycc release\", \"tag a ycc release\", or when the user wants to version, regenerate, validate, and produce release notes for the ycc bundle. Orchestrates existing generators/validators; never auto-commits."
+    },
+    {
       "name": "clean",
       "description": "This skill should be used when the user asks to \"clean project files\", \"remove unnecessary files\", \"clean up project\", \"find unused files\", \"project cleanup\", or mentions removing build artifacts, temp files, or old code from a project directory. Orchestrates parallel cleanup agents with safety measures."
     },
@@ -153,6 +161,14 @@
     {
       "name": "ask",
       "description": "Ask questions about the codebase without making changes - get guidance, impact analysis, or comparisons"
+    },
+    {
+      "name": "bundle-author",
+      "description": "Scaffold new source-of-truth content in the ycc bundle (skill, optional matching command and agent)"
+    },
+    {
+      "name": "bundle-release",
+      "description": "Prepare a ycc bundle release \u2014 preflight, bump, regenerate, validate, draft notes (no auto-commit)"
     },
     {
       "name": "clean",
@@ -498,8 +514,8 @@
     }
   ],
   "counts": {
-    "skills": 37,
-    "commands": 36,
+    "skills": 39,
+    "commands": 38,
     "agents": 50
   },
   "parity": {

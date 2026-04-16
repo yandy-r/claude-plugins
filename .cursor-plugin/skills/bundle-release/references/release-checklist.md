@@ -1,0 +1,143 @@
+# Bundle Release Checklist
+
+This checklist is the artifact of record for a `bundle-release` run. It documents
+every ordered step the skill performs, plus manual recovery instructions if a step fails.
+Run it whenever you are preparing a new versioned release of the `ycc` plugin bundle.
+The completed checklist for each release is saved to `docs/releases/<version>.md`.
+
+---
+
+## Phase 0: Pre-flight
+
+- [ ] Working tree is clean (no uncommitted changes). `git status --porcelain` must return empty output.
+- [ ] Currently on `main` branch (or a dedicated release branch with intent).
+- [ ] Version fields are in parity: `ycc/.cursor-plugin/plugin.json` and `.cursor-plugin/marketplace.json` agree before the bump.
+- [ ] `./scripts/validate.sh` passes on the pre-release tree.
+
+Run: `ycc/skills/bundle-release/scripts/preflight.sh`
+
+If pre-flight fails: resolve all failing conditions before proceeding. Do not skip.
+
+---
+
+## Phase 1: Decide Bump
+
+- [ ] Review commits since the last tag:
+  ```
+  git log $(git describe --tags --abbrev=0)..HEAD --oneline
+  ```
+- [ ] Select the semver bump level (major / minor / patch) per `references/version-policy.md`.
+- [ ] Record the chosen new version: `<new-version>`
+
+---
+
+## Phase 2: Bump Version
+
+Run: `ycc/skills/bundle-release/scripts/bump-version.sh <new-version>`
+
+- [ ] `ycc/.cursor-plugin/plugin.json` — `version` field updated.
+- [ ] `.cursor-plugin/marketplace.json` — both `metadata.version` and `plugins[0].version` updated.
+- [ ] Diff reviewed with `git diff` to confirm only version strings changed.
+
+If this step fails: restore both files with `git checkout -- ycc/.cursor-plugin/plugin.json .cursor-plugin/marketplace.json` and investigate.
+
+---
+
+## Phase 3: Regenerate Derived Bundles
+
+Run: `./scripts/sync.sh`
+
+- [ ] `.cursor-plugin/` fully regenerated.
+- [ ] `.codex-plugin/` fully regenerated.
+- [ ] No unexpected file changes (inspect with `git status`).
+
+If unexpected files appear: diff them before proceeding. Do not commit unreviewed generated output.
+
+---
+
+## Phase 4: Validate
+
+Run: `./scripts/validate.sh`
+
+- [ ] `validate-inventory.sh` passes.
+- [ ] `validate-cursor-agents.sh` passes.
+- [ ] `validate-cursor-skills.sh` passes.
+- [ ] `validate-cursor-rules.sh` passes.
+- [ ] `validate-codex-agents.sh` passes.
+- [ ] `validate-codex-skills.sh` passes.
+- [ ] `validate-codex-plugin.sh` passes.
+- [ ] Manifest JSON check passes.
+
+If validation fails: do not proceed to Phase 5. Fix the reported error, re-run `./scripts/sync.sh` if needed, then re-run `./scripts/validate.sh`.
+
+---
+
+## Phase 5: Draft Release Notes
+
+Run: `ycc/skills/bundle-release/scripts/draft-notes.sh <new-version>`
+
+- [ ] `docs/releases/<new-version>.md` created from template.
+- [ ] `Summary` section edited to describe the release in 1–3 sentences.
+- [ ] `Upgrade Notes` section reviewed and updated (delete if not applicable).
+- [ ] `Added`, `Changed`, `Removed`, and `Fixed` bullet sections reflect the actual changes from Phase 1.
+- [ ] Commit log section at the bottom preserved as-is (auto-populated by the script).
+
+---
+
+## Phase 6: Commit and Tag (Manual)
+
+The skill does NOT auto-commit. After reviewing all changes, run:
+
+```
+git add ycc/.cursor-plugin/plugin.json \
+        .cursor-plugin/marketplace.json \
+        .cursor-plugin \
+        .codex-plugin \
+        docs/inventory.json \
+        docs/releases/<new-version>.md
+git commit -m "chore(release): v<new-version>"
+git tag v<new-version>
+```
+
+- [ ] Commit authored with message `chore(release): v<new-version>`.
+- [ ] Annotated or lightweight tag `v<new-version>` created.
+- [ ] `git log --oneline -3` confirms the commit is on the expected branch.
+
+---
+
+## Phase 7: Publish (Optional)
+
+The skill emits the following commands but does NOT execute them. Run them manually
+when ready to publish:
+
+```
+git push origin main --tags
+gh release create v<new-version> --notes-file docs/releases/<new-version>.md --title "v<new-version>"
+```
+
+- [ ] Push to origin executed (including tags).
+- [ ] GitHub release created with the correct notes file.
+
+---
+
+## Rollback
+
+If anything fails after Phase 1:
+
+1. Restore version files:
+   ```
+   git checkout -- ycc/.cursor-plugin/plugin.json .cursor-plugin/marketplace.json
+   ```
+2. Restore generated bundles to pre-release state:
+   ```
+   ./scripts/sync.sh
+   ```
+3. Remove the draft release notes if they were created:
+   ```
+   rm -f docs/releases/<new-version>.md
+   ```
+4. Investigate the root cause, then restart from Phase 0.
+
+---
+
+See also: `references/version-policy.md`, `references/release-notes-template.md`, `CLAUDE.md` (Testing Changes).
