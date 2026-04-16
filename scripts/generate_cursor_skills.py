@@ -37,6 +37,18 @@ TEXT_SUFFIXES = frozenset(
 # Filenames without a listed suffix but still text (e.g. Makefile rarely; skills use SKILL.md)
 TEXT_NAMES = frozenset({"SKILL.md", "LICENSE", "Makefile"})
 
+# Skill-tree source files copied verbatim into the Cursor bundle. They describe or check
+# all three deployment targets literally, so blind replacements (.claude-plugin/ →
+# .cursor-plugin/, ~/.claude/ → ~/.cursor/, etc.) corrupt the content. Paths are
+# source-relative to ycc/skills/.
+VERBATIM_SKILL_FILES = frozenset({
+    "_shared/references/target-capability-matrix.md",
+    "hooks-workflow/references/support-notes.md",
+    "compatibility-audit/scripts/audit-install-assumptions.sh",
+    "compatibility-audit/scripts/audit-target-features.sh",
+    "compatibility-audit/references/reading-the-report.md",
+})
+
 
 def should_transform_text(path: Path) -> bool:
     if path.name in TEXT_NAMES:
@@ -171,6 +183,12 @@ def write_tree(dest: Path, dry_run: bool) -> set[Path]:
 
         if dry_run:
             print(f"Would write {dst_file.relative_to(REPO_ROOT)}")
+            continue
+
+        if rel.as_posix() in VERBATIM_SKILL_FILES:
+            dst_file.parent.mkdir(parents=True, exist_ok=True)
+            dst_file.write_bytes(src_file.read_bytes())
+            copy_mode(src_file, dst_file)
             continue
 
         dst_file.parent.mkdir(parents=True, exist_ok=True)

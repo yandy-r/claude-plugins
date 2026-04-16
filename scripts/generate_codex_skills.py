@@ -18,6 +18,7 @@ from generate_codex_common import (
     PLUGIN_SHARED_DIR,
     PLUGIN_SKILLS_DIR,
     SRC_SKILLS_DIR,
+    VERBATIM_SKILL_FILES,
     apply_codex_text_transforms,
     compress_skill_description,
     dump_frontmatter,
@@ -152,6 +153,13 @@ def write_tree(dest_root: Path, dry_run: bool) -> set[Path]:
             continue
 
         out.parent.mkdir(parents=True, exist_ok=True)
+
+        if str(rel.as_posix()) in VERBATIM_SKILL_FILES:
+            # Multi-target meta file — copy bytes verbatim; no rewrites.
+            out.write_bytes(src.read_bytes())
+            copy_mode(src, out)
+            continue
+
         if should_transform_text(src):
             text = src.read_text(encoding="utf-8")
             if src.name == "SKILL.md":

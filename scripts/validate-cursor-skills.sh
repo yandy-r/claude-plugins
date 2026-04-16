@@ -9,8 +9,30 @@ echo "== Sync check (generator --check) =="
 python3 "${REPO_ROOT}/scripts/generate_cursor_skills.py" --check
 
 echo "== Content policy (generated skills) =="
+# Allow-list: these files are copied verbatim by the Cursor generator because
+# they describe all three deployment targets. The same Claude-specific
+# references the content policy normally forbids are intentional here.
+# Must mirror VERBATIM_SKILL_FILES in scripts/generate_cursor_skills.py.
+VERBATIM=(
+  "${SKILLS_DIR}/_shared/references/target-capability-matrix.md"
+  "${SKILLS_DIR}/hooks-workflow/references/support-notes.md"
+  "${SKILLS_DIR}/compatibility-audit/scripts/audit-install-assumptions.sh"
+  "${SKILLS_DIR}/compatibility-audit/scripts/audit-target-features.sh"
+  "${SKILLS_DIR}/compatibility-audit/references/reading-the-report.md"
+)
+is_verbatim() {
+  local f="$1" v
+  for v in "${VERBATIM[@]}"; do
+    [[ "$f" == "$v" ]] && return 0
+  done
+  return 1
+}
+
 BAD=0
 while IFS= read -r -d '' f; do
+  if is_verbatim "$f"; then
+    continue
+  fi
   if grep -qE '/ycc:|~/.claude/|\bycc:|CLAUDE_PLUGIN_ROOT|\$\{HOME\}/\.claude/|\$HOME/\.claude/' "$f" 2>/dev/null; then
     echo "FORBIDDEN pattern in $f:" >&2
     grep -nE '/ycc:|~/.claude/|\bycc:|CLAUDE_PLUGIN_ROOT|\$\{HOME\}/\.claude/|\$HOME/\.claude/' "$f" >&2 || true
