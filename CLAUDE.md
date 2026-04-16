@@ -98,7 +98,8 @@ The marketplace registry at `.claude-plugin/marketplace.json` contains a single 
 ```
 
 Do not add additional plugin entries. New functionality goes into the existing `ycc`
-plugin as a new skill, command, or agent.
+plugin as a new skill, command, or agent. See `CONTRIBUTING.md` → Scope & Guardrails for
+the full policy on what belongs in `ycc` and what to reject.
 
 ## Generated Compatibility Targets
 
