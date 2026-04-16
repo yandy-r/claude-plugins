@@ -348,15 +348,26 @@ def run_check(
     """Check mode: regenerate in memory and diff against on-disk state."""
     diffs: list[str] = []
 
-    # Check inventory.json
+    # Check inventory.json via SEMANTIC compare. Byte-for-byte comparison is
+    # fragile: downstream formatters (prettier, jq, IDE on-save hooks) rewrite
+    # whitespace and array layout in ways that don't change the data but do
+    # drift the bytes. We care whether the inventory DATA is correct, not
+    # whether it was last touched by Python or prettier.
     json_content = render_inventory_json(inventory)
     if not INVENTORY_PATH.exists():
         diffs.append(f"MISSING: {INVENTORY_PATH.relative_to(REPO_ROOT)}")
     else:
-        existing_json = INVENTORY_PATH.read_text(encoding="utf-8")
-        if existing_json != json_content:
+        existing_raw = INVENTORY_PATH.read_text(encoding="utf-8")
+        try:
+            existing_data = json.loads(existing_raw)
+        except json.JSONDecodeError as exc:
+            diffs.append(
+                f"INVALID JSON: {INVENTORY_PATH.relative_to(REPO_ROOT)} ({exc})"
+            )
+            existing_data = None
+        if existing_data is not None and existing_data != inventory:
             diffs.append(f"DRIFT: {INVENTORY_PATH.relative_to(REPO_ROOT)}")
-            _show_text_diff(existing_json, json_content, str(INVENTORY_PATH.relative_to(REPO_ROOT)))
+            _show_text_diff(existing_raw, json_content, str(INVENTORY_PATH.relative_to(REPO_ROOT)))
 
     # Check README.md regions
     if not README_PATH.exists():

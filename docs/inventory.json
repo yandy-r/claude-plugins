@@ -535,7 +535,9 @@
     "agents": 50
   },
   "parity": {
-    "skills_without_commands": ["karpathy-guidelines"],
+    "skills_without_commands": [
+      "karpathy-guidelines"
+    ],
     "commands_without_skills": []
   }
 }
