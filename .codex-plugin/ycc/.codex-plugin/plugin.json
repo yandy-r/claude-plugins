@@ -8,7 +8,12 @@
   "repository": "https://github.com/yandy-r/claude-plugins",
   "homepage": "https://github.com/yandy-r/claude-plugins",
   "license": "MIT",
-  "keywords": ["codex", "skills", "planning", "development"],
+  "keywords": [
+    "codex",
+    "skills",
+    "planning",
+    "development"
+  ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
@@ -17,7 +22,10 @@
     "longDescription": "Yandy's Codex-native workflow bundle with planning, research, implementation, review, and GitHub-oriented development skills.",
     "developerName": "yandy-r",
     "category": "Productivity",
-    "capabilities": ["Read", "Write"],
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
     "websiteURL": "https://github.com/yandy-r/claude-plugins",
     "defaultPrompt": [
       "Use YCC to plan a medium-sized feature before implementation.",

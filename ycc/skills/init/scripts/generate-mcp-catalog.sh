@@ -1,15 +1,65 @@
 #!/usr/bin/env bash
 # generate-mcp-catalog.sh
-# Scans MCP sources and outputs a markdown catalog organized by category
+# Scans MCP sources and outputs a markdown catalog organized by category.
+#
 # Sources:
-#   - Plugin marketplace: ~/.config/dotfiles/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/
-#   - MCP library: ~/.claude/mcp-library/CLAUDE.md
+#   - Plugin marketplace directory (scans plugin.json files)
+#   - MCP library doc (parses markdown list entries)
+#
+# Environment variable overrides (both have sensible defaults):
+#   YCC_MCP_MARKETPLACE_DIR  — directory containing marketplace plugin subdirs
+#                              Default: ${HOME}/.claude/plugins/marketplaces
+#   YCC_MCP_LIBRARY_DOC      — path to an MCP library CLAUDE.md
+#                              Default: ${HOME}/.claude/mcp-library/CLAUDE.md
+#
+# Graceful degradation:
+#   - If neither source exists, a warning is emitted to stderr and an
+#     empty-but-well-formed catalog is written to stdout. Exit code is 0.
+#   - If only one source exists, a notice is emitted to stderr and the
+#     script proceeds with whichever source is available.
 
 set -euo pipefail
 
-# Define paths
-MARKETPLACE_DIR="${HOME}/.config/dotfiles/.claude/plugins/marketplaces/claude-plugins-official/external_plugins"
-MCP_LIBRARY_DOC="${HOME}/.claude/mcp-library/CLAUDE.md"
+# ---------------------------------------------------------------------------
+# Path resolution (overridable via env vars)
+# ---------------------------------------------------------------------------
+MARKETPLACE_DIR="${YCC_MCP_MARKETPLACE_DIR:-${HOME}/.claude/plugins/marketplaces}"
+MCP_LIBRARY_DOC="${YCC_MCP_LIBRARY_DOC:-${HOME}/.claude/mcp-library/CLAUDE.md}"
+
+# ---------------------------------------------------------------------------
+# Source availability checks
+# ---------------------------------------------------------------------------
+marketplace_ok=false
+library_ok=false
+
+[[ -d "$MARKETPLACE_DIR" ]] && marketplace_ok=true
+[[ -f "$MCP_LIBRARY_DOC" ]] && library_ok=true
+
+if [[ "$marketplace_ok" == "false" && "$library_ok" == "false" ]]; then
+    cat >&2 <<EOF
+[generate-mcp-catalog] WARNING: neither MCP source is available on this machine.
+  Marketplace dir : ${MARKETPLACE_DIR}
+  MCP library doc : ${MCP_LIBRARY_DOC}
+Set YCC_MCP_MARKETPLACE_DIR and/or YCC_MCP_LIBRARY_DOC to override the defaults.
+Emitting empty catalog.
+EOF
+    # Emit empty-but-well-formed catalog and exit cleanly
+    echo "# Available MCP Servers"
+    echo ""
+    echo "The following MCP servers are available for configuration."
+    echo ""
+    echo "---"
+    echo "**Total MCPs available**: 0"
+    exit 0
+fi
+
+if [[ "$marketplace_ok" == "false" ]]; then
+    echo "[generate-mcp-catalog] NOTICE: marketplace dir not found (${MARKETPLACE_DIR}); skipping. Set YCC_MCP_MARKETPLACE_DIR to override." >&2
+fi
+
+if [[ "$library_ok" == "false" ]]; then
+    echo "[generate-mcp-catalog] NOTICE: MCP library doc not found (${MCP_LIBRARY_DOC}); skipping. Set YCC_MCP_LIBRARY_DOC to override." >&2
+fi
 
 # Category mappings for better organization
 declare -A CATEGORIES=(
@@ -78,7 +128,7 @@ add_mcp() {
 }
 
 # Scan plugin marketplace
-if [[ -d "$MARKETPLACE_DIR" ]]; then
+if [[ "$marketplace_ok" == "true" ]]; then
     for dir in "$MARKETPLACE_DIR"/*/; do
         [[ -d "$dir" ]] || continue
         plugin_json="$dir/.claude-plugin/plugin.json"
@@ -99,7 +149,7 @@ if [[ -d "$MARKETPLACE_DIR" ]]; then
 fi
 
 # Parse MCP library CLAUDE.md for additional MCPs
-if [[ -f "$MCP_LIBRARY_DOC" ]]; then
+if [[ "$library_ok" == "true" ]]; then
     while IFS= read -r line; do
         if [[ "$line" =~ ^-\ \`([^\`]+)\`\ -\ (.+)$ ]]; then
             name="${BASH_REMATCH[1]}"

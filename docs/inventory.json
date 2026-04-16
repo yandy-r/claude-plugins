@@ -1,0 +1,511 @@
+{
+  "skills": [
+    {
+      "name": "ask",
+      "description": "This skill should be used when the user asks questions about the codebase without requesting changes, such as \"how does X work?\", \"where is Y implemented?\", \"explain this code\", \"walk me through X\", \"what does this do?\", \"what would I need to change for X?\", \"if I change X what breaks?\", \"compare how A and B handle X\", or any exploratory question about code structure, architecture, or implementation. Also triggered by the /ask command."
+    },
+    {
+      "name": "clean",
+      "description": "This skill should be used when the user asks to \"clean project files\", \"remove unnecessary files\", \"clean up project\", \"find unused files\", \"project cleanup\", or mentions removing build artifacts, temp files, or old code from a project directory. Orchestrates parallel cleanup agents with safety measures."
+    },
+    {
+      "name": "code-report",
+      "description": "Generate structured implementation reports documenting changes made during plan execution. Use as optional Step 4 after implement-plan to create reports in docs/plans/[feature-name]/report.md with overview, files changed, features, and test guidance."
+    },
+    {
+      "name": "code-review",
+      "description": "Dual-mode code review \u2014 local uncommitted changes OR a GitHub pull request. Both modes now write a machine-parseable review artifact (Local \u2192 docs/prps/reviews/local-{timestamp}-review.md, PR \u2192 docs/prps/reviews/pr-{N}-review.md) with sequential finding IDs (F001, F002, ...) and Status fields (Open/Fixed/Failed) so /ycc:review-fix can consume and update them in place. Local mode runs a full security + quality pass on the diff. PR mode fetches the PR, reads each changed file in full, builds context from CLAUDE.md and PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build) for detected stacks, assigns severity, and posts the review to GitHub via gh. Pass `--parallel` to fan out the REVIEW phase across 3 standalone ycc:code-reviewer sub-agents (correctness, security, quality) and merge findings. Pass `--team` (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList, per-reviewer task tracking, and inter-reviewer communication via SendMessage. `--parallel` and `--team` are mutually exclusive. Use when the user asks to \"review code\", \"review PR\", \"check uncommitted changes\", \"review pr N\", \"parallel review\", \"team review\", or says \"/code-review\". Adapted from PRPs-agentic-eng by Wirasm."
+    },
+    {
+      "name": "deep-research",
+      "description": "Conduct strategic multi-perspective research using the Asymmetric Research Squad methodology with 8 specialized personas. Deploys parallel research agents covering historical, contrarian, analogical, systems, journalistic, archaeological, futurist, and negative-space perspectives. Pass `--team` (Claude Code only) to deploy the 14 research agents as teammates under a shared `TeamCreate`/`TaskList` with coordinated shutdown; default is standalone parallel sub-agents. Use for comprehensive research on complex topics requiring diverse viewpoints, competitive analysis, or strategic intelligence gathering."
+    },
+    {
+      "name": "feature-research",
+      "description": "Run the 7-agent research pipeline for a new feature \u2014 deploys api-researcher, business-analyzer, tech-designer, ux-researcher, security-researcher, practices-researcher, and recommendations-agent in parallel to produce 7 research-*.md files and a consolidated feature-spec.md under docs/plans/[feature-name]/. Default is standalone parallel sub-agents via the Task tool. Pass `--team` (Claude Code only) to deploy the 7 researchers as teammates under a shared TeamCreate/TaskList with coordinated shutdown. Outputs to docs/plans/, NOT docs/prps/. Use when the user asks to \"research a feature\", \"run feature research\", \"deep-dive a feature before planning\", or says \"/feature-research\". For lightweight single-pass specs in the PRP workflow, use ycc:prp-spec instead.\n"
+    },
+    {
+      "name": "frontend-design",
+      "description": "Create distinctive, production-grade frontend interfaces with intentional visual direction \u2014 typography, color, spacing rhythm, layout composition, motion, and atmosphere. Use when the user asks to build a landing page, dashboard, app shell, or visual system from scratch, wants to upgrade a bland or generic-looking UI into something memorable, asks for a design direction (brutalist/editorial/luxury/playful/maximalist), asks how to avoid generic AI/SaaS-looking interfaces, asks about typography pairings, color systems, motion choreography, or wants a design point of view rather than just \"make it work\"."
+    },
+    {
+      "name": "frontend-patterns",
+      "description": "Frontend patterns for React and Next.js \u2014 composition, compound components, render props, custom hooks, state management with Context+useReducer, data fetching, performance optimization (React.memo/useMemo/useCallback, lazy/Suspense, virtualization), forms with validation, error boundaries, animation with Framer Motion, and accessibility patterns (keyboard nav, focus management). Use when the user is building React components, asks about useState/useReducer/Context, asks about useMemo/useCallback/React.memo, asks about code splitting with React.lazy and Suspense, asks about long-list virtualization with @tanstack/react-virtual, asks about form validation, error boundaries, custom hooks, Framer Motion animations, keyboard navigation/focus management, or wants modern React/Next.js idioms."
+    },
+    {
+      "name": "frontend-slides",
+      "description": "Create stunning, animation-rich, zero-dependency HTML presentations from scratch or by converting PowerPoint files. Enforces viewport-fit (one slide = one viewport, no scrolling), distinctive design presets, and a discovery-by-preview workflow. Use when the user asks to build a presentation/talk/pitch deck, convert a .ppt or .pptx to HTML, improve an existing HTML deck, asks about slide layout, slide animations, keyboard/touch navigation, viewport fitting with clamp() and 100dvh, presentation themes/style presets, or python-pptx for PPTX extraction."
+    },
+    {
+      "name": "git-workflow",
+      "description": "Git commit and documentation workflow manager. Analyzes changes, determines commit strategy (direct vs agents), writes conventional commit messages, coordinates documentation updates, and creates pull requests. Use when completing features, making commits, pushing changes, creating PRs, or when the user says \"It's time to push commits.\""
+    },
+    {
+      "name": "go-patterns",
+      "description": "Idiomatic Go patterns, best practices, and conventions for building robust, efficient, and maintainable Go applications. Use when the user is writing new Go code, reviewing Go code, refactoring Go, designing Go packages/modules, asks \"how should I structure this in Go\", asks about Go error wrapping with errors.Is/errors.As, asks about goroutines/channels/context/errgroup, asks about interface design (accept interfaces, return structs), asks about functional options or embedding, or wants Go idioms and anti-patterns."
+    },
+    {
+      "name": "go-testing",
+      "description": "Go testing patterns including table-driven tests, subtests, benchmarks, fuzzing, and test coverage. Follows TDD methodology with idiomatic Go practices. Use when the user is writing Go tests, adding test coverage to Go code, asks about table-driven tests, t.Run subtests, t.Helper/t.Cleanup/t.TempDir, testing.B benchmarks, Go 1.18+ fuzzing (f.Fuzz), httptest handler testing, golden files, interface-based mocks, or wants TDD guidance for a Go project."
+    },
+    {
+      "name": "implement-plan",
+      "description": "Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dependency wiring. Use as Step 3 after parallel-plan."
+    },
+    {
+      "name": "init",
+      "description": "This skill should be used when the user asks to \"initialize workspace\", \"set up Claude CLI environment\", \"configure agents and MCPs for project\", \"init workspace\", \"set up project with Claude tools\", or mentions workspace initialization. Analyzes project type and presents available agents/MCPs for selection."
+    },
+    {
+      "name": "karpathy-guidelines",
+      "description": "Behavioral guidelines to reduce common LLM coding mistakes. Use when writing, reviewing, or refactoring code to avoid overcomplication, make surgical changes, surface assumptions, and define verifiable success criteria."
+    },
+    {
+      "name": "orchestrate",
+      "description": "Orchestrate multiple specialized agents in parallel to accomplish complex tasks. Decomposes the task, deploys implementor agents in dependency-resolved batches, and synthesizes results. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList, up-front TaskCreate/addBlockedBy dependency wiring, and coordinated inter-batch shutdown via SendMessage."
+    },
+    {
+      "name": "parallel-plan",
+      "description": "Create detailed parallel implementation plans by running analysis and validation stages, then synthesizing dependency-aware tasks into parallel-plan.md. Use after shared-context to prepare implementation-ready planning artifacts. Defaults to standalone parallel sub-agents via the Task tool; pass `--team` (Claude Code only) to orchestrate the analysis and validation stages as teammates under a shared TeamCreate/TaskList with coordinated shutdown."
+    },
+    {
+      "name": "plan",
+      "description": "Lightweight conversational planner that dispatches the ycc:planner agent (or a multi-perspective agent team) to produce a specific, phased implementation plan with file paths, dependencies, risks, and a testing strategy \u2014 then WAITS for explicit user confirmation before any code is written. Pass `--parallel` to instruct the planner to shape its output for parallel execution (Batches summary section, hierarchical step IDs, explicit Depends on annotations). Pass `--team` to spawn a 3-persona team (architect / risk-analyst / test-strategist) and merge their outputs into a richer plan. Flags are independent and combinable. Use for quick planning on a new feature, architectural change, or complex refactor when you do NOT need the heavier parallel-agent plan-workflow or the PRD-driven prp-plan. Use when the user asks to \"plan this\", \"outline an approach\", \"break this down before I code\", \"parallel plan\", \"multi-perspective plan\", or says \"/plan\"."
+    },
+    {
+      "name": "plan-workflow",
+      "description": "Unified planning workflow - research, analyze, and generate parallel implementation plans in one command. Combines shared-context and parallel-plan with checkpoint support. Default is standalone parallel sub-agents via the Task tool. Pass `--team` (Claude Code only) to orchestrate research, analysis, and validation stages as teammates under a shared TeamCreate/TaskList with coordinated shutdown."
+    },
+    {
+      "name": "prp-commit",
+      "description": "Lightweight natural-language git commit helper. Interprets the argument as either a glob, a filter phrase (\"except tests\", \"only new files\"), a topic phrase (\"the auth changes\"), or leaves staging alone if the user says \"staged\". Stages the matching files and generates a conventional commit message. Use for quick single-purpose commits; use /ycc:git-workflow instead when you need documentation updates, parallel agents, or full PR orchestration. Adapted from PRPs-agentic-eng by Wirasm."
+    },
+    {
+      "name": "prp-implement",
+      "description": "Execute a PRP plan file with continuous validation loops. Detects package manager, prepares git branch, processes tasks with per-task validation, runs all 5 validation levels (static, unit, build, integration, edge cases), writes an implementation report to docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans (those with a Batches section and Depends on annotations) and prompts the user to choose sequential or parallel execution. Pass `--parallel` to skip the prompt and run tasks in parallel via standalone ycc:implementor sub-agents. Pass `--team` (Claude Code only) to run the same per-batch implementor fan-out under a shared TeamCreate/TaskList with up-front dependency wiring (`addBlockedBy`) and coordinated per-batch shutdown via SendMessage. `--parallel` and `--team` are mutually exclusive. Use when the user asks to \"execute a PRP plan\", \"implement from a plan file\", \"run prp-implement\", \"parallel PRP implement\", \"team PRP implement\", or provides a path to a .plan.md file. Adapted from PRPs-agentic-eng by Wirasm."
+    },
+    {
+      "name": "prp-plan",
+      "description": "Create a comprehensive, self-contained feature implementation plan with codebase pattern extraction and optional external research. Detects whether the input is a PRD (selects next pending phase) or a free-form description, runs deep codebase discovery via ycc:prp-researcher, and writes a single-pass-ready plan to docs/prps/plans/{name}.plan.md. Pass `--parallel` to fan out research across 3 standalone researcher sub-agents and emit a dependency-batched task list ready for parallel execution by prp-implement. Pass `--team` (Claude Code only) to run the same 3 researchers under a shared TeamCreate/TaskList with coordinated shutdown \u2014 heavier but with a shared task graph and observable progress. `--parallel` and `--team` are mutually exclusive. Use when the user asks for a \"PRP plan\", \"implementation plan from PRD\", \"feature plan with patterns to mirror\", \"parallel PRP plan\", \"team PRP plan\", or says \"/prp-plan\". Adapted from PRPs-agentic-eng by Wirasm."
+    },
+    {
+      "name": "prp-pr",
+      "description": "Create a GitHub pull request from the current branch \u2014 validates preconditions, discovers PR templates, analyzes commits and file diffs, references PRP artifacts (prds/plans/reports), pushes, and creates the PR via gh. Lightweight sibling of /ycc:git-workflow --pr; use this when you only need the PR, not the commit+docs orchestration. Adapted from PRPs-agentic-eng by Wirasm."
+    },
+    {
+      "name": "prp-prd",
+      "description": "Interactive, problem-first PRD generator that runs an iterative questioning workflow \u2014 Foundation \u2192 Market Grounding \u2192 Vision \u2192 Technical Feasibility \u2192 Decisions \u2192 Generate. Produces a hypothesis-driven product spec at docs/prps/prds/{name}.prd.md. Use when the user asks to \"write a PRD\", \"create a product spec\", \"start a new feature with a PRD\", or says \"/prp-prd\". Adapted from PRPs-agentic-eng by Wirasm."
+    },
+    {
+      "name": "prp-spec",
+      "description": "Generate a lightweight feature spec for the PRP workflow \u2014 single-pass with optional codebase/market grounding via ycc:prp-researcher. Produces a concise spec at docs/prps/specs/{name}.spec.md covering problem statement, requirements, technical approach, integration points, and risks. Accepts a free-form description or starts with clarifying questions. Parallel entry point to prp-prd \u2014 use prp-spec when the problem is clear, prp-prd when it needs discovery. Both feed directly into prp-plan. Use when the user asks to \"write a spec\", \"spec out a feature\", \"quick spec\", \"create a PRP spec\", or says \"/prp-spec\". For heavyweight multi-agent research, use ycc:feature-research instead.\n"
+    },
+    {
+      "name": "python-patterns",
+      "description": "Idiomatic Python patterns, PEP 8 conventions, type hints, dataclasses, context managers, decorators, and best practices for building robust, maintainable Python applications. Use when the user is writing new Python code, reviewing Python code, refactoring Python, designing Python packages/modules, asks \"how should I structure this in Python\", asks about EAFP vs LBYL, asks about type hints/Protocol/TypeVar/TypeAlias, asks about dataclasses/NamedTuple/__slots__, asks about context managers and `with` blocks, asks about decorators or functools, asks about asyncio/threading/multiprocessing tradeoffs, or wants Python idioms and anti-patterns."
+    },
+    {
+      "name": "python-testing",
+      "description": "Python testing patterns using pytest \u2014 TDD methodology, fixtures (function/module/session scopes), parametrization, markers, mocking with unittest.mock, async tests with pytest-asyncio, tmp_path, conftest.py organization, and coverage targets. Use when the user is writing Python tests, adding test coverage to Python code, asks about pytest, @pytest.fixture, @pytest.mark.parametrize, @patch / Mock / MagicMock / autospec, pytest-asyncio, conftest.py, tmp_path / tmpdir, pytest --cov, or wants TDD guidance for a Python project."
+    },
+    {
+      "name": "research-to-issues",
+      "description": "This skill should be used when the user asks to \"create issues from research\", \"turn research into GitHub issues\", \"create issues from feature spec\", \"turn plan into issues\", \"issues from parallel plan\", \"create issues from PRP plan\", \"generate issues from deep-research output\", \"create tracking issues from plan\", \"parse plan into actionable issues\", or mentions converting documentation produced by ycc:deep-research, ycc:feature-research, ycc:parallel-plan, ycc:plan-workflow, or ycc:prp-plan into structured GitHub issues with labels and tracking hierarchy."
+    },
+    {
+      "name": "resume-session",
+      "description": "Load the most recent session file from ~/.claude/session-data/ (or a specified one by date or path) and produce a structured briefing of what was built, what worked, what NOT to retry, open questions, and the exact next step. Does NOT start working automatically \u2014 waits for user direction. Counterpart to /ycc:save-session. Use when the user says \"resume session\", \"continue from last session\", \"load context\", or says \"/resume-session\"."
+    },
+    {
+      "name": "review-fix",
+      "description": "Plan and apply fixes for findings from a code-review artifact produced by /ycc:code-review. Parses the review file (local or PR), filters findings by severity threshold, groups them into dependency-safe batches (same-file findings stay together, different files can run in parallel), dispatches ycc:review-fixer agents to apply each fix, updates the Status field in the source review file in place (Open \u2192 Fixed or Failed), runs validation after changes, and writes a fix report to docs/prps/reviews/fixes/. Pass `--parallel` to fan out independent fixes across parallel standalone review-fixer sub-agents. Pass `--team` (Claude Code only) to run the same per-batch fan-out as a coordinated agent team with up-front TaskCreate, shared TaskList across all batches, and per-batch shutdown via SendMessage. `--parallel` and `--team` are mutually exclusive. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to change the minimum severity threshold (default HIGH). Pass `--dry-run` to preview the fix plan (and team graph, if combined with --team) without applying changes. Use when the user asks to \"fix review findings\", \"apply review fixes\", \"review-fix PR 42\", \"fix the code review\", \"team review-fix\", or says \"/review-fix\". Adapted from PRPs-agentic-eng by Wirasm."
+    },
+    {
+      "name": "rust-patterns",
+      "description": "Idiomatic Rust patterns, ownership, error handling, traits, concurrency, and best practices for building safe, performant applications. Use when the user is writing new Rust code, reviewing Rust code, refactoring Rust, designing crate structure, asks \"how should I structure this in Rust\", asks about Rust ownership/borrowing/lifetimes, asks about error handling with Result/thiserror/anyhow, asks about Rust traits/generics/trait objects, asks about Arc/Mutex/channels/async, or wants Rust idioms and anti-patterns."
+    },
+    {
+      "name": "rust-testing",
+      "description": "Rust testing patterns including unit tests, integration tests, async testing, property-based testing, mocking, and coverage. Follows TDD methodology. Use when the user is writing Rust tests, adding test coverage to Rust code, asks about"
+    },
+    {
+      "name": "save-session",
+      "description": "Capture the current session state \u2014 what was built, what worked, what failed, open questions, and exact next step \u2014 to a dated file at ~/.claude/session-data/YYYY-MM-DD-{shortid}-session.tmp so a future session can resume with full context. Use when the user says \"save session\", \"end of session\", \"preserve context\", \"before context limit\", or says \"/save-session\". The file is meant to be read by /ycc:resume-session at the start of the next session."
+    },
+    {
+      "name": "shared-context",
+      "description": "Create shared context documentation for a feature by deploying 4 researchers (architecture, patterns, integration, docs) that write research artifacts, then synthesizing verified findings into shared.md. Use as Step 1 before parallel-plan when preparing implementation context. Default is standalone parallel sub-agents via the Task tool. Pass `--team` (Claude Code only) to deploy the 4 researchers as teammates under a shared TeamCreate/TaskList with coordinated shutdown."
+    },
+    {
+      "name": "ts-patterns",
+      "description": "Idiomatic TypeScript patterns \u2014 strict type system, discriminated unions, generic inference, `satisfies`, branded types, errors as values, ESM/CJS modules with `exports` maps, Promise combinators and AbortController, iterators and higher-order functions, runtime selection across Node/Deno/Bun/browser/edge, and the Vite + Vitest toolchain stack. Use when the user is writing new TypeScript, reviewing TS code, refactoring, designing libraries for npm, tuning `tsconfig` strict mode, asks about generics/conditional types/discriminated unions/branded types/`satisfies`, asks about ESM/CJS dual publishing and `exports` maps, asks about Promise combinators/AbortController/async iterators, asks about Vite config or `vite build --lib`, chooses between Node/Deno/Bun/browser/edge runtimes, or wants TypeScript idioms and anti-patterns."
+    },
+    {
+      "name": "ts-testing",
+      "description": "TypeScript testing patterns using Vitest as the primary runner \u2014 TDD workflow, unit tests, integration tests, async tests with fake timers, parameterized tests via `test.each`, property-based testing with fast-check, mocking with `vi.mock` / `vi.fn` / `vi.spyOn`, type-level testing with `expectTypeOf` / `expect-type` / `tsd`, benchmarks with `vitest bench`, and v8 coverage. Follows TDD methodology. Use when the user is writing TypeScript tests, adding test coverage to TypeScript code, asks about Vitest, `describe` / `it` / `expect`, `vi.useFakeTimers`, `test.each`, fast-check, `expectTypeOf` or `tsd`, `vitest bench`, coverage targets, or wants TDD guidance for a TypeScript project."
+    },
+    {
+      "name": "write-docs",
+      "description": "Orchestrate 5 specialized documentation agents in parallel to analyze codebase and create comprehensive documentation. Includes audit, gap analysis, parallel agent deployment, and quality assurance."
+    }
+  ],
+  "commands": [
+    {
+      "name": "ask",
+      "description": "Ask questions about the codebase without making changes - get guidance, impact analysis, or comparisons"
+    },
+    {
+      "name": "clean",
+      "description": "Orchestrate parallel cleanup agents to find and remove unnecessary project files"
+    },
+    {
+      "name": "code-report",
+      "description": "Generate structured implementation reports documenting changes made during plan execution. Use as optional Step 4 after implement-plan to create reports in docs/plans/[feature-name]/report.md with overview, files changed, features, and test guidance."
+    },
+    {
+      "name": "code-review",
+      "description": "Code review \u2014 local uncommitted changes or a GitHub PR (pass PR number/URL for PR mode). Runs security + quality checks, executes validation commands, writes an artifact, and posts the review. Pass --parallel to fan out the review phase across 3 specialized reviewer agents (correctness, security, quality) and merge findings. Pass --team (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList and per-reviewer task tracking."
+    },
+    {
+      "name": "deep-research",
+      "description": "Conduct strategic multi-perspective research using the Asymmetric Research Squad methodology with 8 specialized personas. Deploys parallel research agents covering historical, contrarian, analogical, systems, journalistic, archaeological, futurist, and negative-space perspectives. Pass --team (Claude Code only) to deploy the 14 research agents as teammates under a shared TeamCreate/TaskList with coordinated shutdown; default is standalone parallel sub-agents. Use for comprehensive research on complex topics requiring diverse viewpoints, competitive analysis, or strategic intelligence gathering."
+    },
+    {
+      "name": "feature-research",
+      "description": "Research a feature comprehensively before implementation \u2014 analyzes requirements, gathers external API context, and produces a feature-spec.md ready for plan-workflow. Defaults to standalone parallel sub-agents; pass --team (Claude Code only) to deploy the 7 researchers as teammates under a shared TeamCreate/TaskList with coordinated shutdown. Use when starting a new feature and you need structured research before coding."
+    },
+    {
+      "name": "frontend-design",
+      "description": "Create distinctive, production-grade frontend interfaces with intentional visual direction \u2014 typography, color, spacing rhythm, layout composition, motion, and atmosphere. Use when the user asks to build a landing page, dashboard, app shell, or visual system from scratch, wants to upgrade a bland or generic-looking UI into something memorable, asks for a design direction (brutalist/editorial/luxury/playful/maximalist), asks about typography pairings, color systems, motion choreography, or wants a design point of view rather than just \"make it work\"."
+    },
+    {
+      "name": "frontend-patterns",
+      "description": "Frontend patterns for React and Next.js \u2014 composition, compound components, render props, custom hooks, state management with Context+useReducer, data fetching, performance optimization (React.memo/useMemo/useCallback, lazy/Suspense, virtualization), forms with validation, error boundaries, animation with Framer Motion, and accessibility patterns (keyboard nav, focus management). Use when the user is building React components, asks about useState/useReducer/Context, asks about useMemo/useCallback/React.memo, asks about code splitting with React.lazy and Suspense, asks about long-list virtualization with @tanstack/react-virtual, asks about form validation, error boundaries, custom hooks, Framer Motion animations, keyboard navigation/focus management, or wants modern React/Next.js idioms."
+    },
+    {
+      "name": "frontend-slides",
+      "description": "Create stunning, animation-rich, zero-dependency HTML presentations from scratch or by converting PowerPoint files. Enforces viewport-fit (one slide = one viewport, no scrolling), distinctive design presets, and a discovery-by-preview workflow. Use when the user asks to build a presentation/talk/pitch deck, convert a .ppt or .pptx to HTML, improve an existing HTML deck, asks about slide layout, slide animations, keyboard/touch navigation, viewport fitting with clamp() and 100dvh, presentation themes/style presets, or python-pptx for PPTX extraction."
+    },
+    {
+      "name": "git-workflow",
+      "description": "Git commit and documentation workflow manager. Analyzes changes, determines commit strategy (direct vs agents), writes conventional commit messages, coordinates documentation updates, and creates pull requests. Use when completing features, making commits, pushing changes, creating PRs, or when the user says \"It's time to push commits.\""
+    },
+    {
+      "name": "go-patterns",
+      "description": "Idiomatic Go patterns, best practices, and conventions for building robust, efficient, and maintainable Go applications. Use when the user is writing new Go code, reviewing Go code, refactoring Go, designing Go packages/modules, asks \"how should I structure this in Go\", asks about Go error wrapping with errors.Is/errors.As, asks about goroutines/channels/context/errgroup, asks about interface design (accept interfaces, return structs), asks about functional options or embedding, or wants Go idioms and anti-patterns."
+    },
+    {
+      "name": "go-testing",
+      "description": "Go testing patterns including table-driven tests, subtests, benchmarks, fuzzing, and test coverage. Follows TDD methodology with idiomatic Go practices. Use when the user is writing Go tests, adding test coverage to Go code, asks about table-driven tests, t.Run subtests, t.Helper/t.Cleanup/t.TempDir, testing.B benchmarks, Go 1.18+ fuzzing (f.Fuzz), httptest handler testing, golden files, interface-based mocks, or wants TDD guidance for a Go project."
+    },
+    {
+      "name": "implement-plan",
+      "description": "Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dep wiring. Step 3 of the planning workflow, requires parallel-plan.md from plan-workflow."
+    },
+    {
+      "name": "init",
+      "description": "Initialize Claude CLI workspace with agents and MCPs based on project analysis"
+    },
+    {
+      "name": "orchestrate",
+      "description": "Orchestrate multiple specialized agents to accomplish a complex task through intelligent decomposition and parallel execution. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dependency wiring."
+    },
+    {
+      "name": "parallel-plan",
+      "description": "Generate a detailed parallel implementation plan with task dependencies, file ownership, and batch ordering. Step 2 of the planning workflow \u2014 requires shared-context output. Produces parallel-plan.md ready for implement-plan. Defaults to standalone parallel sub-agents via the Task tool; pass --team (Claude Code only) to orchestrate the analysis and validation stages as teammates under a shared TeamCreate/TaskList with coordinated shutdown."
+    },
+    {
+      "name": "plan",
+      "description": "Lightweight conversational planner. Restates requirements, identifies risks, outlines phases, then WAITS for explicit user confirmation before touching any code. Pass --parallel to shape the planner's output for parallel execution (Batches section + dependency annotations). Pass --team (Claude Code only) to dispatch a 3-persona planning team (architect / risk-analyst / test-strategist) and merge their outputs into a richer plan."
+    },
+    {
+      "name": "plan-workflow",
+      "description": "Unified planning workflow \u2014 research, analyze, and generate parallel implementation plans in one command. Combines shared-context and parallel-plan with checkpoint support. Defaults to standalone parallel sub-agents via the Task tool; pass --team (Claude Code only) to orchestrate research, analysis, and validation stages as teammates under a shared TeamCreate/TaskList with coordinated shutdown."
+    },
+    {
+      "name": "prp-commit",
+      "description": "Quick natural-language git commit helper \u2014 describe what to commit in plain English (blob glob, filter phrase, or topic). Lightweight sibling of /ycc:git-workflow."
+    },
+    {
+      "name": "prp-implement",
+      "description": "Execute a PRP plan file with per-task validation loops. Detects package manager, prepares git branch, runs 5 validation levels, writes docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans and prompts the user; pass --parallel to force standalone sub-agent batch execution, or --team (Claude Code only) to force agent-team batch execution with shared TaskList and up-front dependency wiring."
+    },
+    {
+      "name": "prp-plan",
+      "description": "Create a single-pass implementation plan from a feature description or PRD. Runs codebase pattern extraction and optional external research, then writes docs/prps/plans/{name}.plan.md. Pass --parallel to fan out research and emit a dependency-batched plan. Pass --team (Claude Code only) to run the same fan-out as a coordinated agent team with shared TaskList."
+    },
+    {
+      "name": "prp-pr",
+      "description": "Create a GitHub PR from the current branch \u2014 discovers templates, analyzes commits, references PRP artifacts, pushes, and opens the PR via gh."
+    },
+    {
+      "name": "prp-prd",
+      "description": "Interactive PRD generator \u2014 problem-first, hypothesis-driven product spec built through iterative questioning and dual-mode grounding research. Writes to docs/prps/prds/."
+    },
+    {
+      "name": "prp-spec",
+      "description": "Generate a lightweight feature spec for the PRP workflow \u2014 single-pass with optional codebase/market grounding. Writes to docs/prps/specs/. Sits between prp-prd and prp-plan, or works standalone.\n"
+    },
+    {
+      "name": "python-patterns",
+      "description": "Idiomatic Python patterns, PEP 8 conventions, type hints, dataclasses, context managers, decorators, and best practices for building robust, maintainable Python applications. Use when the user is writing new Python code, reviewing Python code, refactoring Python, designing Python packages/modules, asks \"how should I structure this in Python\", asks about EAFP vs LBYL, asks about type hints/Protocol/TypeVar/TypeAlias, asks about dataclasses/NamedTuple/__slots__, asks about context managers and `with` blocks, asks about decorators or functools, asks about asyncio/threading/multiprocessing tradeoffs, or wants Python idioms and anti-patterns."
+    },
+    {
+      "name": "python-testing",
+      "description": "Python testing patterns using pytest \u2014 TDD methodology, fixtures (function/module/session scopes), parametrization, markers, mocking with unittest.mock, async tests with pytest-asyncio, tmp_path, conftest.py organization, and coverage targets. Use when the user is writing Python tests, adding test coverage to Python code, asks about pytest, @pytest.fixture, @pytest.mark.parametrize, @patch / Mock / MagicMock / autospec, pytest-asyncio, conftest.py, tmp_path / tmpdir, pytest --cov, or wants TDD guidance for a Python project."
+    },
+    {
+      "name": "research-to-issues",
+      "description": "Convert research, feature specs, and implementation plans into structured GitHub issues with tracking hierarchy, labels, and priority. Supports deep-research output, feature-spec documents, parallel-plan plans, and PRP plans. Creates detailed, agentic-engineering-friendly issues with mandatory reading, scope, and validation criteria."
+    },
+    {
+      "name": "resume-session",
+      "description": "Load the most recent session file from ~/.claude/session-data/ and resume work with full context. Counterpart to /ycc:save-session."
+    },
+    {
+      "name": "review-fix",
+      "description": "Plan and apply fixes for findings from a code-review artifact. Parses the review file, filters by severity, dispatches review-fixer agents to apply each fix, updates Status in place (Open \u2192 Fixed/Failed), and writes a fix report. Pass --parallel for standalone sub-agent batch execution, --team (Claude Code only) for agent-team batch execution with shared TaskList and up-front dependency wiring, --severity <level> to change the threshold (default HIGH), or --dry-run to preview the plan."
+    },
+    {
+      "name": "rust-patterns",
+      "description": "Idiomatic Rust patterns, ownership, error handling, traits, concurrency, and best practices for building safe, performant applications. Use when the user is writing new Rust code, reviewing Rust code, refactoring Rust, designing crate structure, asks \"how should I structure this in Rust\", asks about Rust ownership/borrowing/lifetimes, asks about error handling with Result/thiserror/anyhow, asks about Rust traits/generics/trait objects, asks about Arc/Mutex/channels/async, or wants Rust idioms and anti-patterns."
+    },
+    {
+      "name": "rust-testing",
+      "description": "Rust testing patterns including unit tests, integration tests, async testing, property-based testing, mocking, and coverage. Follows TDD methodology. Use when the user is writing Rust tests, adding test coverage to Rust code, asks about"
+    },
+    {
+      "name": "save-session",
+      "description": "Save current session state to a dated file in ~/.claude/session-data/ so work can be resumed in a future session with full context."
+    },
+    {
+      "name": "shared-context",
+      "description": "Build shared context documentation for a feature \u2014 gathers files, conventions, dependencies, and existing patterns into a single artifact that downstream planning stages can reference. Step 1 of the planning workflow. Defaults to standalone parallel sub-agents via the Task tool; pass --team (Claude Code only) to deploy the 4 researchers as teammates under a shared TeamCreate/TaskList with coordinated shutdown."
+    },
+    {
+      "name": "ts-patterns",
+      "description": "Idiomatic TypeScript patterns \u2014 strict type system, discriminated unions, generic inference, `satisfies`, branded types, errors as values, ESM/CJS modules with `exports` maps, Promise combinators and AbortController, iterators and higher-order functions, runtime selection across Node/Deno/Bun/browser/edge, and the Vite + Vitest toolchain stack. Use when the user is writing new TypeScript, reviewing TS code, refactoring, designing libraries for npm, tuning `tsconfig` strict mode, asks about generics/conditional types/discriminated unions/branded types/`satisfies`, asks about ESM/CJS dual publishing and `exports` maps, asks about Promise combinators/AbortController/async iterators, asks about Vite config or `vite build --lib`, chooses between Node/Deno/Bun/browser/edge runtimes, or wants TypeScript idioms and anti-patterns."
+    },
+    {
+      "name": "ts-testing",
+      "description": "TypeScript testing patterns using Vitest as the primary runner \u2014 TDD workflow, unit tests, integration tests, async tests with fake timers, parameterized tests via `test.each`, property-based testing with fast-check, mocking with `vi.mock` / `vi.fn` / `vi.spyOn`, type-level testing with `expectTypeOf` / `expect-type` / `tsd`, benchmarks with `vitest bench`, and v8 coverage. Follows TDD methodology. Use when the user is writing TypeScript tests, adding test coverage to TypeScript code, asks about Vitest, `describe` / `it` / `expect`, `vi.useFakeTimers`, `test.each`, fast-check, `expectTypeOf` or `tsd`, `vitest bench`, coverage targets, or wants TDD guidance for a TypeScript project."
+    },
+    {
+      "name": "write-docs",
+      "description": "Orchestrate 5 specialized documentation agents in parallel to analyze codebase and create comprehensive documentation. Includes audit, gap analysis, parallel agent deployment, and quality assurance."
+    }
+  ],
+  "agents": [
+    {
+      "name": "ansible-automation-expert",
+      "description": "Expert Ansible automation assistance including playbook development, role creation, inventory management, network automation, IaC implementation, and troubleshooting configurations."
+    },
+    {
+      "name": "api-docs-expert",
+      "description": "Create, review, and improve API documentation, design RESTful endpoints, write OpenAPI/Swagger specs, create Postman collections, and ensure API docs follow best practices."
+    },
+    {
+      "name": "api-documenter",
+      "description": "Generate comprehensive API documentation from code, including endpoint specs, parameter descriptions, response schemas, and usage examples."
+    },
+    {
+      "name": "architect",
+      "description": "Software architecture specialist for system design, scalability, and technical decision-making. Use when planning new features, refactoring large systems, or making architectural decisions."
+    },
+    {
+      "name": "architecture-analyst",
+      "description": "Analyze codebase architecture and create documentation in docs/architecture/ with system overviews, component maps, and Mermaid data flow diagrams."
+    },
+    {
+      "name": "cloudflare-architect",
+      "description": "Expert guidance on Cloudflare services, architecture, security (WAF, DDoS, Zero Trust), Workers, CDN configuration, performance optimization, and deployment strategies."
+    },
+    {
+      "name": "cloudflare-developer",
+      "description": "Implement Cloudflare Workers, Pages, D1, R2, KV, Durable Objects, and wrangler.toml configurations. Writes Worker code, creates configs, and verifies deployments."
+    },
+    {
+      "name": "code-architect",
+      "description": "Designs feature architectures by analyzing existing codebase patterns and conventions, then providing implementation blueprints with concrete files, interfaces, data flow, and build order."
+    },
+    {
+      "name": "code-documenter",
+      "description": "Generate and maintain code documentation including inline comments, module-level docs, and architectural documentation."
+    },
+    {
+      "name": "code-explorer",
+      "description": "Deeply analyze codebase features by tracing execution paths, mapping architecture layers, and documenting dependencies to inform new development."
+    },
+    {
+      "name": "code-finder",
+      "description": "Quickly locate specific code files, functions, classes, or patterns within a codebase. Find implementations, search syntax patterns, and discover related code across files."
+    },
+    {
+      "name": "code-researcher",
+      "description": "Comprehensive analysis of a codebase's architecture, patterns, and implementation details to inform feature development or architectural decisions."
+    },
+    {
+      "name": "code-reviewer",
+      "description": "Expert code review specialist. Proactively reviews code for quality, security, and maintainability. Use immediately after writing or modifying code. MUST BE USED for all code changes."
+    },
+    {
+      "name": "code-simplifier",
+      "description": "Simplifies and refines code for clarity, consistency, and maintainability while preserving behavior. Focus on recently modified code unless instructed otherwise."
+    },
+    {
+      "name": "codebase-advisor",
+      "description": "Read-only codebase advisor that answers questions about code structure, architecture, and implementation without making changes. Use for impact analysis and explanations."
+    },
+    {
+      "name": "db-modifier",
+      "description": "Make database schema changes, data migrations, or modifications to the production Supabase/PostgreSQL database including tables, RLS policies, RPC functions, storage buckets, and data updates."
+    },
+    {
+      "name": "docs-git-committer",
+      "description": "Update documentation after code changes (feature docs, CLAUDE.md files) and commit all changes to git."
+    },
+    {
+      "name": "documentation-writer",
+      "description": "Create or update documentation for specific files, features, CLI commands, or other project components by analyzing code and writing proper docs."
+    },
+    {
+      "name": "feature-researcher",
+      "description": "Targeted codebase research for feature planning \u2014 analyzes existing implementations, identifies reusable patterns, assesses risks, and produces concise planning documents."
+    },
+    {
+      "name": "feature-writer",
+      "description": "Implement features based on research and specifications, writing production-ready code with proper testing."
+    },
+    {
+      "name": "frontend-ui-developer",
+      "description": "Create, modify, or enhance frontend React components, UI elements, pages, and styling including Tailwind CSS and shadcn/ui. Analyzes existing patterns before implementation."
+    },
+    {
+      "name": "go-api-architect",
+      "description": "Design, develop, review, and improve Go/Golang REST APIs including microservices, authentication, performance optimization, testing strategies, and architectural decisions."
+    },
+    {
+      "name": "go-expert-architect",
+      "description": "Expert Go development assistance including concurrent systems, microservices, performance optimization, design patterns, project structure, testing strategies, and architectural decisions."
+    },
+    {
+      "name": "implementor",
+      "description": "Implement specific software engineering tasks assigned from a master plan with planning documentation context. Receives a single task and executes it."
+    },
+    {
+      "name": "library-docs-writer",
+      "description": "Fetch and compress external library documentation into concise local reference files from web sources and context7. Creates quick-reference docs for external dependencies."
+    },
+    {
+      "name": "nextjs-ux-ui-expert",
+      "description": "Expert Next.js UX/UI guidance including component architecture, SSR/SSG optimization, accessibility, responsive design, state management, animations, theme systems, and design system integration."
+    },
+    {
+      "name": "nodejs-backend-architect",
+      "description": "Expert guidance on Node.js/TypeScript backend development including microservices architecture, performance optimization, async/concurrency, API design, auth systems, and database optimization."
+    },
+    {
+      "name": "nodejs-backend-developer",
+      "description": "Implement Node.js/TypeScript backend services including Express/Fastify/Hono routes, Prisma/Drizzle setup, auth flows, Docker configs, structured logging, and test suites."
+    },
+    {
+      "name": "planner",
+      "description": "Software architect agent for designing implementation plans. Returns step-by-step plans with specific file paths, dependencies, risks, testing strategy, and success criteria. Waits for user confirmation."
+    },
+    {
+      "name": "practices-researcher",
+      "description": "Evaluate code quality, modularity, reuse, and KISS compliance. Discover existing reusable code, assess build-vs-depend decisions, and review code structure for engineering best practices."
+    },
+    {
+      "name": "project-file-cleaner",
+      "description": "Clean up unnecessary files from a project directory including old code, compiled binaries, unused assets, outdated docs, and temporary files."
+    },
+    {
+      "name": "prp-researcher",
+      "description": "Dual-mode research for PRP workflows: codebase exploration (similar features, naming, error handling, test patterns, dependencies) and external market/technical research (competitors, docs, best practices)."
+    },
+    {
+      "name": "python-developer",
+      "description": "Implement Python code from specs including FastAPI/Flask/Django services, CLI tools, data pipelines, async apps, pytest suites, pyproject.toml configs, and Dockerfiles."
+    },
+    {
+      "name": "python-expert-architect",
+      "description": "Expert Python architecture guidance including package design, async systems, framework selection (FastAPI/Flask/Django), data pipelines, CLI tools, packaging (hatch/poetry/uv), and testing strategies."
+    },
+    {
+      "name": "readme-generator",
+      "description": "Generate comprehensive README files for projects with proper structure, badges, installation instructions, and usage examples."
+    },
+    {
+      "name": "research-specialist",
+      "description": "Comprehensive research on non-code topics with fact-checking, current information gathering, and authoritative sources with citations."
+    },
+    {
+      "name": "reverse-proxy-architect",
+      "description": "Configure, troubleshoot, and optimize reverse proxy setups (nginx, HAProxy, Traefik) including load balancing, SSL/TLS, routing, caching, rate limiting, WebSocket proxying, and K8s/Docker integration."
+    },
+    {
+      "name": "review-fixer",
+      "description": "Implement a SINGLE code-review finding (or same-file group) from a review artifact. Applies the exact fix specified \u2014 nothing more. Scope-disciplined: fixes only what the finding specifies."
+    },
+    {
+      "name": "root-cause-analyzer",
+      "description": "Diagnose why a bug is occurring without fixing it. Systematic investigation with multiple hypotheses and supporting evidence. Use when understanding the 'why' is crucial before attempting a fix."
+    },
+    {
+      "name": "rust-build-resolver",
+      "description": "Rust build, compilation, and dependency error resolution specialist. Fixes cargo build errors, borrow checker issues, and Cargo.toml problems with minimal changes."
+    },
+    {
+      "name": "rust-expert-architect",
+      "description": "Expert Rust development assistance including async systems (tokio), ownership/lifetime design, trait/generic APIs, CLI/systems/embedded/WASM apps, performance optimization, crate selection, and architectural decisions."
+    },
+    {
+      "name": "rust-reviewer",
+      "description": "Expert Rust code reviewer specializing in ownership, lifetimes, error handling, unsafe usage, and idiomatic patterns. Use for all Rust code changes. MUST BE USED for Rust projects."
+    },
+    {
+      "name": "sql-database-developer",
+      "description": "Implement database code for Turso/libSQL/SQLite including SQL migrations, schemas, typed query modules, Drizzle/SQLAlchemy ORM setup, seed scripts, and connection configs. For Supabase/PostgreSQL, use db-modifier."
+    },
+    {
+      "name": "systems-engineering-expert",
+      "description": "Expert guidance on software engineering best practices, system administration, and optimization for macOS/Linux including security hardening, performance tuning, DevOps, shell scripting, and cross-platform development."
+    },
+    {
+      "name": "terraform-architect",
+      "description": "Expert Terraform IaC assistance including cloud-native architecture design, module development, multi-cloud strategies, deployment debugging, and configuration review."
+    },
+    {
+      "name": "terraform-developer",
+      "description": "Implement Terraform infrastructure code including .tf modules, variables/outputs, provider/backend configs, terragrunt.hcl, resource lifecycle rules, and module structures."
+    },
+    {
+      "name": "test-strategy-planner",
+      "description": "Analyze codebases and create comprehensive testing strategies including unit, integration, e2e, performance, and security tests with detailed roadmaps and implementation plans."
+    },
+    {
+      "name": "turso-database-architect",
+      "description": "Expert database design, architecture, and optimization for Turso/libSQL/SQLite including schema design, query optimization, migration strategies, performance tuning, and index strategies."
+    },
+    {
+      "name": "typescript-developer",
+      "description": "Implement TypeScript/JavaScript code including libraries, tsconfig hierarchies, package.json exports, monorepo workspaces, bundler pipelines (vite/tsup/esbuild), ESM/CJS dual builds, and Vitest configs."
+    },
+    {
+      "name": "typescript-expert-architect",
+      "description": "Expert TypeScript/JavaScript assistance at the language, type-system, and tooling level including generic APIs, .d.ts authoring, tsconfig tuning, conditional/mapped types, npm libraries, monorepos, cross-runtime, and bundler optimization."
+    }
+  ],
+  "counts": {
+    "skills": 37,
+    "commands": 36,
+    "agents": 50
+  },
+  "parity": {
+    "skills_without_commands": [
+      "karpathy-guidelines"
+    ],
+    "commands_without_skills": []
+  }
+}

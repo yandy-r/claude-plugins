@@ -24,11 +24,11 @@ description: Dual-mode code review — local uncommitted changes OR a GitHub pul
 
 Before selecting mode, extract flags from `$ARGUMENTS`:
 
-| Flag                | Effect                                                                                                                                                                                                                                                                                                                                         |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                                                                                                                                                                                                                                        |
-| `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                                                                                                                                                                                                                             |
-| `--parallel`        | Fan out the REVIEW phase across 3 **standalone** `code-reviewer` sub-agents (correctness, security, quality) dispatched in parallel and merge findings. Works in Codex, Cursor, and Codex.                                                                                                                                                     |
+| Flag                | Effect                                                                                                                                                                                                                                                                                                                      |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                                                                                                                                                                                                                     |
+| `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                                                                                                                                                                                                          |
+| `--parallel`        | Fan out the REVIEW phase across 3 **standalone** `code-reviewer` sub-agents (correctness, security, quality) dispatched in parallel and merge findings. Works in Codex, Cursor, and Codex.                                                                                                                        |
 | `--team`            | (Codex only) Fan out the REVIEW phase across the same 3 `code-reviewer` reviewers, but dispatched as an **agent team** with up-front `record the task`, shared `the task tracker` observability, inter-reviewer coordination via `send follow-up instructions`, and coordinated shutdown before merge. Heavier dispatch, richer communication. |
 
 Strip these from `$ARGUMENTS` and set `PARALLEL_MODE=true|false` and `AGENT_TEAM_MODE=true|false`. The remaining text is the mode selector (PR number/URL or blank for local).
@@ -725,8 +725,8 @@ Both Local Review Mode and PR Review Mode write an artifact using this exact for
 
 Every finding MUST have a `Status` field. Valid values:
 
-| Status | Meaning                                                                                                  |
-| ------ | -------------------------------------------------------------------------------------------------------- |
+| Status | Meaning                                                                                                      |
+| ------ | ------------------------------------------------------------------------------------------------------------ |
 | Open   | Default on first write. Not yet processed by `$review-fix`, or below the fix skill's severity threshold. |
 | Fixed  | Successfully fixed by `$review-fix`. Set by the fix skill — code-review itself never writes this.        |
 | Failed | Attempted by `$review-fix` but the fix broke validation. Set by the fix skill.                           |

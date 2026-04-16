@@ -1,0 +1,94 @@
+#!/usr/bin/env bash
+# Unified sync entrypoint — regenerate all derived artifacts from the ycc/ source-of-truth.
+#
+# Usage:
+#   ./scripts/sync.sh                            # all targets
+#   ./scripts/sync.sh --only inventory           # single target
+#   ./scripts/sync.sh --only cursor,codex        # comma-separated subset
+#
+# Targets: inventory, cursor, codex
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+VALID_TARGETS=(inventory cursor codex)
+TARGETS=("${VALID_TARGETS[@]}")
+
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") [--only <targets>]
+
+Regenerate derived artifacts from ycc/ source-of-truth.
+
+Options:
+  --only <targets>   Comma-separated subset (valid: ${VALID_TARGETS[*]})
+  -h, --help         Show this help
+
+Examples:
+  $(basename "$0")
+  $(basename "$0") --only inventory
+  $(basename "$0") --only cursor,codex
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --only)
+            [[ $# -lt 2 ]] && { echo "sync.sh: --only requires an argument" >&2; exit 1; }
+            IFS=',' read -r -a TARGETS <<<"$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo "sync.sh: unknown argument: $1" >&2
+            usage >&2
+            exit 1
+            ;;
+    esac
+done
+
+for target in "${TARGETS[@]}"; do
+    valid=0
+    for v in "${VALID_TARGETS[@]}"; do
+        [[ "$target" == "$v" ]] && valid=1 && break
+    done
+    if [[ "$valid" -eq 0 ]]; then
+        echo "sync.sh: unknown target '$target' (valid: ${VALID_TARGETS[*]})" >&2
+        exit 1
+    fi
+done
+
+run_target() {
+    case "$1" in
+        inventory)
+            echo "== sync: inventory =="
+            "${REPO_ROOT}/scripts/generate-inventory.sh"
+            ;;
+        cursor)
+            echo "== sync: cursor agents =="
+            "${REPO_ROOT}/scripts/generate-cursor-agents.sh"
+            echo "== sync: cursor skills =="
+            "${REPO_ROOT}/scripts/generate-cursor-skills.sh"
+            echo "== sync: cursor rules =="
+            "${REPO_ROOT}/scripts/generate-cursor-rules.sh"
+            ;;
+        codex)
+            echo "== sync: codex skills =="
+            "${REPO_ROOT}/scripts/generate-codex-skills.sh"
+            echo "== sync: codex agents =="
+            "${REPO_ROOT}/scripts/generate-codex-agents.sh"
+            echo "== sync: codex plugin =="
+            "${REPO_ROOT}/scripts/generate-codex-plugin.sh"
+            ;;
+    esac
+}
+
+for target in "${TARGETS[@]}"; do
+    run_target "$target"
+done
+
+echo "sync.sh: done (${TARGETS[*]})"
