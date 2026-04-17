@@ -1,6 +1,6 @@
 ---
-name: { { NAME } }
-description: { { DESCRIPTION } }
+name: '{{NAME}}'
+description: '{{DESCRIPTION}}'
 argument-hint: '[--dry-run]'
 allowed-tools:
   - Read

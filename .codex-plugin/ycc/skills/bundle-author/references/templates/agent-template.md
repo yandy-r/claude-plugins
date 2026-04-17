@@ -1,6 +1,6 @@
 ---
-name: { { NAME } }
-description: { { DESCRIPTION } }
+name: '{{NAME}}'
+description: '{{DESCRIPTION}}'
 tools: Read, Grep, Glob, Write, Edit, Bash
 ---
 
