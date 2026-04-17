@@ -139,3 +139,89 @@ compatibility bundles:
    - `./scripts/validate-cursor-skills.sh`
    - `./scripts/validate-cursor-agents.sh`
    - `./scripts/validate-cursor-rules.sh`
+
+## Precedence
+
+1. System, developer, and explicit user instructions for the task.
+2. This file and [`AGENTS.md`](AGENTS.md) as repo policy.
+3. General best practices when nothing above conflicts.
+
+## MUST / MUST NOT
+
+- **Secrets**: **Never** commit `.env`, `.env.encrypted`, tokens, or API keys.
+- **Issues**: Use the YAML form templates under `.github/ISSUE_TEMPLATE/` when present. **Do not** create title-only or template-bypass issues. If `gh issue create --template` fails, create the issue via GitHub API/tooling with a body that mirrors the form fields, then apply correct labels — **not** a vague one-liner.
+- **Pull requests**: Follow `.github/pull_request_template.md` when present. **Always** link the related issue (`Closes #…`). **Label** PRs using the project taxonomy — **never** invent ad-hoc labels.
+- **Commits**: Use **Conventional Commits 1.0.0** — `feat|fix|docs|refactor|perf|test|build|ci|chore(scope): …`. Write the title as you want it to appear in `CHANGELOG.md`.
+- **Internal docs commits**: Files under `docs/plans`, `docs/research`, or `docs/internal` **must** use `docs(internal): …`. Other non-user-facing churn: prefer `chore(…): …` to stay out of release notes.
+- **Large features**: Split into smaller phases and tasks with clear dependencies and order of execution.
+- **MCP**: When an MCP server fits the task (GitHub, docs, browser, etc.), **prefer it**. **Read** each tool's schema/descriptor before calling.
+
+## SHOULD (implementation)
+
+- **Python** (`scripts/generate_*.py`): PEP 8 throughout; type hints required on all public API signatures; prefer `ruff` for linting and `mypy --strict` for type checking.
+- **Shell** (`scripts/*.sh`, `ycc/skills/*/scripts/*.sh`): `#!/usr/bin/env bash` + `set -euo pipefail`; validation guards on required inputs; stdout for results, stderr for errors; exit 0 on success, 1 on error.
+
+## Git & Conventional Commits
+
+This project uses **Conventional Commits 1.0.0**. Every commit title must match:
+
+```
+<type>[optional scope]: <description>
+```
+
+### Types
+
+| Type | Purpose | Version bump |
+|------|---------|--------------|
+| `feat` | New user-facing feature | minor |
+| `fix` | User-facing bug fix | patch |
+| `docs` | Documentation only | — |
+| `refactor` | Code change that is neither fix nor feature | — |
+| `perf` | Performance improvement | — |
+| `test` | Adding or correcting tests | — |
+| `build` | Build system or external dependency changes | — |
+| `ci` | CI/CD configuration changes | — |
+| `chore` | Other non-user-facing changes | — |
+| `style` | Formatting/whitespace only | — |
+
+### Scope
+
+`feat(auth): …` — scope is the module, crate, package, or area of change. Keep it concise.
+
+### Breaking changes
+
+Append `!` after the type/scope (`feat!: …`) **or** add a `BREAKING CHANGE: …` footer. Either triggers a major version bump.
+
+### Internal docs
+
+Use `docs(internal): …` for files under `docs/plans`, `docs/research`, or `docs/internal`. These stay out of release notes.
+
+## GitHub Workflow
+
+- **Labels**: Use only the project's defined label taxonomy (`type:`, `area:`, `priority:`, `status:` families). Never create ad-hoc labels.
+- **Issues**: File an issue before starting non-trivial work. Link the issue number in the PR (`Closes #…`).
+- **PRs**: Follow the PR template; fill every checklist item honestly. Small, focused PRs over large omnibus ones.
+
+## Stack Overview
+
+| Layer | Technology | Notes |
+|-------|-----------|-------|
+| Primary language | **mixed** (Shell + Markdown) | Plugin source under `ycc/` |
+| Generators | Python 3 | `scripts/generate_*.py` emit Cursor/Codex bundles |
+| Helper scripts | Bash | `scripts/lint.sh`, `scripts/format.sh` |
+| Package manager | npm | Drives lint/format only — no test or build target |
+
+## Commands
+
+```bash
+# Lint (Python + Shell)
+npm run lint              # or: scripts/lint.sh --python --shell
+npm run lint:modified     # only files changed vs. git HEAD
+npm run lint:fix          # auto-apply fixes
+
+# Format
+npm run format            # Python + docs
+npm run format:modified   # only modified files
+```
+
+Testing and validation are defined in `## Testing Changes` above — JSON validation plus the Codex/Cursor generate-and-validate pipelines are the real verification loop for this repository.
