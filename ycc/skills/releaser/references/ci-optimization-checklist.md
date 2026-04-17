@@ -1,0 +1,117 @@
+# CI Release-Pipeline Optimization Checklist
+
+Audit criteria used by the `ycc:releaser` agent in `--ci=audit` mode, and the default
+quality gate that generated workflows must meet in `--ci=generate` mode. Each item is
+categorized by severity.
+
+Findings emitted by the audit agent use this format:
+
+```
+### <Short title>
+- **Severity:** critical | high | medium | low
+- **File:** <path>:<line-range>
+- **Finding:** <what's wrong>
+- **Fix:** <specific remediation, with a snippet if short>
+```
+
+---
+
+## 1. Triggering
+
+| Check                                                                     | Severity |
+| ------------------------------------------------------------------------- | -------- |
+| Workflow triggers on `push: tags: ['v*']` or an equivalent explicit event | high     |
+| Does NOT trigger on every push to `main` (runs only on tag/release)       | high     |
+| `workflow_dispatch` is included for manual re-runs                        | medium   |
+| Concurrency group set (prevents duplicate releases racing)                | medium   |
+
+## 2. Permissions (Supply-Chain Hardening)
+
+| Check                                                                       | Severity |
+| --------------------------------------------------------------------------- | -------- |
+| Top-level `permissions:` is `{}` (read-all), scoped up per-job              | critical |
+| Jobs that publish to GHCR use `packages: write` only in that job            | critical |
+| Jobs that upload release assets use `contents: write` only in that job      | critical |
+| OIDC-based publishing where supported (PyPI Trusted Publishing, cargo-dist) | high     |
+| No long-lived API tokens committed as plain secrets when OIDC is an option  | high     |
+
+## 3. Action Pinning
+
+| Check                                                                | Severity |
+| -------------------------------------------------------------------- | -------- |
+| Third-party actions pinned to full SHA (not `@v2` or `@main`)        | critical |
+| First-party (`actions/*`) actions pinned to a release tag at minimum | high     |
+| Dependabot or equivalent is enabled for action updates               | medium   |
+
+## 4. Caching
+
+| Check                                                                                                                                                                                          | Severity |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| Language-specific setup actions use their built-in cache (`setup-node` cache input, `setup-python` cache input, cargo cache via `Swatinem/rust-cache`, Go module cache via `actions/setup-go`) | high     |
+| Cache keys include lockfile hashes, not just OS                                                                                                                                                | medium   |
+| Release artifacts use `actions/upload-artifact@v4` (v3 is deprecated)                                                                                                                          | high     |
+
+## 5. Build Matrix
+
+| Check                                                                                                                    | Severity |
+| ------------------------------------------------------------------------------------------------------------------------ | -------- |
+| Matrix covers the declared `{os × arch}` set from the skill's arguments                                                  | high     |
+| `fail-fast: false` unless the project explicitly wants all-or-nothing                                                    | medium   |
+| `timeout-minutes` is set on each job (prevents hung workers eating budget)                                               | medium   |
+| Cross-compilation uses the language's idiomatic tool (goreleaser / cargo-dist / cibuildwheel) rather than ad-hoc scripts | medium   |
+
+## 6. Artifacts & Provenance
+
+| Check                                                            | Severity |
+| ---------------------------------------------------------------- | -------- |
+| Each artifact is named `<project>-<version>-<os>-<arch>.<ext>`   | medium   |
+| SHA256 checksums are generated and uploaded alongside binaries   | high     |
+| SBOM is attached for container images                            | high     |
+| SLSA provenance attestation is generated for published artifacts | medium   |
+| Docker images are signed with cosign (keyless/OIDC)              | medium   |
+
+## 7. Release Notes
+
+| Check                                                                        | Severity |
+| ---------------------------------------------------------------------------- | -------- |
+| Release body is sourced from a committed notes file (not inline in YAML)     | medium   |
+| `gh release create` is invoked with `--notes-file`, not generated by default | medium   |
+| Pre-release tags (`-rc.N`, `-beta.N`, `-alpha.N`) set `prerelease: true`     | high     |
+
+## 8. Error Handling
+
+| Check                                                                 | Severity |
+| --------------------------------------------------------------------- | -------- |
+| Failed builds do NOT create the GitHub release (use `needs:` to gate) | critical |
+| Rollback path is documented in the workflow comment header            | medium   |
+| Notification step on failure (Slack/email/issue comment) is present   | low      |
+
+## 9. Documentation
+
+| Check                                                                                                        | Severity |
+| ------------------------------------------------------------------------------------------------------------ | -------- |
+| `.github/workflows/README.md` (or equivalent) documents: trigger, required secrets, local reproduction steps | high     |
+| Release runbook exists at `docs/releasing.md` or `CONTRIBUTING.md#releasing`                                 | medium   |
+| Changelog file is updated as part of the release commit (not only the GitHub release body)                   | medium   |
+
+## 10. Observability
+
+| Check                                                                                    | Severity |
+| ---------------------------------------------------------------------------------------- | -------- |
+| Workflow emits a job summary via `$GITHUB_STEP_SUMMARY` (final artifact list, checksums) | low      |
+| Long-running steps have `id:` values for downstream `outputs` references                 | low      |
+
+---
+
+## Generator Quality Gate
+
+When `--ci=generate` writes a new workflow, it MUST satisfy:
+
+- Every **critical** item above.
+- Every **high** item above.
+- At least one section on Documentation (item 9) — the skill always writes a
+  `.github/workflows/README.md` entry when generating a new workflow.
+
+Medium/low items are opportunistically included but not required for the initial
+scaffold. They appear as inline `# TODO(releaser):` comments in the generated YAML so
+a later `--ci=audit` run can surface them explicitly.

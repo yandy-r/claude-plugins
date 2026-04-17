@@ -1,5 +1,5 @@
 ---
-description: { { DESCRIPTION } }
+description: '{{DESCRIPTION}}'
 argument-hint: '[--dry-run]'
 ---
 

@@ -8,7 +8,7 @@ A single Claude Code plugin (`ycc`) bundling workflow orchestration, parallel pl
 
 <!-- BEGIN:GENERATED-COUNTS -->
 
-The source plugin ships **41 skills**, **40 slash commands** (most skills have a matching command), and **50 agents**.
+The source plugin ships **42 skills**, **41 slash commands** (most skills have a matching command), and **51 agents**.
 
 <!-- END:GENERATED-COUNTS -->
 
@@ -46,6 +46,7 @@ The source plugin ships **41 skills**, **40 slash commands** (most skills have a
 | `/ycc:prp-spec`            | Generate a lightweight feature spec for the PRP workflow — single-pass with optional codebase/market grounding.                                                                         |
 | `/ycc:python-patterns`     | Idiomatic Python patterns, PEP 8 conventions, type hints, dataclasses, context managers, decorators, and best practices for building robust, maintainable Python applications.          |
 | `/ycc:python-testing`      | Python testing patterns using pytest — TDD methodology, fixtures (function/module/session scopes), parametrization, markers, mocking with unittest.mock, async tests with pytest-asy... |
+| `/ycc:releaser`            | Prepare and cut a GitHub release for any project — detects toolchain, drafts changelog, plans platform/arch artifacts, optionally generates or audits release CI.                       |
 | `/ycc:research-to-issues`  | Convert research, feature specs, and implementation plans into structured GitHub issues with tracking hierarchy, labels, and priority.                                                  |
 | `/ycc:resume-session`      | Load the most recent session file from ~/.claude/session-data/ and resume work with full context.                                                                                       |
 | `/ycc:review-fix`          | Plan and apply fixes for findings from a code-review artifact.                                                                                                                          |
@@ -63,7 +64,7 @@ The source plugin ships **41 skills**, **40 slash commands** (most skills have a
 
 <!-- BEGIN:GENERATED-AGENTS -->
 
-The plugin bundles **50** specialized agents covering codebase analysis, language experts (Go, Rust, Python, TypeScript), reviewers, planners, documenters, and infrastructure architects.
+The plugin bundles **51** specialized agents covering codebase analysis, language experts (Go, Rust, Python, TypeScript), reviewers, planners, documenters, and infrastructure architects.
 
 <!-- END:GENERATED-AGENTS -->
 
