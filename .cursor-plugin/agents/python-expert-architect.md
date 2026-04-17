@@ -2,7 +2,7 @@
 name: python-expert-architect
 title: Python Expert Architect
 description: 'Expert Python architecture guidance including package design, async systems, framework selection (FastAPI/Flask/Django), data pipelines, CLI tools, packaging (hatch/poetry/uv), and testing strategies.'
-model: opus
+model: inherit
 color: yellow
 ---
 

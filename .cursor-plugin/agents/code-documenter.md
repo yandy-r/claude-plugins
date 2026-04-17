@@ -1,7 +1,7 @@
 ---
 name: code-documenter
 description: 'Generate and maintain code documentation including inline comments, module-level docs, and architectural documentation.'
-model: sonnet
+model: fast
 color: yellow
 tools:
   - Read

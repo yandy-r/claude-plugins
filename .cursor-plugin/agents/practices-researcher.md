@@ -1,7 +1,7 @@
 ---
 name: practices-researcher
 description: 'Evaluate code quality, modularity, reuse, and KISS compliance. Discover existing reusable code, assess build-vs-depend decisions, and review code structure for engineering best practices.'
-model: sonnet
+model: inherit
 tools:
   - Read
   - Grep

@@ -2,7 +2,7 @@
 name: ansible-automation-expert
 title: Ansible Automation Expert
 description: 'Expert Ansible automation assistance including playbook development, role creation, inventory management, network automation, IaC implementation, and troubleshooting configurations.'
-model: opus
+model: inherit
 color: purple
 ---
 

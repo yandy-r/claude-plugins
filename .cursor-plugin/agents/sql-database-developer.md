@@ -2,7 +2,7 @@
 name: sql-database-developer
 title: SQL Database Developer
 description: 'Implement database code for Turso/libSQL/SQLite including SQL migrations, schemas, typed query modules, Drizzle/SQLAlchemy ORM setup, seed scripts, and connection configs. For Supabase/PostgreSQL, use db-modifier.'
-model: sonnet
+model: inherit
 color: cyan
 tools: ['Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob']
 ---

@@ -1,7 +1,7 @@
 ---
 name: feature-writer
 description: 'Create and maintain user-facing feature documentation with clear guides, examples, and troubleshooting.'
-model: sonnet
+model: inherit
 color: green
 tools:
   - Read

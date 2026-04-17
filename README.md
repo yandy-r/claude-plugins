@@ -234,6 +234,13 @@ Skills that legitimately lack a matching slash command (for example, passive tri
 
 The generator **overwrites** each matching `*.md` and **deletes** any `*.md` under `.cursor-plugin/agents/` that no longer exists in `ycc/agents/`, so the two trees stay in lockstep.
 
+Cursor model normalization is applied during generation:
+
+- Generated Cursor agents always emit `model: inherit` or `model: fast`.
+- `fast` assignments are controlled by [`scripts/cursor_fast_agents.json`](scripts/cursor_fast_agents.json).
+- Any non-allowlisted agent is normalized to `inherit`.
+- [`scripts/validate-cursor-agents.sh`](scripts/validate-cursor-agents.sh) fails on legacy shorthand model tokens (for example `opus`, `sonnet`, `haiku`) in generated Cursor output.
+
 Commit changes to both `ycc/agents/` and `.cursor-plugin/agents/` together.
 
 ### Regenerate Cursor skills

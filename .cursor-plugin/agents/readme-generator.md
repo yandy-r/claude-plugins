@@ -1,7 +1,7 @@
 ---
 name: readme-generator
 description: 'Generate comprehensive README files for projects with proper structure, badges, installation instructions, and usage examples.'
-model: sonnet
+model: inherit
 color: magenta
 tools:
   - Read

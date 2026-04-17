@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import filecmp
+import json
 import re
 import sys
 from pathlib import Path
@@ -16,6 +17,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = REPO_ROOT / "ycc" / "agents"
 DST_DIR = REPO_ROOT / ".cursor-plugin" / "agents"
+FAST_ALLOWLIST_PATH = REPO_ROOT / "scripts" / "cursor_fast_agents.json"
 
 # Frontmatter `name:` must match filename stem for Cursor discovery where we fix drift.
 NAME_OVERRIDES: dict[str, str] = {
@@ -96,6 +98,54 @@ def apply_text_transforms(s: str) -> str:
     return s
 
 
+def load_fast_allowlist() -> set[str]:
+    """Load the Cursor fast-model allowlist from JSON."""
+    try:
+        raw = json.loads(FAST_ALLOWLIST_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise SystemExit(f"Missing fast-agent allowlist: {FAST_ALLOWLIST_PATH}") from exc
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"Invalid JSON in {FAST_ALLOWLIST_PATH}: {exc}") from exc
+
+    if not isinstance(raw, list):
+        raise SystemExit(f"{FAST_ALLOWLIST_PATH} must be a JSON array of agent names")
+
+    allowlist: set[str] = set()
+    for item in raw:
+        if not isinstance(item, str):
+            raise SystemExit(f"{FAST_ALLOWLIST_PATH} entries must be strings: {item!r}")
+        if not re.fullmatch(r"[a-z0-9][a-z0-9-]*[a-z0-9]|[a-z0-9]", item):
+            raise SystemExit(f"Invalid agent name in {FAST_ALLOWLIST_PATH}: {item!r}")
+        allowlist.add(item)
+    return allowlist
+
+
+def normalize_frontmatter_model(text: str, stem: str, fast_allowlist: set[str]) -> str:
+    """Force generated Cursor models to either `fast` or `inherit`."""
+    model_value = "fast" if stem in fast_allowlist else "inherit"
+    lines = text.splitlines()
+    if len(lines) < 3 or lines[0].strip() != "---":
+        return text
+
+    try:
+        close_idx = lines.index("---", 1)
+    except ValueError:
+        return text
+
+    frontmatter = lines[1:close_idx]
+    model_idx = next(
+        (idx for idx, line in enumerate(frontmatter) if re.match(r"^\s*model\s*:", line)),
+        None,
+    )
+    if model_idx is None:
+        frontmatter.append(f"model: {model_value}")
+    else:
+        frontmatter[model_idx] = f"model: {model_value}"
+
+    rebuilt = ["---", *frontmatter, "---", *lines[close_idx + 1 :]]
+    return "\n".join(rebuilt)
+
+
 def fix_frontmatter_name(text: str, stem: str) -> str:
     """Ensure name: matches filename stem when listed in NAME_OVERRIDES."""
     if stem not in NAME_OVERRIDES:
@@ -111,10 +161,11 @@ def fix_frontmatter_name(text: str, stem: str) -> str:
     )
 
 
-def transform_file(stem: str, content: str) -> str:
+def transform_file(stem: str, content: str, fast_allowlist: set[str]) -> str:
     text = strip_preamble_before_frontmatter(content)
     text = apply_text_transforms(text)
     text = fix_frontmatter_name(text, stem)
+    text = normalize_frontmatter_model(text, stem, fast_allowlist)
     # Normalize trailing newline
     if text and not text.endswith("\n"):
         text += "\n"
@@ -126,11 +177,22 @@ def write_all(dry_run: bool, dest: Path) -> list[Path]:
     if not SRC_DIR.is_dir():
         raise SystemExit(f"Missing source directory: {SRC_DIR}")
 
+    src_files = sorted(SRC_DIR.glob("*.md"))
+    source_stems = {src.stem for src in src_files}
+    fast_allowlist = load_fast_allowlist()
+    unknown_fast_agents = sorted(fast_allowlist - source_stems)
+    if unknown_fast_agents:
+        raise SystemExit(
+            "Unknown agent name(s) in fast allowlist: "
+            + ", ".join(unknown_fast_agents)
+            + f" (source directory: {SRC_DIR})"
+        )
+
     source_names: set[str] = set()
-    for src in sorted(SRC_DIR.glob("*.md")):
+    for src in src_files:
         source_names.add(src.name)
         stem = src.stem
-        out = transform_file(stem, src.read_text(encoding="utf-8"))
+        out = transform_file(stem, src.read_text(encoding="utf-8"), fast_allowlist)
         target = dest / src.name
         if dry_run:
             print(f"Would write {target.relative_to(REPO_ROOT)} ({len(out)} bytes)")

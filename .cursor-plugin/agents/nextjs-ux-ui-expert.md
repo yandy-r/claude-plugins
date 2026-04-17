@@ -2,7 +2,7 @@
 name: nextjs-ux-ui-expert
 title: NextJS UX/UI Expert
 description: 'Expert Next.js UX/UI guidance including component architecture, SSR/SSG optimization, accessibility, responsive design, state management, animations, theme systems, and design system integration.'
-model: opus
+model: inherit
 color: blue
 ---
 

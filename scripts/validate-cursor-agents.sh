@@ -29,4 +29,47 @@ if [[ "$BAD" -ne 0 ]]; then
   exit 1
 fi
 
+echo "== Model policy (generated agents) =="
+python3 - "$AGENTS_DIR" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+agents_dir = Path(sys.argv[1])
+legacy = {"opus", "sonnet", "haiku"}
+
+def parse_model(path: Path) -> str | None:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    if not lines or lines[0].strip() != "---":
+        return None
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        m = re.match(r"^\s*model\s*:\s*(.+?)\s*$", line)
+        if m:
+            return m.group(1).strip().strip("'\"")
+    return None
+
+errors: list[str] = []
+for path in sorted(agents_dir.glob("*.md")):
+    model = parse_model(path)
+    if model is None:
+        errors.append(f"missing model frontmatter in {path.name}")
+        continue
+    if model in legacy:
+        errors.append(f"legacy shorthand model in {path.name}: {model}")
+        continue
+    if model in {"inherit", "fast"}:
+        continue
+    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]*[A-Za-z0-9]|[A-Za-z0-9]", model):
+        continue
+    errors.append(f"unsupported model token in {path.name}: {model}")
+
+if errors:
+    print("validate-cursor-agents.sh: model policy failed.", file=sys.stderr)
+    for err in errors:
+        print(f"  {err}", file=sys.stderr)
+    raise SystemExit(1)
+PY
+
 echo "OK: .cursor-plugin/agents is in sync and passes content policy."

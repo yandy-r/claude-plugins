@@ -2,7 +2,7 @@
 name: project-file-cleaner
 title: Project File Cleaner
 description: 'Clean up unnecessary files from a project directory including old code, compiled binaries, unused assets, outdated docs, and temporary files.'
-model: sonnet
+model: fast
 color: yellow
 ---
 

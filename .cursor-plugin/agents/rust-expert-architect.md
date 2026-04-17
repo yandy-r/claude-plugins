@@ -2,7 +2,7 @@
 name: rust-expert-architect
 title: Rust Expert Architect
 description: 'Expert Rust development assistance including async systems (tokio), ownership/lifetime design, trait/generic APIs, CLI/systems/embedded/WASM apps, performance optimization, crate selection, and architectural decisions.'
-model: opus
+model: inherit
 color: red
 ---
 

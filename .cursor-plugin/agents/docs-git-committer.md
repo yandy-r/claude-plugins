@@ -3,7 +3,7 @@ name: docs-git-committer
 title: Docs & Git Committer
 description: 'Update documentation after code changes (feature docs, CLAUDE.md files) and commit all changes to git.'
 tools: Bash, Glob, Grep, Read, WebFetch, TodoWrite, WebSearch, BashOutput, KillBash, Edit, MultiEdit, Write, NotebookEdit
-model: sonnet
+model: inherit
 color: cyan
 ---
 

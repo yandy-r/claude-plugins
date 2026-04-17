@@ -2,7 +2,7 @@
 name: reverse-proxy-architect
 title: Reverse Proxy Architect
 description: 'Configure, troubleshoot, and optimize reverse proxy setups (nginx, HAProxy, Traefik) including load balancing, SSL/TLS, routing, caching, rate limiting, WebSocket proxying, and K8s/Docker integration.'
-model: opus
+model: inherit
 color: purple
 ---
 

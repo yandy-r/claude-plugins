@@ -1,7 +1,7 @@
 ---
 name: code-explorer
 description: 'Deeply analyze codebase features by tracing execution paths, mapping architecture layers, and documenting dependencies to inform new development.'
-model: sonnet
+model: fast
 tools: [Read, Grep, Glob, Bash]
 ---
 

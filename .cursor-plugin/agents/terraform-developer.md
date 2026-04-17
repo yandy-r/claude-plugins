@@ -2,7 +2,7 @@
 name: terraform-developer
 title: Terraform Developer
 description: 'Implement Terraform infrastructure code including .tf modules, variables/outputs, provider/backend configs, terragrunt.hcl, resource lifecycle rules, and module structures.'
-model: sonnet
+model: inherit
 color: green
 tools: ['Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob']
 ---

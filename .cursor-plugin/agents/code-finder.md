@@ -3,7 +3,7 @@ name: code-finder
 title: Code Finder
 description: 'Quickly locate specific code files, functions, classes, or patterns within a codebase. Find implementations, search syntax patterns, and discover related code across files.'
 tools: Bash, Glob, Grep, Read, WebFetch, TodoWrite, WebSearch, BashOutput, KillBash
-model: sonnet
+model: fast
 color: yellow
 ---
 

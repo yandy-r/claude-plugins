@@ -2,7 +2,7 @@
 name: python-developer
 title: Python Developer
 description: 'Implement Python code from specs including FastAPI/Flask/Django services, CLI tools, data pipelines, async apps, pytest suites, pyproject.toml configs, and Dockerfiles.'
-model: sonnet
+model: inherit
 color: magenta
 tools: ['Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob']
 ---
