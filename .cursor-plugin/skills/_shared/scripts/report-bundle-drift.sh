@@ -6,6 +6,8 @@
 #   report-bundle-drift.sh [--target=all|cursor|codex|opencode|inventory]
 #                          [--format=human|json]
 #                          [--json-out=PATH]
+#                          [--repo-root=PATH]
+#                          [PATH]
 #                          [--help]
 #
 # Exit codes:
@@ -21,7 +23,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: report-bundle-drift.sh [--target=all|cursor|codex|opencode|inventory] [--format=human|json] [--json-out=PATH] [--help]
+Usage: report-bundle-drift.sh [--target=all|cursor|codex|opencode|inventory] [--format=human|json] [--json-out=PATH] [--repo-root=PATH|PATH] [--help]
 
 Wraps the generate_*.py --check entry points and emits a per-target drift
 report. Exit 0 iff every target is clean. Exit 1 on drift. Exit 2 on
@@ -36,17 +38,27 @@ EOF
 TARGET="all"
 FORMAT="human"
 JSON_OUT=""
+REPO_ROOT_INPUT=""
 
 for arg in "$@"; do
   case "$arg" in
     --target=*)   TARGET="${arg#--target=}" ;;
     --format=*)   FORMAT="${arg#--format=}" ;;
     --json-out=*) JSON_OUT="${arg#--json-out=}" ;;
+    --repo-root=*) REPO_ROOT_INPUT="${arg#--repo-root=}" ;;
     --help|-h)    usage; exit 0 ;;
-    *)
+    -*)
       echo "report-bundle-drift.sh: unknown flag: $arg" >&2
       usage >&2
       exit 2
+      ;;
+    *)
+      if [[ -n "$REPO_ROOT_INPUT" ]]; then
+        echo "report-bundle-drift.sh: multiple repo roots provided: $REPO_ROOT_INPUT and $arg" >&2
+        usage >&2
+        exit 2
+      fi
+      REPO_ROOT_INPUT="$arg"
       ;;
   esac
 done
@@ -62,24 +74,49 @@ case "$FORMAT" in
 esac
 
 # ---------------------------------------------------------------------------
-# Resolve repo root by walking up from this script's location
+# Resolve repo root from explicit input, then PWD, then SCRIPT_DIR
 # ---------------------------------------------------------------------------
 
 echo "report-bundle-drift.sh: resolving repo root..." >&2
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 REPO_ROOT=""
-candidate="$SCRIPT_DIR"
-while [[ "$candidate" != "/" ]]; do
-  if [[ -f "$candidate/.cursor-plugin/marketplace.json" ]]; then
-    REPO_ROOT="$candidate"
-    break
+
+resolve_repo_root_from() {
+  local start="$1"
+  local candidate="$start"
+  while [[ "$candidate" != "/" ]]; do
+    if [[ -f "$candidate/.cursor-plugin/marketplace.json" ]]; then
+      REPO_ROOT="$candidate"
+      return 0
+    fi
+    candidate="$(dirname "$candidate")"
+  done
+  if [[ -f "/.cursor-plugin/marketplace.json" ]]; then
+    REPO_ROOT="/"
+    return 0
   fi
-  candidate="$(dirname "$candidate")"
-done
+  return 1
+}
+
+if [[ -n "$REPO_ROOT_INPUT" ]]; then
+  if [[ ! -d "$REPO_ROOT_INPUT" ]]; then
+    echo "report-bundle-drift.sh: --repo-root/positional path is not a directory: $REPO_ROOT_INPUT" >&2
+    exit 2
+  fi
+  resolve_repo_root_from "$(cd "$REPO_ROOT_INPUT" && pwd)" || true
+fi
 
 if [[ -z "$REPO_ROOT" ]]; then
-  echo "report-bundle-drift.sh: cannot locate repo root (no .cursor-plugin/marketplace.json found above $SCRIPT_DIR)" >&2
+  resolve_repo_root_from "$PWD" || true
+fi
+
+if [[ -z "$REPO_ROOT" ]]; then
+  resolve_repo_root_from "$SCRIPT_DIR" || true
+fi
+
+if [[ -z "$REPO_ROOT" ]]; then
+  echo "report-bundle-drift.sh: cannot locate repo root (no .cursor-plugin/marketplace.json found from repo-root input/PWD/SCRIPT_DIR search)" >&2
   exit 2
 fi
 

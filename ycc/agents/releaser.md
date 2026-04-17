@@ -2,7 +2,7 @@
 name: releaser
 description: Audit an existing GitHub Actions release workflow against the ycc:releaser checklist — triggers, permissions, action pinning, caching, build matrix, artifact provenance, release-notes sourcing, error handling, documentation, and observability. Read-only. Invoked by ycc:releaser in --ci=audit mode; do NOT invoke directly from a command.
 model: sonnet
-tools: [Read, Grep, Glob, Bash]
+tools: [Read, Grep, Glob]
 ---
 
 # Release CI Auditor

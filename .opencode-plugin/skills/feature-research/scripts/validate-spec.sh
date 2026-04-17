@@ -164,6 +164,10 @@ while IFS= read -r line; do
     fi
 done <<< "$CONTENT"
 
+if [[ -n "$last_section" && "$content_seen" == false ]]; then
+    log_error "Empty section detected: $last_section"
+fi
+
 # Check Executive Summary length
 echo ""
 echo "Checking content quality..."

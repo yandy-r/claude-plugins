@@ -378,7 +378,7 @@ if [[ " ${PROJECT_TYPES[*]} " =~ " Docker " ]]; then
     echo "  - Check for old Dockerfile variants"
 fi
 
-if [[ " ${PROJECT_TYPES[*]} " =~  Node.js  ]]; then
+if [[ " ${PROJECT_TYPES[*]} " == *" Node.js "* ]]; then
     echo ""
     echo "Node.js Project Notes:"
     echo "  - node_modules/ is protected (managed by npm/yarn/pnpm)"
@@ -412,7 +412,7 @@ echo "JSON Output (for programmatic use):"
 cat << EOF
 {
   "primary_type": "$PRIMARY_TYPE",
-  "all_types": [$(printf '"%s",' "${PROJECT_TYPES[@]}" | sed 's/,$//')]",
+  "all_types": [$(printf '"%s",' "${PROJECT_TYPES[@]}" | sed 's/,$//')],
   "confidence": "$CONFIDENCE",
   "is_git": $IS_GIT,
   "target_directory": "$TARGET_DIR"

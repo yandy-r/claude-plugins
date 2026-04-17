@@ -9,7 +9,6 @@ tools:
   read: true
   grep: true
   glob: true
-  bash: true
 ---
 
 # Release CI Auditor

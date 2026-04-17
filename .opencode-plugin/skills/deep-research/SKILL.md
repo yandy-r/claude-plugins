@@ -70,63 +70,7 @@ SANITIZED=$(echo "$RESEARCH_SUBJECT" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' |
 OUTPUT_DIR="research/${SANITIZED}"
 ```
 
-### Step 3: Create Research Infrastructure
-
-Run the prerequisite check script:
-
-```bash
-~/.config/opencode/skills/deep-research/scripts/check-prerequisites.sh "$OUTPUT_DIR"
-```
-
-Create the directory structure:
-
-```bash
-mkdir -p "$OUTPUT_DIR/persona-findings"
-mkdir -p "$OUTPUT_DIR/synthesis"
-mkdir -p "$OUTPUT_DIR/evidence"
-```
-
-### Step 4: Create Research Objective
-
-Write the research objective document to `$OUTPUT_DIR/objective.md`:
-
-```markdown
-# Research Objective: [Subject]
-
-## Core Research Questions
-
-[Generate 3-5 key questions to answer based on the subject]
-
-## Success Criteria
-
-- [ ] All 8 personas deployed with distinct search strategies
-- [ ] Minimum 8-10 parallel searches per persona executed
-- [ ] Contradictions and disagreements captured, not smoothed over
-- [ ] Evidence hierarchy applied (primary > secondary > synthetic > speculative)
-- [ ] Cross-domain analogies explored
-- [ ] Temporal range covered (past, present, future)
-
-## Evidence Standards
-
-- Primary sources preferred over secondary analysis
-- Citations required for all claims
-- Confidence ratings assigned to findings
-- Contradictions explicitly documented
-
-## Perspectives to Consider
-
-- Historical evolution
-- Current state and trends
-- Future possibilities
-- Alternative viewpoints
-- What's NOT being discussed
-
-## Potential Biases to Guard Against
-
-[List 2-3 potential biases based on the subject]
-```
-
-### Step 5: Handle Dry Run
+### Step 3: Handle Dry Run
 
 If `--dry-run` is present, display:
 
@@ -222,7 +166,67 @@ Dependencies:   Batch 2 blocked by Batch 1; Batch 3 blocked by Batch 2
 
 Do **not** call `spawn coordinated subagents`, `track the task`, `Agent`, `send follow-up instructions`, or `end the coordinated run` in dry-run mode.
 
-**STOP HERE** - do not create files or deploy agents.
+**STOP HERE** - do not run prerequisite checks, create directories, write files, or deploy agents.
+
+### Step 4: Create Research Infrastructure
+
+Only run this step when `DRY_RUN=false`.
+
+Run the prerequisite check script:
+
+```bash
+~/.config/opencode/skills/deep-research/scripts/check-prerequisites.sh "$OUTPUT_DIR"
+```
+
+Create the directory structure:
+
+```bash
+mkdir -p "$OUTPUT_DIR/persona-findings"
+mkdir -p "$OUTPUT_DIR/synthesis"
+mkdir -p "$OUTPUT_DIR/evidence"
+```
+
+### Step 5: Create Research Objective
+
+Only run this step when `DRY_RUN=false`.
+
+Write the research objective document to `$OUTPUT_DIR/objective.md`:
+
+```markdown
+# Research Objective: [Subject]
+
+## Core Research Questions
+
+[Generate 3-5 key questions to answer based on the subject]
+
+## Success Criteria
+
+- [ ] All 8 personas deployed with distinct search strategies
+- [ ] Minimum 8-10 parallel searches per persona executed
+- [ ] Contradictions and disagreements captured, not smoothed over
+- [ ] Evidence hierarchy applied (primary > secondary > synthetic > speculative)
+- [ ] Cross-domain analogies explored
+- [ ] Temporal range covered (past, present, future)
+
+## Evidence Standards
+
+- Primary sources preferred over secondary analysis
+- Citations required for all claims
+- Confidence ratings assigned to findings
+- Contradictions explicitly documented
+
+## Perspectives to Consider
+
+- Historical evolution
+- Current state and trends
+- Future possibilities
+- Alternative viewpoints
+- What's NOT being discussed
+
+## Potential Biases to Guard Against
+
+[List 2-3 potential biases based on the subject]
+```
 
 ---
 
@@ -267,20 +271,22 @@ track the task: subject="negative-space-explorer: What's NOT discussed about <su
 
 # Batch 2 — Phase 2 crucible (blocked by all Batch 1 tasks)
 track the task: subject="ach-analyst: Analysis of Competing Hypotheses",             description="Generate 5+ mutually exclusive hypotheses and seek disconfirming evidence."
-update the todo tracker: addBlockedBy=[<all Batch 1 task IDs>]
 track the task: subject="contradiction-mapper: Cross-persona disagreements",         description="Map contradictions between the 8 persona findings."
-update the todo tracker: addBlockedBy=[<all Batch 1 task IDs>]
+update the todo tracker: addBlockedBy=[<historianTaskId>, <contrarianTaskId>, <analogistTaskId>, <systemsThinkerTaskId>, <journalistTaskId>, <archaeologistTaskId>, <futuristTaskId>, <negativeSpaceExplorerTaskId>]
+update the todo tracker: addBlockedBy=[<historianTaskId>, <contrarianTaskId>, <analogistTaskId>, <systemsThinkerTaskId>, <journalistTaskId>, <archaeologistTaskId>, <futuristTaskId>, <negativeSpaceExplorerTaskId>]
 
 # Batch 3 — Phase 3 strategic (blocked by all Batch 2 tasks)
 track the task: subject="tension-mapper: Maximum disagreement points",               description="Identify highest-tension disagreements from crucible output."
-update the todo tracker: addBlockedBy=[<all Batch 2 task IDs>]
+update the todo tracker: addBlockedBy=[<achAnalystTaskId>, <contradictionMapperTaskId>]
 track the task: subject="pattern-recognizer: Unexpected historical echoes",          description="Find surprising pattern matches across persona findings and crucible."
-update the todo tracker: addBlockedBy=[<all Batch 2 task IDs>]
+update the todo tracker: addBlockedBy=[<achAnalystTaskId>, <contradictionMapperTaskId>]
 track the task: subject="negative-space-analyst: Unanswered questions",              description="Document research gaps and what remains unresolved after crucible."
-update the todo tracker: addBlockedBy=[<all Batch 2 task IDs>]
+update the todo tracker: addBlockedBy=[<achAnalystTaskId>, <contradictionMapperTaskId>]
 track the task: subject="innovation-agent: Novel hypotheses from combinations",      description="Synthesize novel hypotheses by recombining persona viewpoints."
-update the todo tracker: addBlockedBy=[<all Batch 2 task IDs>]
+update the todo tracker: addBlockedBy=[<achAnalystTaskId>, <contradictionMapperTaskId>]
 ```
+
+Capture the concrete IDs returned by the preceding `track the task` calls (`historianTaskId`, `achAnalystTaskId`, etc.) and substitute them directly into each `addBlockedBy` list before running `update the todo tracker`.
 
 The team persists across all three phases; teammates are spawned per phase (Steps 7, 11, 13) and shut down after each phase completes (Steps 8.5, 12.5, 13.5). `end the coordinated run` runs inside Step 13.5 — after the final shutdown — before Phase 4 synthesis.
 
@@ -326,7 +332,7 @@ Use the prompts from `persona-prompts.md` with variables substituted:
 
 #### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
 
-**CRITICAL**: Deploy all 8 persona agents in a **SINGLE message** with **MULTIPLE parallel subagent invocations**. No `team_name` — standalone dispatch.
+**CRITICAL**: Deploy all 8 persona agents in a **SINGLE message** with **MULTIPLE `Agent` tool calls**. Omit `team_name=` for standalone dispatch (keep per-agent `name=` where relevant).
 
 #### Path B — Agent team (`AGENT_TEAM_MODE=true`)
 
@@ -425,7 +431,7 @@ Both agents receive:
 
 #### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
 
-**CRITICAL**: Deploy both analysis agents in a **SINGLE message** with **MULTIPLE parallel subagent invocations**. No `team_name`.
+**CRITICAL**: Deploy both analysis agents in a **SINGLE message** with **MULTIPLE `Agent` tool calls**. Omit `team_name=` for standalone dispatch (keep per-agent `name=` where relevant).
 
 #### Path B — Agent team (`AGENT_TEAM_MODE=true`)
 
@@ -518,7 +524,7 @@ All agents receive:
 
 #### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
 
-**CRITICAL**: Deploy all 4 strategic analysis agents in a **SINGLE message** with **MULTIPLE parallel subagent invocations**. No `team_name`.
+**CRITICAL**: Deploy all 4 strategic analysis agents in a **SINGLE message** with **MULTIPLE `Agent` tool calls**. Omit `team_name=` for standalone dispatch (keep per-agent `name=` where relevant).
 
 #### Path B — Agent team (`AGENT_TEAM_MODE=true`)
 

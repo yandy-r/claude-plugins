@@ -60,7 +60,7 @@ You implement specific software changes as instructed. You do NOT:
   - Which file/line caused the issue
   - Why you cannot proceed
 
-Only stop if the problem points to a deeper issue outside your asssigned scope but is directly blocking or tied to the successful execution of your task.
+Only stop if the problem points to a deeper issue outside your assigned scope but is directly blocking or tied to the successful execution of your task.
 
 ## Critical Rules
 

@@ -315,7 +315,13 @@ def rewrite_plugin_paths(text: str) -> str:
     return re.sub(pattern, replace, text)
 
 
-def apply_opencode_text_transforms(text: str, aliases: dict[str, str]) -> str:
+def apply_opencode_text_transforms(
+    text: str,
+    aliases: dict[str, str],
+    *,
+    rewrite_source_paths: bool = True,
+    rewrite_runtime_aliases: bool = True,
+) -> str:
     """Apply the opencode-native rewrite pass.
 
     Targets: product names, config paths, plugin-root variable, slash-command
@@ -330,9 +336,10 @@ def apply_opencode_text_transforms(text: str, aliases: dict[str, str]) -> str:
     output = output.replace(".claude-plugin/", ".opencode-plugin/")
     output = output.replace('".claude-plugin"', '".opencode-plugin"')
     output = output.replace("'.claude-plugin'", "'.opencode-plugin'")
-    output = re.sub(r"\bycc/skills/", ".opencode-plugin/skills/", output)
-    output = re.sub(r"\bycc/commands/", ".opencode-plugin/commands/", output)
-    output = re.sub(r"\bycc/agents/", ".opencode-plugin/agents/", output)
+    if rewrite_source_paths:
+        output = re.sub(r"\bycc/skills/", ".opencode-plugin/skills/", output)
+        output = re.sub(r"\bycc/commands/", ".opencode-plugin/commands/", output)
+        output = re.sub(r"\bycc/agents/", ".opencode-plugin/agents/", output)
 
     # Home / config paths (XDG)
     output = output.replace("~/.claude/", "~/.config/opencode/")
@@ -370,16 +377,17 @@ def apply_opencode_text_transforms(text: str, aliases: dict[str, str]) -> str:
     )
 
     # Slash-command and agent namespace references
-    output = re.sub(
-        r"/ycc:([a-zA-Z0-9-]+)",
-        lambda match: f"/{map_namespaced_reference(match.group(1), aliases)}",
-        output,
-    )
-    output = re.sub(
-        r"\bycc:([a-zA-Z0-9-]+)\b",
-        lambda match: map_namespaced_reference(match.group(1), aliases),
-        output,
-    )
+    if rewrite_runtime_aliases:
+        output = re.sub(
+            r"/ycc:([a-zA-Z0-9-]+)",
+            lambda match: f"/{map_namespaced_reference(match.group(1), aliases)}",
+            output,
+        )
+        output = re.sub(
+            r"\bycc:([a-zA-Z0-9-]+)\b",
+            lambda match: map_namespaced_reference(match.group(1), aliases),
+            output,
+        )
 
     # Claude-specific tool/agent phrasing -> opencode-native wording.
     def _dispatch_phrase(name: str) -> str:

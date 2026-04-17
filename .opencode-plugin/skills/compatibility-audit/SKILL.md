@@ -103,7 +103,7 @@ first non-zero exit.
 For each target `<t>`, invoke:
 
 ```
-~/.config/opencode/skills/compatibility-audit/scripts/audit-install-assumptions.sh --target=<t>
+~/.config/opencode/skills/compatibility-audit/scripts/audit-install-assumptions.sh --target=<t> --format=json
 ```
 
 This script checks path conventions, shebang lines, executable permissions, and

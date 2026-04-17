@@ -114,7 +114,7 @@ first non-zero exit.
 For each target `<t>`, invoke:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/compatibility-audit/scripts/audit-install-assumptions.sh --target=<t>
+${CLAUDE_PLUGIN_ROOT}/skills/compatibility-audit/scripts/audit-install-assumptions.sh --target=<t> --format=json
 ```
 
 This script checks path conventions, shebang lines, executable permissions, and

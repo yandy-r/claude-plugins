@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -56,6 +57,52 @@ DEFAULT_PROVIDER_CONFIG: dict[str, object] = {
         }
     }
 }
+
+
+def normalize_agents_runtime_syntax(text: str) -> str:
+    """Normalize AGENTS.md invocation examples to canonical `ycc:` form."""
+    normalized = text
+    normalized = normalized.replace("`/ycc:{command}`", "`ycc:{command}`")
+    normalized = normalized.replace('`subagent_type: "ycc:{agent}"`', "`ycc:{agent}`")
+    normalized = normalized.replace("`@ycc:{agent}`", "`ycc:{agent}`")
+    normalized = normalized.replace("`/ycc:clean`", "`ycc:clean`")
+    normalized = normalized.replace("`@codebase-advisor`", "`ycc:codebase-advisor`")
+    normalized = normalized.replace("`/clean`", "`ycc:clean`")
+    normalized = re.sub(r"`@ycc:([a-z0-9-]+)`", r"`ycc:\1`", normalized)
+
+    normalized = re.sub(
+        r"marketplace at `\.opencode-plugin/marketplace\.json`\.",
+        "metadata in `.opencode-plugin/opencode.json` with rules in `.opencode-plugin/AGENTS.md`.",
+        normalized,
+    )
+    marketplace_block_pattern = (
+        r"The marketplace registry at `\.opencode-plugin/marketplace\.json` contains a single entry:\n\n"
+        r"```json\n\{\n  \"name\": \"ycc\",\n  \"version\": \"2\.0\.0\",\n  \"source\": \"\./ycc\"\n\}\n```"
+    )
+    marketplace_block_replacement = (
+        "The opencode bundle metadata is defined in `.opencode-plugin/opencode.json`, "
+        "and it loads `.opencode-plugin/AGENTS.md` via the `instructions` field."
+    )
+    normalized = re.sub(marketplace_block_pattern, marketplace_block_replacement, normalized)
+    normalized = normalized.replace(
+        "├── .opencode-plugin/\n│   └── marketplace.json     # single ycc entry",
+        "├── .claude-plugin/\n│   └── marketplace.json     # single ycc entry",
+    )
+    normalized = normalized.replace(
+        '│   ├── .opencode-plugin/\n│   │   └── plugin.json      # name: "ycc", version: 2.0.0',
+        '│   ├── .claude-plugin/\n│   │   └── plugin.json      # name: "ycc", version: 2.0.0',
+    )
+
+    # opencode bundle metadata shape is opencode.json + AGENTS.md.
+    normalized = normalized.replace(
+        "1. Validate JSON with `python3 -m json.tool`:\n"
+        "   - `python3 -m json.tool .opencode-plugin/marketplace.json`\n"
+        "   - `python3 -m json.tool ycc/.opencode-plugin/plugin.json`",
+        "1. Validate bundle metadata outputs:\n"
+        "   - `python3 -m json.tool .opencode-plugin/opencode.json`\n"
+        "   - `test -s .opencode-plugin/AGENTS.md`",
+    )
+    return normalized
 
 
 def load_mcp_block() -> dict[str, object]:
@@ -103,7 +150,13 @@ def build_agents_md() -> str:
         raise SystemExit("opencode plugin generator cannot find CLAUDE.md or AGENTS.md at repo root")
 
     aliases = load_agent_aliases()
-    transformed = apply_opencode_text_transforms(source_text, aliases)
+    transformed = apply_opencode_text_transforms(
+        source_text,
+        aliases,
+        rewrite_source_paths=False,
+        rewrite_runtime_aliases=False,
+    )
+    transformed = normalize_agents_runtime_syntax(transformed)
 
     header = (
         f"<!-- Generated from {source_used.relative_to(REPO_ROOT) if source_used else 'CLAUDE.md'} "

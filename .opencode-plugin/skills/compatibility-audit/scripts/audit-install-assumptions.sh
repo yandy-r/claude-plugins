@@ -14,19 +14,32 @@ set -euo pipefail
 usage() { cat <<'EOF'
 Usage: audit-install-assumptions.sh [--target=<claude|cursor|codex|opencode|all>]
                                     [--format=<human|json>] [--help|-h]
+                                    [repo-root]
 
 Validates install-path assumptions for each generated compatibility target.
 Exit 0 if all checks pass; 1 if any fail; 2 on usage error.
 EOF
 }
 
-TARGET="all"; FORMAT="human"
+TARGET="all"; FORMAT="human"; REPO_ROOT_INPUT=""
 for arg in "$@"; do
   case "$arg" in
     --target=*) TARGET="${arg#--target=}" ;;
     --format=*) FORMAT="${arg#--format=}" ;;
     --help|-h)  usage; exit 0 ;;
-    *) echo "audit-install-assumptions.sh: unknown flag: $arg" >&2; usage >&2; exit 2 ;;
+    -*)
+      echo "audit-install-assumptions.sh: unknown flag: $arg" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      if [[ -n "$REPO_ROOT_INPUT" ]]; then
+        echo "audit-install-assumptions.sh: multiple repo roots provided: $REPO_ROOT_INPUT and $arg" >&2
+        usage >&2
+        exit 2
+      fi
+      REPO_ROOT_INPUT="$arg"
+      ;;
   esac
 done
 case "$TARGET" in all|claude|cursor|codex|opencode) ;;
@@ -39,7 +52,19 @@ case "$FORMAT" in human|json) ;;
 # installed plugin). Fall back to walking up from SCRIPT_DIR for dev/source-tree use.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 REPO_ROOT=""
-if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" && -d "${CLAUDE_PLUGIN_ROOT}" ]]; then
+if [[ -n "$REPO_ROOT_INPUT" ]]; then
+  if [[ ! -d "$REPO_ROOT_INPUT" ]]; then
+    echo "audit-install-assumptions.sh: repo root input is not a directory: $REPO_ROOT_INPUT" >&2
+    exit 2
+  fi
+  candidate="$(cd "$REPO_ROOT_INPUT" && pwd)"
+  while [[ "$candidate" != "/" ]]; do
+    [[ -f "$candidate/.claude-plugin/marketplace.json" ]] && { REPO_ROOT="$candidate"; break; }
+    candidate="$(dirname "$candidate")"
+  done
+  [[ -z "$REPO_ROOT" && -f "/.claude-plugin/marketplace.json" ]] && REPO_ROOT="/"
+fi
+if [[ -z "$REPO_ROOT" && -n "${CLAUDE_PLUGIN_ROOT:-}" && -d "${CLAUDE_PLUGIN_ROOT}" ]]; then
   # Normalize trailing slash and accept the value directly as REPO_ROOT-equivalent.
   # Downstream code references REPO_ROOT for .claude-plugin/, .cursor-plugin/,
   # .codex-plugin/ and ycc/.claude-plugin/ — these all live at the repo root.
@@ -59,6 +84,14 @@ if [[ -z "$REPO_ROOT" ]]; then
     candidate="$(dirname "$candidate")"
   done
 fi
+if [[ -z "$REPO_ROOT" ]]; then
+  candidate="$PWD"
+  while [[ "$candidate" != "/" ]]; do
+    [[ -f "$candidate/.claude-plugin/marketplace.json" ]] && { REPO_ROOT="$candidate"; break; }
+    candidate="$(dirname "$candidate")"
+  done
+fi
+[[ -z "$REPO_ROOT" && -f "/.claude-plugin/marketplace.json" ]] && REPO_ROOT="/"
 [[ -z "$REPO_ROOT" ]] && { echo "audit-install-assumptions.sh: repo root not found" >&2; exit 2; }
 echo "audit-install-assumptions.sh: repo root is $REPO_ROOT" >&2
 
