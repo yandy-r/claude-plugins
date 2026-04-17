@@ -70,7 +70,7 @@
     },
     {
       "name": "init",
-      "description": "This skill should be used when the user asks to \"initialize workspace\", \"set up Claude CLI environment\", \"configure agents and MCPs for project\", \"init workspace\", \"set up project with Claude tools\", or mentions workspace initialization. Analyzes project type and presents available agents/MCPs for selection."
+      "description": "This skill should be used when the user asks to \"initialize workspace\", \"init project\", \"bootstrap CLAUDE.md\", \"generate AGENTS.md\", \"set up cursor rules\", \"add github issue templates\", \"add conventional commits config\", \"configure agents and MCPs for project\", or any workspace/project initialization request. Profiles the project, emits the AI-agent doc trio (CLAUDE.md, AGENTS.md, .cursor/rules/project.mdc), and optionally GitHub templates and git conventions."
     },
     {
       "name": "karpathy-guidelines",
@@ -240,7 +240,7 @@
     },
     {
       "name": "init",
-      "description": "Initialize Claude CLI workspace with agents and MCPs based on project analysis"
+      "description": "Initialize workspace \u2014 profile project, emit CLAUDE.md/AGENTS.md/.cursor/rules, optional GitHub templates, git conventions, and Claude CLI config."
     },
     {
       "name": "orchestrate",

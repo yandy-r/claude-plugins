@@ -8,20 +8,26 @@ OpenAI Codex, etc.) pick up the same rules without duplicating prose.
 ## Agent-runtime notes
 
 - Cursor: also reads `.cursor/rules/project.mdc` (same content, MDC-formatted).
+- opencode: reads this `AGENTS.md` natively (falls back to `CLAUDE.md` when absent).
 - When an MCP server is available for the task, prefer it; read each tool's schema first.
 - For deep analysis of this repository, start with `CLAUDE.md` and the stack overview.
 
 This repository's source of truth is the Claude-facing `ycc/` tree.
 
-- Add new workflow logic under `ycc/`, not under `.cursor-plugin/` or `.codex-plugin/`.
-- Treat `.cursor-plugin/` and `.codex-plugin/` as generated outputs unless you are changing the generators themselves.
-- After changing `ycc/skills/` or `ycc/agents/`, run the Codex and Cursor generators plus their validators before considering the work done.
+- Add new workflow logic under `ycc/`, not under `.cursor-plugin/`, `.codex-plugin/`, or `.opencode-plugin/`.
+- Treat `.cursor-plugin/`, `.codex-plugin/`, and `.opencode-plugin/` as generated outputs unless you are changing the generators themselves.
+- After changing `ycc/skills/`, `ycc/agents/`, or `ycc/commands/`, run `./scripts/sync.sh` and `./scripts/validate.sh` before considering the work done.
 - Keep the plugin name `ycc` stable across all targets.
 - For Codex, the native install surface is:
   - plugin source under `.codex-plugin/ycc/`
   - custom agents under `.codex-plugin/agents/`
   - user install target `~/.codex/plugins/ycc`
   - user marketplace `~/.agents/plugins/marketplace.json`
+- For opencode, the native install surface is:
+  - skills under `.opencode-plugin/skills/` → `~/.config/opencode/skills/`
+  - agents under `.opencode-plugin/agents/` → `~/.config/opencode/agents/`
+  - commands under `.opencode-plugin/commands/` → `~/.config/opencode/commands/`
+  - config + rules (`opencode.json`, `AGENTS.md`) → `~/.config/opencode/` via `install.sh --target opencode --settings`
 - Do not introduce new top-level plugins; extend the existing `ycc` bundle.
 
 ## Sync policy

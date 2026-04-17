@@ -11,9 +11,10 @@ tmp/
 temp/
 
 # Generated artifacts — owned by scripts/generate_*.py and scripts/sync.sh.
-# Prettier and the generators format JSON differently (e.g. single-element
-# arrays), so running prettier over these files drifts them out of sync with
-# what the generator produces, breaking ./scripts/validate.sh in CI.
+# Prettier and the generators format JSON / markdown table widths differently,
+# so running prettier over these files drifts them out of sync with what the
+# generator produces, breaking ./scripts/validate.sh in CI.
 docs/inventory.json
 .cursor-plugin/
 .codex-plugin/
+.opencode-plugin/

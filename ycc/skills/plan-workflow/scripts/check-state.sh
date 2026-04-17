@@ -31,9 +31,9 @@ else
   if REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null); then
     PLANS_DIR="${REPO_ROOT}/docs/plans"
   else
-    # If not in a git repo, resolve from script directory
-    # Assuming script is in .claude/skills/plan-workflow/scripts/
-    # Navigate up 4 levels to get to repo root
+    # If not in a git repo, resolve from script directory.
+    # Assuming the script is at skills/plan-workflow/scripts/ under the
+    # installed plugin root, navigate up 4 levels to reach the host workspace.
     REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
     PLANS_DIR="${REPO_ROOT}/docs/plans"
   fi

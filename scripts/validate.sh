@@ -7,14 +7,14 @@
 #   ./scripts/validate.sh --only inventory      # single target
 #   ./scripts/validate.sh --only cursor,codex   # comma-separated subset
 #
-# Targets: inventory, cursor, codex, json
+# Targets: inventory, cursor, codex, opencode, json
 #   - json validates .claude-plugin/marketplace.json and ycc/.claude-plugin/plugin.json
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-VALID_TARGETS=(inventory cursor codex json)
+VALID_TARGETS=(inventory cursor codex opencode json)
 TARGETS=("${VALID_TARGETS[@]}")
 
 usage() {
@@ -90,6 +90,16 @@ run_target() {
             "${REPO_ROOT}/scripts/validate-codex-agents.sh" || fail "validate-codex-agents.sh"
             echo "== validate: codex plugin =="
             "${REPO_ROOT}/scripts/validate-codex-plugin.sh" || fail "validate-codex-plugin.sh"
+            ;;
+        opencode)
+            echo "== validate: opencode skills =="
+            "${REPO_ROOT}/scripts/validate-opencode-skills.sh" || fail "validate-opencode-skills.sh"
+            echo "== validate: opencode agents =="
+            "${REPO_ROOT}/scripts/validate-opencode-agents.sh" || fail "validate-opencode-agents.sh"
+            echo "== validate: opencode commands =="
+            "${REPO_ROOT}/scripts/validate-opencode-commands.sh" || fail "validate-opencode-commands.sh"
+            echo "== validate: opencode plugin =="
+            "${REPO_ROOT}/scripts/validate-opencode-plugin.sh" || fail "validate-opencode-plugin.sh"
             ;;
         json)
             echo "== validate: marketplace and plugin manifests =="

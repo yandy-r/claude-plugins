@@ -9,6 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CURSOR_PLUGIN_DIR="${SCRIPT_DIR}/.cursor-plugin"
 CODEX_PLUGIN_DIR="${SCRIPT_DIR}/.codex-plugin/ycc"
 CODEX_AGENTS_DIR="${SCRIPT_DIR}/.codex-plugin/agents"
+OPENCODE_PLUGIN_DIR="${SCRIPT_DIR}/.opencode-plugin"
 MCP_CONFIG_SRC="${SCRIPT_DIR}/mcp-configs/mcp.json"
 
 # Colors ($'...' so escapes are real bytes, not literal \\033)
@@ -51,7 +52,7 @@ Usage: $(basename "$0") --target <target> [--settings] [--mcp] [--only <steps>]
 Sync plugin assets to an IDE configuration directory.
 
 Options:
-  --target <target>   Target: claude, cursor, codex, or all
+  --target <target>   Target: claude, cursor, codex, opencode, or all
   --settings          Additive: also run the target's 'settings' step.
   --mcp               Additive: also run the target's 'mcp' step.
   --only <steps>      Exclusive: run only the comma-separated steps
@@ -67,29 +68,37 @@ Semantics:
     - Run exactly the listed steps. Nothing else.
 
 Target steps:
-  claude   settings | mcp
-           settings: symlink ycc/settings/{settings.json,statusline-command.sh}
-                     into ~/.claude/.
-           mcp:      merge mcp-configs/mcp.json mcpServers into ~/.claude.json.
-           (no base; claude is flag-driven.)
-  cursor   base | mcp
-           base:     generate + validate + format + rsync bundle to ~/.cursor/.
-           mcp:      symlink mcp-configs/mcp.json → ~/.cursor/mcp.json.
-  codex    base | settings
-           base:     generate + validate + format + rsync plugin & agents +
-                     merge marketplace entry.
-           settings: symlink .codex-plugin/config/{config.toml,default.rules}
-                     into ~/.codex/.
-  all      Run claude then cursor then codex; step selection propagates.
+  claude    settings | mcp
+            settings: symlink ycc/settings/{settings.json,statusline-command.sh}
+                      into ~/.claude/.
+            mcp:      merge mcp-configs/mcp.json mcpServers into ~/.claude.json.
+            (no base; claude is flag-driven.)
+  cursor    base | mcp
+            base:     generate + validate + format + rsync bundle to ~/.cursor/.
+            mcp:      symlink mcp-configs/mcp.json → ~/.cursor/mcp.json.
+  codex     base | settings
+            base:     generate + validate + format + rsync plugin & agents +
+                      merge marketplace entry.
+            settings: symlink .codex-plugin/config/{config.toml,default.rules}
+                      into ~/.codex/.
+  opencode  base | settings
+            base:     generate + validate + format + rsync skills/agents/commands
+                      into ~/.config/opencode/.
+            settings: symlink .opencode-plugin/{opencode.json,AGENTS.md} into
+                      ~/.config/opencode/ (opencode reads MCP from opencode.json,
+                      so enable MCP via --settings — there is no separate mcp step).
+  all       Run claude then cursor then codex then opencode; step flags propagate.
 
 Examples:
   $(basename "$0") --target claude --settings --mcp
   $(basename "$0") --target claude --only mcp
-  $(basename "$0") --target cursor                # base only
-  $(basename "$0") --target cursor --mcp          # base + mcp
-  $(basename "$0") --target cursor --only mcp     # mcp only
-  $(basename "$0") --target codex --settings      # base + settings
-  $(basename "$0") --target codex --only settings # settings only
+  $(basename "$0") --target cursor                  # base only
+  $(basename "$0") --target cursor --mcp            # base + mcp
+  $(basename "$0") --target cursor --only mcp       # mcp only
+  $(basename "$0") --target codex --settings        # base + settings
+  $(basename "$0") --target codex --only settings   # settings only
+  $(basename "$0") --target opencode                # base only
+  $(basename "$0") --target opencode --settings     # base + symlink config + rules
   $(basename "$0") --target all --settings --mcp
 EOF
 }
@@ -571,12 +580,136 @@ sync_codex_target() {
 }
 
 # ---------------------------------------------------------------------------
+# opencode sync (base: skills + agents + commands; settings: config + rules)
+# ---------------------------------------------------------------------------
+sync_opencode_target() {
+    validate_only_steps "opencode" "base,settings"
+
+    local opencode_dir="${HOME}/.config/opencode"
+    local scripts_dir="${SCRIPT_DIR}/scripts"
+
+    local do_base=0 do_settings=0
+    step_enabled base && do_base=1
+    step_enabled settings && do_settings=1
+
+    if [[ $do_base -eq 0 && $do_settings -eq 0 ]]; then
+        warn "opencode target ran no steps"
+        printf '\n%sopencode sync complete.%s\n' "${BOLD}" "${NC}"
+        return 0
+    fi
+
+    command -v python3 >/dev/null 2>&1 || { err "python3 is required but not found"; exit 1; }
+    [[ $do_base -eq 1 ]] && { command -v rsync >/dev/null 2>&1 || { err "rsync is required but not found"; exit 1; }; }
+
+    local total=0
+    [[ $do_base -eq 1 ]] && total=$((total + 4))
+    [[ $do_settings -eq 1 ]] && total=$((total + 1))
+    local step=0
+
+    if [[ $do_base -eq 1 ]]; then
+        if [[ ! -d "${OPENCODE_PLUGIN_DIR}" ]]; then
+            err "opencode plugin source directory not found: ${OPENCODE_PLUGIN_DIR}"
+            exit 1
+        fi
+
+        local gen_skills="${scripts_dir}/generate-opencode-skills.sh"
+        local gen_agents="${scripts_dir}/generate-opencode-agents.sh"
+        local gen_commands="${scripts_dir}/generate-opencode-commands.sh"
+        local gen_plugin="${scripts_dir}/generate-opencode-plugin.sh"
+        local val_skills="${scripts_dir}/validate-opencode-skills.sh"
+        local val_agents="${scripts_dir}/validate-opencode-agents.sh"
+        local val_commands="${scripts_dir}/validate-opencode-commands.sh"
+        local val_plugin="${scripts_dir}/validate-opencode-plugin.sh"
+
+        local s
+        for s in "${gen_skills}" "${gen_agents}" "${gen_commands}" "${gen_plugin}" \
+                 "${val_skills}" "${val_agents}" "${val_commands}" "${val_plugin}"; do
+            if [[ ! -f "${s}" ]]; then
+                err "Missing required script: ${s}"
+                exit 1
+            fi
+            if [[ ! -r "${s}" ]]; then
+                err "Script not readable: ${s}"
+                exit 1
+            fi
+        done
+
+        mkdir -p "${opencode_dir}"
+
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Generate opencode-native bundle%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        info "Running generate-opencode-skills.sh"
+        bash "${gen_skills}"
+        info "Running generate-opencode-agents.sh"
+        bash "${gen_agents}"
+        info "Running generate-opencode-commands.sh"
+        bash "${gen_commands}"
+        info "Running generate-opencode-plugin.sh"
+        bash "${gen_plugin}"
+
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Validate generated bundle%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        info "Running validate-opencode-skills.sh"
+        bash "${val_skills}"
+        info "Running validate-opencode-agents.sh"
+        bash "${val_agents}"
+        info "Running validate-opencode-commands.sh"
+        bash "${val_commands}"
+        info "Running validate-opencode-plugin.sh"
+        bash "${val_plugin}"
+
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Format modified repository files%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        run_repo_style_format_modified
+
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Sync bundle to ~/.config/opencode%s\n' "${BOLD}" "$step" "$total" "${NC}"
+
+        local managed_units=(skills agents commands)
+        local unit
+        for unit in "${managed_units[@]}"; do
+            local src_unit="${OPENCODE_PLUGIN_DIR}/${unit}/"
+            local dest_unit="${opencode_dir}/${unit}/"
+
+            if [[ -d "${src_unit}" ]]; then
+                mkdir -p "${dest_unit}"
+                rsync -av --delete "${src_unit}" "${dest_unit}"
+                info "Synced ${unit}/ → ${dest_unit}"
+            elif [[ -d "${dest_unit}" ]]; then
+                rm -rf "${dest_unit}"
+                warn "Removed ${dest_unit} (missing from .opencode-plugin)"
+            else
+                warn "Source not found, skipping: ${src_unit}"
+            fi
+        done
+
+        # opencode ALSO reads bundles from the Claude-compat path .claude/skills.
+        # We deliberately do not write to that path from the opencode target so
+        # users who also run `--target claude` don't end up with two copies.
+    fi
+
+    if [[ $do_settings -eq 1 ]]; then
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Link opencode config and rules%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        mkdir -p "${opencode_dir}"
+        link_file "${OPENCODE_PLUGIN_DIR}/opencode.json" "${opencode_dir}/opencode.json"
+        link_file "${OPENCODE_PLUGIN_DIR}/AGENTS.md"    "${opencode_dir}/AGENTS.md"
+    fi
+
+    printf '\n%sopencode sync complete.%s\n' "${BOLD}" "${NC}"
+    if [[ $do_base -eq 1 ]]; then
+        warn "Restart opencode to pick up the new skills/agents/commands."
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # All targets
 # ---------------------------------------------------------------------------
 sync_all_targets() {
     sync_claude_target
     sync_cursor_target
     sync_codex_target
+    sync_opencode_target
 }
 
 # ---------------------------------------------------------------------------
@@ -648,11 +781,14 @@ case "${TARGET}" in
     codex)
         sync_codex_target
         ;;
+    opencode)
+        sync_opencode_target
+        ;;
     all)
         sync_all_targets
         ;;
     *)
-        err "Unknown target: ${TARGET} (supported: claude, cursor, codex, all)"
+        err "Unknown target: ${TARGET} (supported: claude, cursor, codex, opencode, all)"
         exit 1
         ;;
 esac

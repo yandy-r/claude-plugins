@@ -1,6 +1,6 @@
 # claude-plugins
 
-A single Claude Code plugin (`ycc`) bundling workflow orchestration, parallel planning, documentation, research, and project management. The repository also generates native compatibility bundles for Cursor and Codex.
+A single Claude Code plugin (`ycc`) bundling workflow orchestration, parallel planning, documentation, research, and project management. The repository also generates native compatibility bundles for Cursor, Codex, and opencode.
 
 > **2.0.0 breaking change.** Versions ≤ 1.x shipped 9 separate plugins (`ask`, `plan-workflow`, `git-workflow`, `implement-plan`, `code-report`, `deep-research`, `orchestrate`, `write-docs`, `project`). 2.0.0 collapses all of them into a single `ycc` plugin so every skill is accessible via `ycc:{skill}`. Re-install after upgrading.
 
@@ -33,7 +33,7 @@ The source plugin ships **42 skills**, **41 slash commands** (most skills have a
 | `/ycc:go-testing`          | Go testing patterns including table-driven tests, subtests, benchmarks, fuzzing, and test coverage.                                                                                     |
 | `/ycc:hooks-workflow`      | Generate target-aware hook configuration from ycc rule guidance with graceful fallbacks.                                                                                                |
 | `/ycc:implement-plan`      | Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches.                                                                                  |
-| `/ycc:init`                | Initialize Claude CLI workspace with agents and MCPs based on project analysis                                                                                                          |
+| `/ycc:init`                | Initialize workspace — profile project, emit CLAUDE.md/AGENTS.md/.cursor/rules, optional GitHub templates, git conventions, and Claude CLI config.                                      |
 | `/ycc:orchestrate`         | Orchestrate multiple specialized agents to accomplish a complex task through intelligent decomposition and parallel execution.                                                          |
 | `/ycc:parallel-plan`       | Generate a detailed parallel implementation plan with task dependencies, file ownership, and batch ordering.                                                                            |
 | `/ycc:plan`                | Lightweight conversational planner.                                                                                                                                                     |
@@ -71,6 +71,7 @@ The plugin bundles **51** specialized agents covering codebase analysis, languag
 - **Claude Code:** reference any of them via `subagent_type: "ycc:{agent-name}"`. Canonical source lives in [`ycc/agents/`](ycc/agents/).
 - **Cursor:** generated, Cursor-native copies live in [`.cursor-plugin/agents/`](.cursor-plugin/agents/) (produced from `ycc/agents/` — see [Cursor IDE sync](#cursor-ide-sync)).
 - **Codex:** generated, Codex-native custom-agent TOMLs live in [`.codex-plugin/agents/`](.codex-plugin/agents/) (produced from `ycc/agents/` and synced to `~/.codex/agents/` by `install.sh --target codex`).
+- **opencode:** generated, opencode-native agent markdown files live in [`.opencode-plugin/agents/`](.opencode-plugin/agents/) (produced from `ycc/agents/` and synced to `~/.config/opencode/agents/` by `install.sh --target opencode`). Invoke via `@agent-name` mention or the built-in `task` tool.
 
 **Contributing:** before proposing a new skill, command, or agent, read the Scope & Guardrails policy in [`CONTRIBUTING.md`](CONTRIBUTING.md#scope--guardrails).
 
@@ -107,26 +108,33 @@ Use `ycc:plan-workflow` to run the full pipeline, or invoke individual stages.
 
 ## Local Sync Targets
 
-Cursor loads **skills**, **agents**, and **rules** from `~/.cursor/{skills,agents,rules}/`. Codex uses a **plugin** for skills/MCP plus **custom agents** in `~/.codex/agents/`. This repository maintains generated compatibility trees under **`.cursor-plugin/`** and **`.codex-plugin/`**.
+- Cursor loads **skills**, **agents**, and **rules** from `~/.cursor/{skills,agents,rules}/`.
+- Codex uses a **plugin** for skills/MCP plus **custom agents** in `~/.codex/agents/`.
+- opencode loads **skills**, **agents**, and **commands** from `~/.config/opencode/{skills,agents,commands}/` and reads MCP + default-model config from `~/.config/opencode/opencode.json`.
+
+This repository maintains generated compatibility trees under **`.cursor-plugin/`**, **`.codex-plugin/`**, and **`.opencode-plugin/`**.
 
 Shared MCP server definitions live in [`mcp-configs/mcp.json`](mcp-configs/mcp.json). The installer is organized around **targets** and **steps** — each target exposes a set of steps that can be run by default, added with an additive flag, or isolated with `--only`.
 
-| Target   | Steps              | Notes                                                                                                  |
-| -------- | ------------------ | ------------------------------------------------------------------------------------------------------ |
-| `claude` | `settings`, `mcp`  | No default step — pass `--settings`, `--mcp`, or `--only <steps>`.                                     |
-| `cursor` | `base`, `mcp`      | `base` = generate + validate + format + rsync `skills/`, `agents/`, `rules/` into `~/.cursor/`.        |
-| `codex`  | `base`, `settings` | `base` = generate + validate + format + sync plugin & agents + merge `~/.agents/.../marketplace.json`. |
-| `all`    | —                  | Runs `claude`, `cursor`, then `codex`; step flags propagate.                                           |
+| Target     | Steps              | Notes                                                                                                                                      |
+| ---------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `claude`   | `settings`, `mcp`  | No default step — pass `--settings`, `--mcp`, or `--only <steps>`.                                                                         |
+| `cursor`   | `base`, `mcp`      | `base` = generate + validate + format + rsync `skills/`, `agents/`, `rules/` into `~/.cursor/`.                                            |
+| `codex`    | `base`, `settings` | `base` = generate + validate + format + sync plugin & agents + merge `~/.agents/.../marketplace.json`.                                     |
+| `opencode` | `base`, `settings` | `base` = generate + validate + format + rsync `skills/agents/commands` into `~/.config/opencode/`. `settings` symlinks config + AGENTS.md. |
+| `all`      | —                  | Runs `claude`, `cursor`, `codex`, then `opencode`; step flags propagate.                                                                   |
 
 Step reference:
 
-- `base` — full generator/validator/sync pipeline for the target (cursor/codex only).
+- `base` — full generator/validator/sync pipeline for the target (cursor/codex/opencode).
 - `settings` — symlinks per-target config files into the IDE's config dir:
   - claude: `ycc/settings/{settings.json,statusline-command.sh}` → `~/.claude/`
   - codex: `.codex-plugin/config/{config.toml,default.rules}` → `~/.codex/`
+  - opencode: `.opencode-plugin/{opencode.json,AGENTS.md}` → `~/.config/opencode/`
 - `mcp` — shared `mcp-configs/mcp.json` integration:
   - claude: merges `mcpServers` into `~/.claude.json` (preserves other keys such as `projects`)
   - cursor: symlinks `mcp-configs/mcp.json` → `~/.cursor/mcp.json` (kept in sync across systems)
+  - opencode: there is no separate `mcp` step — the generated `opencode.json` already embeds the translated MCP block, and enabling it is part of the `settings` step.
 
 ### Install targets
 
@@ -135,14 +143,17 @@ Step reference:
 ./install.sh --target cursor                        # base only
 ./install.sh --target cursor --mcp                  # base + symlink MCP
 ./install.sh --target codex --settings              # base + link codex config.toml/default.rules
+./install.sh --target opencode                      # base only (skills + agents + commands)
+./install.sh --target opencode --settings           # base + link opencode.json + AGENTS.md
 ./install.sh --target claude --settings --mcp       # symlink settings + merge MCP
 ./install.sh --target all --settings --mcp          # everything across all targets
 
 # Exclusive (--only): run exactly the listed steps, nothing else.
-./install.sh --target claude --only mcp             # merge MCP, skip settings link
-./install.sh --target cursor --only mcp             # just the MCP symlink
-./install.sh --target codex  --only settings       # just the codex config symlinks
-./install.sh --target codex  --only base,settings  # equivalent to default + --settings
+./install.sh --target claude   --only mcp           # merge MCP, skip settings link
+./install.sh --target cursor   --only mcp           # just the MCP symlink
+./install.sh --target codex    --only settings      # just the codex config symlinks
+./install.sh --target codex    --only base,settings # equivalent to default + --settings
+./install.sh --target opencode --only settings      # just the opencode config + rules symlinks
 ```
 
 `--settings` and `--mcp` are **additive** on top of the default (`base`) step. `--only <steps>` is **exclusive** and overrides both defaults and additive flags. Invalid steps for a target (e.g. `--only settings` on `cursor`) fail fast with a clear error.
@@ -161,6 +172,13 @@ After running the Codex target, restart Codex, open `/plugins`, and install `ycc
 - Codex does **not** support this repo's custom slash-command layer as installable artifacts. Use the bundled skills directly with `$skill-name` or by invoking the installed `ycc` plugin, and use Codex built-ins such as `/plan` and `/review` where applicable.
 - Generated Codex skill references assume the managed install location `~/.codex/plugins/ycc/` for bundled helper scripts and references.
 
+### opencode notes
+
+- opencode support is **native**. Skills install at `~/.config/opencode/skills/`, agents at `~/.config/opencode/agents/`, and commands at `~/.config/opencode/commands/`. opencode loads `SKILL.md` on demand via the built-in `skill` tool; agents respond to `@mention` or the built-in `task` tool; commands run as `/<name>` in the TUI.
+- opencode has no `${PLUGIN_ROOT}` variable, so generated skill bodies reference absolute paths (e.g. `~/.config/opencode/skills/foo/...`) rather than a runtime-injected root.
+- **Default model**: the generated `opencode.json` sets `model: "openai/gpt-5.4"` with `reasoningEffort: "high"` and `textVerbosity: "low"`. Users need `OPENAI_API_KEY` in their environment, or can run `opencode auth login openai` once. Anthropic/Claude is not first-class in opencode (Anthropic blocked opencode client spoofing in January 2026; opencode 1.3.0 removed the built-in Anthropic OAuth plugin) — users who want different models can override via `scripts/opencode_model_aliases.local.json` (gitignored, merged on top of `scripts/opencode_model_aliases.json`).
+- **Hooks** are marked `partial` in the capability matrix: opencode's lifecycle hooks require a TypeScript plugin module, which the `ycc` bundle does not ship in v1. Hook guidance is emitted as rule-embedded notes only.
+
 ### Unified sync and validate
 
 The recommended workflow is a single entry point that regenerates (or validates) every derived artifact in one call:
@@ -175,13 +193,15 @@ Both accept `--only <targets>` with comma-separated values. Valid targets:
 - `inventory` — `docs/inventory.json` and the `GENERATED-*` regions of `README.md`
 - `cursor` — `.cursor-plugin/` agents, skills, and rules
 - `codex` — `.codex-plugin/` skills, agents, and plugin metadata
+- `opencode` — `.opencode-plugin/` skills, agents, commands, and plugin metadata (opencode.json + AGENTS.md)
 - `json` — JSON-lint `.claude-plugin/marketplace.json` and `ycc/.claude-plugin/plugin.json` (validate only)
 
 Examples:
 
 ```bash
 ./scripts/sync.sh --only inventory
-./scripts/validate.sh --only cursor,codex
+./scripts/validate.sh --only cursor,codex,opencode
+./scripts/sync.sh --only opencode
 ```
 
 CI runs `./scripts/validate.sh` via [`.github/workflows/validate.yml`](.github/workflows/validate.yml) and fails the job on any generated drift, so local and CI paths are identical.
@@ -261,6 +281,31 @@ Codex output layout:
 - [`.codex-plugin/agents/`](.codex-plugin/agents/) — generated Codex custom agents
 - [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) — repo-local marketplace source for development
 
+### Regenerate opencode skills, agents, commands, and plugin metadata
+
+`ycc/skills/`, `ycc/agents/`, and `ycc/commands/` are the **source of truth**. After editing any of them, regenerate the opencode artifacts and validate:
+
+```bash
+./scripts/generate-opencode-skills.sh
+./scripts/generate-opencode-agents.sh
+./scripts/generate-opencode-commands.sh
+./scripts/generate-opencode-plugin.sh
+./scripts/validate-opencode-skills.sh
+./scripts/validate-opencode-agents.sh
+./scripts/validate-opencode-commands.sh
+./scripts/validate-opencode-plugin.sh
+```
+
+opencode output layout:
+
+- [`.opencode-plugin/skills/`](.opencode-plugin/skills/) — generated opencode skills
+- [`.opencode-plugin/agents/`](.opencode-plugin/agents/) — generated opencode agents
+- [`.opencode-plugin/commands/`](.opencode-plugin/commands/) — generated opencode slash commands
+- [`.opencode-plugin/opencode.json`](.opencode-plugin/opencode.json) — config with `$schema`, default model, reasoning effort, translated MCP
+- [`.opencode-plugin/AGENTS.md`](.opencode-plugin/AGENTS.md) — rules file (transformed from CLAUDE.md)
+- [`.opencode-plugin/shared/`](.opencode-plugin/shared/) — infrastructure scripts referenced from skills
+- [`scripts/opencode_model_aliases.json`](scripts/opencode_model_aliases.json) — Claude-shorthand → `openai/gpt-5.4`-family mapping; override per-user via `scripts/opencode_model_aliases.local.json`.
+
 ## Repository layout
 
 ```
@@ -282,9 +327,16 @@ claude-plugins/
 │   ├── agents/                # generated from ycc/agents (run scripts/generate-cursor-agents.sh)
 │   ├── rules/                 # generated from ycc/rules (run scripts/generate-cursor-rules.sh)
 │   └── skills/                # generated from ycc/skills (run scripts/generate-cursor-skills.sh)
+├── .opencode-plugin/          # opencode bundle (synced by install.sh --target opencode)
+│   ├── agents/                # generated from ycc/agents
+│   ├── commands/              # generated from ycc/commands
+│   ├── skills/                # generated from ycc/skills
+│   ├── shared/                # generated from ycc/skills/_shared
+│   ├── AGENTS.md              # generated rules file (transformed from CLAUDE.md)
+│   └── opencode.json          # generated config: $schema + default model + MCP
 ├── mcp-configs/
 │   └── mcp.json               # shared MCP servers; merged/copied by install.sh
-├── install.sh                 # sync Claude/Cursor/Codex targets
+├── install.sh                 # sync Claude/Cursor/Codex/opencode targets
 ├── scripts/
 │   ├── generate-codex-skills.sh    # wrapper → generate_codex_skills.py
 │   ├── generate_codex_skills.py    # ycc/skills → .codex-plugin/ycc/skills
@@ -303,7 +355,21 @@ claude-plugins/
 │   ├── validate-cursor-skills.sh   # sync check + content policy
 │   ├── generate-cursor-rules.sh    # wrapper → generate_cursor_rules.py
 │   ├── generate_cursor_rules.py    # ycc/rules → .cursor-plugin/rules (.md → .mdc)
-│   └── validate-cursor-rules.sh    # sync + frontmatter lint + content policy
+│   ├── validate-cursor-rules.sh    # sync + frontmatter lint + content policy
+│   ├── generate-opencode-skills.sh    # wrapper → generate_opencode_skills.py
+│   ├── generate_opencode_skills.py    # ycc/skills → .opencode-plugin/skills
+│   ├── validate-opencode-skills.sh    # sync check + frontmatter lint + content policy
+│   ├── generate-opencode-agents.sh    # wrapper → generate_opencode_agents.py
+│   ├── generate_opencode_agents.py    # ycc/agents → .opencode-plugin/agents
+│   ├── validate-opencode-agents.sh    # sync check + frontmatter lint + content policy
+│   ├── generate-opencode-commands.sh  # wrapper → generate_opencode_commands.py
+│   ├── generate_opencode_commands.py  # ycc/commands → .opencode-plugin/commands
+│   ├── validate-opencode-commands.sh  # sync check + frontmatter lint + content policy
+│   ├── generate-opencode-plugin.sh    # wrapper → generate_opencode_plugin.py
+│   ├── generate_opencode_plugin.py    # opencode.json + AGENTS.md + MCP translation
+│   ├── validate-opencode-plugin.sh    # JSON schema + sync check
+│   ├── generate_opencode_common.py    # shared paths / transforms / model + tool maps
+│   └── opencode_model_aliases.json    # Claude-shorthand → openai/gpt-5.4-family map
 ├── ycc/                       # the consolidated Claude Code plugin
 │   ├── .claude-plugin/
 │   │   └── plugin.json        # name: "ycc", version: 2.0.0

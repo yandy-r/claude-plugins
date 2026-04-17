@@ -20,7 +20,7 @@
 #
 # The parser reads ONE markdown table from the matrix file. Rules:
 #   - The header row must be exactly (after per-cell whitespace trim):
-#       capability | claude | cursor | codex
+#       capability | claude | cursor | codex | opencode
 #   - Separator rows (cells of dashes) are skipped.
 #   - Each data cell must be one of: supported | partial | unsupported
 #   - The "As of <date>" line is expected anywhere in the file as:
@@ -151,7 +151,7 @@ fi
 # ---------------------------------------------------------------------------
 # Parse the capability matrix via Python
 # Outputs: one line per capability row in the form:
-#   <capability>|<claude_verdict>|<cursor_verdict>|<codex_verdict>
+#   <capability>|<claude_verdict>|<cursor_verdict>|<codex_verdict>|<opencode_verdict>
 # First line is the "As of ..." date (prefixed with "AS_OF:").
 # ---------------------------------------------------------------------------
 
@@ -162,7 +162,7 @@ matrix_path = sys.argv[1]
 matrix_rel  = sys.argv[2]
 
 VOCABULARY = {"supported", "partial", "unsupported"}
-EXPECTED_HEADER = ["capability", "claude", "cursor", "codex"]
+EXPECTED_HEADER = ["capability", "claude", "cursor", "codex", "opencode"]
 
 lines = open(matrix_path).read().splitlines()
 
@@ -201,7 +201,7 @@ for lineno, raw in enumerate(lines, 1):
         if cells != EXPECTED_HEADER:
             print(
                 f"PARSE_ERROR:Line {lineno}: expected header "
-                f"'| capability | claude | cursor | codex |' "
+                f"'| capability | claude | cursor | codex | opencode |' "
                 f"but got: {raw!r}\n{error_pointer}",
                 file=sys.stderr
             )
@@ -210,15 +210,20 @@ for lineno, raw in enumerate(lines, 1):
         continue
 
     # Data row — validate and emit
-    if len(cells) != 4:
+    if len(cells) != 5:
         print(
-            f"PARSE_ERROR:Line {lineno}: expected 4 cells but found {len(cells)}: {raw!r}\n{error_pointer}",
+            f"PARSE_ERROR:Line {lineno}: expected 5 cells but found {len(cells)}: {raw!r}\n{error_pointer}",
             file=sys.stderr
         )
         sys.exit(2)
 
-    cap, claude_v, cursor_v, codex_v = cells
-    for col_name, val in [("claude", claude_v), ("cursor", cursor_v), ("codex", codex_v)]:
+    cap, claude_v, cursor_v, codex_v, opencode_v = cells
+    for col_name, val in [
+        ("claude", claude_v),
+        ("cursor", cursor_v),
+        ("codex", codex_v),
+        ("opencode", opencode_v),
+    ]:
         if val not in VOCABULARY:
             print(
                 f"PARSE_ERROR:Line {lineno}: cell '{col_name}={val}' is not in vocabulary "
@@ -227,7 +232,7 @@ for lineno, raw in enumerate(lines, 1):
             )
             sys.exit(2)
 
-    print(f"{cap}|{claude_v}|{cursor_v}|{codex_v}")
+    print(f"{cap}|{claude_v}|{cursor_v}|{codex_v}|{opencode_v}")
 
 if not header_found:
     print(
@@ -249,19 +254,21 @@ fi
 
 AS_OF_LINE="$(echo "$PARSE_RESULT" | grep "^AS_OF:" | sed 's/^AS_OF://')"
 
-# Build parallel arrays: CAPS, VERDICTS_CLAUDE, VERDICTS_CURSOR, VERDICTS_CODEX
+# Build parallel arrays: CAPS, VERDICTS_CLAUDE, VERDICTS_CURSOR, VERDICTS_CODEX, VERDICTS_OPENCODE
 declare -a CAPS=()
 declare -a VERDICTS_CLAUDE=()
 declare -a VERDICTS_CURSOR=()
 declare -a VERDICTS_CODEX=()
+declare -a VERDICTS_OPENCODE=()
 
-while IFS='|' read -r cap cl cu co; do
+while IFS='|' read -r cap cl cu co oc; do
   [[ "$cap" == AS_OF:* ]] && continue
   [[ -z "$cap" ]] && continue
   CAPS+=("$cap")
   VERDICTS_CLAUDE+=("$cl")
   VERDICTS_CURSOR+=("$cu")
   VERDICTS_CODEX+=("$co")
+  VERDICTS_OPENCODE+=("$oc")
 done < <(echo "$PARSE_RESULT" | grep -v "^AS_OF:")
 
 # ---------------------------------------------------------------------------
@@ -376,7 +383,7 @@ declare -a FIND_CAP=()
 declare -a FIND_TARGET=()
 declare -a FIND_VERDICT=()
 
-TARGETS=("claude" "cursor" "codex")
+TARGETS=("claude" "cursor" "codex" "opencode")
 
 lookup_verdict() {
   local cap="$1"
@@ -385,9 +392,10 @@ lookup_verdict() {
   while [[ $i -lt ${#CAPS[@]} ]]; do
     if [[ "${CAPS[$i]}" == "$cap" ]]; then
       case "$target" in
-        claude) echo "${VERDICTS_CLAUDE[$i]}"; return ;;
-        cursor) echo "${VERDICTS_CURSOR[$i]}"; return ;;
-        codex)  echo "${VERDICTS_CODEX[$i]}";  return ;;
+        claude)   echo "${VERDICTS_CLAUDE[$i]}";   return ;;
+        cursor)   echo "${VERDICTS_CURSOR[$i]}";   return ;;
+        codex)    echo "${VERDICTS_CODEX[$i]}";    return ;;
+        opencode) echo "${VERDICTS_OPENCODE[$i]}"; return ;;
       esac
     fi
     i=$((i + 1))

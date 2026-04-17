@@ -12,7 +12,7 @@ Pre-commit hooks catch formatting errors, lint violations, and broken tests befo
 pre-commit:
   commands:
     lint:
-      glob: "*.{ts,tsx,js,jsx}"
+      glob: '*.{ts,tsx,js,jsx}'
       run: npm run lint {staged_files}
 pre-push:
   commands:

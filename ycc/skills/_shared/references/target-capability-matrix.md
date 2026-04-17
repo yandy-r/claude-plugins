@@ -13,7 +13,7 @@ before editing the table.
 The table below is parsed by `ycc/skills/compatibility-audit/scripts/audit-target-features.sh`.
 Follow these rules exactly or the parser will misread cells:
 
-- **Column order**: `capability, claude, cursor, codex` — do not reorder.
+- **Column order**: `capability, claude, cursor, codex, opencode` — do not reorder.
 - **Cell vocabulary**: exactly one of `supported`, `partial`, or `unsupported` — no other tokens,
   no trailing punctuation, no parenthetical notes inside the cell.
 - **Notes** belong in the Notes section below the table, keyed as `capability:target`.
@@ -24,17 +24,17 @@ Follow these rules exactly or the parser will misread cells:
 
 ## Capability Matrix
 
-| capability        | claude    | cursor      | codex       |
-| ----------------- | --------- | ----------- | ----------- |
-| SKILLS            | supported | supported   | supported   |
-| COMMANDS          | supported | partial     | unsupported |
-| AGENTS            | supported | partial     | supported   |
-| HOOKS.PreToolUse  | supported | partial     | unsupported |
-| HOOKS.PostToolUse | supported | partial     | unsupported |
-| HOOKS.Stop        | supported | partial     | unsupported |
-| MCP               | supported | supported   | partial     |
-| INSTALL_PATH      | supported | supported   | supported   |
-| DANGEROUS_MODE    | supported | unsupported | unsupported |
+| capability        | claude    | cursor      | codex       | opencode    |
+| ----------------- | --------- | ----------- | ----------- | ----------- |
+| SKILLS            | supported | supported   | supported   | supported   |
+| COMMANDS          | supported | partial     | unsupported | supported   |
+| AGENTS            | supported | partial     | supported   | supported   |
+| HOOKS.PreToolUse  | supported | partial     | unsupported | partial     |
+| HOOKS.PostToolUse | supported | partial     | unsupported | partial     |
+| HOOKS.Stop        | supported | partial     | unsupported | partial     |
+| MCP               | supported | supported   | partial     | supported   |
+| INSTALL_PATH      | supported | supported   | supported   | supported   |
+| DANGEROUS_MODE    | supported | unsupported | unsupported | unsupported |
 
 ---
 
@@ -96,6 +96,57 @@ Generated bundle lives at `.cursor-plugin/`; consumed by Cursor from the repo ro
 
 **INSTALL_PATH:codex**
 Generated bundle lives at `.codex-plugin/ycc/`; agents at `.codex-plugin/agents/`.
+
+**INSTALL_PATH:opencode**
+Generated bundle lives at `.opencode-plugin/` (skills, agents, commands, AGENTS.md,
+opencode.json). Consumed by opencode from `~/.config/opencode/` (global) or `.opencode/`
+(project-local) after `install.sh --target opencode` rsyncs the files.
+
+**SKILLS:opencode**
+Native support at `.opencode/skills/<name>/SKILL.md` with strict YAML frontmatter
+(`name`, `description` required; `license`, `compatibility`, `metadata` optional). Descriptions
+are limited to 1024 chars. opencode also reads `.claude/skills/*/SKILL.md` and
+`.agents/skills/*/SKILL.md` as compatibility fallbacks. Source: opencode.ai/docs/skills/.
+
+**COMMANDS:opencode**
+Native slash-command support at `.opencode/commands/<name>.md`. Frontmatter fields:
+`description`, `agent`, `model`, `subtask`. Body supports the same `$ARGUMENTS` / `$1` /
+``!`shell` `` / `@file` placeholders as Claude Code commands. opencode is the only non-Claude
+target with first-class command support. Source: opencode.ai/docs/commands/.
+
+**AGENTS:opencode**
+Native agent support at `.opencode/agents/<name>.md`. Frontmatter: `description` (required),
+`mode` (`primary` | `subagent` | `all`), `model` (`provider/model-id`), `prompt`, `tools`
+(deprecated — prefer `permission`), `permission`, `temperature`, `top_p`, `steps`, `disable`,
+`hidden`, `color`. Two invocation styles: Tab/`switch_agent` for primaries; `@mention` or
+built-in `task` tool for subagents. Source: opencode.ai/docs/agents/.
+
+**HOOKS.PreToolUse:opencode**
+opencode has a TypeScript plugin system with a `tool.execute.before` event that covers the
+same surface area as Claude Code's PreToolUse hook. Marked `partial` because the `ycc` bundle
+does not ship a TypeScript plugin in v1 — hook guidance is emitted as rule-embedded notes
+only. Upgrading to `supported` requires publishing an `@yandy/opencode-ycc-hooks` npm package.
+
+**HOOKS.PostToolUse:opencode**
+Same constraint as HOOKS.PreToolUse:opencode. The underlying opencode event is
+`tool.execute.after`.
+
+**HOOKS.Stop:opencode**
+Same constraint as HOOKS.PreToolUse:opencode. Closest opencode event is `session.idle`
+(fires when a session's agentic loop halts).
+
+**MCP:opencode**
+Native MCP support in the top-level `"mcp"` key of `opencode.json`. Server values are either
+`{type: "local", command: [argv0, …args], environment, timeout}` or
+`{type: "remote", url, headers, oauth, timeout}`. Note the critical shape difference from
+Claude Code: opencode's `command` is a single array containing both argv0 and args (no
+separate `args` key), and `env` is spelled `environment`. OAuth uses RFC 7591 Dynamic Client
+Registration when `clientId` is omitted. Source: opencode.ai/docs/mcp-servers/.
+
+**DANGEROUS_MODE:opencode**
+No equivalent to Claude Code's `--dangerously-skip-permissions` flag exists in opencode. The
+opencode permission model uses per-agent `permission.{edit,bash,webfetch}` fields with
+`allow` / `deny` / `ask` values; there is no global override.
 
 ---
 

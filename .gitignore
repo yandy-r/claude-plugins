@@ -28,3 +28,6 @@ node_modules/
 # Python
 __pycache__/
 *.py[cod]
+
+# opencode model-alias overrides (per-user, optional)
+scripts/opencode_model_aliases.local.json

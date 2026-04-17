@@ -1,13 +1,14 @@
 # Pre-commit hooks for claude-plugins.
 #
-# Generated bundles under .codex-plugin/ and .cursor-plugin/ are excluded because
-# they are rewritten by scripts/generate-*.sh from the ycc/ source tree.
+# Generated bundles under .codex-plugin/, .cursor-plugin/, and .opencode-plugin/ are
+# excluded because they are rewritten by scripts/generate-*.sh from the ycc/ source tree.
 # Run `pre-commit autoupdate` periodically to refresh hook revisions.
 
 exclude: |
   (?x)^(
     \.codex-plugin/.*|
-    \.cursor-plugin/.*
+    \.cursor-plugin/.*|
+    \.opencode-plugin/.*
   )$
 
 repos:
@@ -21,7 +22,7 @@ repos:
         args: [--allow-multiple-documents]
       - id: check-json
         # .markdownlint.json is JSONC (supports // comments); exclude from strict JSON check
-        exclude: \.codex-plugin/.*|\.cursor-plugin/.*|settings\.local\.json$|\.markdownlint\.json$
+        exclude: \.codex-plugin/.*|\.cursor-plugin/.*|\.opencode-plugin/.*|settings\.local\.json$|\.markdownlint\.json$
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=500]

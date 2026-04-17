@@ -3,8 +3,8 @@
 ## Repository Model
 
 This repo no longer accepts new top-level Claude plugins. All new functionality goes into the
-existing `ycc` source plugin under `ycc/`, then flows through the generated Cursor and Codex
-compatibility bundles.
+existing `ycc` source plugin under `ycc/`, then flows through the generated Cursor, Codex, and
+opencode compatibility bundles.
 
 ## Scope & Guardrails
 
@@ -18,9 +18,9 @@ or agent.
 - **Do not create a new top-level plugin.** The repo contract is one plugin (`ycc`). All
   new functionality goes under `ycc/` and is reached via the `ycc:` namespace. Adding
   entries to `.claude-plugin/marketplace.json` breaks the 2.0 consolidation contract.
-- **Do not market hooks as uniform across targets.** Claude, Cursor, and Codex have
-  different hook support and maturity. Any hook-related addition must ship with a per-target
-  support matrix.
+- **Do not market hooks as uniform across targets.** Claude, Cursor, Codex, and opencode each
+  have different hook support and maturity. Any hook-related addition must ship with a
+  per-target support matrix.
 - **Meta-skills and internal optimizations precede new domain coverage.** Authoring
   workflows, release workflows, compatibility audits, validator CI, and source-driven
   inventory come before any new subject-matter skill.
@@ -48,6 +48,7 @@ misplacement, agents without consumers, etc.) that complement this policy.
 - Codex generated plugin root: `.codex-plugin/ycc/`
 - Codex generated custom agents: `.codex-plugin/agents/`
 - Cursor generated bundle: `.cursor-plugin/`
+- opencode generated bundle: `.opencode-plugin/` (skills, agents, commands, AGENTS.md, opencode.json)
 - Skills go in `ycc/skills/<skill-name>/SKILL.md`
 - Scripts must be executable (`chmod +x`) and use `set -euo pipefail`
 - Reference templates go in `ycc/skills/<skill-name>/references/`
@@ -59,21 +60,34 @@ misplacement, agents without consumers, etc.) that complement this policy.
 
 ## Regeneration
 
-After changing `ycc/skills/` or `ycc/agents/`, regenerate and validate compatibility artifacts:
+After changing `ycc/skills/`, `ycc/agents/`, or `ycc/commands/`, regenerate and validate
+compatibility artifacts. The recommended path is the unified pair:
 
 ```bash
-./scripts/generate-codex-skills.sh
-./scripts/generate-codex-agents.sh
-./scripts/generate-codex-plugin.sh
-./scripts/validate-codex-skills.sh
-./scripts/validate-codex-agents.sh
-./scripts/validate-codex-plugin.sh
-./scripts/generate-cursor-skills.sh
-./scripts/generate-cursor-agents.sh
-./scripts/generate-cursor-rules.sh
-./scripts/validate-cursor-skills.sh
-./scripts/validate-cursor-agents.sh
-./scripts/validate-cursor-rules.sh
+./scripts/sync.sh         # regenerate inventory + cursor + codex + opencode bundles
+./scripts/validate.sh     # run every validator (this is what CI runs)
+```
+
+Both accept `--only <targets>` with comma-separated values (`inventory, cursor, codex,
+opencode, json`). The individual generator/validator scripts are still available if you
+need to target a single surface:
+
+```bash
+# Codex
+./scripts/generate-codex-skills.sh && ./scripts/validate-codex-skills.sh
+./scripts/generate-codex-agents.sh && ./scripts/validate-codex-agents.sh
+./scripts/generate-codex-plugin.sh && ./scripts/validate-codex-plugin.sh
+
+# Cursor
+./scripts/generate-cursor-skills.sh && ./scripts/validate-cursor-skills.sh
+./scripts/generate-cursor-agents.sh && ./scripts/validate-cursor-agents.sh
+./scripts/generate-cursor-rules.sh  && ./scripts/validate-cursor-rules.sh
+
+# opencode
+./scripts/generate-opencode-skills.sh   && ./scripts/validate-opencode-skills.sh
+./scripts/generate-opencode-agents.sh   && ./scripts/validate-opencode-agents.sh
+./scripts/generate-opencode-commands.sh && ./scripts/validate-opencode-commands.sh
+./scripts/generate-opencode-plugin.sh   && ./scripts/validate-opencode-plugin.sh
 ```
 
 ## Pull Requests
