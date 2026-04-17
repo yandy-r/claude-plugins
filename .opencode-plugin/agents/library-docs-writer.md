@@ -3,6 +3,12 @@ description: Fetch and compress external library documentation into concise loca
   reference files from web sources and context7. Creates quick-reference docs for
   external dependencies.
 model: openai/gpt-5.4
+tools:
+  read: true
+  write: true
+  webfetch: true
+  mcp__context7__resolve-library-id: true
+  mcp__context7__get-library-docs: true
 color: pink
 ---
 

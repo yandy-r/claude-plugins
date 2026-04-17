@@ -10,7 +10,7 @@ check each anti-pattern below.
 **Rationale:** A second skill that covers the same domain fragments discovery and
 confuses invocation routing.
 
-**Do this instead:** Run `ls ycc/skills/` before scaffolding. If a skill already handles
+**Do this instead:** Run `ls .opencode-plugin/skills/` before scaffolding. If a skill already handles
 the domain, extend it (add a phase, a flag, or a reference file) rather than creating a
 new one. If the name no longer fits the expanded scope, rename the directory.
 
@@ -32,7 +32,7 @@ skill such as `ask`. Only scaffold when the same workflow will be reused repeate
 creates drift and makes fixes harder to apply consistently.
 
 **Do this instead:** If two or more existing skills need the same helper, add it to
-`ycc/skills/_shared/scripts/` and source it from each skill via
+`.opencode-plugin/skills/_shared/scripts/` and source it from each skill via
 `~/.config/opencode/shared/scripts/<name>.sh`. Do not create a new skill
 just to house shared logic.
 
@@ -43,7 +43,7 @@ just to house shared logic.
 **Rationale:** `ycc` is the single plugin in this repo. Adding entries to
 `.opencode-plugin/marketplace.json` breaks the 2.0 consolidation contract.
 
-**Do this instead:** Add a new skill under `ycc/skills/`. The `ycc` namespace
+**Do this instead:** Add a new skill under `.opencode-plugin/skills/`. The `ycc` namespace
 accommodates unlimited skills without requiring a new plugin registration.
 
 ---

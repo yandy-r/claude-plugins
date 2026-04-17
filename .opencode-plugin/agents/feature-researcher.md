@@ -25,7 +25,7 @@ When researching for a new feature, you will:
 
 ### 3. **Create Planning Document**
 
-Generate a concise research report at `/plans/[feature-name]/[topic-name].md`:
+Generate a concise research report at `plans/[feature-name]/[topic-name].md`:
 
 ```markdown
 # [Feature/Topic Name] Research

@@ -53,13 +53,13 @@ WARNINGS=0
 # Function to log violation
 log_violation() {
     echo -e "${RED}✗ VIOLATION: $1${NC}"
-    ((VIOLATIONS++))
+    VIOLATIONS=$((VIOLATIONS + 1))
 }
 
 # Function to log warning
 log_warning() {
     echo -e "${YELLOW}⚠ WARNING: $1${NC}"
-    ((WARNINGS++))
+    WARNINGS=$((WARNINGS + 1))
 }
 
 # Function to log success

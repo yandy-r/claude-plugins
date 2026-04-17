@@ -11,7 +11,7 @@ the `ycc/` tree. Use this when scaffolding to know exactly what to create and wh
 
 | Field                | Value                                                        |
 | -------------------- | ------------------------------------------------------------ |
-| Path                 | `ycc/skills/<kebab-name>/SKILL.md`                           |
+| Path                 | `.opencode-plugin/skills/<kebab-name>/SKILL.md`                           |
 | Required frontmatter | `name`, `description`                                        |
 | Optional frontmatter | `argument-hint`, `allowed-tools`, `disable-model-invocation` |
 | Subdirs              | `references/` (static content), `scripts/` (bash helpers)    |
@@ -34,7 +34,7 @@ The skill body is freeform markdown organized into phases.
 
 | Field                | Value                                             |
 | -------------------- | ------------------------------------------------- |
-| Path                 | `ycc/commands/<kebab-name>.md`                    |
+| Path                 | `.opencode-plugin/commands/<kebab-name>.md`                    |
 | Required frontmatter | `description`                                     |
 | Optional frontmatter | `argument-hint`                                   |
 | Invocation           | Matching slash command (same kebab-case basename) |
@@ -54,7 +54,7 @@ Invoke the matching skill with `$ARGUMENTS` passed through.
 
 | Field                | Value                                             |
 | -------------------- | ------------------------------------------------- |
-| Path                 | `ycc/agents/<kebab-name>.md`                      |
+| Path                 | `.opencode-plugin/agents/<kebab-name>.md`                      |
 | Required frontmatter | `name`, `description`                             |
 | Optional frontmatter | `tools`, `model`                                  |
 | Invocation           | Invoked by skills and commands via the opencode `task` tool |
@@ -69,7 +69,7 @@ adding it.
 
 | Field       | Value                                                    |
 | ----------- | -------------------------------------------------------- |
-| Path        | `ycc/skills/_shared/scripts/<kebab-name>.sh`             |
+| Path        | `.opencode-plugin/skills/_shared/scripts/<kebab-name>.sh`             |
 | Sourced via | `~/.config/opencode/shared/scripts/<name>.sh` |
 | Threshold   | Only create when two or more distinct skills need it     |
 
@@ -83,18 +83,18 @@ output to stdout and errors to stderr. Exit 0 on success, 1 on error.
 After scaffolding any surface, always run these in order:
 
 ```sh
-# 1. Regenerate Cursor + Codex bundles from source
+# 1. Regenerate inventory + Cursor + Codex + opencode bundles from source
 ./scripts/sync.sh
 
 # 2. Run the full validator sweep
 ./scripts/validate.sh
 
 # 3. If scripts were scaffolded, make them executable
-chmod +x ycc/skills/<name>/scripts/*.sh
+chmod +x .opencode-plugin/skills/<name>/scripts/*.sh
 ```
 
-Do not skip `./scripts/sync.sh`. The generated bundles under `.cursor-plugin/` and
-`.codex-plugin/` go stale immediately when `ycc/` changes.
+Do not skip `./scripts/sync.sh`. The generated bundles under `.cursor-plugin/`,
+`.codex-plugin/`, and `.opencode-plugin/` go stale immediately when `ycc/` changes.
 
 ---
 
@@ -104,6 +104,7 @@ The following paths are **regenerated** by `./scripts/sync.sh`. Do not hand-edit
 
 - `.cursor-plugin/**`
 - `.codex-plugin/**`
+- `.opencode-plugin/**`
 - `docs/inventory.json`
 
 Make all source changes under `ycc/` and let the generators produce the bundles.

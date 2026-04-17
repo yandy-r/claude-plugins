@@ -119,11 +119,11 @@ After all 3 return: merge tables, de-duplicate, verify all 8 categories covered.
 > **MANDATORY — AGENT TEAMS REQUIRED**
 >
 > In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
-> with team dispatch. Every `Agent` call below MUST include `name=` AND `name=`.
+> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
 >
 > 1. `spawn coordinated subagents` FIRST
 > 2. `track the task` for each researcher
-> 3. `Agent` with `name=` — one message, three calls
+> 3. `Agent` with `team_name=` — one message, three calls
 > 4. `the todo tracker` — wait for all teammates to complete
 > 5. `send follow-up instructions({type:"shutdown_request"})` — shut down all 3 teammates
 > 6. `end the coordinated run` — clean up
@@ -159,7 +159,7 @@ Do **not** call any team/task/agent tools. Exit the skill.
 #### C.3 Create the team
 
 ```
-spawn coordinated subagents: name="prpp-<sanitized-feature>", description="PRP-plan research team for: <feature description>"
+spawn coordinated subagents: team_name="prpp-<sanitized-feature>", description="PRP-plan research team for: <feature description>"
 ```
 
 On failure, abort.
@@ -179,7 +179,7 @@ track the task: subject="infra-research: codebase infrastructure for <feature>",
 
 Use the same researcher categories/traces table from Path B. Spawn all three in **ONE
 message** with **THREE `Agent` tool calls**, each with
-`name="prpp-<sanitized-feature>"` and the role-specific `name`
+`team_name="prpp-<sanitized-feature>"` and the role-specific `name`
 (`patterns-research`, `quality-research`, `infra-research`), all using
 `@prp-researcher` in codebase mode.
 

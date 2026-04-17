@@ -104,7 +104,8 @@ If the type-check fails on a line you modified: attempt one corrective edit if t
 
 ### 4. Report Back
 
-Your final message must be one of exactly these two shapes:
+Your final message must follow one of these two base shapes.
+If needed, append an optional trailing `NOTES:` section after either shape.
 
 #### Success Report
 
@@ -146,7 +147,7 @@ RECOMMENDATION: <what the user should do — fix manually, re-review, update the
 
 ## Critical Rules
 
-1. **Scope discipline**: If you notice unrelated bugs while reading the file, REPORT them in a `NOTES:` section but do NOT fix them.
+1. **Scope discipline**: If you notice unrelated bugs while reading the file, do NOT fix them. Optionally report them in a trailing `NOTES:` section.
 2. **No heroes**: You are not here to improve the codebase — only to apply the finding.
 3. **Fail fast**: If something blocks you, report immediately. Do not work around the issue.
 4. **Read before edit**: Never edit a file you haven't read the surrounding context of.

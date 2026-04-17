@@ -329,16 +329,16 @@ echo "Detecting project types..."
 echo ""
 
 # Run all detections
-detect_docker
-detect_nodejs
-detect_python
-detect_go
-detect_rust
-detect_ruby
-detect_java
-detect_php
+detect_docker || true
+detect_nodejs || true
+detect_python || true
+detect_go || true
+detect_rust || true
+detect_ruby || true
+detect_java || true
+detect_php || true
 IS_GIT=0
-detect_git && IS_GIT=1
+detect_git && IS_GIT=1 || true
 
 echo ""
 echo "=========================================="

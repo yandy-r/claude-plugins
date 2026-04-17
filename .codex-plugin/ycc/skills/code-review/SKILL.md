@@ -599,6 +599,9 @@ gh pr review <NUMBER> --approve --body "<summary of review>"
 # If REQUEST CHANGES
 gh pr review <NUMBER> --request-changes --body "<summary with required fixes>"
 
+# If BLOCK (GitHub has no dedicated BLOCK event; map to request-changes)
+gh pr review <NUMBER> --request-changes --body "<blocking issues must be fixed before merge>"
+
 # If COMMENT only (draft PR or informational)
 gh pr review <NUMBER> --comment --body "<summary>"
 ```

@@ -156,11 +156,11 @@ execution:
 > **MANDATORY — AGENT TEAMS REQUIRED**
 >
 > In Path B you MUST use the agent-team lifecycle. Do NOT mix standalone sub-agents with
-> team dispatch. Every `Agent` call below MUST include `name=` AND `name=`.
+> team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
 >
 > 1. `spawn coordinated subagents` FIRST — before any agent spawn
 > 2. `track the task` — register all 3 subtasks in the shared task list
-> 3. `Agent` with `name=` — one message, three calls
+> 3. `Agent` with `team_name=` — one message, three calls
 > 4. `the todo tracker` — wait for all teammates to mark complete
 > 5. `send follow-up instructions({type:"shutdown_request"})` — shut down all teammates
 > 6. `end the coordinated run` — clean up
@@ -197,7 +197,7 @@ Do **not** call `spawn coordinated subagents` or any team/task/agent tools. Exit
 #### B.3 Create the team
 
 ```
-spawn coordinated subagents: name="plan-<sanitized-request>", description="Multi-perspective planning team for: <user request>"
+spawn coordinated subagents: team_name="plan-<sanitized-request>", description="Multi-perspective planning team for: <user request>"
 ```
 
 On failure, abort.
@@ -221,7 +221,7 @@ track the task: subject="test-strategist: testing strategy for <user request>", 
 | `test-strategist` | `test-strategy-planner`     | Testing strategy, validation commands, acceptance criteria |
 
 Spawn all three in **ONE message** with **THREE `Agent` tool calls**, each with
-`name="plan-<sanitized-request>"` and the role-specific `name` above.
+`team_name="plan-<sanitized-request>"` and the role-specific `name` above.
 
 Each teammate's prompt MUST include:
 

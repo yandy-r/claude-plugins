@@ -38,7 +38,8 @@ You implement specific software changes as instructed. You do NOT:
 
 ### 3. Verify Compilation
 
-- Run `get_compilation_errors` on ALL files you modified
+- Run the project's native compile/type-check command for ALL files you modified
+  (for example: `npx tsc --noEmit`, `cargo check`, `go build`, `python -m mypy`)
 - Check ONLY for errors in your changed files
 - Do NOT attempt to fix errors in other files
 

@@ -166,12 +166,31 @@ def map_tool_name(name: str) -> str | None:
     """Map a Claude tool identifier (e.g. ``Read``, ``Bash(ls:*)``) to the
     opencode equivalent name, or ``None`` if the tool has no analog.
 
-    Parenthesized Claude globs (``Bash(ls:*)``) collapse to the base tool
-    (``bash``). Callers are responsible for deduplicating the resulting list.
+    Parenthesized Claude globs are mapped to the narrowest opencode equivalent
+    when safe (for example, ``Bash(ls:*)`` -> ``read``), otherwise they fall
+    back to ``bash``.
     """
     head = name.split("(", 1)[0].strip()
     if not head:
         return None
+    if head == "Bash" and "(" in name and ")" in name:
+        scope = name.split("(", 1)[1].rsplit(")", 1)[0].strip()
+        command = scope.split(",", 1)[0].strip()
+        command_head, _, command_tail = command.partition(":")
+        command_head = command_head.strip().lower()
+        command_tail = command_tail.strip().lower()
+
+        if command_head in {"ls", "cat", "head", "tail", "wc", "pwd"}:
+            return "read"
+        if command_head in {"find"}:
+            return "glob"
+        if command_head in {"rg", "grep"}:
+            return "grep"
+        if command_head == "git":
+            if command_tail.startswith(("status", "diff", "log", "show", "branch")):
+                return "read"
+            return "bash"
+        return "bash"
     if head in TOOL_NAME_MAP:
         return TOOL_NAME_MAP[head]
     # Unknown tool (e.g. an MCP-provided tool). Pass the bare head through
@@ -309,6 +328,11 @@ def apply_opencode_text_transforms(text: str, aliases: dict[str, str]) -> str:
     output = output.replace("CLAUDE.md", "AGENTS.md")
     output = output.replace("claude.template.md", "agents.template.md")
     output = output.replace(".claude-plugin/", ".opencode-plugin/")
+    output = output.replace('".claude-plugin"', '".opencode-plugin"')
+    output = output.replace("'.claude-plugin'", "'.opencode-plugin'")
+    output = re.sub(r"\bycc/skills/", ".opencode-plugin/skills/", output)
+    output = re.sub(r"\bycc/commands/", ".opencode-plugin/commands/", output)
+    output = re.sub(r"\bycc/agents/", ".opencode-plugin/agents/", output)
 
     # Home / config paths (XDG)
     output = output.replace("~/.claude/", "~/.config/opencode/")
@@ -316,6 +340,7 @@ def apply_opencode_text_transforms(text: str, aliases: dict[str, str]) -> str:
     output = re.sub(r"\$HOME/\.claude/", r"$HOME/.config/opencode/", output)
     output = output.replace("/.claude/", "/.config/opencode/")
     output = output.replace("../../_shared/scripts", "../../../shared/scripts")
+    output = rewrite_plugin_paths(output)
 
     # Product wording (opencode is the product's own lowercase branding).
     #
@@ -381,7 +406,6 @@ def apply_opencode_text_transforms(text: str, aliases: dict[str, str]) -> str:
         "",
         output,
     )
-    output = output.replace("team_name=", "name=")
     output = output.replace("Task tool calls", "parallel subagent invocations")
     output = output.replace("Task tool call", "subagent invocation")
     output = output.replace("Task tool", "opencode `task` tool")

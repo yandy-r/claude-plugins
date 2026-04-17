@@ -296,13 +296,13 @@ While tasks remain:
 > **MANDATORY — AGENT TEAMS REQUIRED**
 >
 > In Path B you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
-> with team dispatch. Every `Agent` call below MUST include `name=` AND `name=`.
+> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
 >
 > 1. `spawn coordinated subagents` ONCE at the start (single team across all batches)
 > 2. `track the task` for **every task across all batches** up front, with `addBlockedBy`
 >    wiring the dependency graph from the plan's `Depends on` annotations
 > 3. Per batch: spawn teammates (single message, multiple `Agent` calls with
->    `name=` + `name=`)
+>    `team_name=` + `name=`)
 > 4. `the todo tracker` to monitor batch completion
 > 5. `send follow-up instructions({type:"shutdown_request"})` to all teammates of completed batch
 >    BEFORE spawning next batch
@@ -319,7 +319,7 @@ Sanitize the feature name (lowercase, replace non-alphanumeric with `-`, collaps
 #### B.2 Create the team
 
 ```
-spawn coordinated subagents: name="impl-<sanitized-feature-name>", description="implement-plan team for: <feature-name>"
+spawn coordinated subagents: team_name="impl-<sanitized-feature-name>", description="implement-plan team for: <feature-name>"
 ```
 
 On failure, abort.

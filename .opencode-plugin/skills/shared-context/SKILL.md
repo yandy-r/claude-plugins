@@ -183,7 +183,7 @@ If `AGENT_TEAM_MODE=true`, follow the universal lifecycle contract at
 Create an agent team for the research phase:
 
 ```
-spawn coordinated subagents: name="sc-[feature-name]", description="Research team for [feature-name] shared context"
+spawn coordinated subagents: team_name="sc-[feature-name]", description="Research team for [feature-name] shared context"
 ```
 
 On failure, abort the skill with the `spawn coordinated subagents` error message. Do NOT silently fall back to sub-agent mode.
@@ -443,7 +443,7 @@ scope: local
 - **You are the research orchestrator** - coordinate the 4 researchers and synthesize `shared.md`
 - **Choose dispatch mode from `$ARGUMENTS`** - default is standalone sub-agents via `Task`; `--team` switches to teammates under `spawn coordinated subagents`/`the todo tracker`
 - **Team setup first (Path B only)** - call `spawn coordinated subagents` and register all 4 tasks before spawning teammates
-- **Spawn in parallel** - a single message with 4 `Task` calls (Path A) or 4 `Agent` calls with `name=` + `name=` (Path B)
+- **Spawn in parallel** - a single message with 4 `Task` calls (Path A) or 4 `Agent` calls with `team_name=` + `name=` (Path B)
 - **Teammates share findings (Path B only)** - inter-teammate `send follow-up instructions` coordination is unavailable to standalone sub-agents
 - **Validate with script** - run `validate-research-artifacts.sh` after researchers complete
 - **Message on failure (Path B)** - if validation fails, message the relevant teammate; in Path A, re-dispatch a sub-agent

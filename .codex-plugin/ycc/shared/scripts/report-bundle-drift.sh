@@ -3,7 +3,7 @@
 # per-target drift report.
 #
 # Usage:
-#   report-bundle-drift.sh [--target=all|cursor|codex|inventory]
+#   report-bundle-drift.sh [--target=all|cursor|codex|opencode|inventory]
 #                          [--format=human|json]
 #                          [--json-out=PATH]
 #                          [--help]
@@ -21,7 +21,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: report-bundle-drift.sh [--target=all|cursor|codex|inventory] [--format=human|json] [--json-out=PATH] [--help]
+Usage: report-bundle-drift.sh [--target=all|cursor|codex|opencode|inventory] [--format=human|json] [--json-out=PATH] [--help]
 
 Wraps the generate_*.py --check entry points and emits a per-target drift
 report. Exit 0 iff every target is clean. Exit 1 on drift. Exit 2 on
@@ -52,7 +52,7 @@ for arg in "$@"; do
 done
 
 case "$TARGET" in
-  all|cursor|codex|inventory) ;;
+  all|cursor|codex|opencode|inventory) ;;
   *) echo "report-bundle-drift.sh: unknown --target value: $TARGET" >&2; usage >&2; exit 2 ;;
 esac
 
@@ -124,6 +124,13 @@ if [[ "$TARGET" == "codex" || "$TARGET" == "all" ]]; then
   run_check "codex:skills"  python3 "${SCRIPTS_DIR}/generate_codex_skills.py"   --check
   run_check "codex:agents"  python3 "${SCRIPTS_DIR}/generate_codex_agents.py"   --check
   run_check "codex:plugin"  python3 "${SCRIPTS_DIR}/generate_codex_plugin.py"   --check
+fi
+
+if [[ "$TARGET" == "opencode" || "$TARGET" == "all" ]]; then
+  run_check "opencode:skills"   python3 "${SCRIPTS_DIR}/generate_opencode_skills.py"   --check
+  run_check "opencode:agents"   python3 "${SCRIPTS_DIR}/generate_opencode_agents.py"   --check
+  run_check "opencode:commands" python3 "${SCRIPTS_DIR}/generate_opencode_commands.py" --check
+  run_check "opencode:plugin"   python3 "${SCRIPTS_DIR}/generate_opencode_plugin.py"   --check
 fi
 
 # ---------------------------------------------------------------------------
@@ -200,7 +207,7 @@ def tgt(prefix):
                if names[i] == prefix or names[i].startswith(prefix + ":")]
     return {"drift": any(d["exit"] != 0 for d in details), "details": details}
 
-shown = (["inventory", "cursor", "codex"] if target == "all" else [target])
+shown = (["inventory", "cursor", "codex", "opencode"] if target == "all" else [target])
 targets_out = {t: tgt(t) for t in shown}
 print(json.dumps({
     "as_of":   datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -220,10 +227,12 @@ if [[ "$FORMAT" == "human" ]]; then
     inventory) print_human_section "inventory" "inventory" ;;
     cursor)    print_human_section "cursor"    "cursor"    ;;
     codex)     print_human_section "codex"     "codex"     ;;
+    opencode)  print_human_section "opencode"  "opencode"  ;;
     all)
       print_human_section "inventory" "inventory"
       print_human_section "cursor"    "cursor"
       print_human_section "codex"     "codex"
+      print_human_section "opencode"  "opencode"
       ;;
   esac
   echo ""

@@ -71,8 +71,6 @@ extract_total_size() {
 
 # Initialize counters
 total_files=0
-total_violations=0
-total_warnings=0
 
 # Check which findings exist
 declare -A findings_exist=(
@@ -140,10 +138,21 @@ This cleanup analysis identified **TOTAL_FILES_PLACEHOLDER** unnecessary files t
 EOF_HEADER
 
 # Replace placeholders
-sed -i "s|REPORT_DATE_PLACEHOLDER|$REPORT_DATE|g" "$REPORT_PATH"
-sed -i "s|TIMESTAMP_PLACEHOLDER|$TIMESTAMP|g" "$REPORT_PATH"
-sed -i "s|TARGET_DIR_PLACEHOLDER|$TARGET_DIR|g" "$REPORT_PATH"
-sed -i "s|TOTAL_FILES_PLACEHOLDER|$total_files|g" "$REPORT_PATH"
+replace_in_file() {
+    local file="$1"
+    local pattern="$2"
+    local replacement="$3"
+    local tmp_file
+
+    tmp_file="${file}.tmp"
+    sed "s|${pattern}|${replacement}|g" "$file" > "$tmp_file"
+    mv "$tmp_file" "$file"
+}
+
+replace_in_file "$REPORT_PATH" "REPORT_DATE_PLACEHOLDER" "$REPORT_DATE"
+replace_in_file "$REPORT_PATH" "TIMESTAMP_PLACEHOLDER" "$TIMESTAMP"
+replace_in_file "$REPORT_PATH" "TARGET_DIR_PLACEHOLDER" "$TARGET_DIR"
+replace_in_file "$REPORT_PATH" "TOTAL_FILES_PLACEHOLDER" "$total_files"
 
 # Detect project type (or use cached value)
 if [[ -n "${DETECTED_PROJECT_TYPE:-}" ]]; then
@@ -151,7 +160,7 @@ if [[ -n "${DETECTED_PROJECT_TYPE:-}" ]]; then
 else
     PROJECT_TYPE="Generic"
 fi
-sed -i "s|PROJECT_TYPE_PLACEHOLDER|$PROJECT_TYPE|g" "$REPORT_PATH"
+replace_in_file "$REPORT_PATH" "PROJECT_TYPE_PLACEHOLDER" "$PROJECT_TYPE"
 
 # Add category stats
 for category in code-files binaries assets documentation config docker; do
@@ -160,7 +169,7 @@ for category in code-files binaries assets documentation config docker; do
         size=$(extract_total_size "$FINDINGS_DIR/${category}.md")
         risk="Mixed"
 
-        cat_display=$(echo "$category" | sed 's/-/ /g' | sed 's/\b\(.\)/\u\1/g')
+        cat_display=$(echo "$category" | sed 's/-/ /g' | awk '{for (i=1; i<=NF; i++) $i=toupper(substr($i,1,1)) tolower(substr($i,2)); print}')
         printf "| %-14s | %-5s | %-5s | %-15s |\n" "$cat_display" "$file_count" "$size" "$risk" >> "$REPORT_PATH"
     fi
 done
@@ -179,7 +188,7 @@ for category in code-files binaries assets documentation config docker; do
     if [[ ${findings_exist[${category}]} -eq 1 ]]; then
         echo "" >> "$REPORT_PATH"
 
-        cat_display=$(echo "$category" | sed 's/-/ /g' | sed 's/\b\(.\)/\u\1/g')
+        cat_display=$(echo "$category" | sed 's/-/ /g' | awk '{for (i=1; i<=NF; i++) $i=toupper(substr($i,1,1)) tolower(substr($i,2)); print}')
         echo "### $cat_display" >> "$REPORT_PATH"
         echo "" >> "$REPORT_PATH"
 
@@ -222,9 +231,9 @@ Based on the findings above, the cleanup operation has a **MIXED** risk level:
 EOF_RISK
 
 # Replace final placeholders
-sed -i "s|TIMESTAMP_HERE|$TIMESTAMP|g" "$REPORT_PATH"
-sed -i "s|REPORT_PATH_HERE|$REPORT_PATH|g" "$REPORT_PATH"
-sed -i "s|FINDINGS_DIR_HERE|$FINDINGS_DIR|g" "$REPORT_PATH"
+replace_in_file "$REPORT_PATH" "TIMESTAMP_HERE" "$TIMESTAMP"
+replace_in_file "$REPORT_PATH" "REPORT_PATH_HERE" "$REPORT_PATH"
+replace_in_file "$REPORT_PATH" "FINDINGS_DIR_HERE" "$FINDINGS_DIR"
 
 echo ""
 echo -e "${GREEN}✓ Report generated successfully${NC}"

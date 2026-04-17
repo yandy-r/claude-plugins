@@ -13,7 +13,7 @@ usage() {
 Usage: $(basename "$0") <new-version>
 
 Draft release notes for <new-version> at docs/releases/<new-version>.md,
-filled from ycc/skills/bundle-release/references/release-notes-template.md.
+filled from .opencode-plugin/skills/bundle-release/references/release-notes-template.md.
 
 Sources:
   - Date: UTC today
@@ -66,7 +66,7 @@ fi
 OUT="${REPO_ROOT}/docs/releases/${NEW_VERSION}.md"
 [[ -e "${OUT}" ]] && { echo "draft-notes.sh: refuse: ${OUT} already exists" >&2; exit 1; }
 
-TEMPLATE="${REPO_ROOT}/ycc/skills/bundle-release/references/release-notes-template.md"
+TEMPLATE="${REPO_ROOT}/.opencode-plugin/skills/bundle-release/references/release-notes-template.md"
 [[ -f "${TEMPLATE}" ]] || { echo "draft-notes.sh: template missing: ${TEMPLATE}" >&2; exit 1; }
 
 # --- gather inputs ---

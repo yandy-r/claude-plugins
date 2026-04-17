@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scaffold-skill.sh — Scaffold a new skill in ycc/skills/<skill-name>/,
+# scaffold-skill.sh — Scaffold a new skill in .opencode-plugin/skills/<skill-name>/,
 # optionally with a matching command and/or agent.
 #
 # Usage: scaffold-skill.sh <skill-name> [--with-command] [--with-agent]
@@ -21,13 +21,13 @@ usage() {
     cat <<EOF
 Usage: scaffold-skill.sh <skill-name> [--with-command] [--with-agent]
 
-Scaffold a new skill in ycc/skills/<skill-name>/, optionally with a
-matching command under ycc/commands/ and/or an agent under ycc/agents/.
-Templates are read from ycc/skills/bundle-author/references/templates/.
+Scaffold a new skill in .opencode-plugin/skills/<skill-name>/, optionally with a
+matching command under .opencode-plugin/commands/ and/or an agent under .opencode-plugin/agents/.
+Templates are read from .opencode-plugin/skills/bundle-author/references/templates/.
 
 Options:
-  --with-command   Also create ycc/commands/<skill-name>.md
-  --with-agent     Also create ycc/agents/<skill-name>.md
+  --with-command   Also create .opencode-plugin/commands/<skill-name>.md
+  --with-agent     Also create .opencode-plugin/agents/<skill-name>.md
   -h, --help       Show this help
 EOF
 }
@@ -78,27 +78,27 @@ if ! [[ "${SKILL_NAME}" =~ ^[a-z][a-z0-9]*(-[a-z0-9]+)*$ ]]; then
 fi
 
 # Collision checks
-[[ -e "${REPO_ROOT}/ycc/skills/${SKILL_NAME}" ]] && {
-    echo "scaffold-skill.sh: refuse: ycc/skills/${SKILL_NAME} already exists" >&2
+[[ -e "${REPO_ROOT}/.opencode-plugin/skills/${SKILL_NAME}" ]] && {
+    echo "scaffold-skill.sh: refuse: .opencode-plugin/skills/${SKILL_NAME} already exists" >&2
     exit 1
 }
 
 if [[ "${WITH_COMMAND}" -eq 1 ]]; then
-    [[ -e "${REPO_ROOT}/ycc/commands/${SKILL_NAME}.md" ]] && {
-        echo "scaffold-skill.sh: refuse: ycc/commands/${SKILL_NAME}.md already exists" >&2
+    [[ -e "${REPO_ROOT}/.opencode-plugin/commands/${SKILL_NAME}.md" ]] && {
+        echo "scaffold-skill.sh: refuse: .opencode-plugin/commands/${SKILL_NAME}.md already exists" >&2
         exit 1
     }
 fi
 
 if [[ "${WITH_AGENT}" -eq 1 ]]; then
-    [[ -e "${REPO_ROOT}/ycc/agents/${SKILL_NAME}.md" ]] && {
-        echo "scaffold-skill.sh: refuse: ycc/agents/${SKILL_NAME}.md already exists" >&2
+    [[ -e "${REPO_ROOT}/.opencode-plugin/agents/${SKILL_NAME}.md" ]] && {
+        echo "scaffold-skill.sh: refuse: .opencode-plugin/agents/${SKILL_NAME}.md already exists" >&2
         exit 1
     }
 fi
 
 # Verify templates directory exists
-TEMPLATES_DIR="${REPO_ROOT}/ycc/skills/bundle-author/references/templates"
+TEMPLATES_DIR="${REPO_ROOT}/.opencode-plugin/skills/bundle-author/references/templates"
 [[ -d "${TEMPLATES_DIR}" ]] || {
     echo "scaffold-skill.sh: missing templates dir: ${TEMPLATES_DIR}" >&2
     exit 1
@@ -117,32 +117,32 @@ render() {
 }
 
 # Create skill directory and render SKILL.md
-mkdir -p "${REPO_ROOT}/ycc/skills/${SKILL_NAME}"
+mkdir -p "${REPO_ROOT}/.opencode-plugin/skills/${SKILL_NAME}"
 render \
     "${TEMPLATES_DIR}/skill-template.md" \
-    "${REPO_ROOT}/ycc/skills/${SKILL_NAME}/SKILL.md" \
+    "${REPO_ROOT}/.opencode-plugin/skills/${SKILL_NAME}/SKILL.md" \
     "${SKILL_NAME}" \
     "${DESC}"
-echo "${REPO_ROOT}/ycc/skills/${SKILL_NAME}/SKILL.md"
+echo "${REPO_ROOT}/.opencode-plugin/skills/${SKILL_NAME}/SKILL.md"
 
 # Optionally render command stub
 if [[ "${WITH_COMMAND}" -eq 1 ]]; then
     render \
         "${TEMPLATES_DIR}/command-template.md" \
-        "${REPO_ROOT}/ycc/commands/${SKILL_NAME}.md" \
+        "${REPO_ROOT}/.opencode-plugin/commands/${SKILL_NAME}.md" \
         "${SKILL_NAME}" \
         "${DESC}"
-    echo "${REPO_ROOT}/ycc/commands/${SKILL_NAME}.md"
+    echo "${REPO_ROOT}/.opencode-plugin/commands/${SKILL_NAME}.md"
 fi
 
 # Optionally render agent stub
 if [[ "${WITH_AGENT}" -eq 1 ]]; then
     render \
         "${TEMPLATES_DIR}/agent-template.md" \
-        "${REPO_ROOT}/ycc/agents/${SKILL_NAME}.md" \
+        "${REPO_ROOT}/.opencode-plugin/agents/${SKILL_NAME}.md" \
         "${SKILL_NAME}" \
         "${DESC}"
-    echo "${REPO_ROOT}/ycc/agents/${SKILL_NAME}.md"
+    echo "${REPO_ROOT}/.opencode-plugin/agents/${SKILL_NAME}.md"
 fi
 
 exit 0

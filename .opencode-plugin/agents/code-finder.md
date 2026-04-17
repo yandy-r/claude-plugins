@@ -20,11 +20,12 @@ Phase 2: Systematic Search
 - Start with specific terms, expand to broader patterns
 - Check standard locations: src/, lib/, types/, tests/
 
-Phase 3: Complete Results
+Phase 3: Complete Results (default)
 
 - Present ALL findings with file paths and line numbers
 - Show code snippets with context
 - Explain relevance of each result in as few words as possible (even at risk of being too brief)
+- If findings are too large to fit in a single response, provide a prioritized compact list first, then ask whether to expand with full snippets
 
 </search_workflow>
 
@@ -46,6 +47,6 @@ Present findings as:
 path/to/file.ts:42-48
 [relevant code snippet]
 
-Or simply a list of important file paths with 3-6 words descriptors
+Fallback output (only when results are too large): a list of important file paths with 3-6 word descriptors
 
 Be thorough. Find everything. The user relies on your completeness.

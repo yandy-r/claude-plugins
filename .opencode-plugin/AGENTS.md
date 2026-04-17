@@ -57,12 +57,12 @@ claude-plugins/
 ### Naming
 
 - The plugin name is `ycc` and must NOT change. The marketplace prefix is always `ycc:`.
-- Skills: `kebab-case` directory under `ycc/skills/`. The directory name becomes the
-  skill identifier (e.g., `ycc/skills/git-workflow/` → `git-workflow`).
-- Commands: `kebab-case.md` under `ycc/commands/`. The basename becomes the slash
-  command (e.g., `ycc/commands/clean.md` → `/clean`).
-- Agents: `kebab-case.md` under `ycc/agents/`. The basename becomes the agent identifier
-  (e.g., `ycc/agents/codebase-advisor.md` → `@codebase-advisor`).
+- Skills: `kebab-case` directory under `.opencode-plugin/skills/`. The directory name becomes the
+  skill identifier (e.g., `.opencode-plugin/skills/git-workflow/` → `git-workflow`).
+- Commands: `kebab-case.md` under `.opencode-plugin/commands/`. The basename becomes the slash
+  command (e.g., `.opencode-plugin/commands/clean.md` → `/clean`).
+- Agents: `kebab-case.md` under `.opencode-plugin/agents/`. The basename becomes the agent identifier
+  (e.g., `.opencode-plugin/agents/codebase-advisor.md` → `@codebase-advisor`).
 - Scripts: `kebab-case.sh` with bash shebang.
 
 ### Scripts
@@ -77,7 +77,7 @@ All scripts must:
 
 When a script needs to reference its own plugin path, use `${CLAUDE_PLUGIN_ROOT}` —
 this resolves to the `ycc/` directory at runtime. Paths inside skills follow the form
-`${CLAUDE_PLUGIN_ROOT}/skills/{skill-name}/...`.
+`~/.config/opencode/skills/{skill-name}/...`.
 
 Codex-generated skills are not source-edited directly. The Codex generator rewrites
 those paths to the managed install location `~/.codex/plugins/ycc/...`.
@@ -92,8 +92,8 @@ Each skill directory contains:
 
 ### Cross-skill helpers
 
-Shared helpers (used by more than one skill) live under `ycc/skills/_shared/scripts/`.
-Skills source them via `${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/{name}.sh`.
+Shared helpers (used by more than one skill) live under `.opencode-plugin/skills/_shared/scripts/`.
+Skills source them via `~/.config/opencode/shared/scripts/{name}.sh`.
 
 ### Registration
 
@@ -113,9 +113,9 @@ the full policy on what belongs in `ycc` and what to reject.
 
 ## Generated Compatibility Targets
 
-- `ycc/skills/` is the source of truth for Cursor, Codex, and opencode skill generation.
-- `ycc/agents/` is the source of truth for Cursor, Codex, and opencode agent generation.
-- `ycc/commands/` is the source of truth for opencode command generation (Cursor does not
+- `.opencode-plugin/skills/` is the source of truth for Cursor, Codex, and opencode skill generation.
+- `.opencode-plugin/agents/` is the source of truth for Cursor, Codex, and opencode agent generation.
+- `.opencode-plugin/commands/` is the source of truth for opencode command generation (Cursor does not
   natively consume `.md` commands; Codex has no slash-command layer).
 - Do not hand-edit generated files under `.cursor-plugin/`, `.codex-plugin/`, or
   `.opencode-plugin/` unless you are first changing the generator.
@@ -124,7 +124,7 @@ the full policy on what belongs in `ycc` and what to reject.
 - opencode has first-class support for skills, agents, AND commands. The opencode bundle
   ships all three, plus an `opencode.json` config (with MCP translated from
   `mcp-configs/mcp.json`) and an `AGENTS.md` rules file derived from this document.
-- See [`ycc/skills/_shared/references/target-capability-matrix.md`](ycc/skills/_shared/references/target-capability-matrix.md)
+- See [`.opencode-plugin/skills/_shared/references/target-capability-matrix.md`](.opencode-plugin/skills/_shared/references/target-capability-matrix.md)
   for the authoritative per-target capability table.
 
 ## Testing Changes
@@ -139,7 +139,7 @@ After modifying anything under `ycc/`:
    `find ycc/skills -name "*.sh" -not -executable` (should output nothing).
 4. Test the skill or command in a live opencode session via its `ycc:` prefix.
 
-If you changed `ycc/skills/`, `ycc/agents/`, or `ycc/commands/`, also regenerate and
+If you changed `.opencode-plugin/skills/`, `.opencode-plugin/agents/`, or `.opencode-plugin/commands/`, also regenerate and
 validate the compatibility bundles. The recommended pair is the unified entrypoints:
 
 ```bash
@@ -194,7 +194,7 @@ for targeted iteration:
 ## SHOULD (implementation)
 
 - **Python** (`scripts/generate_*.py`): PEP 8 throughout; type hints required on all public API signatures; prefer `ruff` for linting and `mypy --strict` for type checking.
-- **Shell** (`scripts/*.sh`, `ycc/skills/*/scripts/*.sh`): `#!/usr/bin/env bash` + `set -euo pipefail`; validation guards on required inputs; stdout for results, stderr for errors; exit 0 on success, 1 on error.
+- **Shell** (`scripts/*.sh`, `.opencode-plugin/skills/*/scripts/*.sh`): `#!/usr/bin/env bash` + `set -euo pipefail`; validation guards on required inputs; stdout for results, stderr for errors; exit 0 on success, 1 on error.
 
 ## Git & Conventional Commits
 

@@ -83,7 +83,7 @@ output to stdout and errors to stderr. Exit 0 on success, 1 on error.
 After scaffolding any surface, always run these in order:
 
 ```sh
-# 1. Regenerate Cursor + Codex bundles from source
+# 1. Regenerate inventory + Cursor + Codex + opencode bundles from source
 ./scripts/sync.sh
 
 # 2. Run the full validator sweep
@@ -93,8 +93,8 @@ After scaffolding any surface, always run these in order:
 chmod +x ycc/skills/<name>/scripts/*.sh
 ```
 
-Do not skip `./scripts/sync.sh`. The generated bundles under `.cursor-plugin/` and
-`.codex-plugin/` go stale immediately when `ycc/` changes.
+Do not skip `./scripts/sync.sh`. The generated bundles under `.cursor-plugin/`,
+`.codex-plugin/`, and `.opencode-plugin/` go stale immediately when `ycc/` changes.
 
 ---
 
@@ -104,6 +104,7 @@ The following paths are **regenerated** by `./scripts/sync.sh`. Do not hand-edit
 
 - `.cursor-plugin/**`
 - `.codex-plugin/**`
+- `.opencode-plugin/**`
 - `docs/inventory.json`
 
 Make all source changes under `ycc/` and let the generators produce the bundles.

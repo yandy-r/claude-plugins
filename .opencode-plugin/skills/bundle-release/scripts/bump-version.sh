@@ -49,8 +49,8 @@ import json, sys, pathlib
 repo_root = pathlib.Path(sys.argv[1])
 new_version = sys.argv[2]
 
-plugin_path = repo_root / "ycc" / ".claude-plugin" / "plugin.json"
-marketplace_path = repo_root / ".claude-plugin" / "marketplace.json"
+plugin_path = repo_root / "ycc" / ".opencode-plugin" / "plugin.json"
+marketplace_path = repo_root / ".opencode-plugin" / "marketplace.json"
 
 def load(p):
     return json.loads(p.read_text())

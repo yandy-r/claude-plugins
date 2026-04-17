@@ -21,8 +21,8 @@ Parse `$ARGUMENTS`:
 
 - **skill-name** (required, first positional) — kebab-case identifier, no leading or
   trailing hyphens.
-- **--with-command** — also scaffold `ycc/commands/<skill-name>.md`.
-- **--with-agent** — also scaffold `ycc/agents/<skill-name>.md`.
+- **--with-command** — also scaffold `.opencode-plugin/commands/<skill-name>.md`.
+- **--with-agent** — also scaffold `.opencode-plugin/agents/<skill-name>.md`.
 - **--dry-run** — preview only; writes nothing.
 
 ## Phase 0: Guards
@@ -33,12 +33,12 @@ with a clear, specific message.
 1. `skill-name` matches the regex `^[a-z][a-z0-9]*(-[a-z0-9]+)*$`. Reject names with
    uppercase letters, leading/trailing hyphens, or consecutive hyphens.
 2. None of the target paths already exist:
-   - `ycc/skills/<skill-name>/`
-   - If `--with-command`: `ycc/commands/<skill-name>.md`
-   - If `--with-agent`: `ycc/agents/<skill-name>.md`
+   - `.opencode-plugin/skills/<skill-name>/`
+   - If `--with-command`: `.opencode-plugin/commands/<skill-name>.md`
+   - If `--with-agent`: `.opencode-plugin/agents/<skill-name>.md`
      Use `test -e` for each path and abort if any returns true.
 3. Name does not collide with an existing skill, command, or agent. Use `ls` on
-   `ycc/skills/`, `ycc/commands/`, and `ycc/agents/` to confirm.
+   `.opencode-plugin/skills/`, `.opencode-plugin/commands/`, and `.opencode-plugin/agents/` to confirm.
 4. Re-read `~/.config/opencode/skills/bundle-author/references/when-not-to-scaffold.md`
    and check whether any anti-pattern applies to the user's request. If a match is
    detected, surface it explicitly and ask whether to proceed before continuing.
@@ -48,13 +48,13 @@ with a clear, specific message.
 Read `~/.config/opencode/skills/bundle-author/references/surface-map.md`. Present the
 user with the full list of files that will be created:
 
-- `ycc/skills/<skill-name>/SKILL.md`
-- `ycc/skills/<skill-name>/references/` (directory, no files created by default)
-- If `--with-command`: `ycc/commands/<skill-name>.md`
-- If `--with-agent`: `ycc/agents/<skill-name>.md`
+- `.opencode-plugin/skills/<skill-name>/SKILL.md`
+- `.opencode-plugin/skills/<skill-name>/references/` (directory, no files created by default)
+- If `--with-command`: `.opencode-plugin/commands/<skill-name>.md`
+- If `--with-agent`: `.opencode-plugin/agents/<skill-name>.md`
 
 Note that `scripts/` subdirectories are not created by default. If the skill will need
-bash helpers, the contributor adds `ycc/skills/<skill-name>/scripts/` manually after
+bash helpers, the contributor adds `.opencode-plugin/skills/<skill-name>/scripts/` manually after
 reviewing the scaffolded output.
 
 ## Phase 2: Dry-run check
@@ -85,10 +85,10 @@ flags were not passed.
 
 ```
 Next steps:
-1. Edit ycc/skills/<skill-name>/SKILL.md to replace TODOs.
-2. If --with-command: edit ycc/commands/<skill-name>.md.
-3. If --with-agent: edit ycc/agents/<skill-name>.md.
-4. If you added scripts under ycc/skills/<skill-name>/scripts/: chmod +x them.
+1. Edit .opencode-plugin/skills/<skill-name>/SKILL.md to replace TODOs.
+2. If --with-command: edit .opencode-plugin/commands/<skill-name>.md.
+3. If --with-agent: edit .opencode-plugin/agents/<skill-name>.md.
+4. If you added scripts under .opencode-plugin/skills/<skill-name>/scripts/: chmod +x them.
 5. Regenerate derived bundles: ./scripts/sync.sh
 6. Validate: ./scripts/validate.sh
 ```
@@ -101,5 +101,5 @@ Next steps:
   those are maintained by the `bundle-release` workflow.
 - Refuses generic scaffolding for external repos — see
   `~/.config/opencode/skills/bundle-author/references/when-not-to-scaffold.md`.
-- Prefer extending an existing skill over adding a near-duplicate. Run `ls ycc/skills/`
+- Prefer extending an existing skill over adding a near-duplicate. Run `ls .opencode-plugin/skills/`
   to confirm no existing skill covers the same domain before proceeding.

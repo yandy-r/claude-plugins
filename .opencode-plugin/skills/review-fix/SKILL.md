@@ -323,7 +323,7 @@ If a `review-fixer` agent returns `STATUS: Failed`:
 > **MANDATORY — AGENT TEAMS REQUIRED**
 >
 > In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
-> with team dispatch. Every `Agent` call below MUST include `name=` AND `name=`.
+> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
 >
 > 1. `spawn coordinated subagents` ONCE at the start (single team across all batches)
 > 2. `track the task` for **every eligible finding (or same-file group) across all batches**
@@ -331,7 +331,7 @@ If a `review-fixer` agent returns `STATUS: Failed`:
 >    orchestrator-controlled, not task-graph-controlled. Each batch is processed only
 >    after the previous one's teammates are shut down.
 > 3. Per batch: spawn teammates (single message, multiple `Agent` calls with
->    `name=` + `name=`)
+>    `team_name=` + `name=`)
 > 4. `the todo tracker` to confirm batch completion; run between-batch validation
 > 5. `send follow-up instructions({type:"shutdown_request"})` to all teammates of completed batch
 >    BEFORE spawning next batch
@@ -378,7 +378,7 @@ Do **not** call any team/task/agent tools. Exit the skill.
 #### C.3 Create the team
 
 ```
-spawn coordinated subagents: name="rfix-<sanitized-review-name>", description="Review-fix team for: <source review basename>"
+spawn coordinated subagents: team_name="rfix-<sanitized-review-name>", description="Review-fix team for: <source review basename>"
 ```
 
 On failure, abort.

@@ -42,6 +42,6 @@ The `--target=codex --dry-run` case emits the "advisory only / under development
 
 ## See also
 
-- `ycc/skills/_shared/references/target-capability-matrix.md` — defines which features each target supports and drives the graceful-fallback logic
-- `ycc/skills/hooks-workflow/references/support-notes.md` — per-target hook support details and known limitations
-- `ycc/skills/hooks-workflow/references/templates/` — generation templates used internally by the skill
+- `.opencode-plugin/skills/_shared/references/target-capability-matrix.md` — defines which features each target supports and drives the graceful-fallback logic
+- `.opencode-plugin/skills/hooks-workflow/references/support-notes.md` — per-target hook support details and known limitations
+- `.opencode-plugin/skills/hooks-workflow/references/templates/` — generation templates used internally by the skill

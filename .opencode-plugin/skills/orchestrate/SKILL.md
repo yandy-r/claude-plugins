@@ -126,7 +126,7 @@ Track batch completion in-context after each batch's `Agent` calls return.
 Sanitize the task description to create a team name (lowercase, replace non-alphanumeric with `-`, collapse runs, trim, cap at **20 chars**, fall back to `untitled` if empty). Team name: `orch-<sanitized-task>`.
 
 ```
-spawn coordinated subagents: name="orch-<sanitized-task>", description="Orchestration team for: <task description>"
+spawn coordinated subagents: team_name="orch-<sanitized-task>", description="Orchestration team for: <task description>"
 ```
 
 On failure, abort.
@@ -573,7 +573,7 @@ The final result must have:
 4. **Single Goal**: Keep all agents aligned to the main objective
 5. **Track Progress**: `the todo tracker` in Path A, `the todo tracker` in Path B
 6. **Synthesize Results**: Integrate outputs into coherent whole
-7. **Path B additions**: `spawn coordinated subagents` before spawning; every `Agent` call with `name=` and `name=`; `send follow-up instructions` shutdown between batches; `end the coordinated run` on completion
+7. **Path B additions**: `spawn coordinated subagents` before spawning; every `Agent` call with `team_name=` and `name=`; `send follow-up instructions` shutdown between batches; `end the coordinated run` on completion
 
 ### When to Use Sequential Mode
 

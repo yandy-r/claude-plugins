@@ -3,13 +3,13 @@ description: 'Prepare a ycc bundle release — preflight, bump, regenerate, vali
   draft notes (no auto-commit) Usage: <new-version> [--dry-run] [--skip-notes] [--no-publish]'
 ---
 
-Prepare a `ycc` bundle release. Runs pre-flight, bumps the version in the two hand-edited source-of-truth JSON files, regenerates derived Cursor + Codex bundles, validates all targets, and drafts release notes. **Never auto-commits or publishes.**
+Prepare a `ycc` bundle release. Runs pre-flight, bumps the version in the two hand-edited source-of-truth JSON files, regenerates derived Cursor + Codex + opencode bundles (plus inventory), validates all targets, and drafts release notes. **Never auto-commits or publishes.**
 
 Invoke the **bundle-release** skill to:
 
 1. Run pre-flight checks (clean tree, version parity, branch)
 2. Bump `ycc/.opencode-plugin/plugin.json` and `.opencode-plugin/marketplace.json`
-3. Run `./scripts/sync.sh` to regenerate Cursor + Codex bundles
+3. Run `./scripts/sync.sh` to regenerate inventory + Cursor + Codex + opencode bundles
 4. Run `./scripts/validate.sh` full validator sweep
 5. Draft `docs/releases/<new-version>.md` from the template
 6. Emit the exact `git add` / `git commit` / `git tag` / `gh release create` commands for the user to run
@@ -28,4 +28,4 @@ Examples:
 /bundle-release 3.0.0 --skip-notes     # major bump, no notes file
 ```
 
-See `ycc/skills/bundle-release/references/version-policy.md` for semver rules and `release-checklist.md` for the full manual process.
+See `.opencode-plugin/skills/bundle-release/references/version-policy.md` for semver rules and `release-checklist.md` for the full manual process.

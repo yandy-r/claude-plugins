@@ -8,9 +8,9 @@ description: >
   targets", "are Cursor and Codex bundles current", "check bundle drift",
   "report on target feature gaps", or when the user wants a structured
   per-target health report covering drift detection, install-assumption
-  validation, and feature-capability gaps across the Claude, Cursor, and Codex
+  validation, and feature-capability gaps across the Claude, Cursor, Codex, and opencode
   targets without bumping versions or committing anything.
-argument-hint: '[--target=claude|cursor|codex|all] [--json] [--fail-fast] [--dry-run]'
+argument-hint: '[--target=claude|cursor|codex|opencode|all] [--json] [--fail-fast] [--dry-run]'
 allowed-tools:
   - Read
   - Grep
@@ -24,7 +24,7 @@ allowed-tools:
 # compatibility-audit
 
 This skill audits the health of every generated compatibility target for the
-`ycc` plugin — Claude, Cursor, and Codex — and produces a structured,
+`ycc` plugin — Claude, Cursor, Codex, and opencode — and produces a structured,
 per-target triage report. It detects bundle drift between the `ycc/` source
 tree and the generated bundles, validates install assumptions (path conventions,
 shebang lines, executable bits), and surfaces feature-capability gaps using the
@@ -50,8 +50,8 @@ modifies any file.
 Parse `$ARGUMENTS` for:
 
 - **--target** (optional, default `all`) — restrict the audit to a single
-  target. Accepted values: `claude`, `cursor`, `codex`, `all`. When `all` is
-  specified, phases 2–5 run once per target in the set `{claude, cursor, codex}`.
+  target. Accepted values: `claude`, `cursor`, `codex`, `opencode`, `all`. When `all` is
+  specified, phases 2–5 run once per target in the set `{claude, cursor, codex, opencode}`.
 - **--json** (flag, default off) — emit the final triage report as a
   machine-readable JSON envelope instead of Markdown. Per-target sections are
   preserved inside the envelope as structured objects.
@@ -78,7 +78,7 @@ required for Phase 5.
 
 Parse `$ARGUMENTS` as described above. Resolve `--target` to a concrete list:
 
-- `all` → `[claude, cursor, codex]`
+- `all` → `[claude, cursor, codex, opencode]`
 - any single value → a one-element list
 
 If `--dry-run` was passed, print the resolved target list, the scripts that
@@ -158,7 +158,8 @@ Wrap the per-target objects in a top-level envelope:
   "targets": {
     "claude":  { "drift": {...}, "validation": {...}, "install": {...}, "features": {...}, "verdict": "PASS|WARN|FAIL" },
     "cursor":  { "drift": {...}, "validation": {...}, "install": {...}, "features": {...}, "verdict": "PASS|WARN|FAIL" },
-    "codex":   { "drift": {...}, "validation": {...}, "install": {...}, "features": {...}, "verdict": "PASS|WARN|FAIL" }
+    "codex":   { "drift": {...}, "validation": {...}, "install": {...}, "features": {...}, "verdict": "PASS|WARN|FAIL" },
+    "opencode":{ "drift": {...}, "validation": {...}, "install": {...}, "features": {...}, "verdict": "PASS|WARN|FAIL" }
   },
   "audited_at": "<ISO-8601 timestamp>"
 }

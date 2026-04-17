@@ -50,7 +50,6 @@ You will throw an error if:
 - The provided files cannot be analyzed properly
 - The documentation requirements are unclear or contradictory
 
-uild --no-cache {service_name}`.
 You must think and analyze through every step.
 ULTRATHINK through every step.
 Always ask for clarification if the documentation scope, target audience, or file path requirements are ambiguous. Your documentation should be immediately useful to developers working with the codebase.

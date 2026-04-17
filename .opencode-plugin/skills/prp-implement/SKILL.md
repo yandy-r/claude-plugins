@@ -229,13 +229,13 @@ Proceed to **Phase 4 — VALIDATE** and run the full 5-level validation as norma
 > **MANDATORY — AGENT TEAMS REQUIRED**
 >
 > In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
-> with team dispatch. Every `Agent` call below MUST include `name=` AND `name=`.
+> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
 >
 > 1. `spawn coordinated subagents` ONCE at the start (single team across all batches)
 > 2. `track the task` for **every task across all batches** up front, with `addBlockedBy`
 >    wiring the dependency graph from the plan's `Depends on` annotations
 > 3. Per batch: spawn teammates (single message, multiple `Agent` calls with
->    `name=` + `name=`)
+>    `team_name=` + `name=`)
 > 4. `the todo tracker` to monitor batch completion; run between-batch validation
 > 5. `send follow-up instructions({type:"shutdown_request"})` to all teammates of completed batch
 >    BEFORE spawning next batch
@@ -279,7 +279,7 @@ Do **not** call any team/task/agent tools. Exit the skill.
 #### C.3 Create the team
 
 ```
-spawn coordinated subagents: name="prpi-<sanitized-plan-basename>", description="PRP-implement team for: <plan basename>"
+spawn coordinated subagents: team_name="prpi-<sanitized-plan-basename>", description="PRP-implement team for: <plan basename>"
 ```
 
 On failure, abort.

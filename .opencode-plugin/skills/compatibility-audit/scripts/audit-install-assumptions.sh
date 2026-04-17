@@ -218,7 +218,7 @@ import json,sys
 d=json.load(open(sys.argv[1]))
 required={"$schema","instructions"}
 missing=required - set(d)
-if missing: print(f"FAIL:{cfg_rel}: missing keys {sorted(missing)}".replace("{cfg_rel}",sys.argv[1]))
+if missing: print(f"FAIL:{sys.argv[1]}: missing keys {sorted(missing)}")
 elif d.get("$schema")!="https://opencode.ai/config.json": print(f"FAIL:$schema={d.get('$schema')!r} (expected 'https://opencode.ai/config.json')")
 else: print("PASS:")
 PY

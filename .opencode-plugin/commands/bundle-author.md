@@ -10,13 +10,13 @@ Invoke the **bundle-author** skill to:
 
 1. Validate kebab-case name and refuse collisions with existing skills, commands, or agents
 2. Preview the files that will be created
-3. Scaffold from templates under `ycc/skills/bundle-author/references/templates/`
+3. Scaffold from templates under `.opencode-plugin/skills/bundle-author/references/templates/`
 4. Emit the exact follow-up commands (sync, validate, chmod) needed after scaffolding
 
 Pass `$ARGUMENTS` through to the skill. Supported flags:
 
-- `--with-command`: Also scaffold `ycc/commands/<skill-name>.md`
-- `--with-agent`: Also scaffold `ycc/agents/<skill-name>.md`
+- `--with-command`: Also scaffold `.opencode-plugin/commands/<skill-name>.md`
+- `--with-agent`: Also scaffold `.opencode-plugin/agents/<skill-name>.md`
 - `--dry-run`: Preview only, write nothing
 
 Examples:
@@ -28,4 +28,4 @@ Examples:
 /bundle-author my-new-skill --dry-run                # preview only
 ```
 
-Refuses generic scaffolding for external repos — see `ycc/skills/bundle-author/references/when-not-to-scaffold.md` for anti-patterns.
+Refuses generic scaffolding for external repos — see `.opencode-plugin/skills/bundle-author/references/when-not-to-scaffold.md` for anti-patterns.

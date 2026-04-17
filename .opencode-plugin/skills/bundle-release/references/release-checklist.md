@@ -14,7 +14,7 @@ The completed checklist for each release is saved to `docs/releases/<version>.md
 - [ ] Version fields are in parity: `ycc/.opencode-plugin/plugin.json` and `.opencode-plugin/marketplace.json` agree before the bump.
 - [ ] `./scripts/validate.sh` passes on the pre-release tree.
 
-Run: `ycc/skills/bundle-release/scripts/preflight.sh`
+Run: `.opencode-plugin/skills/bundle-release/scripts/preflight.sh`
 
 If pre-flight fails: resolve all failing conditions before proceeding. Do not skip.
 
@@ -33,7 +33,7 @@ If pre-flight fails: resolve all failing conditions before proceeding. Do not sk
 
 ## Phase 2: Bump Version
 
-Run: `ycc/skills/bundle-release/scripts/bump-version.sh <new-version>`
+Run: `.opencode-plugin/skills/bundle-release/scripts/bump-version.sh <new-version>`
 
 - [ ] `ycc/.opencode-plugin/plugin.json` — `version` field updated.
 - [ ] `.opencode-plugin/marketplace.json` — both `metadata.version` and `plugins[0].version` updated.
@@ -74,7 +74,7 @@ If validation fails: do not proceed to Phase 5. Fix the reported error, re-run `
 
 ## Phase 5: Draft Release Notes
 
-Run: `ycc/skills/bundle-release/scripts/draft-notes.sh <new-version>`
+Run: `.opencode-plugin/skills/bundle-release/scripts/draft-notes.sh <new-version>`
 
 - [ ] `docs/releases/<new-version>.md` created from template.
 - [ ] `Summary` section edited to describe the release in 1–3 sentences.

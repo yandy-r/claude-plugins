@@ -159,11 +159,11 @@ Pass the merged findings to Phase 3 (REPORT) as if they came from a single-pass 
 > **MANDATORY — AGENT TEAMS REQUIRED**
 >
 > In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
-> with team dispatch. Every `Agent` call below MUST include `name=` AND `name=`.
+> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
 >
 > 1. `spawn coordinated subagents` once at the start
 > 2. `track the task` for all 3 reviewer subtasks up front (flat graph — no dependencies)
-> 3. Spawn 3 teammates: single message, three `Agent` calls with `name=` + `name=`
+> 3. Spawn 3 teammates: single message, three `Agent` calls with `team_name=` + `name=`
 > 4. `the todo tracker` to monitor until all reviewers mark complete
 > 5. `send follow-up instructions({type:"shutdown_request"})` to all 3 teammates
 > 6. `end the coordinated run` before merging
@@ -181,7 +181,7 @@ Team name: `crev-local-<YYYYMMDD-HHMMSS>`. Use the same timestamp you will use l
 ##### C.2 Create the team
 
 ```
-spawn coordinated subagents: name="crev-local-<timestamp>", description="Code review team for uncommitted local changes"
+spawn coordinated subagents: team_name="crev-local-<timestamp>", description="Code review team for uncommitted local changes"
 ```
 
 On failure, abort.
@@ -395,11 +395,11 @@ Pass the merged findings to Phase 4 (VALIDATE) and downstream phases as if they 
 > **MANDATORY — AGENT TEAMS REQUIRED**
 >
 > In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
-> with team dispatch. Every `Agent` call below MUST include `name=` AND `name=`.
+> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
 >
 > 1. `spawn coordinated subagents` once at the start
 > 2. `track the task` for all 3 reviewer subtasks up front (flat graph — no dependencies)
-> 3. Spawn 3 teammates: single message, three `Agent` calls with `name=` + `name=`
+> 3. Spawn 3 teammates: single message, three `Agent` calls with `team_name=` + `name=`
 > 4. `the todo tracker` to monitor until all reviewers mark complete
 > 5. `send follow-up instructions({type:"shutdown_request"})` to all 3 teammates
 > 6. `end the coordinated run` before merging
@@ -417,7 +417,7 @@ Team name: `crev-pr-<NUMBER>`. Use the PR number directly (no sanitization neede
 ##### C.2 Create the team
 
 ```
-spawn coordinated subagents: name="crev-pr-<NUMBER>", description="Code review team for PR #<NUMBER>: <PR title>"
+spawn coordinated subagents: team_name="crev-pr-<NUMBER>", description="Code review team for PR #<NUMBER>: <PR title>"
 ```
 
 On failure, abort.
@@ -598,6 +598,9 @@ gh pr review <NUMBER> --approve --body "<summary of review>"
 
 # If REQUEST CHANGES
 gh pr review <NUMBER> --request-changes --body "<summary with required fixes>"
+
+# If BLOCK (GitHub has no dedicated BLOCK event; map to request-changes)
+gh pr review <NUMBER> --request-changes --body "<blocking issues must be fixed before merge>"
 
 # If COMMENT only (draft PR or informational)
 gh pr review <NUMBER> --comment --body "<summary>"

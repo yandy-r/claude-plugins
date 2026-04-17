@@ -39,6 +39,6 @@ Invoke the **init** skill to:
 | `--force`          | Overwrite existing files instead of skipping them.                                                                                                                                                     |
 | `--profile=<name>` | Skip detection and use the named profile (`rust`, `ts-node`, `python`, `go`, `mixed`, `empty`).                                                                                                        |
 
-See `ycc/skills/init/references/flag-reference.md` for the full matrix.
+See `${CLAUDE_PLUGIN_ROOT}/skills/init/references/flag-reference.md` for the full matrix.
 
 Pass `$ARGUMENTS` through to the skill.

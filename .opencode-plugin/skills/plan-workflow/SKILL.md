@@ -158,7 +158,7 @@ If `AGENT_TEAM_MODE=true`, follow the universal lifecycle contract at
 Create an agent team for the entire workflow:
 
 ```
-spawn coordinated subagents: name="pw-[feature-name]", description="Planning workflow team for [feature-name]"
+spawn coordinated subagents: team_name="pw-[feature-name]", description="Planning workflow team for [feature-name]"
 ```
 
 On failure, abort the skill with the `spawn coordinated subagents` error message. Do NOT silently fall back to sub-agent mode.
@@ -339,7 +339,7 @@ If `AGENT_TEAM_MODE=false`, skip this step entirely — standalone mode has no t
 If `AGENT_TEAM_MODE=true` and `--plan-only` was used (team doesn't exist yet):
 
 ```
-spawn coordinated subagents: name="pw-[feature-name]", description="Planning workflow team for [feature-name]"
+spawn coordinated subagents: team_name="pw-[feature-name]", description="Planning workflow team for [feature-name]"
 ```
 
 ### Step 18: Read Analysis Prompts
@@ -646,7 +646,7 @@ Validation uses 2 agents instead of 3 (Path + Dependency merged).
 Dispatch follows the same Path A / Path B split as standard mode:
 
 - **Path A (standalone, default)**: spawn all 5 unified agents in a single message with 5 `Task` calls.
-- **Path B (`--team`)**: register 5 unified tasks up front, then spawn 5 teammates in a single message with `name="pw-[feature-name]"`.
+- **Path B (`--team`)**: register 5 unified tasks up front, then spawn 5 teammates in a single message with `team_name="pw-[feature-name]"`.
 
 **Total**: 7 agents instead of 10, 2 stages instead of 3.
 
@@ -761,7 +761,7 @@ scope: local
 - **You are the planning orchestrator** - coordinate all phases of the workflow
 - **Choose dispatch mode from `$ARGUMENTS`** - default is standalone sub-agents via `Task`; `--team` switches to teammates under `spawn coordinated subagents`/`the todo tracker`
 - **One team for entire workflow (Path B only)** - create once, use across all phases
-- **Spawn in parallel** - a single message per phase with multiple `Task` calls (Path A) or multiple `Agent` calls with `name=` + `name=` (Path B)
+- **Spawn in parallel** - a single message per phase with multiple `Task` calls (Path A) or multiple `Agent` calls with `team_name=` + `name=` (Path B)
 - **Pass model parameters** - use `model: "sonnet"` for research/analysis agents, `model: "haiku"` for path/dependency validators, `model: "sonnet"` for completeness-validator
 - **Teammates share findings (Path B only)** - inter-teammate `send follow-up instructions` coordination is unavailable to standalone sub-agents
 - **Shut down between phases (Path B only)** - shut down teammates before spawning new ones for next phase

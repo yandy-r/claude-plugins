@@ -183,7 +183,7 @@ If `AGENT_TEAM_MODE=true`, follow the universal lifecycle contract at
 Create an agent team for the planning workflow:
 
 ```
-spawn coordinated subagents: name="pp-[feature-name]", description="Planning team for [feature-name] parallel plan"
+spawn coordinated subagents: team_name="pp-[feature-name]", description="Planning team for [feature-name] parallel plan"
 ```
 
 On failure, abort the skill with the `spawn coordinated subagents` error message. Do NOT silently fall back to sub-agent mode.
@@ -631,7 +631,7 @@ scope: local
 - **You are the planning orchestrator** - coordinate analysis and validation stages
 - **Choose dispatch mode from `$ARGUMENTS`** - default is standalone sub-agents via `Task`; `--team` switches to teammates under `spawn coordinated subagents`/`the todo tracker`
 - **Team setup first (Path B only)** - call `spawn coordinated subagents` and register analysis tasks before spawning teammates
-- **Spawn in parallel** - a single message with multiple `Task` calls (Path A) or multiple `Agent` calls with `name=` + `name=` (Path B)
+- **Spawn in parallel** - a single message with multiple `Task` calls (Path A) or multiple `Agent` calls with `team_name=` + `name=` (Path B)
 - **Pass model parameters** - use `model: "sonnet"` for analysis agents, `model: "haiku"` for path/dependency validators, `model: "sonnet"` for completeness-validator
 - **Teammates share findings (Path B only)** - inter-teammate `send follow-up instructions` coordination is unavailable to standalone sub-agents
 - **Two stages** - analysis first, then validation

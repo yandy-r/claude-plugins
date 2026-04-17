@@ -247,7 +247,7 @@ Team name: `drpr-<sanitized-subject>`.
 **Create the team** (single `spawn coordinated subagents` call for the whole skill run):
 
 ```
-spawn coordinated subagents: name="drpr-<sanitized-subject>", description="Deep-research squad for: <research-subject>"
+spawn coordinated subagents: team_name="drpr-<sanitized-subject>", description="Deep-research squad for: <research-subject>"
 ```
 
 On failure, abort the skill with the `spawn coordinated subagents` error message. Do NOT silently fall back to sub-agent mode.
@@ -814,7 +814,7 @@ Ensure research spans:
 ## Important Notes
 
 - **You are the research orchestrator** - coordinate persona agents, synthesize findings
-- **Deploy in parallel** - single message per phase. Default uses multiple `Task` calls (standalone sub-agents). With `--team`, use multiple `Agent` calls with `name=` + `name=` under a shared `spawn coordinated subagents`/`the todo tracker` (Claude Code only).
+- **Deploy in parallel** - single message per phase. Default uses multiple `Task` calls (standalone sub-agents). With `--team`, use multiple `Agent` calls with `team_name=` + `name=` under a shared `spawn coordinated subagents`/`the todo tracker` (Claude Code only).
 - **Preserve contradictions** - don't smooth over disagreements
 - **Evidence quality matters** - prioritize primary sources
 - **Temporal coverage** - past, present, future perspectives

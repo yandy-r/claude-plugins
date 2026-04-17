@@ -1,6 +1,6 @@
 ---
-description: Implement features based on research and specifications, writing production-ready
-  code with proper testing.
+description: Create and maintain user-facing feature documentation with clear guides,
+  examples, and troubleshooting.
 model: openai/gpt-5.4
 tools:
   read: true

@@ -184,7 +184,7 @@ Team name: `fr-<sanitized-feature-name>`.
 **Create the team** (single `spawn coordinated subagents` call for the whole skill run):
 
 ```
-spawn coordinated subagents: name="fr-<sanitized-feature-name>", description="Feature research team for <feature-name>"
+spawn coordinated subagents: team_name="fr-<sanitized-feature-name>", description="Feature research team for <feature-name>"
 ```
 
 On failure, abort the skill with the `spawn coordinated subagents` error message. Do NOT silently fall back to sub-agent mode.
@@ -399,7 +399,7 @@ Each research file should: focus on its specific domain, include concrete exampl
 - **You are the research orchestrator** — coordinate the 7 researchers and synthesize the spec
 - **Choose dispatch mode from `$ARGUMENTS`** — default is standalone sub-agents via `Task`; `--team` switches to teammates under `spawn coordinated subagents`/`the todo tracker`
 - **Team setup first (Path B only)** — call `spawn coordinated subagents` and register all 7 tasks before spawning teammates
-- **Spawn in parallel** — a single message with 7 `Task` calls (Path A) or 7 `Agent` calls with `name=` + `name=` (Path B)
+- **Spawn in parallel** — a single message with 7 `Task` calls (Path A) or 7 `Agent` calls with `team_name=` + `name=` (Path B)
 - **Teammates share findings (Path B only)** — inter-teammate `send follow-up instructions` coordination is unavailable to standalone sub-agents
 - **Single-owner research files** — each researcher writes only its assigned artifact
 - **Gate synthesis with validation** — do not generate `feature-spec.md` before validator pass

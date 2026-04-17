@@ -36,7 +36,7 @@ caller passes you:
 - **Severity discipline.** Use the exact taxonomy from the checklist: `critical`,
   `high`, `medium`, `low`. Do not invent new tiers.
 - **Reference the checklist.** Every finding maps to a numbered item in
-  `ycc/skills/releaser/references/ci-optimization-checklist.md`. Include the section
+  `.opencode-plugin/skills/releaser/references/ci-optimization-checklist.md`. Include the section
   number (e.g. "§2. Permissions") so the reader can cross-reference.
 
 ## Audit Process

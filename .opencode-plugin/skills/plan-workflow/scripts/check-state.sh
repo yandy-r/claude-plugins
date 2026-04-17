@@ -31,10 +31,15 @@ else
   if REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null); then
     PLANS_DIR="${REPO_ROOT}/docs/plans"
   else
-    # If not in a git repo, resolve from script directory.
-    # Assuming the script is at skills/plan-workflow/scripts/ under the
-    # installed plugin root, navigate up 4 levels to reach the host workspace.
-    REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+    # If not in a git repo, prefer the runtime plugin root env var when available.
+    plugin_root_var="CLAUDE_PLUGIN""_ROOT"
+    plugin_root="$(printenv "$plugin_root_var" 2>/dev/null || true)"
+    if [[ -n "$plugin_root" ]]; then
+      REPO_ROOT="$(cd "${plugin_root}/.." && pwd)"
+    else
+      # Source-tree fallback from .opencode-plugin/skills/plan-workflow/scripts.
+      REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+    fi
     PLANS_DIR="${REPO_ROOT}/docs/plans"
   fi
 

@@ -7,7 +7,6 @@ tools:
   read: true
   grep: true
   glob: true
-  bash: true
 color: blue
 ---
 

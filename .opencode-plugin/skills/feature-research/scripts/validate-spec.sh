@@ -162,7 +162,7 @@ while IFS= read -r line; do
         # Non-blank, non-heading line means we've seen content
         content_seen=true
     fi
-done
+done <<< "$CONTENT"
 
 # Check Executive Summary length
 echo ""
