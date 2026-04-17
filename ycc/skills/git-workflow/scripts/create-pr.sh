@@ -148,11 +148,11 @@ else
     # Multiple commits - analyze for common theme
     # Try to extract type and scope from first commit
     FIRST_COMMIT=$(git log --format=%s -n1 HEAD)
-    
+
     if echo "$FIRST_COMMIT" | grep -qE '^[a-z]+(\([a-z0-9-]+\))?:'; then
         TYPE=$(echo "$FIRST_COMMIT" | grep -oE '^[a-z]+')
         SCOPE=$(echo "$FIRST_COMMIT" | grep -oE '\([a-z0-9-]+\)' | tr -d '()' || echo "")
-        
+
         if [ -n "$SCOPE" ]; then
             SUGGESTED_TITLE="${TYPE}(${SCOPE}): [describe overall changes]"
             echo "  $SUGGESTED_TITLE"
@@ -318,7 +318,7 @@ if [ "$DRAFT" = true ]; then
         --web
     rc=$?
     set -e
-    
+
     if [ $rc -eq 0 ]; then
         echo ""
         echo -e "${GREEN}✓ Draft PR created successfully${NC}"
@@ -337,7 +337,7 @@ else
         --web
     rc=$?
     set -e
-    
+
     if [ $rc -eq 0 ]; then
         echo ""
         echo -e "${GREEN}✓ PR created successfully${NC}"

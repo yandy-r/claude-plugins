@@ -65,7 +65,8 @@ check_file() {
         return 1
     fi
 
-    local size=$(wc -c < "$file")
+    local size
+    size=$(wc -c < "$file")
     if [ "$size" -lt "$min_size" ]; then
         echo -e "${YELLOW}⚠${NC} Too small: $description"
         echo "  File: $file (${size} bytes, expected at least ${min_size})"
@@ -99,7 +100,8 @@ check_search_queries() {
     fi
 
     # Count "Search Queries Executed" section entries
-    local query_count=$(grep -c "^[0-9]\+\." "$file" 2>/dev/null | tail -1 || echo "0")
+    local query_count
+    query_count=$(grep -c "^[0-9]\+\." "$file" 2>/dev/null | tail -1 || echo "0")
 
     if [ "$query_count" -lt "$min_queries" ]; then
         echo -e "${YELLOW}⚠${NC} $persona: Only $query_count search queries (expected $min_queries+)"

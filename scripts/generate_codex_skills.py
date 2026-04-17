@@ -61,7 +61,7 @@ def rewrite_plugin_paths(text: str) -> str:
     pattern = r"\$\{CLAUDE_PLUGIN_ROOT\}/skills/([^\"`\s]+)"
 
     def replace(match: object) -> str:
-        path_text = getattr(match, "group")(1)
+        path_text = match.group(1)
         if path_text.startswith("_shared/"):
             return f"{HOME_INSTALL_PLUGIN_ROOT}/shared/{path_text[len('_shared/'):]}"
         return f"{HOME_INSTALL_PLUGIN_ROOT}/skills/{path_text}"
@@ -111,9 +111,7 @@ def prune_orphans(dest_root: Path, expected_files: set[Path]) -> None:
     # Only prune files under subdirectories this generator owns. Other files
     # (e.g. .codex-plugin/plugin.json, .mcp.json) belong to generate_codex_plugin.py
     # and must be left alone.
-    owned_roots = [
-        dest_root / sub for sub in OWNED_SUBDIRS if (dest_root / sub).is_dir()
-    ]
+    owned_roots = [dest_root / sub for sub in OWNED_SUBDIRS if (dest_root / sub).is_dir()]
 
     existing_files = sorted(
         (path for root in owned_roots for path in root.rglob("*") if path.is_file()),
@@ -179,9 +177,7 @@ def write_tree(dest_root: Path, dry_run: bool) -> set[Path]:
     return written
 
 
-def compare_trees(
-    generated: Path, repo_dest: Path, expected_files: set[Path]
-) -> list[str]:
+def compare_trees(generated: Path, repo_dest: Path, expected_files: set[Path]) -> list[str]:
     diffs: list[str] = []
     for rel in sorted(expected_files):
         left = generated / rel
@@ -212,12 +208,8 @@ def run_check() -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--check", action="store_true", help="Exit 1 if generated output drifts"
-    )
-    parser.add_argument(
-        "--dry-run", action="store_true", help="Print what would be written"
-    )
+    parser.add_argument("--check", action="store_true", help="Exit 1 if generated output drifts")
+    parser.add_argument("--dry-run", action="store_true", help="Print what would be written")
     args = parser.parse_args()
 
     if args.check:

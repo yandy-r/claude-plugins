@@ -80,9 +80,7 @@ def apply_text_transforms(s: str) -> str:
     # Product/session wording
     s = s.replace("main Claude session", "main Cursor session")
     s = s.replace("Claude is running ", "When running ")
-    s = re.sub(
-        r"\bClaude API with structured output\b", "LLM API with structured output", s
-    )
+    s = re.sub(r"\bClaude API with structured output\b", "LLM API with structured output", s)
     s = s.replace(
         "Focus ONLY on non-obvious information that Claude wouldn't inherently know.",
         "Focus ONLY on non-obvious information that a model wouldn't inherently know.",
@@ -150,9 +148,7 @@ def write_all(dry_run: bool, dest: Path) -> list[Path]:
     else:
         for orphan in sorted(dest.glob("*.md")):
             if orphan.name not in source_names:
-                print(
-                    f"Would remove {orphan.relative_to(REPO_ROOT)} (not in {SRC_DIR.name}/)"
-                )
+                print(f"Would remove {orphan.relative_to(REPO_ROOT)} (not in {SRC_DIR.name}/)")
 
     return written
 

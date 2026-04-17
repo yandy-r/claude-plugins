@@ -31,7 +31,7 @@ Phase 3: Complete Results
 
 <search_strategies>
 For definitions: Check type files, interfaces, main implementations
-For usages: Search imports, invocations, references across all files  
+For usages: Search imports, invocations, references across all files
 For patterns: Use regex matching, check similar implementations
 For architecture: Follow import chains from entry points
 </search_strategies>

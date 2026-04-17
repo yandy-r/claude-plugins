@@ -25,7 +25,7 @@ if git rev-parse --git-dir > /dev/null 2>&1; then
         if ! git diff-index --cached --quiet HEAD -- 2>/dev/null; then
             status_indicators="${status_indicators}+"
         fi
-        
+
         if [[ -n "$status_indicators" ]]; then
             git_info=$(printf " \033[2m🌱 %s %s\033[0m" "$branch" "$status_indicators")
         else

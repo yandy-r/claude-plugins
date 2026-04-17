@@ -15,8 +15,8 @@ from generate_codex_common import (
     PLUGIN_AGENTS_DIR,
     SRC_AGENTS_DIR,
     apply_codex_text_transforms,
-    parse_frontmatter,
     load_agent_aliases,
+    parse_frontmatter,
 )
 
 
@@ -54,9 +54,7 @@ def write_all(dest: Path, dry_run: bool) -> set[Path]:
             continue
 
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(
-            build_agent_toml(name, description, instructions), encoding="utf-8"
-        )
+        target.write_text(build_agent_toml(name, description, instructions), encoding="utf-8")
 
     if not dry_run:
         existing = sorted(path for path in dest.glob("*.toml"))
@@ -68,11 +66,7 @@ def write_all(dest: Path, dry_run: bool) -> set[Path]:
 
 def compare_trees(generated: Path, repo_dest: Path) -> list[str]:
     generated_files = {path.relative_to(generated) for path in generated.glob("*.toml")}
-    repo_files = (
-        {path.relative_to(repo_dest) for path in repo_dest.glob("*.toml")}
-        if repo_dest.is_dir()
-        else set()
-    )
+    repo_files = {path.relative_to(repo_dest) for path in repo_dest.glob("*.toml")} if repo_dest.is_dir() else set()
 
     diffs: list[str] = []
     for rel in sorted(generated_files | repo_files):
@@ -107,12 +101,8 @@ def run_check() -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--check", action="store_true", help="Exit 1 if generated output drifts"
-    )
-    parser.add_argument(
-        "--dry-run", action="store_true", help="Print what would be written"
-    )
+    parser.add_argument("--check", action="store_true", help="Exit 1 if generated output drifts")
+    parser.add_argument("--dry-run", action="store_true", help="Print what would be written")
     args = parser.parse_args()
 
     if args.check:

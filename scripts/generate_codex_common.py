@@ -143,9 +143,7 @@ def apply_codex_text_transforms(text: str, aliases: dict[str, str]) -> str:
     output = output.replace("the main Claude session", "the main Codex session")
     output = output.replace("Restart Claude CLI", "Restart Codex")
     output = output.replace("Claude CLI logs", "Codex logs")
-    output = output.replace(
-        "set up Claude CLI environment", "set up the Codex environment"
-    )
+    output = output.replace("set up Claude CLI environment", "set up the Codex environment")
     output = output.replace("closing Claude Code", "closing Codex")
     output = output.replace("a live Claude Code session", "a live Codex session")
     output = re.sub(

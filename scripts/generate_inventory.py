@@ -20,7 +20,6 @@ import argparse
 import json
 import re
 import sys
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -37,11 +36,11 @@ except ImportError:
         """Minimal tolerant YAML parser: extracts top-level string scalars only."""
         result: dict[str, str] = {}
         for line in text.splitlines():
-            m = re.match(r'^([a-zA-Z_][a-zA-Z0-9_-]*):\s*(.*)', line)
+            m = re.match(r"^([a-zA-Z_][a-zA-Z0-9_-]*):\s*(.*)", line)
             if m:
                 key, val = m.group(1), m.group(2).strip()
                 if val.startswith(('"', "'")):
-                    val = val.strip('"\'')
+                    val = val.strip("\"'")
                 result[key] = val
         return result
 
@@ -98,9 +97,9 @@ def short_description(full: str) -> str:
     if not full:
         return ""
     # Collapse newlines and extra whitespace
-    single = re.sub(r'\s+', ' ', str(full)).strip()
+    single = re.sub(r"\s+", " ", str(full)).strip()
     # Take text up to the first sentence-ending punctuation
-    m = re.search(r'([.!?])\s', single)
+    m = re.search(r"([.!?])\s", single)
     if m:
         candidate = single[: m.start() + 1]
         if len(candidate) <= SHORT_DESC_LIMIT:
@@ -217,9 +216,7 @@ def _region_pattern(marker: str) -> re.Pattern[str]:
     being accidentally rewritten.
     """
     return re.compile(
-        r"^<!-- BEGIN:" + re.escape(marker) + r" -->$"
-        r".*?"
-        r"^<!-- END:" + re.escape(marker) + r" -->$",
+        r"^<!-- BEGIN:" + re.escape(marker) + r" -->$" r".*?" r"^<!-- END:" + re.escape(marker) + r" -->$",
         re.DOTALL | re.MULTILINE,
     )
 
@@ -258,16 +255,16 @@ def render_commands_region(commands: list[dict[str, str]]) -> str:
     lines.extend(f"| {r[0]:<{w1}} | {r[1]:<{w2}} |" for r in rows)
     table = "\n".join(lines)
 
-    return (
-        f"<!-- BEGIN:{MARKER_COMMANDS} -->\n\n"
-        f"{table}\n\n"
-        f"<!-- END:{MARKER_COMMANDS} -->"
-    )
+    return f"<!-- BEGIN:{MARKER_COMMANDS} -->\n\n" f"{table}\n\n" f"<!-- END:{MARKER_COMMANDS} -->"
 
 
 def render_agents_region(agents: list[dict[str, str]]) -> str:
     na = len(agents)
-    body = f"The plugin bundles **{na}** specialized agents covering codebase analysis, language experts (Go, Rust, Python, TypeScript), reviewers, planners, documenters, and infrastructure architects."
+    body = (
+        f"The plugin bundles **{na}** specialized agents covering codebase analysis, "
+        "language experts (Go, Rust, Python, TypeScript), reviewers, planners, "
+        "documenters, and infrastructure architects."
+    )
     return f"<!-- BEGIN:{MARKER_AGENTS} -->\n\n{body}\n\n<!-- END:{MARKER_AGENTS} -->"
 
 
@@ -280,15 +277,9 @@ def rewrite_readme(
     """Return readme_text with all three GENERATED-* regions replaced."""
     result = readme_text
 
-    result = _region_pattern(MARKER_COUNTS).sub(
-        render_counts_region(skills, commands, agents), result
-    )
-    result = _region_pattern(MARKER_COMMANDS).sub(
-        render_commands_region(commands), result
-    )
-    result = _region_pattern(MARKER_AGENTS).sub(
-        render_agents_region(agents), result
-    )
+    result = _region_pattern(MARKER_COUNTS).sub(render_counts_region(skills, commands, agents), result)
+    result = _region_pattern(MARKER_COMMANDS).sub(render_commands_region(commands), result)
+    result = _region_pattern(MARKER_AGENTS).sub(render_agents_region(agents), result)
     return result
 
 
@@ -361,9 +352,7 @@ def run_check(
         try:
             existing_data = json.loads(existing_raw)
         except json.JSONDecodeError as exc:
-            diffs.append(
-                f"INVALID JSON: {INVENTORY_PATH.relative_to(REPO_ROOT)} ({exc})"
-            )
+            diffs.append(f"INVALID JSON: {INVENTORY_PATH.relative_to(REPO_ROOT)} ({exc})")
             existing_data = None
         if existing_data is not None and existing_data != inventory:
             diffs.append(f"DRIFT: {INVENTORY_PATH.relative_to(REPO_ROOT)}")
@@ -394,9 +383,7 @@ def _show_text_diff(old: str, new: str, label: str) -> None:
     """Print a simple unified-style summary of changed lines."""
     old_lines = old.splitlines()
     new_lines = new.splitlines()
-    changed = sum(
-        1 for a, b in zip(old_lines, new_lines) if a != b
-    )
+    changed = sum(1 for a, b in zip(old_lines, new_lines, strict=False) if a != b)
     added = max(0, len(new_lines) - len(old_lines))
     removed = max(0, len(old_lines) - len(new_lines))
     print(

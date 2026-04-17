@@ -1,0 +1,44 @@
+# Pre-commit hooks for claude-plugins.
+#
+# Generated bundles under .codex-plugin/ and .cursor-plugin/ are excluded because
+# they are rewritten by scripts/generate-*.sh from the ycc/ source tree.
+# Run `pre-commit autoupdate` periodically to refresh hook revisions.
+
+exclude: |
+  (?x)^(
+    \.codex-plugin/.*|
+    \.cursor-plugin/.*
+  )$
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.gitmessage$
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-json
+        # .markdownlint.json is JSONC (supports // comments); exclude from strict JSON check
+        exclude: \.codex-plugin/.*|\.cursor-plugin/.*|settings\.local\.json$|\.markdownlint\.json$
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.11
+    hooks:
+      - id: ruff
+        args: [--fix]
+
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 26.3.1
+    hooks:
+      - id: black
+
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        args: [--severity=warning]

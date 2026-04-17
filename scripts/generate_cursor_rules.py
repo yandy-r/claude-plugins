@@ -21,7 +21,7 @@ import yaml
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(_SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS_DIR))
-from generate_cursor_skills import apply_skills_text_transforms
+from generate_cursor_skills import apply_skills_text_transforms  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = REPO_ROOT / "ycc" / "rules"
@@ -90,9 +90,7 @@ def extract_first_heading(body: str) -> str | None:
 
 
 def title_case_stem(stem: str) -> str:
-    return " ".join(
-        w.capitalize() for w in stem.replace("-", " ").replace("_", " ").split()
-    )
+    return " ".join(w.capitalize() for w in stem.replace("-", " ").replace("_", " ").split())
 
 
 def default_description(rel: Path, body: str) -> str:
@@ -311,29 +309,21 @@ def lint_generated_rules() -> int:
     for path in sorted(DST_DIR.rglob("*.mdc")):
         raw = path.read_text(encoding="utf-8")
         if not raw.startswith("---\n"):
-            print(
-                f"MISSING frontmatter: {path.relative_to(REPO_ROOT)}", file=sys.stderr
-            )
+            print(f"MISSING frontmatter: {path.relative_to(REPO_ROOT)}", file=sys.stderr)
             errors += 1
             continue
         end = raw.find("\n---\n", 4)
         if end == -1:
-            print(
-                f"MALFORMED frontmatter: {path.relative_to(REPO_ROOT)}", file=sys.stderr
-            )
+            print(f"MALFORMED frontmatter: {path.relative_to(REPO_ROOT)}", file=sys.stderr)
             errors += 1
             continue
         fm_text = raw[4:end]
         data = yaml.safe_load(fm_text) or {}
         if "description" not in data:
-            print(
-                f"MISSING description: {path.relative_to(REPO_ROOT)}", file=sys.stderr
-            )
+            print(f"MISSING description: {path.relative_to(REPO_ROOT)}", file=sys.stderr)
             errors += 1
         if "alwaysApply" not in data:
-            print(
-                f"MISSING alwaysApply: {path.relative_to(REPO_ROOT)}", file=sys.stderr
-            )
+            print(f"MISSING alwaysApply: {path.relative_to(REPO_ROOT)}", file=sys.stderr)
             errors += 1
         if not data.get("alwaysApply") and "globs" not in data:
             print(

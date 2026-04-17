@@ -25,7 +25,8 @@ fi
 extract_title() {
     local file="$1"
     # Try to get H1 heading
-    local title=$(grep -m1 "^# " "$file" 2>/dev/null | sed 's/^# //')
+    local title
+    title=$(grep -m1 "^# " "$file" 2>/dev/null | sed 's/^# //')
     if [[ -z "$title" ]]; then
         # Fall back to filename
         title=$(basename "$file" .md)
@@ -41,7 +42,8 @@ generate_tree() {
 
     # Get directories first, then files (null-delimited to handle spaces)
     while IFS= read -r -d '' item; do
-        local name=$(basename "$item")
+        local name
+        name=$(basename "$item")
 
         # Skip hidden files and node_modules
         [[ "$name" == .* ]] && continue
@@ -51,7 +53,8 @@ generate_tree() {
             echo "${indent}- **${name}/**"
             generate_tree "$item" "$prefix" "  $indent"
         elif [[ "$name" == *.md ]]; then
-            local title=$(extract_title "$item")
+            local title
+            title=$(extract_title "$item")
             local rel_path="${item#$DOCS_DIR/}"
             echo "${indent}- [${title}](${rel_path})"
         fi
@@ -72,8 +75,10 @@ get_recent_files() {
         fi
     done | sort -rn | head -10 | while read -r timestamp file; do
         # Format date (both GNU and BSD date support -r)
-        local date=$(date -d "@$timestamp" '+%Y-%m-%d' 2>/dev/null || date -r "$timestamp" '+%Y-%m-%d' 2>/dev/null)
-        local title=$(extract_title "$file")
+        local date
+        date=$(date -d "@$timestamp" '+%Y-%m-%d' 2>/dev/null || date -r "$timestamp" '+%Y-%m-%d' 2>/dev/null)
+        local title
+        title=$(extract_title "$file")
         local rel_path="${file#$DOCS_DIR/}"
         echo "- [${title}](${rel_path}) - *${date}*"
     done

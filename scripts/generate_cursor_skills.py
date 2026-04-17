@@ -41,13 +41,15 @@ TEXT_NAMES = frozenset({"SKILL.md", "LICENSE", "Makefile"})
 # all three deployment targets literally, so blind replacements (.claude-plugin/ →
 # .cursor-plugin/, ~/.claude/ → ~/.cursor/, etc.) corrupt the content. Paths are
 # source-relative to ycc/skills/.
-VERBATIM_SKILL_FILES = frozenset({
-    "_shared/references/target-capability-matrix.md",
-    "hooks-workflow/references/support-notes.md",
-    "compatibility-audit/scripts/audit-install-assumptions.sh",
-    "compatibility-audit/scripts/audit-target-features.sh",
-    "compatibility-audit/references/reading-the-report.md",
-})
+VERBATIM_SKILL_FILES = frozenset(
+    {
+        "_shared/references/target-capability-matrix.md",
+        "hooks-workflow/references/support-notes.md",
+        "compatibility-audit/scripts/audit-install-assumptions.sh",
+        "compatibility-audit/scripts/audit-target-features.sh",
+        "compatibility-audit/references/reading-the-report.md",
+    }
+)
 
 
 def should_transform_text(path: Path) -> bool:
@@ -124,9 +126,7 @@ def apply_skills_text_transforms(s: str) -> str:
 
     s = s.replace("main Claude session", "main Cursor session")
     s = s.replace("Claude is running ", "When running ")
-    s = re.sub(
-        r"\bClaude API with structured output\b", "LLM API with structured output", s
-    )
+    s = re.sub(r"\bClaude API with structured output\b", "LLM API with structured output", s)
     s = s.replace("closing Claude Code", "closing the session")
     s = s.replace("Claude home directory", "Cursor home directory")
     s = s.replace("Claude CLI", "Cursor CLI")

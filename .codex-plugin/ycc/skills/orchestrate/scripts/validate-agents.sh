@@ -68,7 +68,7 @@ validate_agent_type() {
 if [[ $# -gt 0 ]]; then
   echo "## Validating Provided Agents"
   echo ""
-  
+
   for agent in "$@"; do
     if validate_agent_type "$agent"; then
       echo "✓ $agent - Valid"

@@ -75,7 +75,7 @@ if [ -n "$TYPE" ]; then
             break
         fi
     done
-    
+
     if [ "$VALID_TYPE" = true ]; then
         echo -e "${GREEN}✓ Type '$TYPE' is valid${NC}"
     else
@@ -89,7 +89,7 @@ fi
 if echo "$SUBJECT" | grep -qE '\([a-z0-9-]+\)'; then
     SCOPE=$(echo "$SUBJECT" | grep -oE '\([a-z0-9-]+\)' | tr -d '()')
     echo -e "${GREEN}✓ Scope '$SCOPE' is present${NC}"
-    
+
     # Check scope format (lowercase, alphanumeric + hyphens)
     if ! echo "$SCOPE" | grep -qE '^[a-z0-9-]+$'; then
         echo -e "${YELLOW}⚠ Warning: Scope should be lowercase alphanumeric with hyphens${NC}"
@@ -100,7 +100,7 @@ fi
 # Check for breaking change indicator (!)
 if echo "$SUBJECT" | grep -qE '!:'; then
     echo -e "${YELLOW}⚠ Breaking change indicator detected (!)${NC}"
-    
+
     # Check if BREAKING CHANGE footer is present in full message
     if ! echo "$COMMIT_MSG" | grep -qE 'BREAKING CHANGE:'; then
         echo -e "${YELLOW}⚠ Warning: Breaking change indicator used but no BREAKING CHANGE footer found${NC}"
@@ -115,7 +115,7 @@ SUBJECT_TEXT=$(echo "$SUBJECT" | sed 's/^[a-z]*(\?[a-z0-9-]*)\?!*: //')
 if [ -n "$SUBJECT_TEXT" ]; then
     # Check subject length (should be ≤50 chars ideally, ≤72 max)
     SUBJECT_LEN=${#SUBJECT_TEXT}
-    
+
     if [ "$SUBJECT_LEN" -le 50 ]; then
         echo -e "${GREEN}✓ Subject length is good ($SUBJECT_LEN chars)${NC}"
     elif [ "$SUBJECT_LEN" -le 72 ]; then
@@ -125,7 +125,7 @@ if [ -n "$SUBJECT_TEXT" ]; then
         echo -e "${RED}✗ Error: Subject is too long ($SUBJECT_LEN chars, max 72)${NC}"
         ERRORS=$((ERRORS + 1))
     fi
-    
+
     # Check if subject starts with uppercase (should be lowercase)
     FIRST_CHAR=$(echo "$SUBJECT_TEXT" | cut -c1)
     if echo "$FIRST_CHAR" | grep -qE '[A-Z]'; then
@@ -133,7 +133,7 @@ if [ -n "$SUBJECT_TEXT" ]; then
         REST="${SUBJECT_TEXT:1}"
         LOWERCASE_FIRST="${FIRST_CHAR,,}"
         PREFERRED="${LOWERCASE_FIRST}${REST}"
-        
+
         echo -e "${YELLOW}⚠ Warning: Subject should start with lowercase letter${NC}"
         echo "  Got: '$SUBJECT_TEXT'"
         echo "  Prefer: '$PREFERRED'"
@@ -141,7 +141,7 @@ if [ -n "$SUBJECT_TEXT" ]; then
     else
         echo -e "${GREEN}✓ Subject starts with lowercase${NC}"
     fi
-    
+
     # Check if subject ends with period (should not)
     if echo "$SUBJECT_TEXT" | grep -qE '\.$'; then
         echo -e "${YELLOW}⚠ Warning: Subject should not end with a period${NC}"
@@ -149,10 +149,10 @@ if [ -n "$SUBJECT_TEXT" ]; then
     else
         echo -e "${GREEN}✓ Subject doesn't end with period${NC}"
     fi
-    
+
     # Check if imperative mood (basic heuristic - starts with verb)
     FIRST_WORD=$(echo "$SUBJECT_TEXT" | awk '{print $1}')
-    
+
     # Common non-imperative patterns
     if echo "$FIRST_WORD" | grep -qE '(added|fixed|updated|changed|removed|deleted)$'; then
         echo -e "${YELLOW}⚠ Warning: Use imperative mood (add, fix, update, not added, fixed, updated)${NC}"
@@ -169,7 +169,7 @@ BODY_LINES=$(echo "$COMMIT_MSG" | tail -n +3 | grep -c '[[:alnum:]]' || echo "0"
 
 if [ "$BODY_LINES" -gt 0 ]; then
     echo -e "${GREEN}✓ Body is present ($BODY_LINES lines)${NC}"
-    
+
     # Check body line length (should wrap at 72 chars)
     LONG_LINES=0
     while IFS= read -r line; do
@@ -177,7 +177,7 @@ if [ "$BODY_LINES" -gt 0 ]; then
             LONG_LINES=$((LONG_LINES + 1))
         fi
     done <<< "$(echo "$COMMIT_MSG" | tail -n +3)"
-    
+
     if [ "$LONG_LINES" -gt 0 ]; then
         echo -e "${YELLOW}⚠ Warning: $LONG_LINES line(s) in body exceed 72 characters${NC}"
         echo "  Consider wrapping body text at 72 chars"
@@ -188,7 +188,7 @@ fi
 # Check for BREAKING CHANGE footer
 if echo "$COMMIT_MSG" | grep -qE 'BREAKING CHANGE:'; then
     echo -e "${YELLOW}⚠ Breaking change footer detected${NC}"
-    
+
     # Verify format
     if echo "$COMMIT_MSG" | grep -qE '^BREAKING CHANGE: .+'; then
         echo -e "${GREEN}✓ BREAKING CHANGE footer is properly formatted${NC}"
