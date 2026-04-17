@@ -125,6 +125,10 @@
       "description": "Python testing patterns using pytest \u2014 TDD methodology, fixtures (function/module/session scopes), parametrization, markers, mocking with unittest.mock, async tests with pytest-asyncio, tmp_path, conftest.py organization, and coverage targets. Use when the user is writing Python tests, adding test coverage to Python code, asks about pytest, @pytest.fixture, @pytest.mark.parametrize, @patch / Mock / MagicMock / autospec, pytest-asyncio, conftest.py, tmp_path / tmpdir, pytest --cov, or wants TDD guidance for a Python project."
     },
     {
+      "name": "releaser",
+      "description": "This skill should be used when the user asks to \"prepare a release\", \"cut a release\", \"tag a release\", \"create a GitHub release\", \"draft release notes\", \"set up release CI\", \"add a release workflow\", or \"audit release pipeline\" for any project. Detects language/toolchain, drafts a changelog, plans platform/arch artifacts, optionally generates or audits GitHub Actions release CI, and emits the exact commands the user runs to tag and publish. Never auto-commits, pushes, or publishes. Generic external-project counterpart to `ycc:bundle-release` (which is scoped to this repo's ycc bundle)."
+    },
+    {
       "name": "research-to-issues",
       "description": "This skill should be used when the user asks to \"create issues from research\", \"turn research into GitHub issues\", \"create issues from feature spec\", \"turn plan into issues\", \"issues from parallel plan\", \"create issues from PRP plan\", \"generate issues from deep-research output\", \"create tracking issues from plan\", \"parse plan into actionable issues\", or mentions converting documentation produced by ycc:deep-research, ycc:feature-research, ycc:parallel-plan, ycc:plan-workflow, or ycc:prp-plan into structured GitHub issues with labels and tracking hierarchy."
     },
@@ -285,6 +289,10 @@
     {
       "name": "python-testing",
       "description": "Python testing patterns using pytest \u2014 TDD methodology, fixtures (function/module/session scopes), parametrization, markers, mocking with unittest.mock, async tests with pytest-asyncio, tmp_path, conftest.py organization, and coverage targets. Use when the user is writing Python tests, adding test coverage to Python code, asks about pytest, @pytest.fixture, @pytest.mark.parametrize, @patch / Mock / MagicMock / autospec, pytest-asyncio, conftest.py, tmp_path / tmpdir, pytest --cov, or wants TDD guidance for a Python project."
+    },
+    {
+      "name": "releaser",
+      "description": "Prepare and cut a GitHub release for any project \u2014 detects toolchain, drafts changelog, plans platform/arch artifacts, optionally generates or audits release CI. Emits commands; never auto-publishes. External-project counterpart to /ycc:bundle-release."
     },
     {
       "name": "research-to-issues",
@@ -469,6 +477,10 @@
       "description": "Generate comprehensive README files for projects with proper structure, badges, installation instructions, and usage examples."
     },
     {
+      "name": "releaser",
+      "description": "Audit an existing GitHub Actions release workflow against the ycc:releaser checklist \u2014 triggers, permissions, action pinning, caching, build matrix, artifact provenance, release-notes sourcing, error handling, documentation, and observability. Read-only. Invoked by ycc:releaser in --ci=audit mode; do NOT invoke directly from a command."
+    },
+    {
       "name": "research-specialist",
       "description": "Comprehensive research on non-code topics with fact-checking, current information gathering, and authoritative sources with citations."
     },
@@ -530,9 +542,9 @@
     }
   ],
   "counts": {
-    "skills": 41,
-    "commands": 40,
-    "agents": 50
+    "skills": 42,
+    "commands": 41,
+    "agents": 51
   },
   "parity": {
     "skills_without_commands": [
