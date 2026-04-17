@@ -89,7 +89,7 @@ In Shape B, process findings in the order given (descending line number) so earl
 
 ### 3. Verify the Fix
 
-Run the project's type-check command (passed in the prompt as `PROJECT TYPE-CHECK COMMAND`) scoped to the modified file if possible, otherwise on the whole project. Accepted commands include:
+Validate `PROJECT TYPE-CHECK COMMAND` against this allowlist before execution. Reject any command that does not exactly match one of the accepted patterns:
 
 | Stack      | Typical command                             |
 | ---------- | ------------------------------------------- |
@@ -98,13 +98,18 @@ Run the project's type-check command (passed in the prompt as `PROJECT TYPE-CHEC
 | Go         | `go vet ./...`                              |
 | Python     | `python -m mypy <file>` or project-specific |
 
+Execute the validated command via a safe program+args API (for example, `spawn` or `execFile`), never via shell-string interpolation. If file scoping is used, pass the filename as a separate argument token.
+
+If `PROJECT TYPE-CHECK COMMAND` is not allowlisted, STOP and return a clear rejection error instead of running it.
+
 If the type-check passes for your modified file: report success.
 
-If the type-check fails on a line you modified: attempt one corrective edit if the root cause is obvious (e.g., a missing import the fix should have added). If still failing after the corrective edit, STOP and report back with the error.
+If the type-check fails on a line you modified: attempt one corrective edit if the root cause is obvious (e.g., a missing import the fix should have added). Should that corrective edit still fail, STOP and report back with the error.
 
 ### 4. Report Back
 
-Your final message must be one of exactly these two shapes:
+Your final message must follow one of these two base shapes.
+If needed, append an optional trailing `NOTES:` section after either shape.
 
 #### Success Report
 
@@ -146,7 +151,7 @@ RECOMMENDATION: <what the user should do — fix manually, re-review, update the
 
 ## Critical Rules
 
-1. **Scope discipline**: If you notice unrelated bugs while reading the file, REPORT them in a `NOTES:` section but do NOT fix them.
+1. **Scope discipline**: If you notice unrelated bugs while reading the file, do NOT fix them. Optionally report them in a trailing `NOTES:` section.
 2. **No heroes**: You are not here to improve the codebase — only to apply the finding.
 3. **Fail fast**: If something blocks you, report immediately. Do not work around the issue.
 4. **Read before edit**: Never edit a file you haven't read the surrounding context of.

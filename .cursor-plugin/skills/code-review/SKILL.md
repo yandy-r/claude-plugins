@@ -59,6 +59,7 @@ Strip these from `$ARGUMENTS` and set `PARALLEL_MODE=true|false` and `AGENT_TEAM
 **Validation**:
 
 - `--parallel` and `--team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --team are mutually exclusive. Pick one.`
+- If `--team` is set during a bundle invocation (Cursor/Codex), abort with: `--team is not supported in bundle invocations; use --parallel instead.`
 
 **Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools — `TeamCreate`, `SendMessage`, etc.). Use `--parallel` instead.
 
@@ -621,6 +622,9 @@ gh pr review <NUMBER> --approve --body "<summary of review>"
 
 # If REQUEST CHANGES
 gh pr review <NUMBER> --request-changes --body "<summary with required fixes>"
+
+# If BLOCK (GitHub has no dedicated BLOCK event; map to request-changes)
+gh pr review <NUMBER> --request-changes --body "<blocking issues must be fixed before merge>"
 
 # If COMMENT only (draft PR or informational)
 gh pr review <NUMBER> --comment --body "<summary>"

@@ -31,10 +31,15 @@ else
   if REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null); then
     PLANS_DIR="${REPO_ROOT}/docs/plans"
   else
-    # If not in a git repo, resolve from script directory
-    # Assuming script is in .claude/skills/plan-workflow/scripts/
-    # Navigate up 4 levels to get to repo root
-    REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+    # If not in a git repo, prefer the runtime plugin root env var when available.
+    plugin_root_var="CLAUDE_PLUGIN""_ROOT"
+    plugin_root="$(printenv "$plugin_root_var" 2>/dev/null || true)"
+    if [[ -n "$plugin_root" ]]; then
+      REPO_ROOT="$(cd "${plugin_root}/.." && pwd)"
+    else
+      # Source-tree fallback from ycc/skills/plan-workflow/scripts.
+      REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+    fi
     PLANS_DIR="${REPO_ROOT}/docs/plans"
   fi
 

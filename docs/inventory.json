@@ -26,7 +26,7 @@
     },
     {
       "name": "compatibility-audit",
-      "description": "This skill should be used when the user asks to \"audit ycc compatibility\", \"check Cursor/Codex bundle health\", \"verify cross-target parity\", \"run a compatibility report for ycc\", \"is ycc ready to release\", \"are the generated bundles up to date\", \"check if the bundles are in sync\", \"validate generated targets\", \"are Cursor and Codex bundles current\", \"check bundle drift\", \"report on target feature gaps\", or when the user wants a structured per-target health report covering drift detection, install-assumption validation, and feature-capability gaps across the Claude, Cursor, and Codex targets without bumping versions or committing anything.\n"
+      "description": "This skill should be used when the user asks to \"audit ycc compatibility\", \"check Cursor/Codex bundle health\", \"verify cross-target parity\", \"run a compatibility report for ycc\", \"is ycc ready to release\", \"are the generated bundles up to date\", \"check if the bundles are in sync\", \"validate generated targets\", \"are Cursor and Codex bundles current\", \"check bundle drift\", \"report on target feature gaps\", or when the user wants a structured per-target health report covering drift detection, install-assumption validation, and feature-capability gaps across the Claude, Cursor, Codex, and opencode targets without bumping versions or committing anything.\n"
     },
     {
       "name": "deep-research",
@@ -70,7 +70,7 @@
     },
     {
       "name": "init",
-      "description": "This skill should be used when the user asks to \"initialize workspace\", \"set up Claude CLI environment\", \"configure agents and MCPs for project\", \"init workspace\", \"set up project with Claude tools\", or mentions workspace initialization. Analyzes project type and presents available agents/MCPs for selection."
+      "description": "This skill should be used when the user asks to \"initialize workspace\", \"init project\", \"bootstrap CLAUDE.md\", \"generate AGENTS.md\", \"set up cursor rules\", \"add github issue templates\", \"add conventional commits config\", \"configure agents and MCPs for project\", or any workspace/project initialization request. Profiles the project, emits the AI-agent doc trio (CLAUDE.md, AGENTS.md, .cursor/rules/project.mdc), and optionally GitHub templates and git conventions."
     },
     {
       "name": "karpathy-guidelines",
@@ -196,7 +196,7 @@
     },
     {
       "name": "compatibility-audit",
-      "description": "Audit cross-target compatibility of the ycc bundle across Claude, Cursor, and Codex targets"
+      "description": "Audit cross-target compatibility of the ycc bundle across Claude, Cursor, Codex, and opencode targets"
     },
     {
       "name": "deep-research",
@@ -240,7 +240,7 @@
     },
     {
       "name": "init",
-      "description": "Initialize Claude CLI workspace with agents and MCPs based on project analysis"
+      "description": "Initialize workspace \u2014 profile project, emit CLAUDE.md/AGENTS.md/.cursor/rules, optional GitHub templates, git conventions, and Claude CLI config."
     },
     {
       "name": "orchestrate",
@@ -414,7 +414,7 @@
     },
     {
       "name": "feature-writer",
-      "description": "Implement features based on research and specifications, writing production-ready code with proper testing."
+      "description": "Create and maintain user-facing feature documentation with clear guides, examples, and troubleshooting."
     },
     {
       "name": "frontend-ui-developer",

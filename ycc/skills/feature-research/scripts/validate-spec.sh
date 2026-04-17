@@ -162,7 +162,11 @@ while IFS= read -r line; do
         # Non-blank, non-heading line means we've seen content
         content_seen=true
     fi
-done
+done <<< "$CONTENT"
+
+if [[ -n "$last_section" && "$content_seen" == false ]]; then
+    log_error "Empty section detected: $last_section"
+fi
 
 # Check Executive Summary length
 echo ""

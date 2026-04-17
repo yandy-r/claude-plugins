@@ -3,9 +3,11 @@
 # per-target drift report.
 #
 # Usage:
-#   report-bundle-drift.sh [--target=all|cursor|codex|inventory]
+#   report-bundle-drift.sh [--target=all|cursor|codex|opencode|inventory]
 #                          [--format=human|json]
 #                          [--json-out=PATH]
+#                          [--repo-root=PATH]
+#                          [PATH]
 #                          [--help]
 #
 # Exit codes:
@@ -21,7 +23,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: report-bundle-drift.sh [--target=all|cursor|codex|inventory] [--format=human|json] [--json-out=PATH] [--help]
+Usage: report-bundle-drift.sh [--target=all|cursor|codex|opencode|inventory] [--format=human|json] [--json-out=PATH] [--repo-root=PATH|PATH] [--help]
 
 Wraps the generate_*.py --check entry points and emits a per-target drift
 report. Exit 0 iff every target is clean. Exit 1 on drift. Exit 2 on
@@ -36,23 +38,33 @@ EOF
 TARGET="all"
 FORMAT="human"
 JSON_OUT=""
+REPO_ROOT_INPUT=""
 
 for arg in "$@"; do
   case "$arg" in
     --target=*)   TARGET="${arg#--target=}" ;;
     --format=*)   FORMAT="${arg#--format=}" ;;
     --json-out=*) JSON_OUT="${arg#--json-out=}" ;;
+    --repo-root=*) REPO_ROOT_INPUT="${arg#--repo-root=}" ;;
     --help|-h)    usage; exit 0 ;;
-    *)
+    -*)
       echo "report-bundle-drift.sh: unknown flag: $arg" >&2
       usage >&2
       exit 2
+      ;;
+    *)
+      if [[ -n "$REPO_ROOT_INPUT" ]]; then
+        echo "report-bundle-drift.sh: multiple repo roots provided: $REPO_ROOT_INPUT and $arg" >&2
+        usage >&2
+        exit 2
+      fi
+      REPO_ROOT_INPUT="$arg"
       ;;
   esac
 done
 
 case "$TARGET" in
-  all|cursor|codex|inventory) ;;
+  all|cursor|codex|opencode|inventory) ;;
   *) echo "report-bundle-drift.sh: unknown --target value: $TARGET" >&2; usage >&2; exit 2 ;;
 esac
 
@@ -62,24 +74,49 @@ case "$FORMAT" in
 esac
 
 # ---------------------------------------------------------------------------
-# Resolve repo root by walking up from this script's location
+# Resolve repo root from explicit input, then PWD, then SCRIPT_DIR
 # ---------------------------------------------------------------------------
 
 echo "report-bundle-drift.sh: resolving repo root..." >&2
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 REPO_ROOT=""
-candidate="$SCRIPT_DIR"
-while [[ "$candidate" != "/" ]]; do
-  if [[ -f "$candidate/.cursor-plugin/marketplace.json" ]]; then
-    REPO_ROOT="$candidate"
-    break
+
+resolve_repo_root_from() {
+  local start="$1"
+  local candidate="$start"
+  while [[ "$candidate" != "/" ]]; do
+    if [[ -f "$candidate/.cursor-plugin/marketplace.json" ]]; then
+      REPO_ROOT="$candidate"
+      return 0
+    fi
+    candidate="$(dirname "$candidate")"
+  done
+  if [[ -f "/.cursor-plugin/marketplace.json" ]]; then
+    REPO_ROOT="/"
+    return 0
   fi
-  candidate="$(dirname "$candidate")"
-done
+  return 1
+}
+
+if [[ -n "$REPO_ROOT_INPUT" ]]; then
+  if [[ ! -d "$REPO_ROOT_INPUT" ]]; then
+    echo "report-bundle-drift.sh: --repo-root/positional path is not a directory: $REPO_ROOT_INPUT" >&2
+    exit 2
+  fi
+  resolve_repo_root_from "$(cd "$REPO_ROOT_INPUT" && pwd)" || true
+fi
 
 if [[ -z "$REPO_ROOT" ]]; then
-  echo "report-bundle-drift.sh: cannot locate repo root (no .cursor-plugin/marketplace.json found above $SCRIPT_DIR)" >&2
+  resolve_repo_root_from "$PWD" || true
+fi
+
+if [[ -z "$REPO_ROOT" ]]; then
+  resolve_repo_root_from "$SCRIPT_DIR" || true
+fi
+
+if [[ -z "$REPO_ROOT" ]]; then
+  echo "report-bundle-drift.sh: cannot locate repo root (no .cursor-plugin/marketplace.json found from repo-root input/PWD/SCRIPT_DIR search)" >&2
   exit 2
 fi
 
@@ -124,6 +161,13 @@ if [[ "$TARGET" == "codex" || "$TARGET" == "all" ]]; then
   run_check "codex:skills"  python3 "${SCRIPTS_DIR}/generate_codex_skills.py"   --check
   run_check "codex:agents"  python3 "${SCRIPTS_DIR}/generate_codex_agents.py"   --check
   run_check "codex:plugin"  python3 "${SCRIPTS_DIR}/generate_codex_plugin.py"   --check
+fi
+
+if [[ "$TARGET" == "opencode" || "$TARGET" == "all" ]]; then
+  run_check "opencode:skills"   python3 "${SCRIPTS_DIR}/generate_opencode_skills.py"   --check
+  run_check "opencode:agents"   python3 "${SCRIPTS_DIR}/generate_opencode_agents.py"   --check
+  run_check "opencode:commands" python3 "${SCRIPTS_DIR}/generate_opencode_commands.py" --check
+  run_check "opencode:plugin"   python3 "${SCRIPTS_DIR}/generate_opencode_plugin.py"   --check
 fi
 
 # ---------------------------------------------------------------------------
@@ -200,7 +244,7 @@ def tgt(prefix):
                if names[i] == prefix or names[i].startswith(prefix + ":")]
     return {"drift": any(d["exit"] != 0 for d in details), "details": details}
 
-shown = (["inventory", "cursor", "codex"] if target == "all" else [target])
+shown = (["inventory", "cursor", "codex", "opencode"] if target == "all" else [target])
 targets_out = {t: tgt(t) for t in shown}
 print(json.dumps({
     "as_of":   datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -220,10 +264,12 @@ if [[ "$FORMAT" == "human" ]]; then
     inventory) print_human_section "inventory" "inventory" ;;
     cursor)    print_human_section "cursor"    "cursor"    ;;
     codex)     print_human_section "codex"     "codex"     ;;
+    opencode)  print_human_section "opencode"  "opencode"  ;;
     all)
       print_human_section "inventory" "inventory"
       print_human_section "cursor"    "cursor"
       print_human_section "codex"     "codex"
+      print_human_section "opencode"  "opencode"
       ;;
   esac
   echo ""

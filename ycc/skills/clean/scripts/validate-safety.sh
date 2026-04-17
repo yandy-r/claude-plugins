@@ -53,13 +53,13 @@ WARNINGS=0
 # Function to log violation
 log_violation() {
     echo -e "${RED}✗ VIOLATION: $1${NC}"
-    ((VIOLATIONS++))
+    VIOLATIONS=$((VIOLATIONS + 1))
 }
 
 # Function to log warning
 log_warning() {
     echo -e "${YELLOW}⚠ WARNING: $1${NC}"
-    ((WARNINGS++))
+    WARNINGS=$((WARNINGS + 1))
 }
 
 # Function to log success
@@ -144,7 +144,7 @@ protected_dir_violations=0
 for dir in "${PROTECTED_DIRS[@]}"; do
     if echo "$FLAGGED_FILES" | grep -q "/$dir/\|^$dir/"; then
         log_violation "Protected directory found in removal list: $dir"
-        ((protected_dir_violations++))
+        ((protected_dir_violations+=1))
     fi
 done
 
@@ -161,7 +161,7 @@ protected_file_violations=0
 for file in "${PROTECTED_FILES[@]}"; do
     if echo "$FLAGGED_FILES" | grep -qE "(^|/)$file$"; then
         log_violation "Protected file found in removal list: $file"
-        ((protected_file_violations++))
+        ((protected_file_violations+=1))
     fi
 done
 
@@ -201,7 +201,7 @@ while IFS= read -r filepath; do
         real_path=$(cd "$(dirname "$full_path")" && pwd)/$(basename "$full_path") || true
         if [[ ! "$real_path" =~ ^"$real_target" ]]; then
             log_violation "Path outside target directory: $filepath"
-            ((path_violations++))
+            ((path_violations+=1))
         fi
     fi
 done <<< "$FLAGGED_FILES"
@@ -242,7 +242,7 @@ while IFS= read -r filepath; do
         # Check if target is outside project
         if [[ "$link_target" = /* ]] && [[ ! "$link_target" =~ ^"$TARGET_DIR" ]]; then
             log_warning "Symbolic link points outside project: $filepath -> $link_target"
-            ((symlink_violations++))
+            ((symlink_violations+=1))
         fi
     fi
 done <<< "$FLAGGED_FILES"
@@ -280,7 +280,7 @@ for pattern in "${SECURITY_PATTERNS[@]}"; do
 
     if echo "$FLAGGED_FILES" | grep -qE "$grep_pattern"; then
         log_warning "Security-sensitive file pattern detected: $pattern"
-        ((security_issues++))
+        ((security_issues+=1))
     fi
 done
 
@@ -305,7 +305,7 @@ fi
 # Check if target is root directory
 if [[ "$TARGET_DIR" == "/" ]] || [[ "$TARGET_DIR" == "$HOME" ]]; then
     log_violation "EMERGENCY STOP: Target directory is root or home directory!"
-    ((emergency_stops++))
+    ((emergency_stops+=1))
 fi
 
 # Check total size (if du is available)

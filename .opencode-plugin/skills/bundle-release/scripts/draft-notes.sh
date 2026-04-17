@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+# draft-notes.sh — Fill the release-notes template and write docs/releases/<version>.md.
+#
+# Usage:
+#   draft-notes.sh <new-version>
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") <new-version>
+
+Draft release notes for <new-version> at docs/releases/<new-version>.md,
+filled from .opencode-plugin/skills/bundle-release/references/release-notes-template.md.
+
+Sources:
+  - Date: UTC today
+  - Commits: git log since last tag (or full history if no tags)
+  - Added/Changed/Removed/Fixed: filtered by conventional-commit prefix
+
+Options:
+  -h, --help   Show this help
+EOF
+}
+
+# --- argument parsing ---
+NEW_VERSION=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        -*)
+            echo "draft-notes.sh: unknown option: $1" >&2
+            usage >&2
+            exit 1
+            ;;
+        *)
+            if [[ -z "${NEW_VERSION}" ]]; then
+                NEW_VERSION="$1"
+            else
+                echo "draft-notes.sh: unexpected argument: $1" >&2
+                usage >&2
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [[ -z "${NEW_VERSION}" ]]; then
+    echo "draft-notes.sh: new-version is required" >&2
+    usage >&2
+    exit 1
+fi
+
+if ! [[ "${NEW_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "draft-notes.sh: invalid version '${NEW_VERSION}' — expected semver (e.g. 1.2.3)" >&2
+    exit 1
+fi
+
+# --- guards ---
+OUT="${REPO_ROOT}/docs/releases/${NEW_VERSION}.md"
+[[ -e "${OUT}" ]] && { echo "draft-notes.sh: refuse: ${OUT} already exists" >&2; exit 1; }
+
+TEMPLATE="${REPO_ROOT}/.opencode-plugin/skills/bundle-release/references/release-notes-template.md"
+[[ -f "${TEMPLATE}" ]] || { echo "draft-notes.sh: template missing: ${TEMPLATE}" >&2; exit 1; }
+
+# --- gather inputs ---
+cd "${REPO_ROOT}"
+
+DATE_STR="$(date -u +%Y-%m-%d)"
+PREV_TAG="$(git describe --tags --abbrev=0 2>/dev/null || echo "(no previous tag)")"
+
+if [[ "${PREV_TAG}" == "(no previous tag)" ]]; then
+    COMMITS_RAW="$(git log --oneline)"
+else
+    COMMITS_RAW="$(git log "${PREV_TAG}..HEAD" --oneline)"
+fi
+[[ -z "${COMMITS_RAW}" ]] && COMMITS_RAW="(no commits since ${PREV_TAG})"
+
+filter() {
+    local pattern="$1"
+    local out
+    out="$(echo "${COMMITS_RAW}" | grep -iE "${pattern}" || true)"
+    [[ -z "${out}" ]] && out="TODO: none this release"
+    echo "${out}"
+}
+
+ADDED="$(filter '^[a-f0-9]+ (feat|add)')"
+CHANGED="$(filter '^[a-f0-9]+ (refactor|chore|perf|update|change)')"
+REMOVED="$(filter '(remove|delete|drop)')"
+FIXED="$(filter '^[a-f0-9]+ fix')"
+
+# --- substitute placeholders via python3 ---
+python3 - "${TEMPLATE}" "${OUT}" "${NEW_VERSION}" "${DATE_STR}" "${PREV_TAG}" "${COMMITS_RAW}" "${ADDED}" "${CHANGED}" "${REMOVED}" "${FIXED}" <<'PY'
+import sys, pathlib
+template_path = pathlib.Path(sys.argv[1])
+out_path      = pathlib.Path(sys.argv[2])
+version       = sys.argv[3]
+date_str      = sys.argv[4]
+prev_tag      = sys.argv[5]
+commits       = sys.argv[6]
+added         = sys.argv[7]
+changed       = sys.argv[8]
+removed       = sys.argv[9]
+fixed         = sys.argv[10]
+
+text = template_path.read_text()
+text = (text
+        .replace("{{VERSION}}", version)
+        .replace("{{DATE}}", date_str)
+        .replace("{{PREV_TAG}}", prev_tag)
+        .replace("{{COMMITS_ADDED}}", added)
+        .replace("{{COMMITS_CHANGED}}", changed)
+        .replace("{{COMMITS_REMOVED}}", removed)
+        .replace("{{COMMITS_FIXED}}", fixed)
+        .replace("{{COMMITS}}", commits)
+       )
+out_path.parent.mkdir(parents=True, exist_ok=True)
+out_path.write_text(text)
+PY
+
+echo "draft-notes.sh: wrote ${OUT}"

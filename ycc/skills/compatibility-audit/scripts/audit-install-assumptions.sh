@@ -1,35 +1,48 @@
 #!/usr/bin/env bash
 # audit-install-assumptions.sh — validate install-path assumptions for each
-# generated compatibility target (Claude, Cursor, Codex).
+# generated compatibility target (Claude, Cursor, Codex, opencode).
 #
 # Flags:
-#   --target=<claude|cursor|codex|all>  (default: all)
-#   --format=<human|json>               (default: human)
-#   --help, -h                          print usage and exit 0
+#   --target=<claude|cursor|codex|opencode|all>  (default: all)
+#   --format=<human|json>                        (default: human)
+#   --help, -h                                   print usage and exit 0
 #
 # Exit: 0=all PASS, 1=any FAIL, 2=usage error
 
 set -euo pipefail
 
 usage() { cat <<'EOF'
-Usage: audit-install-assumptions.sh [--target=<claude|cursor|codex|all>]
+Usage: audit-install-assumptions.sh [--target=<claude|cursor|codex|opencode|all>]
                                     [--format=<human|json>] [--help|-h]
+                                    [repo-root]
 
 Validates install-path assumptions for each generated compatibility target.
 Exit 0 if all checks pass; 1 if any fail; 2 on usage error.
 EOF
 }
 
-TARGET="all"; FORMAT="human"
+TARGET="all"; FORMAT="human"; REPO_ROOT_INPUT=""
 for arg in "$@"; do
   case "$arg" in
     --target=*) TARGET="${arg#--target=}" ;;
     --format=*) FORMAT="${arg#--format=}" ;;
     --help|-h)  usage; exit 0 ;;
-    *) echo "audit-install-assumptions.sh: unknown flag: $arg" >&2; usage >&2; exit 2 ;;
+    -*)
+      echo "audit-install-assumptions.sh: unknown flag: $arg" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      if [[ -n "$REPO_ROOT_INPUT" ]]; then
+        echo "audit-install-assumptions.sh: multiple repo roots provided: $REPO_ROOT_INPUT and $arg" >&2
+        usage >&2
+        exit 2
+      fi
+      REPO_ROOT_INPUT="$arg"
+      ;;
   esac
 done
-case "$TARGET" in all|claude|cursor|codex) ;;
+case "$TARGET" in all|claude|cursor|codex|opencode) ;;
   *) echo "audit-install-assumptions.sh: unknown --target: $TARGET" >&2; usage >&2; exit 2 ;; esac
 case "$FORMAT" in human|json) ;;
   *) echo "audit-install-assumptions.sh: unknown --format: $FORMAT" >&2; usage >&2; exit 2 ;; esac
@@ -39,7 +52,19 @@ case "$FORMAT" in human|json) ;;
 # installed plugin). Fall back to walking up from SCRIPT_DIR for dev/source-tree use.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
 REPO_ROOT=""
-if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" && -d "${CLAUDE_PLUGIN_ROOT}" ]]; then
+if [[ -n "$REPO_ROOT_INPUT" ]]; then
+  if [[ ! -d "$REPO_ROOT_INPUT" ]]; then
+    echo "audit-install-assumptions.sh: repo root input is not a directory: $REPO_ROOT_INPUT" >&2
+    exit 2
+  fi
+  candidate="$(cd "$REPO_ROOT_INPUT" && pwd)"
+  while [[ "$candidate" != "/" ]]; do
+    [[ -f "$candidate/.claude-plugin/marketplace.json" ]] && { REPO_ROOT="$candidate"; break; }
+    candidate="$(dirname "$candidate")"
+  done
+  [[ -z "$REPO_ROOT" && -f "/.claude-plugin/marketplace.json" ]] && REPO_ROOT="/"
+fi
+if [[ -z "$REPO_ROOT" && -n "${CLAUDE_PLUGIN_ROOT:-}" && -d "${CLAUDE_PLUGIN_ROOT}" ]]; then
   # Normalize trailing slash and accept the value directly as REPO_ROOT-equivalent.
   # Downstream code references REPO_ROOT for .claude-plugin/, .cursor-plugin/,
   # .codex-plugin/ and ycc/.claude-plugin/ — these all live at the repo root.
@@ -59,6 +84,14 @@ if [[ -z "$REPO_ROOT" ]]; then
     candidate="$(dirname "$candidate")"
   done
 fi
+if [[ -z "$REPO_ROOT" ]]; then
+  candidate="$PWD"
+  while [[ "$candidate" != "/" ]]; do
+    [[ -f "$candidate/.claude-plugin/marketplace.json" ]] && { REPO_ROOT="$candidate"; break; }
+    candidate="$(dirname "$candidate")"
+  done
+fi
+[[ -z "$REPO_ROOT" && -f "/.claude-plugin/marketplace.json" ]] && REPO_ROOT="/"
 [[ -z "$REPO_ROOT" ]] && { echo "audit-install-assumptions.sh: repo root not found" >&2; exit 2; }
 echo "audit-install-assumptions.sh: repo root is $REPO_ROOT" >&2
 
@@ -196,13 +229,82 @@ PY
 }
 
 # ---------------------------------------------------------------------------
+# opencode checks
+# ---------------------------------------------------------------------------
+run_opencode_checks() {
+  local odir="${REPO_ROOT}/.opencode-plugin"
+  [[ -d "$odir" ]] && record "opencode" "OC1" "PASS" "" \
+    || { record "opencode" "OC1" "FAIL" "${odir} does not exist"; return; }
+
+  local miss=()
+  for s in skills agents commands; do [[ -d "${odir}/${s}" ]] || miss+=("$s"); done
+  [[ ${#miss[@]} -eq 0 ]] && record "opencode" "OC2" "PASS" "" \
+    || record "opencode" "OC2" "FAIL" "missing: ${miss[*]}"
+
+  # OC3: opencode.json is valid JSON with expected top-level keys
+  local cfg="${odir}/opencode.json"
+  if   [[ ! -f "$cfg" ]]; then record "opencode" "OC3" "FAIL" "${cfg} does not exist"
+  elif json_ok "$cfg";    then
+    local r; set +e
+    r=$(python3 - "$cfg" <<'PY'
+import json,sys
+d=json.load(open(sys.argv[1]))
+required={"$schema","instructions"}
+missing=required - set(d)
+if missing: print(f"FAIL:{sys.argv[1]}: missing keys {sorted(missing)}")
+elif d.get("$schema")!="https://opencode.ai/config.json": print(f"FAIL:$schema={d.get('$schema')!r} (expected 'https://opencode.ai/config.json')")
+else: print("PASS:")
+PY
+    ); set -e; record "opencode" "OC3" "${r%%:*}" "${r#*:}"
+  else record "opencode" "OC3" "FAIL" "${cfg} is not valid JSON"; fi
+
+  # OC4: AGENTS.md exists (bundle-level rules file)
+  local rules="${odir}/AGENTS.md"
+  [[ -f "$rules" ]] && record "opencode" "OC4" "PASS" "" \
+    || record "opencode" "OC4" "FAIL" "${rules} does not exist"
+
+  # OC5/OC6: no Claude-plugin residue in the opencode bundle's code/config
+  # files. Cross-target meta files copied verbatim are allowed to reference
+  # CLAUDE_* identifiers because they describe all four targets (matches the
+  # VERBATIM_SKILL_FILES set in generate_opencode_common.py).
+  local oc_excludes=(
+    --exclude-dir=compatibility-audit
+    --exclude="support-notes.md"
+    --exclude="target-capability-matrix.md"
+    --exclude="build-hook-config.sh"
+  )
+  local hits pr_token pr_pattern
+  pr_token="CLAUDE_PLUGIN"
+  pr_pattern="${pr_token}_ROOT"
+  set +e
+  hits=$(grep -rl --include='*.json' --include='*.sh' --include='*.toml' --include='*.yaml' --include='*.yml' \
+    "${oc_excludes[@]}" -- "${pr_pattern}" "${odir}" 2>/dev/null | head -5)
+  set -e
+  [[ -z "$hits" ]] && record "opencode" "OC5" "PASS" "" \
+    || record "opencode" "OC5" "FAIL" "plugin-root variable residue in code/config: $(printf '%s ' "$hits")"
+
+  # OC6: Claude config-path residue in NON-markdown files.
+  local cc_token cc_pattern cc_label
+  cc_token="claude"
+  cc_pattern='\.'"${cc_token}"'/'
+  cc_label=".${cc_token}/"
+  set +e
+  hits=$(grep -rl --include='*.json' --include='*.sh' --include='*.toml' --include='*.yaml' --include='*.yml' \
+    "${oc_excludes[@]}" -- "${cc_pattern}" "${odir}" 2>/dev/null | head -5)
+  set -e
+  [[ -z "$hits" ]] && record "opencode" "OC6" "PASS" "" \
+    || record "opencode" "OC6" "FAIL" "${cc_label} residue in code/config: $(printf '%s ' "$hits")"
+}
+
+# ---------------------------------------------------------------------------
 # Dispatch
 # ---------------------------------------------------------------------------
 case "$TARGET" in
-  claude) run_claude_checks ;;
-  cursor) run_cursor_checks ;;
-  codex)  run_codex_checks  ;;
-  all)    run_claude_checks; run_cursor_checks; run_codex_checks ;;
+  claude)   run_claude_checks ;;
+  cursor)   run_cursor_checks ;;
+  codex)    run_codex_checks  ;;
+  opencode) run_opencode_checks ;;
+  all)      run_claude_checks; run_cursor_checks; run_codex_checks; run_opencode_checks ;;
 esac
 
 OVERALL_RC=0
@@ -212,7 +314,7 @@ for s in "${CS[@]}"; do [[ "$s" == "FAIL" ]] && { OVERALL_RC=1; break; }; done
 # Human output
 # ---------------------------------------------------------------------------
 emit_human() {
-  local tgts=(); [[ "$TARGET" == "all" ]] && tgts=(claude cursor codex) || tgts=("$TARGET")
+  local tgts=(); [[ "$TARGET" == "all" ]] && tgts=(claude cursor codex opencode) || tgts=("$TARGET")
   local n=${#CI[@]}
   for tgt in "${tgts[@]}"; do
     local pass=0 fail=0 i=0
@@ -256,7 +358,7 @@ ss=[rd(f"{tmp}/s_{i}") for i in range(n)]; ds=[rd(f"{tmp}/d_{i}") for i in range
 def build(t):
     ch=[{"id":ids[i],"status":ss[i],"detail":ds[i] or None} for i in range(n) if ts[i]==t]
     return {"checks":ch,"ok":all(c["status"]!="FAIL" for c in ch)}
-names=["claude","cursor","codex"] if tgt=="all" else [tgt]
+names=["claude","cursor","codex","opencode"] if tgt=="all" else [tgt]
 out={t:build(t) for t in names}
 print(json.dumps({"as_of":datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "targets":out,"ok":all(v["ok"] for v in out.values())},indent=2))

@@ -89,7 +89,8 @@ SELECT COUNT(*) FROM table_name WHERE column_name IS NULL;
 ### Creating Indexes
 
 ```sql
--- Use CONCURRENTLY to avoid locking
+-- Use CONCURRENTLY to avoid locking.
+-- Must be executed outside an explicit transaction block.
 CREATE INDEX CONCURRENTLY idx_name ON table_name(column_name);
 ```
 
@@ -115,7 +116,7 @@ END;
 $$;
 
 -- Grant appropriate permissions
-GRANT EXECUTE ON FUNCTION function_name TO authenticated;
+GRANT EXECUTE ON FUNCTION function_name(type1, type2) TO authenticated;
 ```
 
 ## Change Execution Workflow
@@ -134,7 +135,7 @@ GRANT EXECUTE ON FUNCTION function_name TO authenticated;
 3. **Execution**:
    - Start with least destructive changes
    - Add new before removing old
-   - Use transactions for multi-step operations
+   - Use transactions for multi-step operations, except commands that PostgreSQL disallows inside explicit transactions (for example, `CREATE INDEX CONCURRENTLY`)
    - Include helpful comments in schema objects
 
 4. **Post-Change Verification**:
@@ -173,4 +174,5 @@ If an error occurs:
 
 Remember: Production data is sacred. When in doubt, gather more information before proceeding. It's better to be overly cautious than to corrupt or lose data.
 
-Admin User Id Reference: a73cc13f-47fa-449c-b9e6-044f2665c67d
+Admin User Id Reference: {{ADMIN_USER_ID_FROM_SECURE_CONFIG}}
+This placeholder is operator-provided and must be replaced before deployment with a UUID from secure configuration (for example, your managed secret store value for the platform admin user).

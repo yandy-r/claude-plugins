@@ -7,11 +7,13 @@ marketplace at `.claude-plugin/marketplace.json`. All skills, commands, and agen
 under `ycc/` and are accessed at runtime as `ycc:{skill}`, `/ycc:{command}`, or
 `subagent_type: "ycc:{agent}"`.
 
-The same source trees also generate native compatibility bundles for Cursor and Codex:
+The same source trees also generate native compatibility bundles for Cursor, Codex, and
+opencode:
 
 - Cursor bundle: `.cursor-plugin/`
 - Codex bundle: `.codex-plugin/ycc/`
 - Codex custom agents: `.codex-plugin/agents/`
+- opencode bundle: `.opencode-plugin/` (skills, agents, commands, AGENTS.md, opencode.json)
 
 > Pre-2.0 versions shipped 9 separate plugins. 2.0.0 collapsed them into one bundle so
 > every skill is reachable via the same `ycc:` namespace prefix. See `docs/plans/` for
@@ -27,6 +29,12 @@ claude-plugins/
 │   ├── agents/              # generated Codex custom agents
 │   └── ycc/                 # generated Codex plugin root
 ├── .cursor-plugin/          # generated Cursor bundle
+├── .opencode-plugin/        # generated opencode bundle
+│   ├── skills/              # → ~/.config/opencode/skills/
+│   ├── agents/              # → ~/.config/opencode/agents/
+│   ├── commands/            # → ~/.config/opencode/commands/
+│   ├── AGENTS.md            # opencode rules file
+│   └── opencode.json        # schema + default model + MCP translation
 ├── ycc/
 │   ├── .claude-plugin/
 │   │   └── plugin.json      # name: "ycc", version: 2.0.0
@@ -103,12 +111,19 @@ the full policy on what belongs in `ycc` and what to reject.
 
 ## Generated Compatibility Targets
 
-- `ycc/skills/` is the source of truth for Cursor and Codex skill generation.
-- `ycc/agents/` is the source of truth for Cursor and Codex agent generation.
-- Do not hand-edit generated files under `.cursor-plugin/` or `.codex-plugin/` unless
-  you are first changing the generator.
+- `ycc/skills/` is the source of truth for Cursor, Codex, and opencode skill generation.
+- `ycc/agents/` is the source of truth for Cursor, Codex, and opencode agent generation.
+- `ycc/commands/` is the source of truth for opencode command generation (Cursor does not
+  natively consume `.md` commands; Codex has no slash-command layer).
+- Do not hand-edit generated files under `.cursor-plugin/`, `.codex-plugin/`, or
+  `.opencode-plugin/` unless you are first changing the generator.
 - Codex does not support this repo's custom slash-command layer as installable artifacts.
   The native Codex target exposes skills via the plugin bundle and agents via TOML files.
+- opencode has first-class support for skills, agents, AND commands. The opencode bundle
+  ships all three, plus an `opencode.json` config (with MCP translated from
+  `mcp-configs/mcp.json`) and an `AGENTS.md` rules file derived from this document.
+- See [`ycc/skills/_shared/references/target-capability-matrix.md`](ycc/skills/_shared/references/target-capability-matrix.md)
+  for the authoritative per-target capability table.
 
 ## Testing Changes
 
@@ -122,8 +137,17 @@ After modifying anything under `ycc/`:
    `find ycc/skills -name "*.sh" -not -executable` (should output nothing).
 4. Test the skill or command in a live Claude Code session via its `ycc:` prefix.
 
-If you changed `ycc/skills/` or `ycc/agents/`, also regenerate and validate the
-compatibility bundles:
+If you changed `ycc/skills/`, `ycc/agents/`, or `ycc/commands/`, also regenerate and
+validate the compatibility bundles. The recommended pair is the unified entrypoints:
+
+```bash
+./scripts/sync.sh         # regenerate inventory + cursor + codex + opencode bundles
+./scripts/validate.sh     # run every validator (this is what CI runs)
+```
+
+Both accept `--only <targets>` with comma-separated values (`inventory, cursor, codex,
+opencode, json`). The individual generator / validator scripts are still available
+for targeted iteration:
 
 1. Codex:
    - `./scripts/generate-codex-skills.sh`
@@ -139,6 +163,15 @@ compatibility bundles:
    - `./scripts/validate-cursor-skills.sh`
    - `./scripts/validate-cursor-agents.sh`
    - `./scripts/validate-cursor-rules.sh`
+3. opencode:
+   - `./scripts/generate-opencode-skills.sh`
+   - `./scripts/generate-opencode-agents.sh`
+   - `./scripts/generate-opencode-commands.sh`
+   - `./scripts/generate-opencode-plugin.sh`
+   - `./scripts/validate-opencode-skills.sh`
+   - `./scripts/validate-opencode-agents.sh`
+   - `./scripts/validate-opencode-commands.sh`
+   - `./scripts/validate-opencode-plugin.sh`
 
 ## Precedence
 
@@ -171,18 +204,18 @@ This project uses **Conventional Commits 1.0.0**. Every commit title must match:
 
 ### Types
 
-| Type | Purpose | Version bump |
-|------|---------|--------------|
-| `feat` | New user-facing feature | minor |
-| `fix` | User-facing bug fix | patch |
-| `docs` | Documentation only | — |
-| `refactor` | Code change that is neither fix nor feature | — |
-| `perf` | Performance improvement | — |
-| `test` | Adding or correcting tests | — |
-| `build` | Build system or external dependency changes | — |
-| `ci` | CI/CD configuration changes | — |
-| `chore` | Other non-user-facing changes | — |
-| `style` | Formatting/whitespace only | — |
+| Type       | Purpose                                     | Version bump |
+| ---------- | ------------------------------------------- | ------------ |
+| `feat`     | New user-facing feature                     | minor        |
+| `fix`      | User-facing bug fix                         | patch        |
+| `docs`     | Documentation only                          | —            |
+| `refactor` | Code change that is neither fix nor feature | —            |
+| `perf`     | Performance improvement                     | —            |
+| `test`     | Adding or correcting tests                  | —            |
+| `build`    | Build system or external dependency changes | —            |
+| `ci`       | CI/CD configuration changes                 | —            |
+| `chore`    | Other non-user-facing changes               | —            |
+| `style`    | Formatting/whitespace only                  | —            |
 
 ### Scope
 
@@ -204,12 +237,12 @@ Use `docs(internal): …` for files under `docs/plans`, `docs/research`, or `doc
 
 ## Stack Overview
 
-| Layer | Technology | Notes |
-|-------|-----------|-------|
-| Primary language | **mixed** (Shell + Markdown) | Plugin source under `ycc/` |
-| Generators | Python 3 | `scripts/generate_*.py` emit Cursor/Codex bundles |
-| Helper scripts | Bash | `scripts/lint.sh`, `scripts/format.sh` |
-| Package manager | npm | Drives lint/format only — no test or build target |
+| Layer            | Technology                   | Notes                                             |
+| ---------------- | ---------------------------- | ------------------------------------------------- |
+| Primary language | **mixed** (Shell + Markdown) | Plugin source under `ycc/`                        |
+| Generators       | Python 3                     | `scripts/generate_*.py` emit Cursor/Codex bundles |
+| Helper scripts   | Bash                         | `scripts/lint.sh`, `scripts/format.sh`            |
+| Package manager  | npm                          | Drives lint/format only — no test or build target |
 
 ## Commands
 

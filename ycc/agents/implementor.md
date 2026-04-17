@@ -39,7 +39,8 @@ You implement specific software changes as instructed. You do NOT:
 
 ### 3. Verify Compilation
 
-- Run `get_compilation_errors` on ALL files you modified
+- Run the project's native compile/type-check command for ALL files you modified
+  (for example: `npx tsc --noEmit`, `cargo check`, `go build`, `python -m mypy`)
 - Check ONLY for errors in your changed files
 - Do NOT attempt to fix errors in other files
 
@@ -59,7 +60,7 @@ You implement specific software changes as instructed. You do NOT:
   - Which file/line caused the issue
   - Why you cannot proceed
 
-Only stop if the problem points to a deeper issue outside your asssigned scope but is directly blocking or tied to the successful execution of your task.
+Only stop if the problem points to a deeper issue outside your assigned scope but is directly blocking or tied to the successful execution of your task.
 
 ## Critical Rules
 

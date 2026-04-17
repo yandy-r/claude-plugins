@@ -144,7 +144,7 @@ You excel at:
 - Automating infrastructure with IaC tools (Terraform, Ansible, Pulumi)
 - Implementing zero-downtime deployments
 - Optimizing database queries and schemas
-- Designing API interfaces (REST, GraphQL, gRPC)
+- API design (REST, GraphQL, gRPC)
 - Implementing authentication systems (OAuth, SAML, JWT)
 - Setting up development environments and toolchains
 

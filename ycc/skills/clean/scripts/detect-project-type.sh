@@ -329,16 +329,16 @@ echo "Detecting project types..."
 echo ""
 
 # Run all detections
-detect_docker
-detect_nodejs
-detect_python
-detect_go
-detect_rust
-detect_ruby
-detect_java
-detect_php
+detect_docker || true
+detect_nodejs || true
+detect_python || true
+detect_go || true
+detect_rust || true
+detect_ruby || true
+detect_java || true
+detect_php || true
 IS_GIT=0
-detect_git && IS_GIT=1
+detect_git && IS_GIT=1 || true
 
 echo ""
 echo "=========================================="
@@ -378,7 +378,7 @@ if [[ " ${PROJECT_TYPES[*]} " =~ " Docker " ]]; then
     echo "  - Check for old Dockerfile variants"
 fi
 
-if [[ " ${PROJECT_TYPES[*]} " =~  Node.js  ]]; then
+if [[ " ${PROJECT_TYPES[*]} " == *" Node.js "* ]]; then
     echo ""
     echo "Node.js Project Notes:"
     echo "  - node_modules/ is protected (managed by npm/yarn/pnpm)"
@@ -412,7 +412,7 @@ echo "JSON Output (for programmatic use):"
 cat << EOF
 {
   "primary_type": "$PRIMARY_TYPE",
-  "all_types": [$(printf '"%s",' "${PROJECT_TYPES[@]}" | sed 's/,$//')]",
+  "all_types": [$(printf '"%s",' "${PROJECT_TYPES[@]}" | sed 's/,$//')],
   "confidence": "$CONFIDENCE",
   "is_git": $IS_GIT,
   "target_directory": "$TARGET_DIR"

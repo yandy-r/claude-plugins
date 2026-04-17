@@ -6,13 +6,13 @@
 #   ./scripts/sync.sh --only inventory           # single target
 #   ./scripts/sync.sh --only cursor,codex        # comma-separated subset
 #
-# Targets: inventory, cursor, codex
+# Targets: inventory, cursor, codex, opencode
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-VALID_TARGETS=(inventory cursor codex)
+VALID_TARGETS=(inventory cursor codex opencode)
 TARGETS=("${VALID_TARGETS[@]}")
 
 usage() {
@@ -29,6 +29,7 @@ Examples:
   $(basename "$0")
   $(basename "$0") --only inventory
   $(basename "$0") --only cursor,codex
+  $(basename "$0") --only opencode
 EOF
 }
 
@@ -83,6 +84,16 @@ run_target() {
             "${REPO_ROOT}/scripts/generate-codex-agents.sh"
             echo "== sync: codex plugin =="
             "${REPO_ROOT}/scripts/generate-codex-plugin.sh"
+            ;;
+        opencode)
+            echo "== sync: opencode skills =="
+            "${REPO_ROOT}/scripts/generate-opencode-skills.sh"
+            echo "== sync: opencode agents =="
+            "${REPO_ROOT}/scripts/generate-opencode-agents.sh"
+            echo "== sync: opencode commands =="
+            "${REPO_ROOT}/scripts/generate-opencode-commands.sh"
+            echo "== sync: opencode plugin =="
+            "${REPO_ROOT}/scripts/generate-opencode-plugin.sh"
             ;;
     esac
 }

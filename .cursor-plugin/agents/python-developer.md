@@ -18,7 +18,7 @@ You implement:
 - CLI tools with Typer/Click including commands, options, and help text
 - Data pipelines with polars/pandas, file processing, and ETL workflows
 - Async applications with asyncio TaskGroups, queues, and structured concurrency
-- Database integrations with SQLAlchemy 2.0, Alembic migrations, and Drizzle
+- Database integrations with SQLAlchemy 2.0 and Alembic migrations
 - pytest test suites with fixtures, parametrize, and proper conftest.py organization
 - Dockerfiles with multi-stage builds optimized for Python
 - CI/CD configurations for Python projects
