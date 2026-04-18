@@ -117,25 +117,28 @@ This repository maintains generated compatibility trees under **`.cursor-plugin/
 
 Shared MCP server definitions live in [`mcp-configs/mcp.json`](mcp-configs/mcp.json). The installer is organized around **targets** and **steps** — each target exposes a set of steps that can be run by default, added with an additive flag, or isolated with `--only`.
 
-| Target     | Steps              | Notes                                                                                                                                      |
-| ---------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `claude`   | `settings`, `mcp`  | No default step — pass `--settings`, `--mcp`, or `--only <steps>`.                                                                         |
-| `cursor`   | `base`, `mcp`      | `base` = generate + validate + format + rsync `skills/`, `agents/`, `rules/` into `~/.cursor/`.                                            |
-| `codex`    | `base`, `settings` | `base` = generate + validate + format + sync plugin & agents + merge `~/.agents/.../marketplace.json`.                                     |
-| `opencode` | `base`, `settings` | `base` = generate + validate + format + rsync `skills/agents/commands` into `~/.config/opencode/`. `settings` symlinks config + AGENTS.md. |
-| `all`      | —                  | Runs `claude`, `cursor`, `codex`, then `opencode`; step flags propagate.                                                                   |
+| Target     | Steps                     | Notes                                                                                                                                           |
+| ---------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `claude`   | `settings`, `mcp`         | No default step — pass `--settings`, `--mcp`, or `--only <steps>`. `settings` also links user-global `CLAUDE.md` + `AGENTS.md`.                 |
+| `cursor`   | `base`, `mcp`, `settings` | `base` = generate + validate + format + rsync `skills/`, `agents/`, `rules/` into `~/.cursor/`. `settings` links user-global rules.             |
+| `codex`    | `base`, `settings`        | `base` = generate + validate + format + sync plugin & agents + merge `~/.agents/.../marketplace.json`. `settings` also links user-global rules. |
+| `opencode` | `base`, `settings`        | `base` = generate + validate + format + rsync `skills/agents/commands` into `~/.config/opencode/`. `settings` symlinks config + AGENTS.md.      |
+| `all`      | —                         | Runs `claude`, `cursor`, `codex`, then `opencode`; step flags propagate.                                                                        |
 
 Step reference:
 
 - `base` — full generator/validator/sync pipeline for the target (cursor/codex/opencode).
-- `settings` — symlinks per-target config files into the IDE's config dir:
-  - claude: `ycc/settings/{settings.json,statusline-command.sh}` → `~/.claude/`
-  - codex: `.codex-plugin/config/{config.toml,default.rules}` → `~/.codex/`
-  - opencode: `.opencode-plugin/{opencode.json,AGENTS.md}` → `~/.config/opencode/`
+- `settings` — symlinks per-target config files into the IDE's config dir. Every target also links the generic user-global rules from [`ycc/settings/rules/`](ycc/settings/rules/) (see that dir's README for the scope rationale):
+  - claude: `ycc/settings/{settings.json,statusline-command.sh}` + `ycc/settings/rules/{CLAUDE.md,AGENTS.md}` → `~/.claude/`
+  - cursor: `ycc/settings/rules/{CLAUDE.md,AGENTS.md}` → `~/.cursor/` (top level — NOT inside `~/.cursor/rules/`, which gets `rsync --delete`d during `base`)
+  - codex: `.codex-plugin/config/{config.toml,default.rules}` + `ycc/settings/rules/{CLAUDE.md,AGENTS.md}` → `~/.codex/`
+  - opencode: `.opencode-plugin/{opencode.json,AGENTS.md}` → `~/.config/opencode/` (opencode's `AGENTS.md` is generator-produced from the repo `CLAUDE.md`, not the generic rules tree)
 - `mcp` — shared `mcp-configs/mcp.json` integration:
   - claude: merges `mcpServers` into `~/.claude.json` (preserves other keys such as `projects`)
   - cursor: symlinks `mcp-configs/mcp.json` → `~/.cursor/mcp.json` (kept in sync across systems)
   - opencode: there is no separate `mcp` step — the generated `opencode.json` already embeds the translated MCP block, and enabling it is part of the `settings` step.
+
+The rules linker refuses to overwrite a real (non-symlink) `CLAUDE.md` / `AGENTS.md` at a destination. Pass `--force` to replace a user-authored file.
 
 ### Install targets
 
@@ -143,16 +146,19 @@ Step reference:
 # Default (no --only): run base step if the target has one, then any additive flags.
 ./install.sh --target cursor                        # base only
 ./install.sh --target cursor --mcp                  # base + symlink MCP
-./install.sh --target codex --settings              # base + link codex config.toml/default.rules
+./install.sh --target cursor --settings             # base + link user-global rules
+./install.sh --target codex --settings              # base + codex config + rules
 ./install.sh --target opencode                      # base only (skills + agents + commands)
 ./install.sh --target opencode --settings           # base + link opencode.json + AGENTS.md
-./install.sh --target claude --settings --mcp       # symlink settings + merge MCP
+./install.sh --target claude --settings --mcp       # symlink settings + rules + merge MCP
 ./install.sh --target all --settings --mcp          # everything across all targets
+./install.sh --target all --settings --force        # same, overwriting user-authored rules
 
 # Exclusive (--only): run exactly the listed steps, nothing else.
 ./install.sh --target claude   --only mcp           # merge MCP, skip settings link
 ./install.sh --target cursor   --only mcp           # just the MCP symlink
-./install.sh --target codex    --only settings      # just the codex config symlinks
+./install.sh --target cursor   --only settings      # just the cursor rules symlinks
+./install.sh --target codex    --only settings      # just the codex config + rules symlinks
 ./install.sh --target codex    --only base,settings # equivalent to default + --settings
 ./install.sh --target opencode --only settings      # just the opencode config + rules symlinks
 ```

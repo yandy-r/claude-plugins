@@ -45,9 +45,30 @@ link_file() {
     info "linked $dest -> $src"
 }
 
+# link_rules_file <src> <dest>
+# Stricter variant of link_file for user-customizable agent rules files
+# (CLAUDE.md, AGENTS.md). Behaves like link_file EXCEPT that a real
+# (non-symlink) regular file at <dest> is treated as user content and the
+# link is refused unless FORCE=1. Symlinks are replaced as usual.
+link_rules_file() {
+    local src="$1"
+    local dest="$2"
+    [[ -e "$src" ]] || { err "rules source not found: $src"; exit 1; }
+    if [[ -d "$dest" && ! -L "$dest" ]]; then
+        err "refusing to replace directory with symlink: $dest"
+        exit 1
+    fi
+    if [[ -e "$dest" && ! -L "$dest" && "${FORCE:-0}" != "1" ]]; then
+        err "refusing to replace user-authored rules file: $dest"
+        err "  move it aside or re-run with --force to overwrite."
+        exit 1
+    fi
+    link_file "$src" "$dest"
+}
+
 usage() {
     cat <<EOF
-Usage: $(basename "$0") --target <target> [--settings] [--mcp] [--only <steps>]
+Usage: $(basename "$0") --target <target> [--settings] [--mcp] [--force] [--only <steps>]
 
 Sync plugin assets to an IDE configuration directory.
 
@@ -55,6 +76,9 @@ Options:
   --target <target>   Target: claude, cursor, codex, opencode, or all
   --settings          Additive: also run the target's 'settings' step.
   --mcp               Additive: also run the target's 'mcp' step.
+  --force             Replace a real (non-symlink) rules file (CLAUDE.md /
+                      AGENTS.md) at the destination. Without --force, the
+                      rules linker refuses to overwrite user-authored files.
   --only <steps>      Exclusive: run only the comma-separated steps
                       (e.g. --only settings, --only mcp,settings).
                       Overrides defaults and --settings/--mcp.
@@ -70,36 +94,45 @@ Semantics:
 Target steps:
   claude    settings | mcp
             settings: symlink ycc/settings/{settings.json,statusline-command.sh}
-                      into ~/.claude/.
+                      AND ycc/settings/rules/{CLAUDE.md,AGENTS.md} into ~/.claude/.
             mcp:      merge mcp-configs/mcp.json mcpServers into ~/.claude.json.
             (no base; claude is flag-driven.)
-  cursor    base | mcp
+  cursor    base | mcp | settings
             base:     generate + validate + format + rsync bundle to ~/.cursor/.
             mcp:      symlink mcp-configs/mcp.json → ~/.cursor/mcp.json.
+            settings: symlink ycc/settings/rules/{CLAUDE.md,AGENTS.md} into
+                      ~/.cursor/ (top level — NOT inside ~/.cursor/rules/, which
+                      is rsynced with --delete during 'base').
   codex     base | settings
             base:     generate + validate + format + rsync plugin & agents +
                       merge marketplace entry.
             settings: symlink .codex-plugin/config/{config.toml,default.rules}
-                      into ~/.codex/.
+                      AND ycc/settings/rules/{CLAUDE.md,AGENTS.md} into ~/.codex/.
   opencode  base | settings
             base:     generate + validate + format + rsync skills/agents/commands
                       into ~/.config/opencode/.
             settings: symlink .opencode-plugin/{opencode.json,AGENTS.md} into
-                      ~/.config/opencode/ (opencode reads MCP from opencode.json,
-                      so enable MCP via --settings — there is no separate mcp step).
+                      ~/.config/opencode/ (opencode's AGENTS.md is generator-
+                      produced from the repo CLAUDE.md, not the generic
+                      ycc/settings/rules tree). opencode reads MCP from
+                      opencode.json, so enable MCP via --settings — there is no
+                      separate mcp step.
   all       Run claude then cursor then codex then opencode; step flags propagate.
 
 Examples:
   $(basename "$0") --target claude --settings --mcp
   $(basename "$0") --target claude --only mcp
-  $(basename "$0") --target cursor                  # base only
-  $(basename "$0") --target cursor --mcp            # base + mcp
-  $(basename "$0") --target cursor --only mcp       # mcp only
-  $(basename "$0") --target codex --settings        # base + settings
-  $(basename "$0") --target codex --only settings   # settings only
-  $(basename "$0") --target opencode                # base only
-  $(basename "$0") --target opencode --settings     # base + symlink config + rules
+  $(basename "$0") --target cursor                       # base only
+  $(basename "$0") --target cursor --mcp                 # base + mcp
+  $(basename "$0") --target cursor --settings            # base + rules symlinks
+  $(basename "$0") --target cursor --only settings       # rules only
+  $(basename "$0") --target codex --settings             # base + settings
+  $(basename "$0") --target codex --only settings        # settings only
+  $(basename "$0") --target opencode                     # base only
+  $(basename "$0") --target opencode --settings          # base + symlink config + rules
   $(basename "$0") --target all --settings --mcp
+  $(basename "$0") --target all --settings --force       # install rules everywhere,
+                                                         # overwriting user files
 EOF
 }
 
@@ -265,9 +298,11 @@ sync_claude_target() {
 
     local ran=0
     if step_enabled settings; then
-        printf '\n%sClaude: link settings + statusline%s\n' "${BOLD}" "${NC}"
-        link_file "${SCRIPT_DIR}/ycc/settings/settings.json"         "${HOME}/.claude/settings.json"
-        link_file "${SCRIPT_DIR}/ycc/settings/statusline-command.sh" "${HOME}/.claude/statusline-command.sh"
+        printf '\n%sClaude: link settings + statusline + rules%s\n' "${BOLD}" "${NC}"
+        link_file       "${SCRIPT_DIR}/ycc/settings/settings.json"         "${HOME}/.claude/settings.json"
+        link_file       "${SCRIPT_DIR}/ycc/settings/statusline-command.sh" "${HOME}/.claude/statusline-command.sh"
+        link_rules_file "${SCRIPT_DIR}/ycc/settings/rules/CLAUDE.md"       "${HOME}/.claude/CLAUDE.md"
+        link_rules_file "${SCRIPT_DIR}/ycc/settings/rules/AGENTS.md"       "${HOME}/.claude/AGENTS.md"
         ran=1
     fi
     if step_enabled mcp; then
@@ -361,10 +396,10 @@ PY
 }
 
 # ---------------------------------------------------------------------------
-# Cursor sync (base + optional MCP)
+# Cursor sync (base + optional MCP + optional settings/rules)
 # ---------------------------------------------------------------------------
 sync_cursor_target() {
-    validate_only_steps "cursor" "base,mcp"
+    validate_only_steps "cursor" "base,mcp,settings"
 
     local cursor_dir="${HOME}/.cursor"
     local scripts_dir="${SCRIPT_DIR}/scripts"
@@ -374,11 +409,12 @@ sync_cursor_target() {
 
     mkdir -p "${cursor_dir}"
 
-    local do_base=0 do_mcp=0
+    local do_base=0 do_mcp=0 do_settings=0
     step_enabled base && do_base=1
     step_enabled mcp && do_mcp=1
+    step_enabled settings && do_settings=1
 
-    if [[ $do_base -eq 0 && $do_mcp -eq 0 ]]; then
+    if [[ $do_base -eq 0 && $do_mcp -eq 0 && $do_settings -eq 0 ]]; then
         warn "Cursor target ran no steps"
         printf '\n%sCursor sync complete.%s\n' "${BOLD}" "${NC}"
         return 0
@@ -387,6 +423,7 @@ sync_cursor_target() {
     local total=0
     [[ $do_base -eq 1 ]] && total=$((total + 4))
     [[ $do_mcp -eq 1 ]] && total=$((total + 1))
+    [[ $do_settings -eq 1 ]] && total=$((total + 1))
     local step=0
 
     if [[ $do_base -eq 1 ]]; then
@@ -462,6 +499,16 @@ sync_cursor_target() {
         step=$((step + 1))
         printf '\n%s[%d/%d] Sync MCP to ~/.cursor/mcp.json%s\n' "${BOLD}" "$step" "$total" "${NC}"
         sync_cursor_mcp_json
+    fi
+
+    if [[ $do_settings -eq 1 ]]; then
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Link Cursor rules (CLAUDE.md + AGENTS.md)%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        # NOTE: linked at the ~/.cursor/ top level, NOT inside ~/.cursor/rules/.
+        # The base step's rsync --delete on ~/.cursor/rules/ would clobber a link
+        # placed inside that directory.
+        link_rules_file "${SCRIPT_DIR}/ycc/settings/rules/CLAUDE.md" "${cursor_dir}/CLAUDE.md"
+        link_rules_file "${SCRIPT_DIR}/ycc/settings/rules/AGENTS.md" "${cursor_dir}/AGENTS.md"
     fi
 
     printf '\n%sCursor sync complete.%s\n' "${BOLD}" "${NC}"
@@ -568,9 +615,11 @@ sync_codex_target() {
 
     if [[ $do_settings -eq 1 ]]; then
         step=$((step + 1))
-        printf '\n%s[%d/%d] Link Codex config files%s\n' "${BOLD}" "$step" "$total" "${NC}"
-        link_file "${SCRIPT_DIR}/.codex-plugin/config/config.toml"   "${HOME}/.codex/config.toml"
-        link_file "${SCRIPT_DIR}/.codex-plugin/config/default.rules" "${HOME}/.codex/rules/default.rules"
+        printf '\n%s[%d/%d] Link Codex config files + rules%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        link_file       "${SCRIPT_DIR}/.codex-plugin/config/config.toml"   "${HOME}/.codex/config.toml"
+        link_file       "${SCRIPT_DIR}/.codex-plugin/config/default.rules" "${HOME}/.codex/rules/default.rules"
+        link_rules_file "${SCRIPT_DIR}/ycc/settings/rules/CLAUDE.md"       "${HOME}/.codex/CLAUDE.md"
+        link_rules_file "${SCRIPT_DIR}/ycc/settings/rules/AGENTS.md"       "${HOME}/.codex/AGENTS.md"
     fi
 
     printf '\n%sCodex sync complete.%s\n' "${BOLD}" "${NC}"
@@ -693,6 +742,11 @@ sync_opencode_target() {
         printf '\n%s[%d/%d] Link opencode config and rules%s\n' "${BOLD}" "$step" "$total" "${NC}"
         mkdir -p "${opencode_dir}"
         link_file "${OPENCODE_PLUGIN_DIR}/opencode.json" "${opencode_dir}/opencode.json"
+        # NOTE: opencode's AGENTS.md is generator-produced (transformed from the
+        # repo-root CLAUDE.md — see scripts/generate_opencode_plugin.py) and
+        # therefore intentionally does NOT use ycc/settings/rules/. Do not
+        # "unify" this path with the other targets without first changing the
+        # generator; it ships ycc-aware rules via the opencode bundle contract.
         link_file "${OPENCODE_PLUGIN_DIR}/AGENTS.md"    "${opencode_dir}/AGENTS.md"
     fi
 
@@ -718,6 +772,7 @@ sync_all_targets() {
 TARGET=""
 MCP=0
 SETTINGS=0
+FORCE=0
 ONLY_STEPS=()
 
 while [[ $# -gt 0 ]]; do
@@ -742,6 +797,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --settings)
             SETTINGS=1
+            shift
+            ;;
+        --force)
+            FORCE=1
             shift
             ;;
         --help|-h)
