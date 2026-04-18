@@ -22,6 +22,27 @@ readonly TS_PROJECT_DIR="${TS_PROJECT_DIR:-$PROJECT_ROOT}"
 readonly DOCS_PROJECT_DIR="${DOCS_PROJECT_DIR:-$PROJECT_ROOT}"
 readonly PYTHON_PROJECT_DIR="${PYTHON_PROJECT_DIR:-$PROJECT_ROOT}"
 readonly GO_PROJECT_DIR="${GO_PROJECT_DIR:-$PROJECT_ROOT}"
+readonly BUNDLE_DEST_DIR_NAME="scripts"
+readonly BUNDLE_MANIFEST_FILE=".style-bundle-manifest"
+
+BUNDLE_MANAGED_FILES=(
+  "style.sh"
+  "format.sh"
+  "lint.sh"
+  "init-formatters.sh"
+  "go-tools.sh"
+  "lib/modified-files.sh"
+  "templates/markdownlint.json"
+  "templates/markdownlintignore"
+  "templates/prettierrc.json"
+  "templates/prettierignore"
+  "templates/python-pyproject.toml"
+  "templates/rustfmt.toml"
+  "templates/clippy.toml"
+  "templates/biome.json"
+  "templates/tsconfig.json"
+  "templates/package.json"
+)
 
 print_skip() {
   local section_name="$1"
@@ -41,6 +62,20 @@ require_command() {
     echo "Missing required command: ${command_name}" >&2
     return 1
   fi
+}
+
+array_contains() {
+  local needle="$1"
+  shift
+
+  local value
+  for value in "$@"; do
+    if [[ "$value" == "$needle" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
 }
 
 relativize_paths() {
@@ -119,6 +154,23 @@ can_init_python_project() {
   local target_dir="${1:-$PYTHON_PROJECT_DIR}"
 
   [[ ! -f "$target_dir/pyproject.toml" ]] && detect_python_project "$target_dir"
+}
+
+detect_rust_project() {
+  local target_dir="${1:-$RUST_PROJECT_DIR}"
+
+  [[ -f "$target_dir/Cargo.toml" ]] ||
+    directory_has_suffixes "$target_dir" ".rs"
+}
+
+detect_ts_project() {
+  local target_dir="${1:-$TS_PROJECT_DIR}"
+
+  [[ -f "$target_dir/package.json" ]] ||
+    compgen -G "$target_dir/tsconfig*.json" >/dev/null ||
+    [[ -f "$target_dir/biome.json" ]] ||
+    [[ -f "$target_dir/biome.jsonc" ]] ||
+    directory_has_suffixes "$target_dir" ".ts" ".tsx" ".mts" ".cts" ".js" ".jsx" ".mjs" ".cjs"
 }
 
 detect_go_project() {
@@ -586,12 +638,22 @@ Usage: style.sh <command> [options]
 Commands:
   lint     Run linters for the current project root
   format   Format files for the current project root
-  init     Initialize formatter/linter config files
+  init     Initialize formatter/linter config files and optional local script bundles
+
+Init targets:
+  docs, rust, ts, ts-node, python, go
+
+Init bundle modes:
+  --copy   Install or update the managed bundle in DIR/scripts/
+  --sync   Install or update the managed bundle and remove stale previously-managed files
+
+Run `style.sh init --help` for full init options and target details.
 
 Examples:
   style.sh lint --fix --python
   style.sh format --modified --go
   style.sh init --python --go --target ~/projects/my-app
+  style.sh init --copy --rust --ts-node ~/projects/my-app
 EOF
 }
 
@@ -644,20 +706,169 @@ EOF
 
 init_usage() {
   cat <<'EOF'
-Usage: style.sh init [--docs] [--python] [--go] [--all] [--target DIR] [--force] [--yes] [--dry-run]
+Usage: style.sh init [--copy|--sync] [--docs] [--rust] [--ts|--ts-node] [--python] [--go] [--all] [--target DIR] [--force] [--yes] [--dry-run] [DIR]
 
 Initialize formatter/linter config files for the current project root or a target directory.
 
 Options:
   --docs             Initialize markdownlint and prettier config files
+  --rust             Initialize rustfmt and clippy config files
+  --ts               Initialize Node/TypeScript linting config files
+  --ts-node          Alias for --ts
   --python           Initialize Python Ruff + Black config via pyproject.toml
   --go               Initialize .golangci.yml config
-  --all              Initialize docs, Python, and Go config files
-  -t, --target <dir> Target directory (default: PROJECT_ROOT)
+  --all              Initialize docs, Rust, TS, Python, and Go config files
+  --copy             Copy the managed style bundle into DIR/scripts/ before initializing configs
+  --sync             Copy the managed style bundle and prune stale previously-managed files
+  -t, --target <dir> Target directory
   --force            Overwrite existing files without prompt
   -y, --yes          Non-interactive mode; keep existing files
   --dry-run          Show actions without writing files
+
+Defaults:
+  Without --copy/--sync, the target defaults to PROJECT_ROOT.
+  With --copy/--sync, the target defaults to the current directory.
 EOF
+}
+
+copy_file_with_policy() {
+  local src="$1"
+  local dest="$2"
+  local force="$3"
+  local assume_yes="$4"
+  local dry_run="$5"
+  local action="create"
+
+  if [[ -e "$dest" ]]; then
+    action="overwrite"
+    if (( dry_run )); then
+      if (( !force && assume_yes )); then
+        print_info "[dry-run] Would keep existing file: $dest"
+        return 20
+      fi
+      print_info "[dry-run] Would ${action}: $dest"
+      return 20
+    fi
+
+    if (( !force )); then
+      if (( assume_yes )); then
+        print_info "Keeping existing file: $dest"
+        return 10
+      fi
+
+      local response
+      read -r -p "Overwrite existing file ${dest}? [y/N] " response
+      if [[ ! "$response" =~ ^[Yy]$ ]]; then
+        print_info "Keeping existing file: $dest"
+        return 10
+      fi
+    fi
+  fi
+
+  if (( dry_run )); then
+    print_info "[dry-run] Would ${action}: $dest"
+    return 20
+  fi
+
+  mkdir -p "$(dirname "$dest")"
+  cp "$src" "$dest"
+  if [[ "$action" == "overwrite" ]]; then
+    print_info "Overwrote: $dest"
+  else
+    print_info "Created: $dest"
+  fi
+  return 0
+}
+
+write_bundle_manifest() {
+  local bundle_dir="$1"
+  local dry_run="$2"
+  local manifest_path="${bundle_dir}/${BUNDLE_MANIFEST_FILE}"
+
+  if (( dry_run )); then
+    print_info "[dry-run] Would write manifest: $manifest_path"
+    return 0
+  fi
+
+  mkdir -p "$bundle_dir"
+  {
+    printf '# Managed by style.sh init\n'
+    local rel_path
+    for rel_path in "${BUNDLE_MANAGED_FILES[@]}"; do
+      printf '%s\n' "$rel_path"
+    done
+  } > "$manifest_path"
+}
+
+sync_bundle_removals() {
+  local bundle_dir="$1"
+  local dry_run="$2"
+  local manifest_path="${bundle_dir}/${BUNDLE_MANIFEST_FILE}"
+
+  if [[ ! -f "$manifest_path" ]]; then
+    return 0
+  fi
+
+  local rel_path dest_path
+  while IFS= read -r rel_path; do
+    [[ -z "$rel_path" ]] && continue
+    [[ "$rel_path" == \#* ]] && continue
+    if array_contains "$rel_path" "${BUNDLE_MANAGED_FILES[@]}"; then
+      continue
+    fi
+
+    dest_path="${bundle_dir}/${rel_path}"
+    if [[ ! -e "$dest_path" ]]; then
+      continue
+    fi
+
+    if (( dry_run )); then
+      print_info "[dry-run] Would remove stale managed file: $dest_path"
+      continue
+    fi
+
+    rm -f "$dest_path"
+    print_info "Removed stale managed file: $dest_path"
+  done < "$manifest_path"
+}
+
+install_managed_bundle() {
+  local target_dir="$1"
+  local sync_mode="$2"
+  local force="$3"
+  local assume_yes="$4"
+  local dry_run="$5"
+  local bundle_dir="${target_dir}/${BUNDLE_DEST_DIR_NAME}"
+  local exit_code=0
+
+  if (( sync_mode )); then
+    sync_bundle_removals "$bundle_dir" "$dry_run"
+  fi
+
+  local rel_path src_path dest_path
+  local copy_status
+  for rel_path in "${BUNDLE_MANAGED_FILES[@]}"; do
+    src_path="${SCRIPT_DIR}/${rel_path}"
+    dest_path="${bundle_dir}/${rel_path}"
+
+    if [[ ! -f "$src_path" ]]; then
+      echo "Managed bundle source missing: $src_path" >&2
+      exit 1
+    fi
+
+    if copy_file_with_policy "$src_path" "$dest_path" "$force" "$assume_yes" "$dry_run"; then
+      copy_status=0
+    else
+      copy_status=$?
+    fi
+    case "$copy_status" in
+      0|10|20) ;;
+      *) exit_code=1 ;;
+    esac
+  done
+
+  write_bundle_manifest "$bundle_dir" "$dry_run"
+  return "$exit_code"
 }
 
 run_lint_command() {
@@ -767,18 +978,28 @@ run_format_command() {
 
 run_init_command() {
   local init_docs=0
+  local init_rust=0
+  local init_ts=0
   local init_python=0
   local init_go=0
-  local target_dir="$PROJECT_ROOT"
-  local -a passthrough_args=()
+  local copy_bundle=0
+  local sync_bundle=0
+  local force=0
+  local dry_run=0
+  local assume_yes=0
+  local target_dir=''
   local target_set=0
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --docs) init_docs=1; shift ;;
+      --rust) init_rust=1; shift ;;
+      --ts|--ts-node) init_ts=1; shift ;;
       --python) init_python=1; shift ;;
       --go) init_go=1; shift ;;
-      --all) init_docs=1; init_python=1; init_go=1; shift ;;
+      --copy) copy_bundle=1; shift ;;
+      --sync) sync_bundle=1; shift ;;
+      --all) init_docs=1; init_rust=1; init_ts=1; init_python=1; init_go=1; shift ;;
       -t|--target)
         if [[ $# -lt 2 ]]; then
           echo "Missing value for $1" >&2
@@ -787,13 +1008,11 @@ run_init_command() {
         fi
         target_dir="$2"
         target_set=1
-        passthrough_args+=("$1" "$2")
         shift 2
         ;;
-      --force|--dry-run|-y|--yes)
-        passthrough_args+=("$1")
-        shift
-        ;;
+      --force) force=1; shift ;;
+      --dry-run) dry_run=1; shift ;;
+      -y|--yes) assume_yes=1; shift ;;
       --help|-h)
         init_usage
         exit 0
@@ -806,11 +1025,24 @@ run_init_command() {
         fi
         target_dir="$1"
         target_set=1
-        passthrough_args+=("$1")
         shift
         ;;
     esac
   done
+
+  if (( copy_bundle && sync_bundle )); then
+    echo "Use only one of --copy or --sync." >&2
+    init_usage >&2
+    exit 1
+  fi
+
+  if [[ -z "$target_dir" ]]; then
+    if (( copy_bundle || sync_bundle )); then
+      target_dir="$PWD"
+    else
+      target_dir="$PROJECT_ROOT"
+    fi
+  fi
 
   local resolved_target
   resolved_target="$(cd "$target_dir" >/dev/null 2>&1 && pwd)" || {
@@ -818,9 +1050,15 @@ run_init_command() {
     exit 1
   }
 
-  if (( !init_docs && !init_python && !init_go )); then
+  if (( !init_docs && !init_rust && !init_ts && !init_python && !init_go )); then
     if detect_docs_project "$resolved_target"; then
       init_docs=1
+    fi
+    if detect_rust_project "$resolved_target"; then
+      init_rust=1
+    fi
+    if detect_ts_project "$resolved_target"; then
+      init_ts=1
     fi
     if can_init_python_project "$resolved_target"; then
       init_python=1
@@ -830,14 +1068,24 @@ run_init_command() {
     fi
   fi
 
-  if (( !init_docs && !init_python && !init_go )); then
+  if (( !init_docs && !init_rust && !init_ts && !init_python && !init_go )); then
     print_info "No supported config families detected. Defaulting to docs initialization."
     init_docs=1
+  fi
+
+  if (( copy_bundle || sync_bundle )); then
+    install_managed_bundle "$resolved_target" "$sync_bundle" "$force" "$assume_yes" "$dry_run"
   fi
 
   local -a init_args=()
   if (( init_docs )); then
     init_args+=(--docs)
+  fi
+  if (( init_rust )); then
+    init_args+=(--rust)
+  fi
+  if (( init_ts )); then
+    init_args+=(--ts)
   fi
   if (( init_python )); then
     init_args+=(--python)
@@ -845,8 +1093,18 @@ run_init_command() {
   if (( init_go )); then
     init_args+=(--go)
   fi
+  if (( force )); then
+    init_args+=(--force)
+  fi
+  if (( assume_yes )); then
+    init_args+=(--yes)
+  fi
+  if (( dry_run )); then
+    init_args+=(--dry-run)
+  fi
+  init_args+=(--target "$resolved_target")
 
-  "$SCRIPT_DIR/init-formatters.sh" "${init_args[@]}" "${passthrough_args[@]}"
+  "$SCRIPT_DIR/init-formatters.sh" "${init_args[@]}"
 }
 
 main() {

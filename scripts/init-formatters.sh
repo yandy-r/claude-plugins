@@ -4,6 +4,8 @@
 # ================================================================
 # Initializes formatter and linter configuration files in a target project:
 # - Docs: .markdownlint.json, .markdownlintignore, .prettierrc, .prettierignore
+# - Rust: rustfmt.toml, clippy.toml
+# - TypeScript/Node: biome.json, tsconfig.json, package.json
 # - Python: pyproject.toml with Ruff + Black config
 # - Go: .golangci.yml via go-tools.sh --generate
 
@@ -40,9 +42,12 @@ Options:
   --docs               Initialize markdownlint and Prettier config files
   --md                 Initialize markdownlint config files
   --prettier           Initialize Prettier config files
+  --rust               Initialize rustfmt and clippy config files
+  --ts                 Initialize Node/TypeScript linting config files
+  --ts-node            Alias for --ts
   --python             Initialize Python Ruff + Black config via pyproject.toml
   --go                 Initialize .golangci.yml via go-tools.sh --generate
-  --all                Initialize docs, Python, and Go config files
+  --all                Initialize docs, Rust, TS, Python, and Go config files
   -t, --target <dir>   Target directory (default: current directory)
   --force              Overwrite existing files without prompt
   -y, --yes            Non-interactive mode (skip overwrite prompts, keep existing files)
@@ -51,7 +56,7 @@ Options:
 
 Examples:
   init-formatters.sh --all ~/projects/my-app
-  init-formatters.sh --docs --python --target ~/projects/my-app
+  init-formatters.sh --rust --ts --target ~/projects/my-app
   init-formatters.sh --go --dry-run .
 EOF
 }
@@ -67,45 +72,21 @@ resolve_script_dir() {
   cd -P "$(dirname "${source}")" && pwd
 }
 
-resolve_dotfiles_root() {
-  local script_dir="$1"
-  local explicit_root="${DOTFILES_ROOT:-}"
-  local -a candidates=()
-
-  if [[ -n "${explicit_root}" ]]; then
-    candidates+=("${explicit_root}")
-  fi
-
-  candidates+=(
-    "${script_dir}/.."
-    "${HOME}/.config/dotfiles"
-    "${PWD}"
-  )
-
-  local candidate
-  for candidate in "${candidates[@]}"; do
-    if [[ -f "${candidate}/.markdownlint.json" ]] &&
-      [[ -f "${candidate}/.markdownlintignore" ]] &&
-      [[ -f "${candidate}/.prettierrc" ]] &&
-      [[ -f "${candidate}/.prettierignore" ]]; then
-      cd "${candidate}" && pwd
-      return 0
-    fi
-  done
-
-  return 1
-}
-
 SCRIPT_DIR="$(resolve_script_dir)"
-if ! DOTFILES_ROOT="$(resolve_dotfiles_root "${SCRIPT_DIR}")"; then
-  error "Could not locate dotfiles root containing formatter templates."
-  error "Set DOTFILES_ROOT to your dotfiles path and retry."
+readonly SCRIPT_DIR
+readonly TEMPLATE_DIR="${SCRIPT_DIR}/templates"
+readonly GO_TOOLS_SCRIPT="${SCRIPT_DIR}/go-tools.sh"
+
+if [[ ! -d "${TEMPLATE_DIR}" ]]; then
+  error "Template directory not found: ${TEMPLATE_DIR}"
   exit 1
 fi
 
 INIT_DOCS=false
 INIT_MD=false
 INIT_PRETTIER=false
+INIT_RUST=false
+INIT_TS=false
 INIT_PYTHON=false
 INIT_GO=false
 FORCE=false
@@ -130,6 +111,14 @@ while [[ $# -gt 0 ]]; do
       INIT_PRETTIER=true
       shift
       ;;
+    --rust)
+      INIT_RUST=true
+      shift
+      ;;
+    --ts|--ts-node)
+      INIT_TS=true
+      shift
+      ;;
     --python)
       INIT_PYTHON=true
       shift
@@ -142,6 +131,8 @@ while [[ $# -gt 0 ]]; do
       INIT_DOCS=true
       INIT_MD=true
       INIT_PRETTIER=true
+      INIT_RUST=true
+      INIT_TS=true
       INIT_PYTHON=true
       INIT_GO=true
       shift
@@ -195,11 +186,13 @@ if [[ "${INIT_DOCS}" == true ]]; then
   INIT_PRETTIER=true
 fi
 
-if [[ "${INIT_MD}" == false && "${INIT_PRETTIER}" == false && "${INIT_PYTHON}" == false && "${INIT_GO}" == false ]]; then
+if [[ "${INIT_MD}" == false && "${INIT_PRETTIER}" == false && "${INIT_RUST}" == false && "${INIT_TS}" == false && "${INIT_PYTHON}" == false && "${INIT_GO}" == false ]]; then
   info "No formatter selection provided. Defaulting to --all."
   INIT_DOCS=true
   INIT_MD=true
   INIT_PRETTIER=true
+  INIT_RUST=true
+  INIT_TS=true
   INIT_PYTHON=true
   INIT_GO=true
 fi
@@ -219,7 +212,7 @@ failed=0
 copy_template() {
   local src_rel="$1"
   local dest_rel="$2"
-  local src="${DOTFILES_ROOT}/${src_rel}"
+  local src="${TEMPLATE_DIR}/${src_rel}"
   local dest="${TARGET_DIR}/${dest_rel}"
   local action="create"
 
@@ -229,8 +222,21 @@ copy_template() {
     return
   fi
 
+  mkdir -p "$(dirname "${dest}")"
+
   if [[ -e "${dest}" ]]; then
     action="overwrite"
+    if [[ "${DRY_RUN}" == true ]]; then
+      if [[ "${FORCE}" != true && "${ASSUME_YES}" == true ]]; then
+        info "[dry-run] Would keep existing file: ${dest}"
+        ((skipped++)) || true
+        return
+      fi
+      info "[dry-run] Would ${action}: ${dest}"
+      ((overwritten++)) || true
+      return
+    fi
+
     if [[ "${FORCE}" != true ]]; then
       if [[ "${ASSUME_YES}" == true ]]; then
         warn "Exists, keeping current file: ${dest}"
@@ -286,7 +292,7 @@ generate_go_config() {
   fi
 
   if GO_TOOLS_FORCE="${FORCE}" GO_TOOLS_ASSUME_YES="${ASSUME_YES}" GO_TOOLS_DRY_RUN=false \
-    "${DOTFILES_ROOT}/bin/go-tools.sh" "${TARGET_DIR}" --generate; then
+    "${GO_TOOLS_SCRIPT}" "${TARGET_DIR}" --generate; then
     if [[ "${action}" == "overwrite" ]]; then
       ((overwritten++)) || true
     else
@@ -302,30 +308,55 @@ init_python_config() {
 
   if [[ -e "${dest}" ]]; then
     error "Refusing to overwrite existing Python project file: ${dest}"
-    error "Merge the Ruff/Black settings from bin/templates/python-pyproject.toml manually."
+    error "Merge the Ruff/Black settings from scripts/templates/python-pyproject.toml manually."
     ((failed++)) || true
     return
   fi
 
-  copy_template "bin/templates/python-pyproject.toml" "pyproject.toml"
+  copy_template "python-pyproject.toml" "pyproject.toml"
+}
+
+init_ts_config() {
+  copy_template "biome.json" "biome.json"
+  copy_template "tsconfig.json" "tsconfig.json"
+
+  if [[ -e "${TARGET_DIR}/package.json" ]]; then
+    warn "Refusing to overwrite existing package.json: ${TARGET_DIR}/package.json"
+    warn "Merge the TypeScript tooling scripts and devDependencies from scripts/templates/package.json manually."
+    ((skipped++)) || true
+    return
+  fi
+
+  copy_template "package.json" "package.json"
 }
 
 info "Target directory: ${TARGET_DIR}"
 info "Selected initializers:"
 [[ "${INIT_MD}" == true ]] && info "  - markdownlint"
 [[ "${INIT_PRETTIER}" == true ]] && info "  - prettier"
+[[ "${INIT_RUST}" == true ]] && info "  - rust"
+[[ "${INIT_TS}" == true ]] && info "  - ts"
 [[ "${INIT_PYTHON}" == true ]] && info "  - python"
 [[ "${INIT_GO}" == true ]] && info "  - go"
 [[ "${DRY_RUN}" == true ]] && warn "Dry run mode enabled; no files will be written"
 
 if [[ "${INIT_MD}" == true ]]; then
-  copy_template ".markdownlint.json" ".markdownlint.json"
-  copy_template ".markdownlintignore" ".markdownlintignore"
+  copy_template "markdownlint.json" ".markdownlint.json"
+  copy_template "markdownlintignore" ".markdownlintignore"
 fi
 
 if [[ "${INIT_PRETTIER}" == true ]]; then
-  copy_template ".prettierrc" ".prettierrc"
-  copy_template ".prettierignore" ".prettierignore"
+  copy_template "prettierrc.json" ".prettierrc"
+  copy_template "prettierignore" ".prettierignore"
+fi
+
+if [[ "${INIT_RUST}" == true ]]; then
+  copy_template "rustfmt.toml" "rustfmt.toml"
+  copy_template "clippy.toml" "clippy.toml"
+fi
+
+if [[ "${INIT_TS}" == true ]]; then
+  init_ts_config
 fi
 
 if [[ "${INIT_PYTHON}" == true ]]; then
