@@ -23,23 +23,23 @@ How `profile-style.sh` decides which language tracks and configs apply to a targ
 
 In addition to stack detection, `profile-style.sh` emits existence flags for known config files. The skill uses these to decide whether to create vs skip vs merge during the install phase.
 
-| Probe key                        | Source                                                    | Default action on re-run                   |
-| -------------------------------- | --------------------------------------------------------- | ------------------------------------------ |
-| `has_style_bundle`               | `scripts/.style-bundle-manifest` exists                   | Prefer `--sync` on install                 |
-| `has_package_json`               | `package.json` at target root                             | Merge `scripts` block via `jq`             |
-| `has_makefile`                   | `Makefile` at target root                                 | Append targets with duplicate-target guard |
-| `has_justfile`                   | `justfile` at target root                                 | Append recipes                             |
-| `has_existing_prettierrc`        | `.prettierrc` / `.prettierrc.json` / `.prettierrc.y(a)ml` | Skip template; warn on conflict            |
-| `has_existing_biome_json`        | `biome.json` or `biome.jsonc`                             | Skip template; warn on conflict            |
-| `has_existing_golangci_yml`      | `.golangci.yml` or `.golangci.yaml`                       | Skip template; warn on conflict            |
-| `has_existing_rustfmt_toml`      | `rustfmt.toml`                                            | Skip template                              |
-| `has_existing_clippy_toml`       | `clippy.toml`                                             | Skip template                              |
-| `has_existing_pyproject_ruff`    | `pyproject.toml` contains `[tool.ruff]` or `[tool.black]` | Refuse to overwrite; emit merge hint       |
-| `has_existing_markdownlint_json` | `.markdownlint.json` or `.markdownlint.jsonc`             | Skip template                              |
-| `has_lefthook`                   | `lefthook.yml` or `lefthook.yaml`                         | Append `pre-commit` stage                  |
-| `has_husky`                      | `.husky/` directory                                       | Append to `.husky/pre-commit`              |
-| `has_pre_commit_framework`       | `.pre-commit-config.yaml`                                 | Leave alone; skill does not manage it      |
-| `ci_provider`                    | `.github/workflows/` / `.gitlab-ci.yml` / `.circleci/`    | Drives which CI template to emit           |
+| Probe key                        | Source                                                    | Default action on re-run                            |
+| -------------------------------- | --------------------------------------------------------- | --------------------------------------------------- |
+| `has_style_bundle`               | `scripts/.style-bundle-manifest` exists                   | Prefer `--sync` on install                          |
+| `has_package_json`               | `package.json` at target root                             | Merge `scripts` block via `jq`                      |
+| `has_makefile`                   | `Makefile` at target root                                 | Append targets with duplicate-target guard          |
+| `has_justfile`                   | `justfile` at target root                                 | Append recipes                                      |
+| `has_existing_prettierrc`        | `.prettierrc` / `.prettierrc.json` / `.prettierrc.y(a)ml` | Skip template; warn on conflict                     |
+| `has_existing_biome_json`        | `biome.json` or `biome.jsonc`                             | Skip template; warn on conflict                     |
+| `has_existing_golangci_yml`      | `.golangci.yml` or `.golangci.yaml`                       | Skip template; warn on conflict                     |
+| `has_existing_rustfmt_toml`      | `rustfmt.toml`                                            | Skip template                                       |
+| `has_existing_clippy_toml`       | `clippy.toml`                                             | Skip template                                       |
+| `has_existing_pyproject_ruff`    | `pyproject.toml` contains `[tool.ruff]` or `[tool.black]` | Refuse to overwrite; emit merge hint                |
+| `has_existing_markdownlint_json` | `.markdownlint.json` or `.markdownlint.jsonc`             | Skip template                                       |
+| `has_lefthook`                   | `lefthook.yml` or `lefthook.yaml`                         | Merge `pre-commit` commands (preserve other stages) |
+| `has_husky`                      | `.husky/` directory                                       | Append to `.husky/pre-commit`                       |
+| `has_pre_commit_framework`       | `.pre-commit-config.yaml`                                 | Leave alone; skill does not manage it               |
+| `ci_provider`                    | `.github/workflows/` / `.gitlab-ci.yml` / `.circleci/`    | Drives which CI template to emit                    |
 
 ---
 

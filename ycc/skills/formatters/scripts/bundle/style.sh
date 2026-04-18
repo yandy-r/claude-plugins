@@ -55,6 +55,14 @@ print_info() {
   echo "[INFO] $*"
 }
 
+scope_noun() {
+  case "${1:-all}" in
+    staged) printf 'staged\n' ;;
+    unstaged) printf 'unstaged\n' ;;
+    *) printf 'modified\n' ;;
+  esac
+}
+
 require_command() {
   local command_name="$1"
 
@@ -182,7 +190,7 @@ detect_go_project() {
 
 run_rust_lint() {
   local fix="$1"
-  local modified_only="$2"
+  local git_scope="$2"
   local exit_code=0
 
   if [[ ! -f "$RUST_PROJECT_DIR/Cargo.toml" ]]; then
@@ -197,13 +205,13 @@ run_rust_lint() {
   local rust_prefix
   rust_prefix="$(path_prefix_for "$RUST_PROJECT_DIR")"
 
-  if (( modified_only )); then
+  if [[ -n "$git_scope" ]]; then
     local -a rust_files=()
-    mapfile -t rust_files < <(list_modified_repo_paths "$rust_prefix" ".rs")
+    mapfile -t rust_files < <(list_modified_repo_paths "$git_scope" "$rust_prefix" ".rs")
 
     if (( ${#rust_files[@]} == 0 )); then
       echo "=== Rust ==="
-      echo "No modified Rust files."
+      echo "No $(scope_noun "$git_scope") Rust files."
       return 0
     fi
 
@@ -246,7 +254,7 @@ run_rust_lint() {
 
 run_ts_lint() {
   local fix="$1"
-  local modified_only="$2"
+  local git_scope="$2"
   local exit_code=0
 
   if [[ ! -f "$TS_PROJECT_DIR/package.json" ]]; then
@@ -261,17 +269,17 @@ run_ts_lint() {
   local ts_prefix
   ts_prefix="$(path_prefix_for "$TS_PROJECT_DIR")"
 
-  if (( modified_only )); then
+  if [[ -n "$git_scope" ]]; then
     local -a ts_biome_files=()
     local -a ts_typecheck_files=()
-    mapfile -t ts_biome_files < <(list_modified_repo_paths "$ts_prefix" \
+    mapfile -t ts_biome_files < <(list_modified_repo_paths "$git_scope" "$ts_prefix" \
       ".ts" ".tsx" ".js" ".jsx" ".mjs" ".cjs" ".mts" ".cts" ".css")
-    mapfile -t ts_typecheck_files < <(list_modified_repo_paths "$ts_prefix" \
+    mapfile -t ts_typecheck_files < <(list_modified_repo_paths "$git_scope" "$ts_prefix" \
       ".ts" ".tsx" ".mts" ".cts")
 
     if (( ${#ts_biome_files[@]} == 0 )); then
       echo "=== TypeScript ==="
-      echo "No modified frontend source files."
+      echo "No $(scope_noun "$git_scope") frontend source files."
     else
       echo "=== TypeScript: biome ==="
       local -a ts_relative_biome_files=()
@@ -310,18 +318,18 @@ run_ts_lint() {
 }
 
 run_shell_lint() {
-  local modified_only="$1"
+  local git_scope="$1"
 
   if ! require_command shellcheck; then
     return 1
   fi
 
   local -a shell_files=()
-  if (( modified_only )); then
-    mapfile -t shell_files < <(list_modified_repo_paths "" ".sh")
+  if [[ -n "$git_scope" ]]; then
+    mapfile -t shell_files < <(list_modified_repo_paths "$git_scope" "" ".sh")
     if (( ${#shell_files[@]} == 0 )); then
       echo "=== Shell ==="
-      echo "No modified shell scripts."
+      echo "No $(scope_noun "$git_scope") shell scripts."
       return 0
     fi
   else
@@ -339,7 +347,7 @@ run_shell_lint() {
 
 run_python_lint() {
   local fix="$1"
-  local modified_only="$2"
+  local git_scope="$2"
   local exit_code=0
 
   if ! detect_python_project; then
@@ -357,13 +365,13 @@ run_python_lint() {
   local python_prefix
   python_prefix="$(path_prefix_for "$PYTHON_PROJECT_DIR")"
 
-  if (( modified_only )); then
+  if [[ -n "$git_scope" ]]; then
     local -a python_files=()
-    mapfile -t python_files < <(list_modified_repo_paths "$python_prefix" ".py" ".pyi")
+    mapfile -t python_files < <(list_modified_repo_paths "$git_scope" "$python_prefix" ".py" ".pyi")
 
     if (( ${#python_files[@]} == 0 )); then
       echo "=== Python ==="
-      echo "No modified Python files."
+      echo "No $(scope_noun "$git_scope") Python files."
       return 0
     fi
 
@@ -398,7 +406,7 @@ run_python_lint() {
 
 run_go_lint() {
   local fix="$1"
-  local modified_only="$2"
+  local git_scope="$2"
 
   if ! detect_go_project; then
     print_skip "Go" "no Go files or module found in ${GO_PROJECT_DIR}"
@@ -409,15 +417,15 @@ run_go_lint() {
     return 1
   fi
 
-  if (( modified_only )); then
+  if [[ -n "$git_scope" ]]; then
     local go_prefix
     go_prefix="$(path_prefix_for "$GO_PROJECT_DIR")"
     local -a go_files=()
-    mapfile -t go_files < <(list_modified_repo_paths "$go_prefix" ".go")
+    mapfile -t go_files < <(list_modified_repo_paths "$git_scope" "$go_prefix" ".go")
 
     if (( ${#go_files[@]} == 0 )); then
       echo "=== Go ==="
-      echo "No modified Go files."
+      echo "No $(scope_noun "$git_scope") Go files."
       return 0
     fi
   fi
@@ -431,7 +439,7 @@ run_go_lint() {
 }
 
 run_rust_format() {
-  local modified_only="$1"
+  local git_scope="$1"
 
   if [[ ! -f "$RUST_PROJECT_DIR/Cargo.toml" ]]; then
     print_skip "Rust" "no Cargo.toml found in ${RUST_PROJECT_DIR}"
@@ -445,13 +453,13 @@ run_rust_format() {
   local rust_prefix
   rust_prefix="$(path_prefix_for "$RUST_PROJECT_DIR")"
 
-  if (( modified_only )); then
+  if [[ -n "$git_scope" ]]; then
     local -a rust_files=()
-    mapfile -t rust_files < <(list_modified_repo_paths "$rust_prefix" ".rs")
+    mapfile -t rust_files < <(list_modified_repo_paths "$git_scope" "$rust_prefix" ".rs")
 
     if (( ${#rust_files[@]} == 0 )); then
       echo "=== Rust ==="
-      echo "No modified Rust files."
+      echo "No $(scope_noun "$git_scope") Rust files."
       return 0
     fi
 
@@ -467,7 +475,7 @@ run_rust_format() {
 }
 
 run_ts_format() {
-  local modified_only="$1"
+  local git_scope="$1"
 
   if [[ ! -f "$TS_PROJECT_DIR/package.json" ]]; then
     print_skip "TypeScript/JavaScript" "no package.json found in ${TS_PROJECT_DIR}"
@@ -481,14 +489,14 @@ run_ts_format() {
   local ts_prefix
   ts_prefix="$(path_prefix_for "$TS_PROJECT_DIR")"
 
-  if (( modified_only )); then
+  if [[ -n "$git_scope" ]]; then
     local -a ts_files=()
-    mapfile -t ts_files < <(list_modified_repo_paths "$ts_prefix" \
+    mapfile -t ts_files < <(list_modified_repo_paths "$git_scope" "$ts_prefix" \
       ".ts" ".tsx" ".js" ".jsx" ".mjs" ".cjs" ".mts" ".cts" ".css")
 
     if (( ${#ts_files[@]} == 0 )); then
       echo "=== TypeScript/JavaScript ==="
-      echo "No modified frontend source files."
+      echo "No $(scope_noun "$git_scope") frontend source files."
       return 0
     fi
 
@@ -506,7 +514,7 @@ run_ts_format() {
 }
 
 run_docs_format() {
-  local modified_only="$1"
+  local git_scope="$1"
 
   if ! detect_docs_project; then
     print_skip "Markdown/JSON/YAML" "no package.json, prettier config, or docs files found in ${DOCS_PROJECT_DIR}"
@@ -529,11 +537,11 @@ run_docs_format() {
   fi
 
   local -a docs_files=()
-  if (( modified_only )); then
-    mapfile -t docs_files < <(list_modified_repo_paths "$docs_prefix" ".md" ".mdx" ".json" ".jsonc" ".yaml" ".yml")
+  if [[ -n "$git_scope" ]]; then
+    mapfile -t docs_files < <(list_modified_repo_paths "$git_scope" "$docs_prefix" ".md" ".mdx" ".json" ".jsonc" ".yaml" ".yml")
     if (( ${#docs_files[@]} == 0 )); then
       echo "=== Markdown/JSON/YAML ==="
-      echo "No modified Markdown, JSON, or YAML files."
+      echo "No $(scope_noun "$git_scope") Markdown, JSON, or YAML files."
       return 0
     fi
   else
@@ -552,7 +560,7 @@ run_docs_format() {
 }
 
 run_python_format() {
-  local modified_only="$1"
+  local git_scope="$1"
 
   if ! detect_python_project; then
     print_skip "Python" "no Python files or config found in ${PYTHON_PROJECT_DIR}"
@@ -566,13 +574,13 @@ run_python_format() {
   local python_prefix
   python_prefix="$(path_prefix_for "$PYTHON_PROJECT_DIR")"
 
-  if (( modified_only )); then
+  if [[ -n "$git_scope" ]]; then
     local -a python_files=()
-    mapfile -t python_files < <(list_modified_repo_paths "$python_prefix" ".py" ".pyi")
+    mapfile -t python_files < <(list_modified_repo_paths "$git_scope" "$python_prefix" ".py" ".pyi")
 
     if (( ${#python_files[@]} == 0 )); then
       echo "=== Python ==="
-      echo "No modified Python files."
+      echo "No $(scope_noun "$git_scope") Python files."
       return 0
     fi
 
@@ -588,7 +596,7 @@ run_python_format() {
 }
 
 run_go_format() {
-  local modified_only="$1"
+  local git_scope="$1"
 
   if ! detect_go_project; then
     print_skip "Go" "no Go files or module found in ${GO_PROJECT_DIR}"
@@ -606,11 +614,11 @@ run_go_format() {
   go_prefix="$(path_prefix_for "$GO_PROJECT_DIR")"
 
   local -a go_files=()
-  if (( modified_only )); then
-    mapfile -t go_files < <(list_modified_repo_paths "$go_prefix" ".go")
+  if [[ -n "$git_scope" ]]; then
+    mapfile -t go_files < <(list_modified_repo_paths "$git_scope" "$go_prefix" ".go")
     if (( ${#go_files[@]} == 0 )); then
       echo "=== Go ==="
-      echo "No modified Go files."
+      echo "No $(scope_noun "$git_scope") Go files."
       return 0
     fi
   else
@@ -647,11 +655,18 @@ Init bundle modes:
   --copy   Install or update the managed bundle in DIR/scripts/
   --sync   Install or update the managed bundle and remove stale previously-managed files
 
+Git scope flags (mutually exclusive; accepted by lint and format):
+  --modified   All modified files: staged + unstaged + untracked
+  --staged     Only files staged in the git index
+  --unstaged   Only unstaged working-tree changes + untracked files
+
 Run `style.sh init --help` for full init options and target details.
 
 Examples:
   style.sh lint --fix --python
   style.sh format --modified --go
+  style.sh lint --staged --shell --python
+  style.sh format --unstaged --docs
   style.sh init --python --go --target ~/projects/my-app
   style.sh init --copy --rust --ts-node ~/projects/my-app
 EOF
@@ -659,7 +674,7 @@ EOF
 
 lint_usage() {
   cat <<'EOF'
-Usage: style.sh lint [--fix] [--modified] [--rust] [--ts] [--python] [--go] [--shell] [--all]
+Usage: style.sh lint [--fix] [--modified|--staged|--unstaged] [--rust] [--ts] [--python] [--go] [--shell] [--all]
 
 Environment overrides:
   PROJECT_ROOT       Explicit project root. Defaults to the git root for $PWD.
@@ -671,19 +686,23 @@ Environment overrides:
 
 Options:
   --fix       Apply auto-fixes where supported
-  --modified  Limit file-based linting to modified git files
+  --modified  Limit file-based linting to all modified files (staged + unstaged + untracked)
+  --staged    Limit file-based linting to files staged in the git index
+  --unstaged  Limit file-based linting to unstaged working-tree changes + untracked files
   --rust      Rust only (clippy + rustfmt check)
   --ts        TypeScript only (biome + tsc when tsconfig exists)
   --python    Python only (ruff + black --check)
   --go        Go only (golangci-lint)
   --shell     Shell scripts only (shellcheck)
   --all       All supported lint checks (default)
+
+--modified, --staged, and --unstaged are mutually exclusive.
 EOF
 }
 
 format_usage() {
   cat <<'EOF'
-Usage: style.sh format [--modified] [--rust] [--ts] [--docs] [--python] [--go] [--all]
+Usage: style.sh format [--modified|--staged|--unstaged] [--rust] [--ts] [--docs] [--python] [--go] [--all]
 
 Environment overrides:
   PROJECT_ROOT       Explicit project root. Defaults to the git root for $PWD.
@@ -694,13 +713,17 @@ Environment overrides:
   GO_PROJECT_DIR     Directory for go.mod and Go source files. Defaults to PROJECT_ROOT.
 
 Options:
-  --modified  Limit file-based formatting to modified git files
+  --modified  Limit file-based formatting to all modified files (staged + unstaged + untracked)
+  --staged    Limit file-based formatting to files staged in the git index
+  --unstaged  Limit file-based formatting to unstaged working-tree changes + untracked files
   --rust      Rust only (rustfmt)
   --ts        TypeScript / JavaScript only (biome)
   --docs      Markdown / JSON / YAML only (prettier)
   --python    Python only (black)
   --go        Go only (gofmt + goimports)
   --all       All supported formatters (default)
+
+--modified, --staged, and --unstaged are mutually exclusive.
 EOF
 }
 
@@ -871,9 +894,22 @@ install_managed_bundle() {
   return "$exit_code"
 }
 
+_set_git_scope_or_die() {
+  local -n _scope_ref="$1"
+  local new_scope="$2"
+  local usage_fn="$3"
+
+  if [[ -n "$_scope_ref" ]]; then
+    echo "Cannot combine --modified, --staged, and --unstaged (already set to '${_scope_ref}')." >&2
+    "$usage_fn" >&2
+    exit 1
+  fi
+  _scope_ref="$new_scope"
+}
+
 run_lint_command() {
   local fix=0
-  local modified_only=0
+  local git_scope=""
   local run_rust=0
   local run_ts=0
   local run_python=0
@@ -884,7 +920,9 @@ run_lint_command() {
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --fix) fix=1; shift ;;
-      --modified) modified_only=1; shift ;;
+      --modified) _set_git_scope_or_die git_scope all lint_usage; shift ;;
+      --staged) _set_git_scope_or_die git_scope staged lint_usage; shift ;;
+      --unstaged) _set_git_scope_or_die git_scope unstaged lint_usage; shift ;;
       --rust) run_rust=1; shift ;;
       --ts) run_ts=1; shift ;;
       --python) run_python=1; shift ;;
@@ -905,26 +943,26 @@ run_lint_command() {
   fi
 
   if (( run_rust )); then
-    run_rust_lint "$fix" "$modified_only" || exit_code=1
+    run_rust_lint "$fix" "$git_scope" || exit_code=1
   fi
   if (( run_ts )); then
-    run_ts_lint "$fix" "$modified_only" || exit_code=1
+    run_ts_lint "$fix" "$git_scope" || exit_code=1
   fi
   if (( run_python )); then
-    run_python_lint "$fix" "$modified_only" || exit_code=1
+    run_python_lint "$fix" "$git_scope" || exit_code=1
   fi
   if (( run_go )); then
-    run_go_lint "$fix" "$modified_only" || exit_code=1
+    run_go_lint "$fix" "$git_scope" || exit_code=1
   fi
   if (( run_shell )); then
-    run_shell_lint "$modified_only" || exit_code=1
+    run_shell_lint "$git_scope" || exit_code=1
   fi
 
   exit "$exit_code"
 }
 
 run_format_command() {
-  local modified_only=0
+  local git_scope=""
   local run_rust=0
   local run_ts=0
   local run_docs=0
@@ -934,7 +972,9 @@ run_format_command() {
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --modified) modified_only=1; shift ;;
+      --modified) _set_git_scope_or_die git_scope all format_usage; shift ;;
+      --staged) _set_git_scope_or_die git_scope staged format_usage; shift ;;
+      --unstaged) _set_git_scope_or_die git_scope unstaged format_usage; shift ;;
       --rust) run_rust=1; shift ;;
       --ts) run_ts=1; shift ;;
       --docs) run_docs=1; shift ;;
@@ -955,19 +995,19 @@ run_format_command() {
   fi
 
   if (( run_rust )); then
-    run_rust_format "$modified_only" || exit_code=1
+    run_rust_format "$git_scope" || exit_code=1
   fi
   if (( run_ts )); then
-    run_ts_format "$modified_only" || exit_code=1
+    run_ts_format "$git_scope" || exit_code=1
   fi
   if (( run_docs )); then
-    run_docs_format "$modified_only" || exit_code=1
+    run_docs_format "$git_scope" || exit_code=1
   fi
   if (( run_python )); then
-    run_python_format "$modified_only" || exit_code=1
+    run_python_format "$git_scope" || exit_code=1
   fi
   if (( run_go )); then
-    run_go_format "$modified_only" || exit_code=1
+    run_go_format "$git_scope" || exit_code=1
   fi
 
   if (( exit_code == 0 )); then
