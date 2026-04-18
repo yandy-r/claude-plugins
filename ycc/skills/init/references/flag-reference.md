@@ -6,17 +6,17 @@ Detailed reference for every flag accepted by `ycc:init`. See also `SKILL.md` fo
 
 ## Flag Matrix
 
-| Flag               | Default     | Affects phases | Writes to                                             | Example                     |
-| ------------------ | ----------- | -------------- | ----------------------------------------------------- | --------------------------- |
-| `--dry-run`        | off         | 5 (halt)       | nothing                                               | `ycc:init --dry-run`        |
-| `--docs-only`      | off         | 2, 4 (skip)    | `CLAUDE.md`, `AGENTS.md`, `.cursor/rules/project.mdc` | `ycc:init --docs-only`      |
-| `--templates`      | off         | 3 (extend)     | `.github/ISSUE_TEMPLATE/`, `.github/labels.md`        | `ycc:init --templates`      |
-| `--git`            | off         | 3 (extend)     | `.gitmessage`, `commitlint.config.cjs` (JS/TS only)   | `ycc:init --git`            |
-| `--vendor-neutral` | off         | 3 (extend)     | `.ai/rules/project.md`                                | `ycc:init --vendor-neutral` |
-| `--formatters`     | off         | 6.5 (delegate) | (delegates to `ycc:formatters` — see its flag matrix) | `ycc:init --formatters`     |
-| `--update`         | off         | 6 (merge)      | existing targets only                                 | `ycc:init --update`         |
-| `--force`          | off         | 6 (overwrite)  | all target files                                      | `ycc:init --force`          |
-| `--profile=<name>` | auto-detect | 1 (skip)       | (drives template variables)                           | `ycc:init --profile=rust`   |
+| Flag               | Default     | Affects phases | Writes to                                                                                                                    | Example                     |
+| ------------------ | ----------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `--dry-run`        | off         | 5 (halt)       | nothing                                                                                                                      | `ycc:init --dry-run`        |
+| `--docs-only`      | off         | 2, 4 (skip)    | `CLAUDE.md`, `AGENTS.md`, `.cursor/rules/project.mdc`                                                                        | `ycc:init --docs-only`      |
+| `--templates`      | off         | 3 (extend)     | `.github/ISSUE_TEMPLATE/`, `.github/labels.md`                                                                               | `ycc:init --templates`      |
+| `--git`            | off         | 3 (extend)     | `.gitmessage`, `commitlint.config.cjs` (JS/TS only), `lefthook.yml`, `scripts/install-lefthook.sh`, `docs/lefthook-usage.md` | `ycc:init --git`            |
+| `--vendor-neutral` | off         | 3 (extend)     | `.ai/rules/project.md`                                                                                                       | `ycc:init --vendor-neutral` |
+| `--formatters`     | off         | 6.5 (delegate) | (delegates to `ycc:formatters` — see its flag matrix)                                                                        | `ycc:init --formatters`     |
+| `--update`         | off         | 6 (merge)      | existing targets only                                                                                                        | `ycc:init --update`         |
+| `--force`          | off         | 6 (overwrite)  | all target files                                                                                                             | `ycc:init --force`          |
+| `--profile=<name>` | auto-detect | 1 (skip)       | (drives template variables)                                                                                                  | `ycc:init --profile=rust`   |
 
 ### `--profile` accepted values
 
@@ -64,7 +64,19 @@ Add GitHub issue forms + PR template + labels reference. Extends the default run
 
 ### `--git`
 
-Add `.gitmessage` (always) and `commitlint.config.cjs` (JS/TS ecosystems only).
+Adds the full git-conventions bundle:
+
+- `.gitmessage` (always) — Conventional Commits template. Wire with
+  `git config commit.template .gitmessage`.
+- `commitlint.config.cjs` (JS/TS ecosystems only) — enforced via the
+  lefthook `commit-msg` hook below.
+- `lefthook.yml` (always) — git hook manager config with stack-specific
+  pre-commit lint/format commands (staged scope), a `pre-push` test stage,
+  and a commitlint `commit-msg` stage on JS/TS projects.
+- `scripts/install-lefthook.sh` (always) — idempotent, cross-platform
+  bootstrap. Installs the `lefthook` binary and runs `lefthook install`.
+- `docs/lefthook-usage.md` (always) — reference doc explaining what the
+  hooks do, how to extend them, how to bypass, and how they skip in CI.
 
 ```
 /ycc:init --git
@@ -87,8 +99,9 @@ Structured refresh of existing artifacts. Never clobbers user content — merges
 - `AGENTS.md`: refresh pointer text, preserve custom `## Agent-runtime notes`. If the existing file is custom (long, no CLAUDE.md reference), asks to migrate.
 - `.cursorrules` (legacy): migrate to `.cursor/rules/project.mdc`; leaves the old file for you to delete.
 - `.github/ISSUE_TEMPLATE/*.yml`: create missing templates; skip existing ones with a diff (pair with `--force` to overwrite).
-- `.github/labels.md`, `docs/pre-commit-recommendation.md`: always overwritten (reference docs).
+- `.github/labels.md`, `docs/lefthook-usage.md`, `scripts/install-lefthook.sh`: always overwritten (managed reference docs / tooling).
 - `commitlint.config.cjs`: diff + skip by default (often customized). Pair with `--force` to overwrite.
+- `lefthook.yml`: diff + skip by default (users often extend the config). Pair with `--force` to overwrite.
 
 ```
 /ycc:init --update
