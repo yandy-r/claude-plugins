@@ -6,26 +6,26 @@ Detailed reference for every flag accepted by `formatters`. See `SKILL.md` for l
 
 ## Flag Matrix
 
-| Flag              | Default     | Affects phases  | Writes to                                                       | Example                                  |
-| ----------------- | ----------- | --------------- | --------------------------------------------------------------- | ---------------------------------------- |
-| `--dry-run`       | off         | 3 (halt)        | nothing                                                         | `formatters --dry-run`               |
-| `--force`         | off         | 4, 5 (overwrite) | all target files                                                 | `formatters --force`                 |
-| `--yes`           | off         | 3 (skip prompt) | existing files preserved                                        | `formatters --yes`                   |
-| `--sync`          | auto        | 4 (prune)       | `scripts/` bundle + removes stale managed files                 | `formatters --sync`                  |
-| `--copy`          | on          | 4 (install)     | `scripts/` bundle                                                | `formatters --copy`                  |
-| `--ci`            | off         | 5 (extend)      | `.github/workflows/lint.yml`                                    | `formatters --ci`                    |
-| `--hooks`         | off         | 5 (extend)      | `lefthook.yml` or `.husky/pre-commit`                           | `formatters --hooks`                 |
-| `--no-aliases`    | off         | 5 (skip)        | (suppresses package.json / Makefile / justfile alias injection) | `formatters --no-aliases`            |
-| `--no-docs`       | off         | 5 (skip)        | (suppresses README section append)                              | `formatters --no-docs`               |
-| `--target=<dir>`  | `$PWD`      | 1 (override)    | configs + scripts land in `<dir>`                                | `formatters --target=~/projects/app` |
-| `--profile=<lang>` | auto-detect | 1 (override)    | (forces stack flags)                                             | `formatters --profile=rust`          |
-| `--rust`          | auto        | 4 (enable)      | `rustfmt.toml`, `clippy.toml`                                    | `formatters --rust`                  |
-| `--ts`            | auto        | 4 (enable)      | `biome.json`, `tsconfig.json`, `package.json` (scaffold only)    | `formatters --ts`                    |
-| `--python`        | auto        | 4 (enable)      | `pyproject.toml` (scaffold only; refuses to overwrite)          | `formatters --python`                |
-| `--go`            | auto        | 4 (enable)      | `.golangci.yml`                                                  | `formatters --go`                    |
-| `--docs`          | auto        | 4 (enable)      | `.markdownlint.json`, `.prettierrc`, `.prettierignore`           | `formatters --docs`                  |
-| `--shell`         | auto        | 4 (enable)      | (bundled scripts; no separate config emitted)                    | `formatters --shell`                 |
-| `--all`           | off         | 4 (enable all)  | every stack regardless of detection                              | `formatters --all`                   |
+| Flag               | Default     | Affects phases   | Writes to                                                       | Example                                  |
+| ------------------ | ----------- | ---------------- | --------------------------------------------------------------- | ---------------------------------------- |
+| `--dry-run`        | off         | 3 (halt)         | nothing                                                         | `formatters --dry-run`               |
+| `--force`          | off         | 4, 5 (overwrite) | all target files                                                | `formatters --force`                 |
+| `--yes`            | off         | 3 (skip prompt)  | existing files preserved                                        | `formatters --yes`                   |
+| `--sync`           | auto        | 4 (prune)        | `scripts/` bundle + removes stale managed files                 | `formatters --sync`                  |
+| `--copy`           | on          | 4 (install)      | `scripts/` bundle                                               | `formatters --copy`                  |
+| `--ci`             | off         | 5 (extend)       | `.github/workflows/lint.yml`                                    | `formatters --ci`                    |
+| `--hooks`          | off         | 5 (extend)       | `lefthook.yml` or `.husky/pre-commit`                           | `formatters --hooks`                 |
+| `--no-aliases`     | off         | 5 (skip)         | (suppresses package.json / Makefile / justfile alias injection) | `formatters --no-aliases`            |
+| `--no-docs`        | off         | 5 (skip)         | (suppresses README section append)                              | `formatters --no-docs`               |
+| `--target=<dir>`   | `$PWD`      | 1 (override)     | configs + scripts land in `<dir>`                               | `formatters --target=~/projects/app` |
+| `--profile=<lang>` | auto-detect | 1 (override)     | (forces stack flags)                                            | `formatters --profile=rust`          |
+| `--rust`           | auto        | 4 (enable)       | `rustfmt.toml`, `clippy.toml`                                   | `formatters --rust`                  |
+| `--ts`             | auto        | 4 (enable)       | `biome.json`, `tsconfig.json`, `package.json` (scaffold only)   | `formatters --ts`                    |
+| `--python`         | auto        | 4 (enable)       | `pyproject.toml` (scaffold only; refuses to overwrite)          | `formatters --python`                |
+| `--go`             | auto        | 4 (enable)       | `.golangci.yml`                                                 | `formatters --go`                    |
+| `--docs`           | auto        | 4 (enable)       | `.markdownlint.json`, `.prettierrc`, `.prettierignore`          | `formatters --docs`                  |
+| `--shell`          | auto        | 4 (enable)       | (bundled scripts; no separate config emitted)                   | `formatters --shell`                 |
+| `--all`            | off         | 4 (enable all)   | every stack regardless of detection                             | `formatters --all`                   |
 
 ### Flag precedence
 
@@ -37,14 +37,14 @@ Detailed reference for every flag accepted by `formatters`. See `SKILL.md` for l
 
 ### `--profile` accepted values
 
-| Value     | Skips detection? | Effect                                                                |
-| --------- | ---------------- | --------------------------------------------------------------------- |
-| `rust`    | yes              | Forces `--rust`                                                       |
-| `ts-node` | yes              | Forces `--ts` and `--docs`                                            |
-| `python`  | yes              | Forces `--python`                                                     |
-| `go`      | yes              | Forces `--go`                                                         |
-| `docs`    | yes              | Forces `--docs` only (useful for pure-docs repos)                      |
-| `mixed`   | yes              | Forces every stack whose matching manifest exists in the target        |
+| Value     | Skips detection? | Effect                                                          |
+| --------- | ---------------- | --------------------------------------------------------------- |
+| `rust`    | yes              | Forces `--rust`                                                 |
+| `ts-node` | yes              | Forces `--ts` and `--docs`                                      |
+| `python`  | yes              | Forces `--python`                                               |
+| `go`      | yes              | Forces `--go`                                                   |
+| `docs`    | yes              | Forces `--docs` only (useful for pure-docs repos)               |
+| `mixed`   | yes              | Forces every stack whose matching manifest exists in the target |
 
 ---
 

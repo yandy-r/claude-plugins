@@ -22,21 +22,21 @@ Installs a best-practices lint/format environment into a target project. Does no
 
 ## Arguments
 
-| Flag              | Meaning                                                                             | Example                                  |
-| ----------------- | ----------------------------------------------------------------------------------- | ---------------------------------------- |
-| `--dry-run`       | Preview every planned file; make no writes                                           | `formatters --dry-run`               |
-| `--force`         | Overwrite existing tool configs / aliases / docs without prompting                   | `formatters --force`                 |
-| `--yes`           | Non-interactive; keep existing files on conflict                                     | `formatters --yes`                   |
-| `--sync`          | Install bundle + prune stale managed files (preferred on re-run)                     | `formatters --sync`                  |
-| `--copy`          | Install bundle without pruning (default when no manifest exists)                     | `formatters --copy`                  |
-| `--ci`            | Also emit `.github/workflows/lint.yml`                                               | `formatters --ci`                    |
-| `--hooks`         | Also wire a pre-commit hook (lefthook preferred, husky if detected)                  | `formatters --hooks`                 |
-| `--no-aliases`    | Skip package.json / Makefile / justfile alias injection                              | `formatters --no-aliases`            |
-| `--no-docs`       | Skip README section append                                                           | `formatters --no-docs`               |
-| `--target=<dir>`  | Target directory (default: `$PWD`)                                                   | `formatters --target=~/projects/app` |
-| `--profile=<lang>` | Override detection: `rust`, `ts-node`, `python`, `go`, `docs`, `mixed`              | `formatters --profile=rust`          |
-| `--rust` / `--ts` / `--python` / `--go` / `--docs` / `--shell` | Enable specific stack(s); suppresses auto-detection  | `formatters --rust --go`             |
-| `--all`           | Install every supported stack's configs regardless of detection                      | `formatters --all`                   |
+| Flag                                                           | Meaning                                                                | Example                                  |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------- |
+| `--dry-run`                                                    | Preview every planned file; make no writes                             | `formatters --dry-run`               |
+| `--force`                                                      | Overwrite existing tool configs / aliases / docs without prompting     | `formatters --force`                 |
+| `--yes`                                                        | Non-interactive; keep existing files on conflict                       | `formatters --yes`                   |
+| `--sync`                                                       | Install bundle + prune stale managed files (preferred on re-run)       | `formatters --sync`                  |
+| `--copy`                                                       | Install bundle without pruning (default when no manifest exists)       | `formatters --copy`                  |
+| `--ci`                                                         | Also emit `.github/workflows/lint.yml`                                 | `formatters --ci`                    |
+| `--hooks`                                                      | Also wire a pre-commit hook (lefthook preferred, husky if detected)    | `formatters --hooks`                 |
+| `--no-aliases`                                                 | Skip package.json / Makefile / justfile alias injection                | `formatters --no-aliases`            |
+| `--no-docs`                                                    | Skip README section append                                             | `formatters --no-docs`               |
+| `--target=<dir>`                                               | Target directory (default: `$PWD`)                                     | `formatters --target=~/projects/app` |
+| `--profile=<lang>`                                             | Override detection: `rust`, `ts-node`, `python`, `go`, `docs`, `mixed` | `formatters --profile=rust`          |
+| `--rust` / `--ts` / `--python` / `--go` / `--docs` / `--shell` | Enable specific stack(s); suppresses auto-detection                    | `formatters --rust --go`             |
+| `--all`                                                        | Install every supported stack's configs regardless of detection        | `formatters --all`                   |
 
 Flags are composable. See `references/flag-reference.md` for the full matrix and precedence rules. See `references/best-practices.md` for per-language tool rationale.
 
