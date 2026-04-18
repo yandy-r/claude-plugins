@@ -43,3 +43,16 @@ repos:
     hooks:
       - id: shellcheck
         args: [--severity=warning]
+
+  # Pre-push: bundle parity check. Runs the same validator CI runs so generator
+  # drift (cursor/codex/opencode sync issues) is caught before push, not in CI.
+  # Requires one-time install: `pre-commit install --hook-type pre-push`
+  - repo: local
+    hooks:
+      - id: validate-bundle
+        name: validate bundle (cursor/codex/opencode parity)
+        entry: ./scripts/validate.sh
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+        always_run: true
