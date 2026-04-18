@@ -204,6 +204,24 @@ Either triggers a major version bump.
 Use `docs(internal): …` for files under `docs/plans`, `docs/research`, or
 `docs/internal`. These stay out of release notes.
 
+## Git Worktrees
+
+The Claude Code harness defaults to creating worktrees inside the current repo at
+`<repo>/.claude/worktrees/`. That location pollutes the working tree, shows up in
+`git status` of unrelated repos, and is easy to forget and hard to reap.
+
+- **Preferred parent**: `~/.claude-worktrees/` for all agent-managed worktrees,
+  named `<repo>-<branch>/`. Keeps them outside every repo and trivially bulk-clean.
+- **Manual creation**: when invoking `git worktree add` yourself, target
+  `~/.claude-worktrees/<repo>-<branch>/` — never a path inside the current repo.
+- **Harness-created worktrees** (`isolation: "worktree"`, `EnterWorktree`): the
+  only way to relocate these is a `WorktreeCreate` hook in
+  `~/.claude/settings.json`. No environment variable or settings key controls the
+  parent directory directly — the hook receives the intended path and returns a
+  replacement path.
+- **Repo hygiene**: if the harness has already created `<repo>/.claude/worktrees/`,
+  add `.claude/worktrees/` to `.gitignore` before committing.
+
 ## GitHub Workflow
 
 ### Issue Templates
