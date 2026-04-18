@@ -16,6 +16,7 @@
 - **Commits**: Use **Conventional Commits 1.0.0** — `feat|fix|docs|refactor|perf|test|build|ci|chore(scope): …`. Write the title as you want it to appear in `CHANGELOG.md`.
 - **Internal docs commits**: Files under `docs/plans`, `docs/research`, or `docs/internal` **must** use `docs(internal): …`. Other non-user-facing churn: prefer `chore(…): …` to stay out of release notes.
 - **Large features**: Split into smaller phases and tasks with clear dependencies and order of execution.
+- **Large files**: Files larger than **500 lines must** be refactored into smaller modules or components. Keep files small, focused, and maintainable — prefer composition over monolithic files.
 - **MCP**: When an MCP server fits the task (GitHub, docs, browser, etc.), **prefer it**. **Read** each tool's schema/descriptor before calling.
 
 ## SHOULD (implementation)
