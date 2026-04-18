@@ -13,6 +13,7 @@ Detailed reference for every flag accepted by `init`. See also `SKILL.md` for th
 | `--templates`      | off         | 3 (extend)     | `.github/ISSUE_TEMPLATE/`, `.github/labels.md`        | `init --templates`      |
 | `--git`            | off         | 3 (extend)     | `.gitmessage`, `commitlint.config.cjs` (JS/TS only)   | `init --git`            |
 | `--vendor-neutral` | off         | 3 (extend)     | `.ai/rules/project.md`                                | `init --vendor-neutral` |
+| `--formatters`     | off         | 6.5 (delegate) | (delegates to `formatters` — see its flag matrix) | `init --formatters`     |
 | `--update`         | off         | 6 (merge)      | existing targets only                                 | `init --update`         |
 | `--force`          | off         | 6 (overwrite)  | all target files                                      | `init --force`          |
 | `--profile=<name>` | auto-detect | 1 (skip)       | (drives template variables)                           | `init --profile=rust`   |

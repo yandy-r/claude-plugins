@@ -27,6 +27,7 @@ Profiles the project, authors the AI-agent doc trio (AGENTS.md, AGENTS.md, .curs
 | `--templates`      | Also emit `.github/` issue forms, PR template, labels                            | `$init --templates`      |
 | `--git`            | Also emit `.gitmessage` and commitlint config (JS/TS)                            | `$init --git`            |
 | `--vendor-neutral` | Also emit `.ai/rules/project.md` mirror of Cursor rule                           | `$init --vendor-neutral` |
+| `--formatters`     | Also bootstrap lint/format via `formatters` (scripts, configs, aliases, docs) | `$init --formatters`     |
 | `--update`         | Structured refresh of existing artifacts (merge/migrate, never clobber)          | `$init --update`         |
 | `--force`          | Overwrite existing files without prompting                                       | `$init --force`          |
 | `--profile=<lang>` | Override detected language (`rust`, `ts-node`, `python`, `go`, `mixed`, `empty`) | `$init --profile=rust`   |
@@ -46,6 +47,7 @@ Extract mode booleans from `$ARGUMENTS`:
 - `TEMPLATES` — true if `--templates` present
 - `GIT` — true if `--git` present
 - `VENDOR_NEUTRAL` — true if `--vendor-neutral` present
+- `FORMATTERS` — true if `--formatters` present
 - `UPDATE` — true if `--update` present
 - `FORCE` — true if `--force` present
 - `PROFILE` — value of `--profile=<lang>` if provided, else empty
@@ -158,6 +160,14 @@ ${HOME}/.codex/mcp-library/generate-mcp-config.sh <selected-mcps>
 ```
 
 Create `.claude/agents/` if needed; copy selected agent files from `${HOME}/.codex/agents/`.
+
+### Phase 6.5 — Formatter bootstrap (when `FORMATTERS=true`)
+
+When `FORMATTERS=true`, invoke the `formatters` skill to bootstrap the lint/format environment. Pass through `--dry-run` and `--force`; let the skill handle its own flag defaults for everything else (stack detection, sync vs copy, aliases, docs). Do NOT duplicate formatter logic here — the formatters skill owns every decision about scripts, tool configs, aliases, and docs.
+
+If `DRY_RUN=true`, invoke `formatters --dry-run` and merge its preview output into the Phase 7 summary. Otherwise invoke `formatters` normally.
+
+If the formatters skill exits with an error, record the failure in the Phase 7 summary and continue — do not let a formatter error abort the overall init run.
 
 ### Phase 7 — Summary report
 

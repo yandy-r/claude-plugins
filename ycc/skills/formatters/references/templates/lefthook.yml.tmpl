@@ -1,0 +1,14 @@
+pre-commit:
+  parallel: true
+  commands:
+    style-lint:
+      run: ./scripts/style.sh lint --modified --fix
+      stage_fixed: true
+    style-format:
+      run: ./scripts/style.sh format --modified
+      stage_fixed: true
+
+pre-push:
+  commands:
+    style-ci:
+      run: ./scripts/style.sh lint

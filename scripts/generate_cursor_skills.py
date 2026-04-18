@@ -31,6 +31,7 @@ TEXT_SUFFIXES = frozenset(
         ".txt",
         ".toml",
         ".gitignore",
+        ".tmpl",
     }
 )
 

@@ -37,6 +37,10 @@
       "description": "Run the 7-agent research pipeline for a new feature \u2014 deploys api-researcher, business-analyzer, tech-designer, ux-researcher, security-researcher, practices-researcher, and recommendations-agent in parallel to produce 7 research-*.md files and a consolidated feature-spec.md under docs/plans/[feature-name]/. Default is standalone parallel sub-agents via the Task tool. Pass `--team` (Claude Code only) to deploy the 7 researchers as teammates under a shared TeamCreate/TaskList with coordinated shutdown. Outputs to docs/plans/, NOT docs/prps/. Use when the user asks to \"research a feature\", \"run feature research\", \"deep-dive a feature before planning\", or says \"/feature-research\". For lightweight single-pass specs in the PRP workflow, use ycc:prp-spec instead.\n"
     },
     {
+      "name": "formatters",
+      "description": "Use this skill when the user asks to \"initialize formatters\", \"bootstrap linting\", \"add lint and format scripts\", \"set up prettier / biome / ruff / clippy / golangci-lint / shellcheck\", \"add a Makefile lint target\", \"install a style bundle\", \"wire a pre-commit hook for linting\", or any request to stand up a best-practices lint/format environment in a project. Profiles the target, installs a self-contained `scripts/style.sh` bundle, configures per-language tool files, injects runnable aliases (package.json / Makefile / justfile), appends a \"Linting & Formatting\" section to the project docs, and optionally wires CI and pre-commit hooks. Idempotent via a managed manifest \u2014 safe to re-run with `--sync`."
+    },
+    {
       "name": "frontend-design",
       "description": "Create distinctive, production-grade frontend interfaces with intentional visual direction \u2014 typography, color, spacing rhythm, layout composition, motion, and atmosphere. Use when the user asks to build a landing page, dashboard, app shell, or visual system from scratch, wants to upgrade a bland or generic-looking UI into something memorable, asks for a design direction (brutalist/editorial/luxury/playful/maximalist), asks how to avoid generic AI/SaaS-looking interfaces, asks about typography pairings, color systems, motion choreography, or wants a design point of view rather than just \"make it work\"."
     },
@@ -542,12 +546,13 @@
     }
   ],
   "counts": {
-    "skills": 42,
+    "skills": 43,
     "commands": 41,
     "agents": 51
   },
   "parity": {
     "skills_without_commands": [
+      "formatters",
       "karpathy-guidelines"
     ],
     "commands_without_skills": []

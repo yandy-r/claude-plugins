@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+coverage/
+.next/
+.nuxt/
+.cache/
+target/
+vendor/
+.git/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+CHANGELOG.md

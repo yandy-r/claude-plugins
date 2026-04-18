@@ -251,4 +251,6 @@ npm run format            # Python + docs
 npm run format:modified   # only modified files
 ```
 
+New projects should bootstrap this same lint/format environment via `/ycc:formatters` (or `/ycc:init --formatters`), which installs the `scripts/style.sh` bundle, tool configs, aliases, and docs into the target repo.
+
 Testing and validation are defined in `## Testing Changes` above — JSON validation plus the Codex/Cursor generate-and-validate pipelines are the real verification loop for this repository.

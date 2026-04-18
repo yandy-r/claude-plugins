@@ -1,0 +1,97 @@
+## Linting & Formatting
+
+This project uses a self-contained lint/format bundle rooted in `scripts/style.sh`. Run it directly, via the package-manager aliases below, or wire it into CI.
+
+### One-command bootstrap
+
+If you cloned this repo fresh and `scripts/style.sh` is missing (it ships managed), re-run `formatters --sync` from opencode to reinstall the bundle.
+
+### Daily commands
+
+```bash
+./scripts/style.sh lint                  # full lint pass (all detected languages)
+./scripts/style.sh lint --fix            # auto-fix what is auto-fixable
+./scripts/style.sh lint --modified       # only files changed vs git HEAD
+./scripts/style.sh lint --modified --fix # fast pre-push loop
+./scripts/style.sh format                # format everything
+./scripts/style.sh format --modified     # format only modified files
+```
+
+{{#IF_PACKAGE_JSON}}
+### npm aliases
+
+```bash
+{{PACKAGE_MANAGER}} run lint
+{{PACKAGE_MANAGER}} run lint:fix
+{{PACKAGE_MANAGER}} run lint:modified
+{{PACKAGE_MANAGER}} run format
+{{PACKAGE_MANAGER}} run format:modified
+```
+{{/IF_PACKAGE_JSON}}
+
+{{#IF_MAKEFILE}}
+### Make targets
+
+```bash
+make lint
+make lint-fix
+make lint-modified
+make format
+make format-modified
+```
+{{/IF_MAKEFILE}}
+
+{{#IF_JUSTFILE}}
+### just recipes
+
+```bash
+just lint
+just lint-fix
+just format
+```
+{{/IF_JUSTFILE}}
+
+### Per-language tools
+
+{{#IF_RUST}}
+- **Rust**: `rustfmt` + `clippy` (pinned via `rustfmt.toml`, `clippy.toml`). Runs `cargo clippy --all-targets -- -D warnings` in CI.
+{{/IF_RUST}}
+{{#IF_GO}}
+- **Go**: `gofmt` + `goimports` + `golangci-lint` (config: `.golangci.yml`). Runs `golangci-lint run ./...`.
+{{/IF_GO}}
+{{#IF_TS}}
+- **TypeScript / JavaScript**: `@biomejs/biome` for lint + format + import sort. Runs `biome ci .` in CI. `tsc --noEmit` runs when `tsconfig*.json` is present.
+{{/IF_TS}}
+{{#IF_PYTHON}}
+- **Python**: `ruff` (lint + import sort) + `black` (format). Config: `[tool.ruff]` and `[tool.black]` in `pyproject.toml`.
+{{/IF_PYTHON}}
+{{#IF_DOCS}}
+- **Docs / JSON / YAML**: `markdownlint` + `prettier` (`.markdownlint.json`, `.prettierrc`).
+{{/IF_DOCS}}
+{{#IF_SHELL}}
+- **Shell**: `shellcheck --severity=warning` on `*.sh`.
+{{/IF_SHELL}}
+
+### CI
+
+{{#IF_CI_INSTALLED}}
+Lint runs automatically on every pull request via `.github/workflows/lint.yml`.
+{{/IF_CI_INSTALLED}}
+{{#IF_CI_NOT_INSTALLED}}
+To wire lint into CI, drop the template at `.github/workflows/lint.yml` (available under `.opencode-plugin/skills/formatters/references/templates/lint.yml.tmpl` or via `formatters --ci`).
+{{/IF_CI_NOT_INSTALLED}}
+
+### Pre-commit hook (optional)
+
+{{#IF_HOOKS_INSTALLED}}
+A pre-commit hook is installed. It runs `./scripts/style.sh lint --modified --fix` before every commit. To bypass once: `git commit --no-verify`.
+{{/IF_HOOKS_INSTALLED}}
+{{#IF_HOOKS_NOT_INSTALLED}}
+Run `formatters --hooks` to wire a pre-commit hook that formats and lints only the files you've staged.
+{{/IF_HOOKS_NOT_INSTALLED}}
+
+### Advanced
+
+- **Upgrade the bundle**: re-run `formatters --sync` from opencode. This prunes stale managed files and copies the latest scripts.
+- **Ignore paths**: add entries to `.prettierignore`, `.markdownlintignore`, `.gitignore`, or tool-native ignore keys (`ruff exclude`, `biome files.ignore`, `.golangci.yml issues.exclude-rules`).
+- **Modified-only mode** reads `git diff --name-only HEAD` — untracked files are included when `scripts/lib/modified-files.sh` sees them with `git status --porcelain`.

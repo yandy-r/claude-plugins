@@ -13,6 +13,7 @@ Detailed reference for every flag accepted by `ycc:init`. See also `SKILL.md` fo
 | `--templates`      | off         | 3 (extend)     | `.github/ISSUE_TEMPLATE/`, `.github/labels.md`        | `ycc:init --templates`      |
 | `--git`            | off         | 3 (extend)     | `.gitmessage`, `commitlint.config.cjs` (JS/TS only)   | `ycc:init --git`            |
 | `--vendor-neutral` | off         | 3 (extend)     | `.ai/rules/project.md`                                | `ycc:init --vendor-neutral` |
+| `--formatters`     | off         | 6.5 (delegate) | (delegates to `ycc:formatters` — see its flag matrix) | `ycc:init --formatters`     |
 | `--update`         | off         | 6 (merge)      | existing targets only                                 | `ycc:init --update`         |
 | `--force`          | off         | 6 (overwrite)  | all target files                                      | `ycc:init --force`          |
 | `--profile=<name>` | auto-detect | 1 (skip)       | (drives template variables)                           | `ycc:init --profile=rust`   |

@@ -1,0 +1,35 @@
+# Managed by formatters — Ruff + Black configuration.
+# If you have an existing pyproject.toml, MERGE these sections manually.
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+    "build",
+    "dist",
+    ".venv",
+    "venv",
+    "node_modules",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "SIM", # flake8-simplify
+    "C4",  # flake8-comprehensions
+]
+ignore = [
+    "E501",  # line too long — handled by the formatter
+]
+
+[tool.ruff.lint.isort]
+known-first-party = []
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
