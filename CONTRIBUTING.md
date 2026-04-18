@@ -1,5 +1,42 @@
 # Contributing
 
+## Developer Setup
+
+This repo uses [lefthook](https://github.com/evilmartians/lefthook) for git hooks and
+[commitlint](https://commitlint.js.org/) to enforce Conventional Commits at
+`commit-msg` time.
+
+```bash
+# One-time setup (installs lefthook + commitlint deps, wires .git/hooks/)
+./scripts/install-lefthook.sh
+
+# OR: let the npm 'prepare' script run lefthook install for you
+npm install
+```
+
+What the hooks do:
+
+| Stage        | Command                                                         | Purpose                                     |
+| ------------ | --------------------------------------------------------------- | ------------------------------------------- |
+| `pre-commit` | `scripts/lint.sh --staged --fix` + `scripts/format.sh --staged` | Lint/format staged Python & shell files     |
+| `pre-push`   | `scripts/validate.sh`                                           | Bundle parity + JSON validation (CI parity) |
+| `commit-msg` | `commitlint --edit`                                             | Reject non-conventional commit messages     |
+
+Bypass a single operation with `git commit --no-verify` or `git push --no-verify`.
+CI is exempt automatically (`CI=true`).
+
+### Migrating from the old `pre-commit` framework
+
+Earlier versions of this repo used the Python `pre-commit` framework via
+`.pre-commit-config.yaml`. If your local clone still has it wired, clean up before
+running `install-lefthook.sh`:
+
+```bash
+pre-commit uninstall
+# then:
+./scripts/install-lefthook.sh
+```
+
 ## Repository Model
 
 This repo no longer accepts new top-level Claude plugins. All new functionality goes into the
