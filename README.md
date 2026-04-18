@@ -8,7 +8,7 @@ A single Claude Code plugin (`ycc`) bundling workflow orchestration, parallel pl
 
 <!-- BEGIN:GENERATED-COUNTS -->
 
-The source plugin ships **43 skills**, **41 slash commands** (most skills have a matching command), and **51 agents**.
+The source plugin ships **43 skills**, **42 slash commands** (most skills have a matching command), and **51 agents**.
 
 <!-- END:GENERATED-COUNTS -->
 
@@ -25,6 +25,7 @@ The source plugin ships **43 skills**, **41 slash commands** (most skills have a
 | `/ycc:compatibility-audit` | Audit cross-target compatibility of the ycc bundle across Claude, Cursor, Codex, and opencode targets                                                                                   |
 | `/ycc:deep-research`       | Conduct strategic multi-perspective research using the Asymmetric Research Squad methodology with 8 specialized personas.                                                               |
 | `/ycc:feature-research`    | Research a feature comprehensively before implementation — analyzes requirements, gathers external API context, and produces a feature-spec.md ready for plan-workflow.                 |
+| `/ycc:formatters`          | Bootstrap a best-practices lint/format environment — installs a self-contained scripts/style.sh bundle, per-language tool configs, runnable aliases (package.json/Makefile/justfile)... |
 | `/ycc:frontend-design`     | Create distinctive, production-grade frontend interfaces with intentional visual direction — typography, color, spacing rhythm, layout composition, motion, and atmosphere.             |
 | `/ycc:frontend-patterns`   | Frontend patterns for React and Next.js — composition, compound components, render props, custom hooks, state management with Context+useReducer, data fetching, performance optimiz... |
 | `/ycc:frontend-slides`     | Create stunning, animation-rich, zero-dependency HTML presentations from scratch or by converting PowerPoint files.                                                                     |

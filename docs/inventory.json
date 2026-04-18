@@ -211,6 +211,10 @@
       "description": "Research a feature comprehensively before implementation \u2014 analyzes requirements, gathers external API context, and produces a feature-spec.md ready for plan-workflow. Defaults to standalone parallel sub-agents; pass --team (Claude Code only) to deploy the 7 researchers as teammates under a shared TeamCreate/TaskList with coordinated shutdown. Use when starting a new feature and you need structured research before coding."
     },
     {
+      "name": "formatters",
+      "description": "Bootstrap a best-practices lint/format environment \u2014 installs a self-contained scripts/style.sh bundle, per-language tool configs, runnable aliases (package.json/Makefile/justfile), README docs, and optionally CI + pre-commit hooks."
+    },
+    {
       "name": "frontend-design",
       "description": "Create distinctive, production-grade frontend interfaces with intentional visual direction \u2014 typography, color, spacing rhythm, layout composition, motion, and atmosphere. Use when the user asks to build a landing page, dashboard, app shell, or visual system from scratch, wants to upgrade a bland or generic-looking UI into something memorable, asks for a design direction (brutalist/editorial/luxury/playful/maximalist), asks about typography pairings, color systems, motion choreography, or wants a design point of view rather than just \"make it work\"."
     },
@@ -547,12 +551,11 @@
   ],
   "counts": {
     "skills": 43,
-    "commands": 41,
+    "commands": 42,
     "agents": 51
   },
   "parity": {
     "skills_without_commands": [
-      "formatters",
       "karpathy-guidelines"
     ],
     "commands_without_skills": []
