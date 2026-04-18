@@ -69,21 +69,48 @@ path_relative_to_root() {
   return 1
 }
 
-list_modified_repo_files() {
+list_scoped_repo_files() {
   local root_dir="${1:-$(detect_project_root)}"
+  local scope="${2:-all}"
 
   if ! is_git_repo "$root_dir"; then
     return 0
   fi
 
+  case "$scope" in
+    all|staged|unstaged) ;;
+    *)
+      echo "list_scoped_repo_files: unknown scope '${scope}' (expected: all|staged|unstaged)" >&2
+      return 1
+      ;;
+  esac
+
   (
     cd "$root_dir" || return
-    {
-      git diff --name-only --diff-filter=ACMR
-      git diff --cached --name-only --diff-filter=ACMR
-      git ls-files --others --exclude-standard
-    } | awk 'NF && !seen[$0]++'
+    case "$scope" in
+      all)
+        {
+          git diff --name-only --diff-filter=ACMR
+          git diff --cached --name-only --diff-filter=ACMR
+          git ls-files --others --exclude-standard
+        } | awk 'NF && !seen[$0]++'
+        ;;
+      staged)
+        git diff --cached --name-only --diff-filter=ACMR | awk 'NF && !seen[$0]++'
+        ;;
+      unstaged)
+        {
+          git diff --name-only --diff-filter=ACMR
+          git ls-files --others --exclude-standard
+        } | awk 'NF && !seen[$0]++'
+        ;;
+    esac
   )
+}
+
+list_modified_repo_files() {
+  local root_dir="${1:-$(detect_project_root)}"
+  list_scoped_repo_files "$root_dir" all
 }
 
 list_repo_files() {
@@ -125,11 +152,20 @@ filter_repo_paths() {
 }
 
 list_modified_repo_paths() {
-  local prefix="$1"
-  shift
+  local scope="$1"
+  local prefix="$2"
+  shift 2
+
+  case "$scope" in
+    all|staged|unstaged) ;;
+    *)
+      echo "list_modified_repo_paths: unknown scope '${scope}' (expected: all|staged|unstaged)" >&2
+      return 1
+      ;;
+  esac
 
   local root_dir="${PROJECT_ROOT:-$(detect_project_root)}"
-  list_modified_repo_files "$root_dir" | filter_repo_paths "$root_dir" "$prefix" "$@"
+  list_scoped_repo_files "$root_dir" "$scope" | filter_repo_paths "$root_dir" "$prefix" "$@"
 }
 
 list_repo_paths() {

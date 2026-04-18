@@ -97,21 +97,23 @@ Load each applicable `.tmpl` file from `${CURSOR_PLUGIN_ROOT}/skills/init/templa
 
 Rendering map:
 
-| Condition                                                      | Source template                         | Target path                                  |
-| -------------------------------------------------------------- | --------------------------------------- | -------------------------------------------- |
-| Always                                                         | `CLAUDE.md.tmpl`                        | `CLAUDE.md`                                  |
-| Always                                                         | `AGENTS.md.tmpl`                        | `AGENTS.md`                                  |
-| Always                                                         | `cursor-rule.mdc.tmpl`                  | `.cursor/rules/project.mdc`                  |
-| `VENDOR_NEUTRAL=true`                                          | `ai-rule.md.tmpl`                       | `.ai/rules/project.md`                       |
-| `TEMPLATES=true`                                               | `github/bug_report.yml.tmpl`            | `.github/ISSUE_TEMPLATE/bug_report.yml`      |
-| `TEMPLATES=true`                                               | `github/feature_request.yml.tmpl`       | `.github/ISSUE_TEMPLATE/feature_request.yml` |
-| `TEMPLATES=true`                                               | `github/docs_request.yml.tmpl`          | `.github/ISSUE_TEMPLATE/docs_request.yml`    |
-| `TEMPLATES=true`                                               | `github/config.yml.tmpl`                | `.github/ISSUE_TEMPLATE/config.yml`          |
-| `TEMPLATES=true`                                               | `github/pull_request_template.md.tmpl`  | `.github/pull_request_template.md`           |
-| `TEMPLATES=true`                                               | `github/labels.md.tmpl`                 | `.github/labels.md`                          |
-| `GIT=true`                                                     | `git/gitmessage.tmpl`                   | `.gitmessage`                                |
-| `GIT=true`                                                     | `git/pre-commit-recommendation.md.tmpl` | `docs/pre-commit-recommendation.md`          |
-| `GIT=true` AND `primary_language` in `{typescript,javascript}` | `git/commitlint.config.cjs.tmpl`        | `commitlint.config.cjs`                      |
+| Condition                                                      | Source template                        | Target path                                  |
+| -------------------------------------------------------------- | -------------------------------------- | -------------------------------------------- |
+| Always                                                         | `CLAUDE.md.tmpl`                       | `CLAUDE.md`                                  |
+| Always                                                         | `AGENTS.md.tmpl`                       | `AGENTS.md`                                  |
+| Always                                                         | `cursor-rule.mdc.tmpl`                 | `.cursor/rules/project.mdc`                  |
+| `VENDOR_NEUTRAL=true`                                          | `ai-rule.md.tmpl`                      | `.ai/rules/project.md`                       |
+| `TEMPLATES=true`                                               | `github/bug_report.yml.tmpl`           | `.github/ISSUE_TEMPLATE/bug_report.yml`      |
+| `TEMPLATES=true`                                               | `github/feature_request.yml.tmpl`      | `.github/ISSUE_TEMPLATE/feature_request.yml` |
+| `TEMPLATES=true`                                               | `github/docs_request.yml.tmpl`         | `.github/ISSUE_TEMPLATE/docs_request.yml`    |
+| `TEMPLATES=true`                                               | `github/config.yml.tmpl`               | `.github/ISSUE_TEMPLATE/config.yml`          |
+| `TEMPLATES=true`                                               | `github/pull_request_template.md.tmpl` | `.github/pull_request_template.md`           |
+| `TEMPLATES=true`                                               | `github/labels.md.tmpl`                | `.github/labels.md`                          |
+| `GIT=true`                                                     | `git/gitmessage.tmpl`                  | `.gitmessage`                                |
+| `GIT=true`                                                     | `git/lefthook.yml.tmpl`                | `lefthook.yml`                               |
+| `GIT=true`                                                     | `git/install-lefthook.sh.tmpl`         | `scripts/install-lefthook.sh`                |
+| `GIT=true`                                                     | `git/lefthook-usage.md.tmpl`           | `docs/lefthook-usage.md`                     |
+| `GIT=true` AND `primary_language` in `{typescript,javascript}` | `git/commitlint.config.cjs.tmpl`       | `commitlint.config.cjs`                      |
 
 See `references/template-library.md` for placeholder definitions.
 
@@ -160,7 +162,9 @@ For each rendered file from Phase 3, apply the resolution rule below. Never sile
 | `.github/labels.md`                                    | Always overwrite (reference doc, safe to refresh).                                                                                                                                                            |
 | `.gitmessage`                                          | Show diff; default skip. `--update --force` overwrites (usually safe — it is a reference template).                                                                                                           |
 | `commitlint.config.cjs`                                | If present → show diff and default skip with a warning ("commitlint rules are often project-customized"). `--update --force` overwrites.                                                                      |
-| `docs/pre-commit-recommendation.md`                    | Always overwrite (advisory doc).                                                                                                                                                                              |
+| `lefthook.yml`                                         | Show diff; default skip (users often extend the config with project-specific commands). `--update --force` overwrites. When `has_lefthook_config=true` at Phase 1, warn the user the file already exists.     |
+| `scripts/install-lefthook.sh`                          | Always overwrite (managed bootstrap tooling; tracks upstream improvements).                                                                                                                                   |
+| `docs/lefthook-usage.md`                               | Always overwrite (managed reference doc).                                                                                                                                                                     |
 
 **Target exists AND `UPDATE=false` AND `FORCE=false`** → show a unified diff, then prompt the user with three choices: overwrite, merge (only meaningful for `CLAUDE.md`), or skip. Default choice: skip.
 
@@ -193,6 +197,8 @@ Produce a summary using `${CURSOR_PLUGIN_ROOT}/skills/init/templates/workspace-r
 **Next steps** — suggest:
 
 - `git config commit.template .gitmessage` (if `GIT=true`)
+- `bash scripts/install-lefthook.sh` to install the `lefthook` binary and activate the hooks defined in `lefthook.yml` (if `GIT=true`). Re-runnable on every checkout; safe to rerun.
+- For JS/TS projects: run `{{PACKAGE_MANAGER}} install` (devDependencies `@commitlint/cli` + `@commitlint/config-conventional` must be installed for the `commit-msg` hook to work).
 - Review `.github/labels.md` and run the `gh label create` commands listed there (if `TEMPLATES=true`)
 - Open `CLAUDE.md` to review and refine the generated project rules.
 - If `has_legacy_cursorrules=true` and the migration ran: delete the legacy `.cursorrules` file once the new `.cursor/rules/project.mdc` is confirmed working.

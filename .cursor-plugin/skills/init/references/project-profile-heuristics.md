@@ -66,6 +66,7 @@ These keys let the skill trigger update/merge semantics per artifact:
 | `has_pr_template`         | `pull_request_template.md` exists at a standard path                                       |
 | `has_gitmessage`          | `.gitmessage` file exists at the project root                                              |
 | `has_commitlint_config`   | Any `commitlint.config.*` or `.commitlintrc*` exists                                       |
+| `has_lefthook_config`     | `lefthook.yml`, `lefthook.yaml`, `.lefthook.yml`, `.lefthook.yaml`, or `.lefthook/` exists |
 
 When `--update` is not passed but two or more of these are true, the skill prints a
 suggestion to re-run with `--update`. See `flag-reference.md` for update semantics per

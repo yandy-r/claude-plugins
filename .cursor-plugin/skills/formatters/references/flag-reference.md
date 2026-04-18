@@ -88,6 +88,17 @@ formatters --ci --force
 
 Wire a pre-commit hook via lefthook (default) or husky (if `.husky/` is detected). Always prints a `git commit --no-verify` escape reminder.
 
+The emitted pre-commit commands call `./scripts/style.sh lint --staged` and
+`./scripts/style.sh format --staged`, which scope work to files in the git
+index only (fast feedback). The bundled `style.sh` accepts `--modified`,
+`--staged`, or `--unstaged` as mutually-exclusive scope flags — see
+`./scripts/style.sh lint --help` for details.
+
+If `lefthook.yml` already exists (e.g., because `init --git` ran first),
+`apply-hooks.sh` merges its `pre-commit` block into the existing file rather
+than overwriting, so the init-owned `pre-push` and `commit-msg` stages are
+preserved.
+
 ```
 formatters --hooks
 ```

@@ -286,6 +286,17 @@ for f in commitlint.config.cjs commitlint.config.js commitlint.config.mjs commit
     fi
 done
 
+has_lefthook_config=false
+for f in lefthook.yml lefthook.yaml .lefthook.yml .lefthook.yaml; do
+    if file_exists "$f"; then
+        has_lefthook_config=true
+        break
+    fi
+done
+if [[ "$has_lefthook_config" == "false" ]] && dir_exists ".lefthook"; then
+    has_lefthook_config=true
+fi
+
 # ---------------------------------------------------------------------------
 # CI provider detection
 # ---------------------------------------------------------------------------
@@ -333,5 +344,6 @@ echo "has_issue_templates=${has_issue_templates}"
 echo "has_pr_template=${has_pr_template}"
 echo "has_gitmessage=${has_gitmessage}"
 echo "has_commitlint_config=${has_commitlint_config}"
+echo "has_lefthook_config=${has_lefthook_config}"
 echo "ci_provider=${ci_provider}"
 echo "project_name=${project_name}"
