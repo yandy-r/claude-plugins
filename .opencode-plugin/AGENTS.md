@@ -181,9 +181,22 @@ for targeted iteration:
 - **Commits**: Use **Conventional Commits 1.0.0** — `feat|fix|docs|refactor|perf|test|build|ci|chore(scope): …`. Write the title as you want it to appear in `CHANGELOG.md`.
 - **Internal docs commits**: Files under `docs/plans`, `docs/research`, or `docs/internal` **must** use `docs(internal): …`. Other non-user-facing churn: prefer `chore(…): …` to stay out of release notes.
 - **Large features**: Split into smaller phases and tasks with clear dependencies and order of execution.
+- **File size (~500 lines)**: Aim for **around 500 lines** per file as a soft cap. Files that drift meaningfully past that **must** be refactored into smaller modules unless the content is inherently contiguous (generated code, schemas, large test fixtures). The intent is maintainability, not a hard ceiling.
+- **Modularity & reuse**: Code **must** decompose into small, cohesive units — submodules, libraries, or reusable components — with a clear public surface and minimal cross-module coupling. **No copy-paste duplication** (DRY): extract shared logic into a shared module. Prefer composition over inheritance. Avoid circular dependencies.
+- **Single responsibility**: Each function, module, and component **must** have one clear reason to exist. Split when a unit grows more than one responsibility.
 - **MCP**: When an MCP server fits the task (GitHub, docs, browser, etc.), **prefer it**. **Read** each tool's schema/descriptor before calling.
 
 ## SHOULD (implementation)
+
+### General
+
+- **Naming**: Intention-revealing names for functions, types, and modules. Public APIs should read like documentation.
+- **No dead code**: Remove unused code, imports, and commented-out blocks. Git preserves history.
+- **Dependency hygiene**: Before adding a new dependency, check whether an existing one does the job. New deps need a justification (maintenance cost, license, security).
+- **Fail fast at boundaries**: Validate inputs at module and system boundaries; propagate via typed errors. Never silently swallow errors.
+- **Tests alongside changes**: New or modified behavior ships with tests in the same change.
+
+### Languages
 
 - **Python** (`scripts/generate_*.py`): PEP 8 throughout; type hints required on all public API signatures; prefer `ruff` for linting and `mypy --strict` for type checking.
 - **Shell** (`scripts/*.sh`, `ycc/skills/*/scripts/*.sh`): `#!/usr/bin/env bash` + `set -euo pipefail`; validation guards on required inputs; stdout for results, stderr for errors; exit 0 on success, 1 on error.
