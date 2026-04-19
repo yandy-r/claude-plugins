@@ -6,17 +6,17 @@ Detailed reference for every flag accepted by `ycc:init`. See also `SKILL.md` fo
 
 ## Flag Matrix
 
-| Flag               | Default     | Affects phases | Writes to                                                                                                                    | Example                     |
-| ------------------ | ----------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| `--dry-run`        | off         | 5 (halt)       | nothing                                                                                                                      | `ycc:init --dry-run`        |
-| `--docs-only`      | off         | 2, 4 (skip)    | `CLAUDE.md`, `AGENTS.md`, `.cursor/rules/project.mdc`                                                                        | `ycc:init --docs-only`      |
-| `--templates`      | off         | 3 (extend)     | `.github/ISSUE_TEMPLATE/`, `.github/labels.md`                                                                               | `ycc:init --templates`      |
-| `--git`            | off         | 3 (extend)     | `.gitmessage`, `commitlint.config.cjs` (JS/TS only), `lefthook.yml`, `scripts/install-lefthook.sh`, `docs/lefthook-usage.md` | `ycc:init --git`            |
-| `--vendor-neutral` | off         | 3 (extend)     | `.ai/rules/project.md`                                                                                                       | `ycc:init --vendor-neutral` |
-| `--formatters`     | off         | 6.5 (delegate) | (delegates to `ycc:formatters` — see its flag matrix)                                                                        | `ycc:init --formatters`     |
-| `--update`         | off         | 6 (merge)      | existing targets only                                                                                                        | `ycc:init --update`         |
-| `--force`          | off         | 6 (overwrite)  | all target files                                                                                                             | `ycc:init --force`          |
-| `--profile=<name>` | auto-detect | 1 (skip)       | (drives template variables)                                                                                                  | `ycc:init --profile=rust`   |
+| Flag               | Default     | Affects phases | Writes to                                                                                                                                               | Example                     |
+| ------------------ | ----------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `--dry-run`        | off         | 5 (halt)       | nothing                                                                                                                                                 | `ycc:init --dry-run`        |
+| `--docs-only`      | off         | 2, 4 (skip)    | `CLAUDE.md`, `AGENTS.md`, `.cursor/rules/project.mdc`                                                                                                   | `ycc:init --docs-only`      |
+| `--templates`      | off         | 3 (extend)     | `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `.github/labels.md`, `.github/copilot-instructions.md`, `.github/workflows/pr-title.yml` | `ycc:init --templates`      |
+| `--git`            | off         | 3 (extend)     | `.gitmessage`, `commitlint.config.cjs` (JS/TS only), `lefthook.yml`, `scripts/install-lefthook.sh`, `docs/lefthook-usage.md`                            | `ycc:init --git`            |
+| `--vendor-neutral` | off         | 3 (extend)     | `.ai/rules/project.md`                                                                                                                                  | `ycc:init --vendor-neutral` |
+| `--formatters`     | off         | 6.5 (delegate) | (delegates to `ycc:formatters` — see its flag matrix)                                                                                                   | `ycc:init --formatters`     |
+| `--update`         | off         | 6 (merge)      | existing targets only                                                                                                                                   | `ycc:init --update`         |
+| `--force`          | off         | 6 (overwrite)  | all target files                                                                                                                                        | `ycc:init --force`          |
+| `--profile=<name>` | auto-detect | 1 (skip)       | (drives template variables)                                                                                                                             | `ycc:init --profile=rust`   |
 
 ### `--profile` accepted values
 
@@ -55,7 +55,22 @@ Emit only the doc trio; skip MCP/agent selection (phase 4) and profiler agent di
 
 ### `--templates`
 
-Add GitHub issue forms + PR template + labels reference. Extends the default run or combines with `--docs-only`.
+Adds the full GitHub templates bundle. Extends the default run or combines with `--docs-only`:
+
+- `.github/ISSUE_TEMPLATE/bug_report.yml`, `feature_request.yml`,
+  `docs_request.yml`, `config.yml` — YAML issue forms
+- `.github/pull_request_template.md` — PR template with a required-check
+  preamble pointing at the PR-title workflow and copilot instructions
+- `.github/labels.md` — reference list of the project's label taxonomy
+  (`gh label create` commands included)
+- `.github/copilot-instructions.md` — PR-workflow essentials restated for
+  GitHub Copilot's coding agent (points at `CLAUDE.md` / `AGENTS.md` for
+  canonical rules)
+- `.github/workflows/pr-title.yml` — required GitHub Actions check that
+  validates PR titles as Conventional Commits and rejects placeholder
+  prefixes (`[WIP]`, `Draft:`, `Initial plan`) that agents often open PRs
+  with. Enable as a required status check in branch protection — see the
+  `--templates` next-step emitted at end of `ycc:init`.
 
 ```
 /ycc:init --templates

@@ -109,6 +109,8 @@ Rendering map:
 | `TEMPLATES=true`                                               | `github/config.yml.tmpl`               | `.github/ISSUE_TEMPLATE/config.yml`          |
 | `TEMPLATES=true`                                               | `github/pull_request_template.md.tmpl` | `.github/pull_request_template.md`           |
 | `TEMPLATES=true`                                               | `github/labels.md.tmpl`                | `.github/labels.md`                          |
+| `TEMPLATES=true`                                               | `github/copilot-instructions.md.tmpl`  | `.github/copilot-instructions.md`            |
+| `TEMPLATES=true`                                               | `github/workflows/pr-title.yml.tmpl`   | `.github/workflows/pr-title.yml`             |
 | `GIT=true`                                                     | `git/gitmessage.tmpl`                  | `.gitmessage`                                |
 | `GIT=true`                                                     | `git/lefthook.yml.tmpl`                | `lefthook.yml`                               |
 | `GIT=true`                                                     | `git/install-lefthook.sh.tmpl`         | `scripts/install-lefthook.sh`                |
@@ -160,6 +162,8 @@ For each rendered file from Phase 3, apply the resolution rule below. Never sile
 | `.github/ISSUE_TEMPLATE/*.yml`                         | Per template: if missing → create; if present → show diff and default to skip (issue forms are often customized). `--update --force` overwrites.                                                              |
 | `.github/pull_request_template.md`                     | Show diff; default skip. `--update --force` overwrites.                                                                                                                                                       |
 | `.github/labels.md`                                    | Always overwrite (reference doc, safe to refresh).                                                                                                                                                            |
+| `.github/copilot-instructions.md`                      | Show diff; default skip (users customise agent-facing rules). `--update --force` overwrites.                                                                                                                  |
+| `.github/workflows/pr-title.yml`                       | Show diff; default skip (users may customise the Conventional Commits type list or branch filters). `--update --force` overwrites.                                                                            |
 | `.gitmessage`                                          | Show diff; default skip. `--update --force` overwrites (usually safe — it is a reference template).                                                                                                           |
 | `commitlint.config.cjs`                                | If present → show diff and default skip with a warning ("commitlint rules are often project-customized"). `--update --force` overwrites.                                                                      |
 | `lefthook.yml`                                         | Show diff; default skip (users often extend the config with project-specific commands). `--update --force` overwrites. When `has_lefthook_config=true` at Phase 1, warn the user the file already exists.     |
@@ -200,6 +204,8 @@ Produce a summary using `${CLAUDE_PLUGIN_ROOT}/skills/init/templates/workspace-r
 - `bash scripts/install-lefthook.sh` to install the `lefthook` binary and activate the hooks defined in `lefthook.yml` (if `GIT=true`). Re-runnable on every checkout; safe to rerun.
 - For JS/TS projects: run `{{PACKAGE_MANAGER}} install` (devDependencies `@commitlint/cli` + `@commitlint/config-conventional` must be installed for the `commit-msg` hook to work).
 - Review `.github/labels.md` and run the `gh label create` commands listed there (if `TEMPLATES=true`)
+- Review `.github/copilot-instructions.md` — it restates the PR-workflow rules for GitHub Copilot's coding agent. Adjust to match project-specific conventions (e.g., if the repo customises the Conventional Commits type list, update the allowed-types line) (if `TEMPLATES=true`).
+- Enable the PR title check as a required status: **Settings → Branches → Branch protection rules**, add `Validate Conventional Commit PR title` (the job name from `.github/workflows/pr-title.yml`) to the required checks. Without this, the workflow runs but isn't enforced (if `TEMPLATES=true`).
 - Open `CLAUDE.md` to review and refine the generated project rules.
 - If `has_legacy_cursorrules=true` and the migration ran: delete the legacy `.cursorrules` file once the new `.cursor/rules/project.mdc` is confirmed working.
 
