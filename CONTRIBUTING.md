@@ -112,6 +112,44 @@ misplacement, agents without consumers, etc.) that complement this policy.
 - Directories and files: `kebab-case`
 - Skills match their slash command name (e.g., skill `git-workflow` -> `/git-workflow`)
 
+## Skills and Commands: When to Pair
+
+Every skill under `ycc/skills/<name>/SKILL.md` ships with a matching
+`ycc/commands/<name>.md` **unless** the skill's frontmatter declares
+`command: false`. The pairing is enforced by
+`scripts/validate-ycc-commands.sh` (wired into `./scripts/validate.sh`).
+
+The two artifacts play **different roles** — they are not duplicates, and
+generating one from the other would destroy UX content:
+
+| Artifact    | Description surface                                           | Body content                                                                                                                                          |
+| ----------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Skill**   | Auto-trigger matcher (verbose, keyword-dense, scenario-based) | Workflow phases, reference reads, tool invocations.                                                                                                   |
+| **Command** | Slash-menu label (concise, flag-aware)                        | Flag documentation tables, usage examples, sibling-command cross-references, agent-type pinning, `$ARGUMENTS` handling, slash-scoped `allowed-tools`. |
+
+**When to opt out with `command: false`**: the skill is passive guidance that
+is never directly slash-invoked (`karpathy-guidelines` is the canonical
+example — behavioral rules the model reads when relevant code work triggers,
+never via `/ycc:karpathy-guidelines`).
+
+**When NOT to opt out**: if a user might ever type `/ycc:<name>` to run the
+skill deterministically, keep the command — even a minimal one. Argument
+hints, `allowed-tools` tuned for slash-invocation, and the distinct menu
+description are all command-only affordances.
+
+The `bundle-author` skill scaffolds both artifacts by default. Pass
+`--skill-only` to suppress the command and stamp `command: false` into the
+skill frontmatter in one step.
+
+### Cross-target implications
+
+Commands matter for **Claude Code** (native `/ycc:<name>` slash invocation +
+argument hints) and **opencode** (first-class slash commands generated from
+`ycc/commands/`). Cursor and Codex ignore commands entirely (Cursor folds
+guidance into rule files; Codex has no command layer). See
+`ycc/skills/_shared/references/target-capability-matrix.md` for the full
+matrix.
+
 ## Regeneration
 
 After changing `ycc/skills/`, `ycc/agents/`, or `ycc/commands/`, regenerate and validate

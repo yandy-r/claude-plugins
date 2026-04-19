@@ -74,6 +74,8 @@ run_target() {
         inventory)
             echo "== validate: inventory =="
             "${REPO_ROOT}/scripts/validate-inventory.sh" || fail "validate-inventory.sh"
+            echo "== validate: ycc skill↔command pairing =="
+            "${REPO_ROOT}/scripts/validate-ycc-commands.sh" || fail "validate-ycc-commands.sh"
             ;;
         cursor)
             echo "== validate: cursor agents =="
