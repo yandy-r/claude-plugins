@@ -68,7 +68,7 @@ link_rules_file() {
 
 usage() {
     cat <<EOF
-Usage: $(basename "$0") --target <target> [--settings] [--mcp] [--force] [--only <steps>]
+Usage: $(basename "$0") --target <target> [--settings] [--mcp] [--hooks] [--force] [--only <steps>]
 
 Sync plugin assets to an IDE configuration directory.
 
@@ -76,26 +76,32 @@ Options:
   --target <target>   Target: claude, cursor, codex, opencode, or all
   --settings          Additive: also run the target's 'settings' step.
   --mcp               Additive: also run the target's 'mcp' step.
+  --hooks             Additive: also run the target's 'hooks' step.
+                      Currently supported by the claude target only; silently
+                      ignored by targets without hook support.
   --force             Replace a real (non-symlink) rules file (CLAUDE.md /
                       AGENTS.md) at the destination. Without --force, the
                       rules linker refuses to overwrite user-authored files.
   --only <steps>      Exclusive: run only the comma-separated steps
                       (e.g. --only settings, --only mcp,settings).
-                      Overrides defaults and --settings/--mcp.
+                      Overrides defaults and --settings/--mcp/--hooks.
   --help              Show this help message
 
 Semantics:
   Default (no --only):
     - Run the target's 'base' step (if any).
-    - Additionally run 'settings' / 'mcp' if their flag is passed.
+    - Additionally run 'settings' / 'mcp' / 'hooks' if their flag is passed.
   With --only <steps>:
     - Run exactly the listed steps. Nothing else.
 
 Target steps:
-  claude    settings | mcp
+  claude    settings | mcp | hooks
             settings: symlink ycc/settings/{settings.json,statusline-command.sh}
                       AND ycc/settings/rules/{CLAUDE.md,AGENTS.md} into ~/.claude/.
             mcp:      merge mcp-configs/mcp.json mcpServers into ~/.claude.json.
+            hooks:    symlink ycc/settings/hooks/ into ~/.claude/hooks/, enabling
+                      the WorktreeCreate hook (redirects harness-managed
+                      worktrees to ~/.claude-worktrees/).
             (no base; claude is flag-driven.)
   cursor    base | mcp | settings
             base:     generate + validate + format + rsync bundle to ~/.cursor/.
@@ -122,6 +128,9 @@ Target steps:
 Examples:
   $(basename "$0") --target claude --settings --mcp
   $(basename "$0") --target claude --only mcp
+  $(basename "$0") --target claude --hooks                # install WorktreeCreate hook
+  $(basename "$0") --target claude --settings --mcp --hooks
+  $(basename "$0") --target claude --only hooks           # hooks only
   $(basename "$0") --target cursor                       # base only
   $(basename "$0") --target cursor --mcp                 # base + mcp
   $(basename "$0") --target cursor --settings            # base + rules symlinks
@@ -264,6 +273,7 @@ step_enabled() {
         base)     return 0 ;;
         settings) [[ "${SETTINGS:-0}" == "1" ]] ;;
         mcp)      [[ "${MCP:-0}" == "1" ]] ;;
+        hooks)    [[ "${HOOKS:-0}" == "1" ]] ;;
         *)        return 1 ;;
     esac
 }
@@ -294,7 +304,7 @@ validate_only_steps() {
 # Claude target (settings + mcp; no base)
 # ---------------------------------------------------------------------------
 sync_claude_target() {
-    validate_only_steps "claude" "settings,mcp"
+    validate_only_steps "claude" "settings,mcp,hooks"
 
     local ran=0
     if step_enabled settings; then
@@ -310,8 +320,17 @@ sync_claude_target() {
         merge_claude_mcp_json
         ran=1
     fi
+    if step_enabled hooks; then
+        printf '\n%sClaude: link hooks directory into ~/.claude/hooks%s\n' "${BOLD}" "${NC}"
+        # Directory-level symlink so new hook scripts are picked up automatically.
+        # link_file refuses to replace a real directory at the destination, so an
+        # existing ~/.claude/hooks (non-symlink) surfaces as an error rather than
+        # being silently clobbered.
+        link_file "${SCRIPT_DIR}/ycc/settings/hooks" "${HOME}/.claude/hooks"
+        ran=1
+    fi
     if [[ $ran -eq 0 ]]; then
-        warn "Claude target ran no steps (pass --settings, --mcp, or --only ...)"
+        warn "Claude target ran no steps (pass --settings, --mcp, --hooks, or --only ...)"
     fi
     printf '\n%sClaude sync complete.%s\n' "${BOLD}" "${NC}"
 }
@@ -772,6 +791,7 @@ sync_all_targets() {
 TARGET=""
 MCP=0
 SETTINGS=0
+HOOKS=0
 FORCE=0
 ONLY_STEPS=()
 
@@ -797,6 +817,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --settings)
             SETTINGS=1
+            shift
+            ;;
+        --hooks)
+            HOOKS=1
             shift
             ;;
         --force)
@@ -827,6 +851,9 @@ if [[ ${#ONLY_STEPS[@]} -gt 0 ]]; then
     fi
     if [[ "${MCP}" == "1" ]]; then
         warn "--mcp is ignored when --only is used"
+    fi
+    if [[ "${HOOKS}" == "1" ]]; then
+        warn "--hooks is ignored when --only is used"
     fi
 fi
 
