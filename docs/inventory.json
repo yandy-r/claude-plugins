@@ -53,6 +53,10 @@
       "description": "Create stunning, animation-rich, zero-dependency HTML presentations from scratch or by converting PowerPoint files. Enforces viewport-fit (one slide = one viewport, no scrolling), distinctive design presets, and a discovery-by-preview workflow. Use when the user asks to build a presentation/talk/pitch deck, convert a .ppt or .pptx to HTML, improve an existing HTML deck, asks about slide layout, slide animations, keyboard/touch navigation, viewport fitting with clamp() and 100dvh, presentation themes/style presets, or python-pptx for PPTX extraction."
     },
     {
+      "name": "git-cleanup",
+      "description": "This skill should be used when the user asks to \"clean up git\", \"prune stale branches\", \"clean up worktrees\", \"close stale PRs/issues\", \"tidy up my repo\", or mentions removing abandoned branches, worktrees, remote-tracking refs, tags, stashes, PRs, or issues on GitHub/GitLab. Analyzes active code before recommending deletions, presents a plan, and only acts after explicit approval. Dry-run and read-only audit by default."
+    },
+    {
       "name": "git-workflow",
       "description": "Git commit and documentation workflow manager. Analyzes changes, determines commit strategy (direct vs agents), writes conventional commit messages, coordinates documentation updates, and creates pull requests. Use when completing features, making commits, pushing changes, creating PRs, or when the user says \"It's time to push commits.\""
     },
@@ -225,6 +229,10 @@
     {
       "name": "frontend-slides",
       "description": "Create stunning, animation-rich, zero-dependency HTML presentations from scratch or by converting PowerPoint files. Enforces viewport-fit (one slide = one viewport, no scrolling), distinctive design presets, and a discovery-by-preview workflow. Use when the user asks to build a presentation/talk/pitch deck, convert a .ppt or .pptx to HTML, improve an existing HTML deck, asks about slide layout, slide animations, keyboard/touch navigation, viewport fitting with clamp() and 100dvh, presentation themes/style presets, or python-pptx for PPTX extraction."
+    },
+    {
+      "name": "git-cleanup",
+      "description": "Audit and clean up stale git resources (branches, worktrees, remote-tracking refs, stashes, tags, PRs, issues) on GitHub/GitLab. Cross-references active code before recommending deletions. Dry-run by default."
     },
     {
       "name": "git-workflow",
@@ -429,6 +437,10 @@
       "description": "Create, modify, or enhance frontend React components, UI elements, pages, and styling including Tailwind CSS and shadcn/ui. Analyzes existing patterns before implementation."
     },
     {
+      "name": "git-cleanup",
+      "description": "Read-only git cleanup auditor. Collects git state (branches, worktrees, remote-tracking refs, stashes, tags) and remote state from GitHub/GitLab (PRs, issues), runs an active-code analysis pass to separate stale from load-bearing resources, and returns a structured report. Does NOT delete anything. Invoked by the ycc:git-cleanup skill for large-repo audits or when the orchestrator wants a clean read-only pass before the decision gate."
+    },
+    {
       "name": "go-api-architect",
       "description": "Design, develop, review, and improve Go/Golang REST APIs including microservices, authentication, performance optimization, testing strategies, and architectural decisions."
     },
@@ -550,9 +562,9 @@
     }
   ],
   "counts": {
-    "skills": 43,
-    "commands": 42,
-    "agents": 51
+    "skills": 44,
+    "commands": 43,
+    "agents": 52
   },
   "parity": {
     "skills_without_commands": [

@@ -8,7 +8,7 @@ A single Claude Code plugin (`ycc`) bundling workflow orchestration, parallel pl
 
 <!-- BEGIN:GENERATED-COUNTS -->
 
-The source plugin ships **43 skills**, **42 slash commands** (most skills have a matching command), and **51 agents**.
+The source plugin ships **44 skills**, **43 slash commands** (most skills have a matching command), and **52 agents**.
 
 <!-- END:GENERATED-COUNTS -->
 
@@ -29,6 +29,7 @@ The source plugin ships **43 skills**, **42 slash commands** (most skills have a
 | `/ycc:frontend-design`     | Create distinctive, production-grade frontend interfaces with intentional visual direction — typography, color, spacing rhythm, layout composition, motion, and atmosphere.             |
 | `/ycc:frontend-patterns`   | Frontend patterns for React and Next.js — composition, compound components, render props, custom hooks, state management with Context+useReducer, data fetching, performance optimiz... |
 | `/ycc:frontend-slides`     | Create stunning, animation-rich, zero-dependency HTML presentations from scratch or by converting PowerPoint files.                                                                     |
+| `/ycc:git-cleanup`         | Audit and clean up stale git resources (branches, worktrees, remote-tracking refs, stashes, tags, PRs, issues) on GitHub/GitLab.                                                        |
 | `/ycc:git-workflow`        | Git commit and documentation workflow manager.                                                                                                                                          |
 | `/ycc:go-patterns`         | Idiomatic Go patterns, best practices, and conventions for building robust, efficient, and maintainable Go applications.                                                                |
 | `/ycc:go-testing`          | Go testing patterns including table-driven tests, subtests, benchmarks, fuzzing, and test coverage.                                                                                     |
@@ -65,7 +66,7 @@ The source plugin ships **43 skills**, **42 slash commands** (most skills have a
 
 <!-- BEGIN:GENERATED-AGENTS -->
 
-The plugin bundles **51** specialized agents covering codebase analysis, language experts (Go, Rust, Python, TypeScript), reviewers, planners, documenters, and infrastructure architects.
+The plugin bundles **52** specialized agents covering codebase analysis, language experts (Go, Rust, Python, TypeScript), reviewers, planners, documenters, and infrastructure architects.
 
 <!-- END:GENERATED-AGENTS -->
 
