@@ -3,7 +3,7 @@ description: 'Orchestrate multiple specialized agents to accomplish a complex ta
   through intelligent decomposition and parallel execution. Defaults to standalone
   sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared
   the todo tracker and up-front dependency wiring. Usage: [--team] [--dry-run] [--plan-only]
-  [--sequential] <task-description>'
+  [--sequential] [--worktree] <task-description>'
 ---
 
 # Orchestrate Command
@@ -20,12 +20,13 @@ Parallelism is the baseline — every batch's agents dispatch concurrently. The 
 **Flags**:
 
 - `--team` — (Claude Code only) Dispatch each batch's agents under a shared team with up-front dependency wiring.
-- `--dry-run` — Print the orchestration plan without deploying agents. With `--team`, also prints the team name and per-batch teammate roster.
-- `--plan-only` — Write the orchestration plan to `docs/orchestration/[sanitized-task].md` without execution.
-- `--sequential` — Force sequential execution (single-task batches) for tightly coupled work.
+- `--dry-run` — Print the orchestration plan without deploying agents. With `--team`, also prints the team name and per-batch teammate roster. With `--worktree`, also prints a `Worktrees:` line.
+- `--plan-only` — Write the orchestration plan to `docs/orchestration/[sanitized-task].md` without execution. With `--worktree`, the plan gains a `## Worktree Setup` section.
+- `--sequential` — Force sequential execution (single-task batches) for tightly coupled work. With `--worktree`, uses the parent worktree only.
+- `--worktree` — Run each parallel task in its own git worktree. Creates a parent worktree once and per-task child worktrees per batch; children merge back after each batch validates. Combines freely with all other flags.
 
 ```
-Usage: /orchestrate [--team] [--dry-run] [--plan-only] [--sequential] <task-description>
+Usage: /orchestrate [--team] [--dry-run] [--plan-only] [--sequential] [--worktree] <task-description>
 
 Examples:
   /orchestrate "Implement user authentication with tests and docs"
@@ -34,4 +35,5 @@ Examples:
   /orchestrate --plan-only "Refactor database layer"
   /orchestrate --sequential "Migrate legacy config"
   /orchestrate --team --dry-run "Update API documentation across all services"
+  /orchestrate --worktree "Refactor the auth middleware"
 ```

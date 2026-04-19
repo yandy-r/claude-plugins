@@ -8,6 +8,12 @@
 # - Dependencies are properly formatted
 # - Phase organization is present
 #
+# Optional sections (back-compat + forward-compat, never flagged as errors):
+# - ## Worktree Setup  — emitted by --worktree flag in plan-workflow / parallel-plan
+#
+# Optional per-task fields (never flagged as errors):
+# - **Worktree**: ...  — per-parallel-task worktree path annotation
+#
 # Supports monorepo configurations via .plans-config file.
 # See resolve-plans-dir.sh for configuration options.
 
@@ -77,10 +83,11 @@ else
   error "Missing title (# heading)"
 fi
 
-# Check for overview (text between title and first H2)
+# Check for overview (text between title and first non-worktree H2)
+# Skip ## Worktree Setup — it is an optional annotation block, not the overview.
 TITLE_LINE=$(echo "$CONTENT" | grep -n "^# " | head -1 | cut -d: -f1)
 if [[ -n "$TITLE_LINE" ]]; then
-  OVERVIEW=$(echo "$CONTENT" | sed -n "$((TITLE_LINE+1)),/^## /p" | head -n -1 | tr -d '\n')
+  OVERVIEW=$(echo "$CONTENT" | sed -n "$((TITLE_LINE+1)),/^## /p" | head -n -1 | grep -v "^## Worktree Setup" | tr -d '\n')
   WORD_COUNT=$(echo "$OVERVIEW" | wc -w | tr -d ' ')
 
   if [[ $WORD_COUNT -lt 20 ]]; then
@@ -129,6 +136,17 @@ if echo "$CONTENT" | grep -q "## Advice"; then
   fi
 else
   warning "Missing 'Advice' section"
+fi
+
+# Worktree annotations (optional — informational only)
+echo ""
+echo "Checking optional worktree annotations..."
+if echo "$CONTENT" | grep -q "^## Worktree Setup"; then
+  success "Worktree Setup section present (worktree-annotated plan)"
+  WORKTREE_CHILD_COUNT=$(echo "$CONTENT" | grep -c '\*\*Worktree\*\*:' || echo "0")
+  success "  $WORKTREE_CHILD_COUNT parallel-task worktree annotation(s)"
+else
+  echo "       (no ## Worktree Setup — plan was generated without --worktree)"
 fi
 
 # Phase structure

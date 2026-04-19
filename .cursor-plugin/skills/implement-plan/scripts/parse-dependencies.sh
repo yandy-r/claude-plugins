@@ -1,20 +1,41 @@
 #!/usr/bin/env bash
-# Parse parallel-plan.md and extract task dependencies
+# Parse parallel-plan.md and extract task dependencies plus optional worktree paths.
 # Usage: parse-dependencies.sh <path-to-parallel-plan.md>
 #
 # Output format (one task per line):
-#   TASK_ID|TASK_TITLE|DEPENDENCIES
+#   TASK_ID|TASK_TITLE|DEPENDENCIES|WORKTREE_PATH
+#
+# The WORKTREE_PATH field is populated when the task block contains a
+# "- **Worktree**:" line (parallel tasks annotated by a worktree-aware planner).
+# Sequential tasks and plans produced without --worktree output an empty fourth
+# field, preserving full back-compatibility with callers that only read the first
+# three fields.
+#
+# Additionally, two header lines are emitted BEFORE the task rows when a
+# "## Worktree Setup" section is detected in the plan:
+#   WT_PARENT_PATH=<path>
+#   WT_FEATURE_SLUG=<slug>
+#
+# When no "## Worktree Setup" section is present, neither header line is emitted
+# (back-compat: the output is identical to the pre-worktree format).
 #
 # Supports two task ID formats:
 #   Format A (decimal):  #### Task 1.1: Title Depends on [none]
 #   Format B (T-prefix): #### Task T0: Title
 #                         - **Dependencies**: None
 #
-# Examples:
-#   1.1|Create user model|none
-#   T0|Create user model|none
-#   T1|Add validation|T0
-#   2.1|Setup routes|1.1,1.2
+# Examples (no annotations):
+#   1.1|Create user model|none|
+#   T0|Create user model|none|
+#   T1|Add validation|T0|
+#   2.1|Setup routes|1.1,1.2|
+#
+# Examples (with annotations):
+#   WT_PARENT_PATH=~/.claude-worktrees/myrepo-my-feature/
+#   WT_FEATURE_SLUG=my-feature
+#   1.1|Create user model|none|~/.claude-worktrees/myrepo-my-feature-1-1/
+#   1.2|Add validation|none|~/.claude-worktrees/myrepo-my-feature-1-2/
+#   2.1|Setup routes|1.1,1.2|
 #
 # Supports monorepo configurations via .plans-config file.
 # See resolve-plans-dir.sh for configuration options.
@@ -42,14 +63,47 @@ if [[ ! -f "$PLAN_FILE" ]]; then
   exit 1
 fi
 
-# Extract tasks and their dependencies using a state machine.
+# ─────────────────────────────────────────────────────────────────────────────
+# Pass 1 — Extract optional ## Worktree Setup header (parent path + slug).
+# Emits WT_PARENT_PATH= and WT_FEATURE_SLUG= lines when the section is present.
+# ─────────────────────────────────────────────────────────────────────────────
+awk '
+/^## Worktree Setup/ { in_wt_setup = 1; next }
+# Stop at the next ## heading
+in_wt_setup && /^## / { in_wt_setup = 0; next }
+# Match: - **Parent**: ~/.claude-worktrees/<repo>-<feature>/   (branch: ...)
+in_wt_setup && /^\- \*\*Parent\*\*:/ {
+  line = $0
+  sub(/.*\*\*Parent\*\*: */, "", line)
+  # Strip trailing "  (branch: ...)" annotation if present
+  sub(/ *(branch:.*|\(branch:.*)?$/, "", line)
+  gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+  parent_path = line
+  # Derive feature slug from the last path component, stripping trailing slash
+  slug = parent_path
+  gsub(/\/$/, "", slug)
+  n = split(slug, parts, "/")
+  slug = parts[n]
+  # Strip leading "<repo>-" prefix: everything up to and including the first "-"
+  # The convention is <repo>-<feature>; we want just <feature>.
+  # Use the last component directly as the slug — callers can derive repo separately.
+  print "WT_PARENT_PATH=" parent_path
+  print "WT_FEATURE_SLUG=" slug
+  found = 1
+}
+' "$PLAN_FILE"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Pass 2 — Extract tasks and their dependencies using a state machine.
 # Handles both inline deps (Format A) and multi-line deps (Format B).
+# Also captures per-task **Worktree**: lines (Format C, optional).
 #
 # State machine:
 #   - On task header: flush any pending task, start new pending task
-#   - On dependency line: attach deps to pending task, flush it
+#   - On dependency line: attach deps to pending task
+#   - On worktree line: attach worktree path to pending task
 #   - On EOF: flush any remaining pending task
-
+# ─────────────────────────────────────────────────────────────────────────────
 awk '
 function flush_pending() {
   if (pending_id != "") {
@@ -59,10 +113,11 @@ function flush_pending() {
     }
     gsub(/, */, ",", pending_deps)
     gsub(/ /, "", pending_deps)
-    print pending_id "|" pending_title "|" pending_deps
+    print pending_id "|" pending_title "|" pending_deps "|" pending_wt
     pending_id = ""
     pending_title = ""
     pending_deps = ""
+    pending_wt = ""
   }
 }
 
@@ -70,6 +125,7 @@ BEGIN {
   pending_id = ""
   pending_title = ""
   pending_deps = ""
+  pending_wt = ""
 }
 
 /^#### Task ([0-9]+\.[0-9]+|T[0-9]+):/ {
@@ -107,10 +163,13 @@ BEGIN {
       deps = substr(deps, 1, bracket_pos - 1)
     }
     if (deps == "") deps = "none"
-    # Inline deps found — emit immediately
+    # Inline deps found — store in pending (worktree may follow on next lines)
     gsub(/, */, ",", deps)
     if (tolower(deps) == "none") deps = "none"
-    print task_id "|" title "|" deps
+    pending_id = task_id
+    pending_title = title
+    pending_deps = deps
+    pending_wt = ""
     next
   }
 
@@ -118,6 +177,7 @@ BEGIN {
   pending_id = task_id
   pending_title = title
   pending_deps = ""
+  pending_wt = ""
   next
 }
 
@@ -127,6 +187,27 @@ pending_id != "" && /^- \*\*Dependencies\*\*:/ {
   sub(/.*\*\*Dependencies\*\*: */, "", dep_line)
   gsub(/^[[:space:]]+|[[:space:]]+$/, "", dep_line)
   pending_deps = dep_line
+  # Do NOT flush here — worktree line may still follow
+  next
+}
+
+# Per-task worktree annotation: - **Worktree**: <path>   (branch: ...)
+pending_id != "" && /^- \*\*Worktree\*\*:/ {
+  wt_line = $0
+  sub(/.*\*\*Worktree\*\*: */, "", wt_line)
+  # Strip trailing "(branch: ...)" annotation if present
+  sub(/ *(branch:.*|\(branch:.*)?$/, "", wt_line)
+  gsub(/^[[:space:]]+|[[:space:]]+$/, "", wt_line)
+  pending_wt = wt_line
+  # Flush now — worktree line is typically the last field in a task block
+  flush_pending()
+  next
+}
+
+# Next task header will flush the previous pending — but if a task with
+# multi-line deps has no worktree annotation we flush in flush_pending() at EOF.
+# Also flush when we see a new top-level heading that is NOT a task header.
+/^## / || /^### / {
   flush_pending()
   next
 }
@@ -134,12 +215,14 @@ pending_id != "" && /^- \*\*Dependencies\*\*:/ {
 END {
   flush_pending()
 }
-' "$PLAN_FILE" | while IFS='|' read -r task_id title deps; do
+' "$PLAN_FILE" | while IFS='|' read -r task_id title deps wt; do
   task_id=$(echo "$task_id" | tr -d ' ')
   title=$(echo "$title" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
   deps=$(echo "$deps" | tr -d ' ')
+  # wt may be empty or contain a path — preserve as-is (trim only)
+  wt=$(echo "$wt" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
   if [[ -n "$task_id" && "$task_id" =~ ^([0-9]+\.[0-9]+|T[0-9]+)$ ]]; then
-    echo "${task_id}|${title}|${deps}"
+    echo "${task_id}|${title}|${deps}|${wt}"
   fi
 done

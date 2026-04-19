@@ -1,7 +1,7 @@
 ---
 name: plan-workflow
 description: Unified planning workflow - research, analyze, and generate parallel implementation plans in one command. Combines shared-context and parallel-plan with checkpoint support. Default is standalone parallel sub-agents via the Task tool. Pass `--team` (Claude Code only) to orchestrate research, analysis, and validation stages as teammates under a shared TeamCreate/TaskList with coordinated shutdown.
-argument-hint: '[--team] [--research-only] [--plan-only] [--no-checkpoint] [--optimized] [--dry-run] [feature-name]'
+argument-hint: '[--team] [--research-only] [--plan-only] [--no-checkpoint] [--optimized] [--dry-run] [--worktree] [feature-name]'
 allowed-tools:
   - Read
   - Grep
@@ -59,6 +59,7 @@ Parse arguments (flags first, then the feature name):
 - **--no-checkpoint**: No pause between research and planning
 - **--optimized**: Use 7-agent optimized deployment (default: 10-agent standard)
 - **--dry-run**: Show execution plan without running. With `--team`, also prints the team name and teammate roster.
+- **--worktree**: Emit worktree annotations in the generated `parallel-plan.md` (Phase 8) — a top-level `## Worktree Setup` block and per-parallel-task `**Worktree**:` fields. Consumed by `/ycc:implement-plan --worktree` (or auto-detected). Follows `ycc/skills/_shared/references/worktree-strategy.md`. Combines freely with all other flags. No effect when `--research-only` is passed (no plan file is generated). Honored with `--plan-only`.
 - **feature-name**: Required. Directory name in `${PLANS_DIR}/`
 
 If no feature name provided, abort with usage instructions:
@@ -73,6 +74,7 @@ Options:
   --no-checkpoint   No pause between research and planning (default: checkpoint enabled)
   --optimized       Use 7-agent optimized deployment (default: 10-agent standard)
   --dry-run         Show execution plan without running
+  --worktree        Emit worktree annotations in the generated parallel-plan.md
 
 Examples:
   /plan-workflow user-authentication
@@ -81,6 +83,7 @@ Examples:
   /plan-workflow user-auth --plan-only
   /plan-workflow --team new-feature --optimized
   /plan-workflow --team --dry-run new-feature
+  /plan-workflow --worktree add-billing-dashboard
 ```
 
 ---
@@ -93,7 +96,8 @@ Extract from `$ARGUMENTS`:
 
 1. **--team**: Boolean flag. Set `AGENT_TEAM_MODE=true` if present, else `false`.
 2. **--research-only / --plan-only / --no-checkpoint / --optimized / --dry-run**: Boolean flags. Set each corresponding variable if present.
-3. **feature-name**: First non-flag argument (required).
+3. **--worktree**: Boolean flag. Set `WORKTREE_MODE=true` if present, else `false`. Has no effect when `--research-only` is set (no plan file is generated). Honored with `--plan-only`.
+4. **feature-name**: First non-flag argument (required).
 
 Validate the feature name:
 
@@ -477,6 +481,42 @@ Required sections:
 - Critically Relevant Files and Documentation
 - Implementation Plan with Phases and Tasks
 - Advice section
+
+**Worktree annotations** (when `WORKTREE_MODE=true`): insert a `## Worktree Setup`
+section immediately after the title/overview and before the first batch. Use
+`<feature-slug>` = the sanitized feature name (same as `${feature_dir}` basename)
+and hyphenated task IDs (`1.1` → `1-1`). Format exactly as defined in
+`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/worktree-strategy.md` §2:
+
+```markdown
+## Worktree Setup
+
+- **Parent**: ~/.claude-worktrees/<repo>-<feature-slug>/ (branch: feat/<feature-slug>)
+- **Children** (per parallel task; merged back at end of each batch):
+  - Task 1.1 → ~/.claude-worktrees/<repo>-<feature-slug>-1-1/ (branch: feat/<feature-slug>-1-1)
+  - Task 1.2 → ~/.claude-worktrees/<repo>-<feature-slug>-1-2/ (branch: feat/<feature-slug>-1-2)
+```
+
+For each parallel task block, add immediately after the task header:
+
+```markdown
+- **Worktree**: ~/.claude-worktrees/<repo>-<feature-slug>-<task-id>/ (branch: feat/<feature-slug>-<task-id>)
+```
+
+Sequential tasks receive no worktree annotation.
+
+**Plan-generation agent prompt** (both standalone Path A and `--team` Path B): when
+`WORKTREE_MODE=true`, append the following directive to the plan-generation prompt:
+
+> WORKTREE MODE: Annotate the generated `parallel-plan.md` with worktree paths
+> following `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/worktree-strategy.md` §2.
+> Add a top-level `## Worktree Setup` section (parent + all parallel-task children)
+> before the first batch. Add a `**Worktree**:` line to each parallel task block.
+> Sequential tasks get no annotation. Use hyphenated task IDs (`1.1` → `1-1`).
+
+In the `--team` Path B additionally cross-reference
+`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/agent-team-dispatch.md` §7 so the
+planner encodes the per-batch child-worktree ordering.
 
 ### Step 27: Validate Plan Structure
 

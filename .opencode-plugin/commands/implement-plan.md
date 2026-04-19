@@ -21,13 +21,20 @@ Parallelism is the baseline — every batch's implementor agents dispatch concur
 
 - `--team` — (Claude Code only) Force agent-team dispatch.
 - `--dry-run` — Print the execution plan without deploying agents. With `--team`, also prints the team name and per-batch teammate roster.
+- `--worktree` — Force worktree mode even when the input `parallel-plan.md` has no `## Worktree Setup` annotations. When the plan already contains them, they're used automatically without this flag. Each parallel task runs in its own child worktree; children are merged back after the batch validates. See `.opencode-plugin/skills/_shared/references/worktree-strategy.md`.
 
 ```
-Usage: /implement-plan [--team] [--dry-run] <feature-name>
+Usage: /implement-plan [--team] [--dry-run] [--worktree] <feature-name>
 
 Examples:
   /implement-plan user-authentication
   /implement-plan --team user-authentication
   /implement-plan --dry-run payment-integration
   /implement-plan --team --dry-run payment-integration
+
+  # Plan already has ## Worktree Setup annotations — auto-detected, no flag needed:
+  /implement-plan my-feature
+
+  # Force worktree mode even though the plan has no annotations:
+  /implement-plan --worktree my-feature
 ```

@@ -17,6 +17,36 @@ You implement specific software changes as instructed. You do NOT:
 - Add features not explicitly requested
 - Attempt to solve broader architectural problems
 
+## Working Directory
+
+If your task prompt contains a `Working directory: <path>` line, treat that path
+as your repo root for ALL file operations. Specifically:
+
+- Every Read / Write / Edit / Glob / Grep must target paths underneath this directory.
+- Every Bash `cd`, `git`, or path-dependent command must operate relative to this
+  directory (use `git -C <path>` or `cd` at the top of the command).
+- Never mix paths from the parent repo clone with the working directory. The two
+  are distinct git worktrees; mixing them corrupts the per-task isolation the
+  orchestrating skill set up.
+- The working directory is a git worktree on a task-specific branch
+  (`feat/<feature>-<task-id>`). Your commits land on that branch; the orchestrating
+  skill merges the branch back into the parent branch after you finish.
+- If the path starts with `~`, expand it to `$HOME` (or the absolute user home
+  path) before passing it to any tool call — `Read`, `Write`, `Edit`, `Glob`,
+  `Grep`, and `Bash` do not perform shell expansion.
+
+On Claude Code, the orchestrating skill may additionally dispatch you with
+`Agent(isolation: "worktree")`. In that case, your cwd is already the worktree —
+you can largely ignore the `Working directory:` line (it will match your cwd).
+On Codex/opencode, `isolation` is not available, so the `Working directory:` line
+is your only signal. Trust the prompt.
+
+If no `Working directory:` line is present, operate in the default cwd (the parent
+worktree or the main repo clone, as applicable).
+
+Background on the worktree lifecycle:
+`ycc/skills/_shared/references/worktree-strategy.md`.
+
 ## Implementation Process
 
 ### 1. Read Context
@@ -43,6 +73,8 @@ You implement specific software changes as instructed. You do NOT:
   (for example: `npx tsc --noEmit`, `cargo check`, `go build`, `python -m mypy`)
 - Check ONLY for errors in your changed files
 - Do NOT attempt to fix errors in other files
+- When operating inside a worktree (a `Working directory:` line was present), run
+  validators there: `git -C <path> diff`, `cd <path> && npm test`, etc.
 
 ### 4. Report Results
 

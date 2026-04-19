@@ -41,13 +41,20 @@ Parallelism is the baseline — every batch's implementor agents dispatch concur
 
 - `--team` — (Claude Code only) Force agent-team dispatch.
 - `--dry-run` — Print the execution plan without deploying agents. With `--team`, also prints the team name and per-batch teammate roster.
+- `--worktree` — Force worktree mode even when the input `parallel-plan.md` has no `## Worktree Setup` annotations. When the plan already contains them, they're used automatically without this flag. Each parallel task runs in its own child worktree; children are merged back after the batch validates. See `ycc/skills/_shared/references/worktree-strategy.md`.
 
 ```
-Usage: /ycc:implement-plan [--team] [--dry-run] <feature-name>
+Usage: /ycc:implement-plan [--team] [--dry-run] [--worktree] <feature-name>
 
 Examples:
   /ycc:implement-plan user-authentication
   /ycc:implement-plan --team user-authentication
   /ycc:implement-plan --dry-run payment-integration
   /ycc:implement-plan --team --dry-run payment-integration
+
+  # Plan already has ## Worktree Setup annotations — auto-detected, no flag needed:
+  /ycc:implement-plan my-feature
+
+  # Force worktree mode even though the plan has no annotations:
+  /ycc:implement-plan --worktree my-feature
 ```

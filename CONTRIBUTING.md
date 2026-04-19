@@ -37,6 +37,23 @@ pre-commit uninstall
 ./scripts/install-lefthook.sh
 ```
 
+### Claude hooks symlink
+
+`~/.claude/settings.json` is already symlinked to `ycc/settings/settings.json` in this
+repo. The `WorktreeCreate` hook registered in that file points to
+`~/.claude/hooks/worktree-create.sh`, so you must also expose the hooks directory:
+
+```bash
+ln -s "$(pwd)/ycc/settings/hooks" ~/.claude/hooks
+```
+
+Run this once from the repo root. After that, Claude Code will invoke
+`ycc/settings/hooks/worktree-create.sh` whenever it would otherwise create a worktree
+under `<repo>/.claude/worktrees/`, redirecting it to `~/.claude-worktrees/` instead.
+Until this symlink is created, `Agent(isolation: "worktree")` falls back to the harness
+default and creates worktrees under `<repo>/.claude/worktrees/` (the path the policy in
+`ycc/settings/rules/CLAUDE.md:207–224` specifically tries to avoid).
+
 ## Repository Model
 
 This repo no longer accepts new top-level Claude plugins. All new functionality goes into the

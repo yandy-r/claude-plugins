@@ -4,7 +4,9 @@ description: 'Execute a PRP plan file with per-task validation loops. Detects pa
   and archives the plan. Auto-detects parallel-capable plans and prompts the user;
   pass --parallel to force standalone sub-agent batch execution, or --team (Claude
   Code only) to force agent-team batch execution with shared the todo tracker and
-  up-front dependency wiring. Usage: [--parallel | --team] [--dry-run] <path/to/plan.md>'
+  up-front dependency wiring. Pass --worktree to force per-task git worktree isolation
+  (plans with worktree annotations are auto-detected and need no flag). Usage: [--parallel
+  | --team] [--worktree] [--dry-run] <path/to/plan.md>'
 ---
 
 # PRP Implement Command
@@ -25,20 +27,34 @@ The skill walks the plan's Step-by-Step Tasks, runs immediate validation after e
 
 - `--parallel` — Force parallel sub-agent execution. Skips the interactive prompt when the plan is parallel-capable. Falls back to sequential with a warning if the plan has no `Batches` section.
 - `--team` — (Claude Code only) Force agent-team execution. **Aborts** (does not fall back) if the plan has no `Batches` section — agent-team mode requires a parallel-capable plan.
+- `--worktree` — Force git worktree isolation per parallel task, even when the plan has no `## Worktree Setup` annotations. When the plan already contains worktree annotations (produced by `/prp-plan --worktree` or `/parallel-plan --worktree`), they are used automatically — no flag needed. Each parallel task runs in its own child worktree; after each batch validates, child branches are merged back into the parent. Sequential tasks always run in the parent worktree. Combines freely with `--parallel` and `--team`.
 - `--dry-run` — Only valid with `--team`. Prints the team name, full task graph with dependencies, and per-batch teammate roster, then exits without spawning any teammates.
 
 `--parallel` and `--team` are **mutually exclusive** — pick one.
 
-**Auto-detection**: If you omit both flags and the plan is parallel-capable, the skill prompts you to choose sequential / parallel sub-agents / agent team before executing.
+**Auto-detection**: If you omit both flags and the plan is parallel-capable, the skill prompts you to choose sequential / parallel sub-agents / agent team before executing. If the plan contains a `## Worktree Setup` section, worktree mode activates automatically regardless of whether `--worktree` is passed.
 
 ```
-Usage: /prp-implement [--parallel | --team] [--dry-run] <path/to/plan.md>
+Usage: /prp-implement [--parallel | --team] [--worktree] [--dry-run] <path/to/plan.md>
 
 Examples:
-  /prp-implement docs/prps/plans/rate-limiting.plan.md              # auto-detect, prompt if parallel-capable
-  /prp-implement --parallel docs/prps/plans/rate-limiting.plan.md   # force parallel sub-agent batch execution
-  /prp-implement --team docs/prps/plans/rate-limiting.plan.md       # force agent-team batch execution
-  /prp-implement --team --dry-run docs/prps/plans/rate-limiting.plan.md  # preview team graph
+  /prp-implement docs/prps/plans/rate-limiting.plan.md
+    # auto-detect mode; if plan has ## Worktree Setup, worktree mode activates automatically
+
+  /prp-implement --parallel docs/prps/plans/rate-limiting.plan.md
+    # force parallel sub-agent batch execution
+
+  /prp-implement --team docs/prps/plans/rate-limiting.plan.md
+    # force agent-team batch execution
+
+  /prp-implement --worktree docs/prps/plans/rate-limiting.plan.md
+    # force worktree isolation per parallel task even though the plan has no annotations
+
+  /prp-implement --team --worktree docs/prps/plans/rate-limiting.plan.md
+    # agent-team execution with per-task child worktrees and fan-in merge after each batch
+
+  /prp-implement --team --dry-run docs/prps/plans/rate-limiting.plan.md
+    # preview team graph (no agents spawned)
 
 Next step after implementation completes:
   /prp-pr            # Create a pull request

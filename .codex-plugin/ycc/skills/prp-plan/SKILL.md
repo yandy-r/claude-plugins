@@ -8,10 +8,10 @@ description: Create a comprehensive, self-contained feature implementation plan 
   and emit a dependency-batched task list ready for parallel execution by prp-implement.
   Pass `--team` (Codex only) to run the same 3 researchers under a shared create an
   agent group/the task tracker with coordinated shutdown — heavier but with a shared
-  task graph and observable progress. `--parallel` and `--team` are mutually exclusive.
-  Use when the user asks for a "PRP plan", "implementation plan from PRD", "feature
-  plan with patterns to mirror", "parallel PRP plan", "team PRP plan", or says "/prp-plan".
-  Adapted from PRPs-agentic-eng by Wirasm.
+  task graph and observable progress. Pass `--worktree` to annotate the emitted plan
+  with a `## Worktree Setup` section and per-parallel-task `**Worktree**:` fields
+  for git-isolated execution. `--parallel` and `--team` are mutually exclusive; `--worktree`
+  combines freely with either.
 ---
 
 # PRP Plan
@@ -32,18 +32,20 @@ Create a detailed, self-contained implementation plan that captures all codebase
 
 Extract flags from `$ARGUMENTS`:
 
-| Flag         | Effect                                                                                                                                                                                                                                               |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel` | Fan out research into 3 **standalone sub-agent** researchers; emit tasks with batch/dependency annotations. Works in Codex, Cursor, and Codex.                                                                                                 |
-| `--team`     | (Codex only) Fan out the same 3 researchers as **teammates** under a shared `create an agent group`/`the task tracker` with coordinated shutdown via `send follow-up instructions`. Same plan output as `--parallel`, but with shared task-graph observability. Heavier dispatch. |
-| `--dry-run`  | Only valid with `--team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                       |
+| Flag          | Effect                                                                                                                                                                                                                                                                                                                                                  |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel`  | Fan out research into 3 **standalone sub-agent** researchers; emit tasks with batch/dependency annotations. Works in Codex, Cursor, and Codex.                                                                                                                                                                                                    |
+| `--team`      | (Codex only) Fan out the same 3 researchers as **teammates** under a shared `create an agent group`/`the task tracker` with coordinated shutdown via `send follow-up instructions`. Same plan output as `--parallel`, but with shared task-graph observability. Heavier dispatch.                                                                                                     |
+| `--worktree`  | Annotate the emitted plan with a top-level `## Worktree Setup` section and a `**Worktree**:` field on every parallel task. The plan consumer (`$prp-implement --worktree` or auto-detect) uses these to create per-task git-isolated worktrees. Follows `ycc/skills/_shared/references/worktree-strategy.md`. Combines freely with `--parallel` and `--team`. |
+| `--dry-run`   | Only valid with `--team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                                                                                                                          |
 
-Strip the flags. Set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `DRY_RUN=true|false`. Remaining text is the feature description or PRD path.
+Strip the flags. Set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `WORKTREE_MODE=true|false`, `DRY_RUN=true|false`. Remaining text is the feature description or PRD path.
 
 **Validation**:
 
 - `--parallel` and `--team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --team are mutually exclusive. Pick one.`
 - `--dry-run` requires `--team`. If `DRY_RUN=true` and `AGENT_TEAM_MODE=false` → abort with: `--dry-run requires --team.`
+- `--worktree` is **orthogonal** to `--parallel` and `--team` — it may be combined freely with either flag or used alone.
 
 **Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools). Use `--parallel` instead.
 
@@ -99,6 +101,10 @@ Dispatch a single `prp-researcher` agent in codebase mode to cover all 8 categor
 
 **IMPORTANT — Researcher prompt constraints**: Tell the researcher to keep code snippets to **5 lines max** per finding and limit the total response to the discovery table format only — no prose summaries.
 
+If `WORKTREE_MODE=true`, append the following directive to the researcher prompt:
+
+> **WORKTREE MODE:** The plan you are helping to build will include worktree annotations. In the emitted plan, include a `## Worktree Setup` section (parent + per-parallel-task children) and a `**Worktree**:` field on every parallel task. Sequential tasks get no annotation. Follow `ycc/skills/_shared/references/worktree-strategy.md` for the naming scheme and annotation format.
+
 ### Path B — Parallel sub-agents (`PARALLEL_MODE=true`)
 
 Dispatch **3 `prp-researcher` agents in a SINGLE message** as **standalone
@@ -111,6 +117,10 @@ sub-agents** (no `team_name`):
 | `infra-research`    | Configuration, Dependencies            | Data Flow               |
 
 **IMPORTANT — Researcher prompt constraints**: Tell each researcher to keep code snippets to **5 lines max** per finding and limit the total response to the discovery table format only — no prose summaries.
+
+If `WORKTREE_MODE=true`, append the following directive to each researcher prompt:
+
+> **WORKTREE MODE:** The plan you are helping to build will include worktree annotations. In the emitted plan, include a `## Worktree Setup` section (parent + per-parallel-task children) and a `**Worktree**:` field on every parallel task. Sequential tasks get no annotation. Follow `ycc/skills/_shared/references/worktree-strategy.md` for the naming scheme and annotation format.
 
 After all 3 return: merge tables, de-duplicate, verify all 8 categories covered.
 
@@ -186,6 +196,10 @@ message** with **THREE `Agent` tool calls**, each with
 Apply the same researcher prompt constraints as Path B: 5-line max snippets, discovery
 table format only, no prose summaries.
 
+If `WORKTREE_MODE=true`, append the following directive to each teammate prompt:
+
+> **WORKTREE MODE:** The plan you are helping to build will include worktree annotations. In the emitted plan, include a `## Worktree Setup` section (parent + per-parallel-task children) and a `**Worktree**:` field on every parallel task. Sequential tasks get no annotation. Follow `ycc/skills/_shared/references/worktree-strategy.md` for the naming scheme and annotation format.
+
 #### C.6 Monitor and merge
 
 Use `the task tracker` to confirm all 3 tasks are `completed` before merging. Merge tables,
@@ -259,12 +273,44 @@ If `PARALLEL_MODE=true` **or** `AGENT_TEAM_MODE=true`, also read `~/.codex/plugi
 **Do NOT generate the entire plan in a single Write call.** Instead:
 
 1. **Write** the initial file with: header through Metadata (+ Batches section if parallel), UX Design, and Mandatory Reading sections
+   - If `WORKTREE_MODE=true`, include the `## Worktree Setup` section immediately after the Metadata / Batches block and before the first implementation section (see worktree annotation rules below)
 2. **Edit/append** the Patterns to Mirror section (populated from researcher discovery tables)
 3. **Edit/append** the Files to Change + NOT Building sections
 4. **Edit/append** the Step-by-Step Tasks section (this is usually the largest — keep each task description concise)
+   - If `WORKTREE_MODE=true`, add a `- **Worktree**: ...` line inside every **parallel** task block; sequential tasks get no annotation
 5. **Edit/append** the Testing Strategy, Validation Commands, Acceptance Criteria, Completion Checklist, Risks, and Notes sections
 
 Each chunk should be a separate Write or Edit call. This prevents any single generation from being too large.
+
+### Worktree annotations (when `WORKTREE_MODE=true`)
+
+Derive `<feature-slug>` from the kebab-case plan file name (same value used for `{kebab-case-feature-name}.plan.md`). Derive `<repo>` from `git rev-parse --show-toplevel` basename.
+
+Normalize task IDs: replace `.` with `-` (e.g., `1.1` → `1-1`).
+
+**`## Worktree Setup` section** (top-level, before Batches/implementation):
+
+```markdown
+## Worktree Setup
+
+- **Parent**: ~/.claude-worktrees/<repo>-<feature-slug>/          (branch: feat/<feature-slug>)
+- **Children** (per parallel task; merged back at end of each batch):
+  - Task 1.1 → ~/.claude-worktrees/<repo>-<feature-slug>-1-1/    (branch: feat/<feature-slug>-1-1)
+  - Task 1.2 → ~/.claude-worktrees/<repo>-<feature-slug>-1-2/    (branch: feat/<feature-slug>-1-2)
+  - ...
+```
+
+List only the parallel tasks enumerated in the Batches / Step-by-Step Tasks sections. Sequential tasks are omitted from the Children list.
+
+**Per-parallel-task inline annotation** (inside the task block, immediately after the task heading line):
+
+```markdown
+- **Worktree**: ~/.claude-worktrees/<repo>-<feature-slug>-<task-id>/   (branch: feat/<feature-slug>-<task-id>)
+```
+
+Sequential tasks receive **no** `**Worktree**:` annotation.
+
+Follow `ycc/skills/_shared/references/worktree-strategy.md` for the full naming scheme and annotation contract.
 
 ### Writing guidelines
 
@@ -324,6 +370,7 @@ Update the phase status from `pending` to `in-progress` and add the plan file pa
 - **Confidence Score**: [1-10]
 - **Research Dispatch**: [Sequential | Parallel sub-agents | Agent team]
 - **Execution Mode**: [Sequential | Parallel (N batches, max width X)]
+- **Worktree Mode**: [Enabled — plan includes ## Worktree Setup + per-task annotations | Disabled]
 
 > Next step: Run `$prp-implement docs/prps/plans/{name}.plan.md` to execute this plan.
 ```

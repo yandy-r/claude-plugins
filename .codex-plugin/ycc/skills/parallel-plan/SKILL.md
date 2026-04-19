@@ -51,19 +51,21 @@ This skill requires `${feature_dir}/shared.md` and ends after producing analysis
 Parse arguments (flags first, then the feature name):
 
 - **--team**: Optional. (Codex only) Deploy the analysis and validation stages as teammates under a shared `create an agent group`/`the task tracker` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
+- **--worktree**: Optional. Emit worktree annotations in `parallel-plan.md` — a top-level `## Worktree Setup` block and per-parallel-task `**Worktree**:` fields, so downstream `$implement-plan --worktree` (or auto-detect) can run each parallel task in its own git worktree. Follows `ycc/skills/_shared/references/worktree-strategy.md`. Combines freely with `--team` and `--dry-run`.
 - **--dry-run**: Show what would be created without making changes. With `--team`, also prints the team name and teammate roster.
 - **feature-name**: Required. Matches directory name in `${PLANS_DIR}`.
 
 If no feature name provided, abort with usage instructions:
 
 ```
-Usage: /parallel-plan [--team] [feature-name] [--dry-run]
+Usage: /parallel-plan [--team] [--worktree] [feature-name] [--dry-run]
 
 Examples:
   /parallel-plan user-authentication
   /parallel-plan payment-integration --dry-run
   /parallel-plan --team payment-integration
   /parallel-plan --team --dry-run user-authentication
+  /parallel-plan --worktree user-authentication
 ```
 
 ---
@@ -85,7 +87,8 @@ Extract from `$ARGUMENTS`:
 
 1. **--team**: Boolean flag. Set `AGENT_TEAM_MODE=true` if present, else `false`.
 2. **--dry-run**: Boolean flag. Set `DRY_RUN=true` if present, else `false`.
-3. **feature-name**: First non-flag argument (required).
+3. **--worktree**: Boolean flag. Set `WORKTREE_MODE=true` if present, else `false`.
+4. **feature-name**: First non-flag argument (required).
 
 **Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools).
 
@@ -144,6 +147,11 @@ Mode: [standalone sub-agents | agent team pp-[feature-name]]
 
 - Default (`AGENT_TEAM_MODE=false`): Phase 1 deploys 3 analysis agents as standalone sub-agents in a single message with multiple `Task` calls. No team coordination; each sub-agent writes its assigned `analysis-*.md`. Orchestrator validates, persists, and generates the plan. Phase 2 deploys 3 validation sub-agents the same way. No inter-agent sharing.
 - With `--team` (`AGENT_TEAM_MODE=true`): create team `pp-[feature-name]`, register analysis tasks, spawn 3 analysis teammates under the team, validate, generate plan, register validation tasks, spawn 3 validation teammates, review, then `close the agent group`. Teammates share findings via `send follow-up instructions`.
+
+## Worktree Annotations
+
+- `WORKTREE_MODE=false` (default): no worktree annotations in `parallel-plan.md`.
+- `WORKTREE_MODE=true` (`--worktree`): `parallel-plan.md` will include a `## Worktree Setup` section listing the parent worktree and one child per parallel task, plus per-task `**Worktree**:` inline annotations. Sequential tasks are not annotated.
 
 ## Next Steps
 
@@ -231,6 +239,10 @@ Use the prompts from `analysis-prompts.md` with variables substituted:
 
 In this mode there is no shared task list; rely on each `Task`'s return value plus the artifact checks in Steps 10–11 to confirm completion. Inter-agent `send follow-up instructions` coordination is not available — each sub-agent works independently from the prompt alone.
 
+**WORKTREE MODE (Path A)**: If `WORKTREE_MODE=true`, append the following directive to the `task-structurer` prompt:
+
+> WORKTREE MODE: In your `analysis-tasks.md` output, clearly label each task as **parallel** (can run concurrently with siblings) or **sequential** (must follow a predecessor). This labeling is used by the orchestrator to generate worktree annotations in `parallel-plan.md`. Follow `ycc/skills/_shared/references/worktree-strategy.md` for the annotation format.
+
 #### Path B — Agent team (`AGENT_TEAM_MODE=true`)
 
 > **MANDATORY — AGENT TEAMS REQUIRED**
@@ -247,6 +259,8 @@ Spawn all 3 teammates in **ONE message** with **THREE `Agent` tool calls**. Ever
 - `name = "<teammate-name>"` (from the table above — must match the `record the task` subject prefix)
 - `subagent_type` and `model` from the table above
 - The analysis-specific prompt from `analysis-prompts.md`
+
+**WORKTREE MODE (Path B)**: If `WORKTREE_MODE=true`, append the following directive to the `task-structurer` prompt (same directive as Path A above). Cross-reference `ycc/skills/_shared/references/worktree-strategy.md` and `agent-team-dispatch.md` §7 in the teammate prompt.
 
 After spawning, use `the task tracker` to confirm all 3 tasks are `completed` before proceeding to Step 10.
 
@@ -378,6 +392,45 @@ Files to Modify
 - Specific warnings about code dependencies
 ```
 
+#### WORKTREE MODE (when `WORKTREE_MODE=true`)
+
+If `WORKTREE_MODE=true`, the generated `${feature_dir}/parallel-plan.md` must also
+include the following worktree annotations. Follow
+`~/.codex/plugins/ycc/shared/references/worktree-strategy.md` exactly for
+the annotation format.
+
+**1. Top-level `## Worktree Setup` section** — insert immediately after the title
+and overview, before the first phase heading:
+
+```markdown
+## Worktree Setup
+
+- **Parent**: ~/.claude-worktrees/<repo>-<feature-slug>/          (branch: feat/<feature-slug>)
+- **Children** (per parallel task; merged back at end of each batch):
+  - Task 1.1 → ~/.claude-worktrees/<repo>-<feature-slug>-1-1/    (branch: feat/<feature-slug>-1-1)
+  - Task 1.2 → ~/.claude-worktrees/<repo>-<feature-slug>-1-2/    (branch: feat/<feature-slug>-1-2)
+  ...
+```
+
+List every parallel task across all batches. Sequential tasks are omitted from the
+Children list (they run in the parent worktree).
+
+**2. Per-parallel-task inline annotation** — add immediately after the task header
+line for every parallel task (tasks whose `Depends on` allows concurrent execution):
+
+```markdown
+- **Worktree**: ~/.claude-worktrees/<repo>-<feature-slug>-<task-id>/   (branch: feat/<feature-slug>-<task-id>)
+```
+
+**3. Task-ID hyphenation**: replace `.` with `-` in all worktree paths and branch
+names (e.g., `1.1` → `1-1`, `2.3` → `2-3`).
+
+**4. Sequential tasks** carry no worktree annotation. Their absence of a
+`**Worktree**:` line signals that they run in the parent worktree.
+
+**5. `<feature-slug>`** is the sanitized feature name already used in
+`${feature_dir}` (same slug, lowercase, hyphens).
+
 ### Step 15: Task Breakdown Guidelines
 
 For each task ensure:
@@ -506,6 +559,7 @@ ${feature_dir}/parallel-plan.md
 - Mode: [standalone sub-agents | agent team pp-[feature-name]]
 - Phase 1: 3 analysis agents [standalone via Task | teammates that shared findings]
 - Phase 2: 3 validation agents [standalone via Task | teammates that cross-checked each other]
+- Worktree annotations: [included (--worktree) | not included]
 
 ## Plan Overview
 
@@ -629,7 +683,7 @@ scope: local
 ## Important Notes
 
 - **You are the planning orchestrator** - coordinate analysis and validation stages
-- **Choose dispatch mode from `$ARGUMENTS`** - default is standalone sub-agents via `Task`; `--team` switches to teammates under `create an agent group`/`the task tracker`
+- **Choose dispatch mode from `$ARGUMENTS`** - default is standalone sub-agents via `Task`; `--team` switches to teammates under `create an agent group`/`the task tracker`; `--worktree` emits worktree annotations in the plan
 - **Team setup first (Path B only)** - call `create an agent group` and register analysis tasks before spawning teammates
 - **Spawn in parallel** - a single message with multiple `Task` calls (Path A) or multiple `Agent` calls with `name=` + `name=` (Path B)
 - **Pass model parameters** - use `model: "sonnet"` for analysis agents, `model: "haiku"` for path/dependency validators, `model: "sonnet"` for completeness-validator

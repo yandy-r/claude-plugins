@@ -59,5 +59,17 @@
   "skipAutoPermissionPrompt": true,
   "permissions": {
     "defaultMode": "auto"
+  },
+  "hooks": {
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/worktree-create.sh"
+          }
+        ]
+      }
+    ]
   }
 }

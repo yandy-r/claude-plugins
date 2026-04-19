@@ -5,7 +5,7 @@ description: 'Unified planning workflow — research, analyze, and generate para
   `task` tool; pass --team (Claude Code only) to orchestrate research, analysis, and
   validation stages as teammates under a shared spawn coordinated subagents/the todo
   tracker with coordinated shutdown. Usage: [--team] [--research-only] [--plan-only]
-  [--no-checkpoint] [--optimized] [--dry-run] [feature-name]'
+  [--no-checkpoint] [--optimized] [--dry-run] [--worktree] [feature-name]'
 ---
 
 # Plan Workflow Command
@@ -24,3 +24,11 @@ The skill orchestrates research → shared-context → parallel-plan in a single
 - `--no-checkpoint` — No pause between research and planning.
 - `--optimized` — Use 7-agent optimized deployment (default: 10-agent standard).
 - `--dry-run` — Preview the execution plan without deploying agents. With `--team`, also prints the team name and teammate roster.
+- `--worktree` — Emit worktree annotations in the generated `parallel-plan.md`: a top-level `## Worktree Setup` block and per-parallel-task `**Worktree**:` fields. No effect with `--research-only`. Honored with `--plan-only`. See `.opencode-plugin/skills/_shared/references/worktree-strategy.md`.
+
+**Examples**:
+
+```
+/plan-workflow --worktree add a billing dashboard
+/plan-workflow --team --worktree user-authentication
+```

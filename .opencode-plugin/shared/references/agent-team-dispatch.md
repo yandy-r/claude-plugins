@@ -184,3 +184,54 @@ For skills that process multiple batches against a single team:
 This is cheaper than recreating a team per batch and preserves dependency state
 across batches. If validation fails between batches, the user may abort or switch
 to a non-team mode — in both cases, `send follow-up instructions(shutdown)` + `end the coordinated run` first.
+
+---
+
+## 7. Worktree-aware team dispatch
+
+When a skill combines `--team` with `--worktree`, each parallel teammate must operate
+in its own child worktree so concurrent work doesn't corrupt a shared tree. Sequential
+teammates share the parent worktree. The mechanism layers on top of §2's six-step
+lifecycle and the parent/child model documented in
+[worktree-strategy.md](./worktree-strategy.md).
+
+### 7.1 Per-batch ordering
+
+Exact ordering within ONE batch (critical for correctness):
+
+1. `track the task` for all tasks in the batch (as in §2.2).
+2. `setup-worktree.sh child <repo> <feature> <task-id>` for each parallel teammate —
+   run **before** the `Agent` spawn message, in serial inside the orchestrator. (The
+   orchestrator, not the teammates, creates the child worktrees.)
+3. `Agent` spawn — one message, multiple `Agent` calls (per §2.3). Each call includes
+   `team_name=`, `name=`, **and** a `Working directory: <child-path>` line in the
+   prompt. On opencode, also pass `isolation: "worktree"` pointing at the
+   pre-created child — this pairs with the `WorktreeCreate` hook.
+4. `the todo tracker` monitor → `send follow-up instructions(shutdown)` to every teammate of the batch (per
+   §2.4–2.5).
+5. **After teammates shut down**: `merge-children.sh <repo> <feature> <task-ids,...>`
+   → fan-in merges into the parent branch, removes child worktrees, deletes child
+   branches.
+6. On merge conflict (script exits 1 with `CONFLICT: <task-id> at <path>`): abort
+   subsequent batches, inform the user, wait for manual resolution + explicit resume
+   before proceeding.
+
+The shutdown in step 4 **MUST** precede the merge in step 5 — children still open
+when `merge-children.sh` runs will cause the merge to fail.
+
+### 7.2 Sequential teammates
+
+Teammates whose task has no parallel siblings (single task in a batch, or a
+sequential chain) do **not** get a child worktree. They run in the parent worktree.
+Do **not** pass `isolation: "worktree"` or a `Working directory:` line for them.
+
+### 7.3 Dry-run interaction
+
+`--dry-run` with `--team --worktree` adds a `Worktrees:` line to the existing dry-run
+output format (§5):
+
+```
+Worktrees:   parent=~/.claude-worktrees/<repo>-<feature>/   children=<count>  (batch <n>: <child-paths>)
+```
+
+No `setup-worktree.sh` or `merge-children.sh` calls are made in dry-run mode.

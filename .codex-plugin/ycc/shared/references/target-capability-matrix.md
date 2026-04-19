@@ -35,6 +35,7 @@ Follow these rules exactly or the parser will misread cells:
 | MCP               | supported | supported   | partial     | supported   |
 | INSTALL_PATH      | supported | supported   | supported   | supported   |
 | DANGEROUS_MODE    | supported | unsupported | unsupported | unsupported |
+| WORKTREE          | supported | partial     | partial     | partial     |
 
 ---
 
@@ -147,6 +148,29 @@ Registration when `clientId` is omitted. Source: opencode.ai/docs/mcp-servers/.
 No equivalent to Claude Code's `--dangerously-skip-permissions` flag exists in opencode. The
 opencode permission model uses per-agent `permission.{edit,bash,webfetch}` fields with
 `allow` / `deny` / `ask` values; there is no global override.
+
+**WORKTREE:claude**
+Full support. `Agent(isolation: "worktree")`, `EnterWorktree`, and the `WorktreeCreate` hook
+(ycc-provided, registered in `ycc/settings/settings.json`) rewrite the harness-chosen worktree
+path to `~/.claude-worktrees/<repo>-<branch>/`. A Bash fallback (`git worktree add`) is always
+available. See `ycc/skills/_shared/references/worktree-strategy.md` for the parent/child model
+and naming scheme.
+
+**WORKTREE:cursor**
+Partial. Skills emit `git worktree add` instructions for the user; no auto-creation from the
+skill layer. Worktree support is editor-side in Cursor and is not skill-programmable. See
+`ycc/skills/_shared/references/worktree-strategy.md` for Cursor-specific guidance.
+
+**WORKTREE:codex**
+Partial. No tool-side isolation equivalent. Skills instruct the agent to run
+`git worktree add` via Bash; auto-creation happens when the instruction is embedded in the
+agent prompt. See `ycc/skills/_shared/references/worktree-strategy.md` for the Bash-fallback
+protocol.
+
+**WORKTREE:opencode**
+Partial. Same as Codex — Bash via prompt, no tool-side isolation. Skills embed
+`git worktree add` commands in agent prompts. See
+`ycc/skills/_shared/references/worktree-strategy.md` for the Bash-fallback protocol.
 
 ---
 

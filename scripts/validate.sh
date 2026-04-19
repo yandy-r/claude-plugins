@@ -106,6 +106,8 @@ run_target() {
             python3 -m json.tool "${REPO_ROOT}/.claude-plugin/marketplace.json" > /dev/null || fail ".claude-plugin/marketplace.json"
             python3 -m json.tool "${REPO_ROOT}/ycc/.claude-plugin/plugin.json" > /dev/null || fail "ycc/.claude-plugin/plugin.json"
             echo "OK: manifest JSON is valid."
+            echo "== validate: hooks symlink =="
+            "${REPO_ROOT}/scripts/validate-hooks.sh" || fail "validate-hooks.sh"
             ;;
     esac
 }

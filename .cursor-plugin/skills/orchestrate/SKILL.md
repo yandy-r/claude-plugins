@@ -1,7 +1,7 @@
 ---
 name: orchestrate
 description: Orchestrate multiple specialized agents in parallel to accomplish complex tasks. Decomposes the task, deploys implementor agents in dependency-resolved batches, and synthesizes results. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList, up-front TaskCreate/addBlockedBy dependency wiring, and coordinated inter-batch shutdown via SendMessage.
-argument-hint: '[--team] [--dry-run] [--plan-only] [--sequential] <task-description>'
+argument-hint: '[--team] [--dry-run] [--plan-only] [--sequential] [--worktree] <task-description>'
 allowed-tools:
   - Read
   - Grep
@@ -20,6 +20,9 @@ allowed-tools:
   - Bash(test:*)
   - Bash(mkdir:*)
   - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/orchestrate/scripts/*.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/setup-worktree.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/merge-children.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/list-worktrees.sh:*)'
 ---
 
 # Multi-Agent Orchestration Skill
@@ -38,17 +41,20 @@ Parallelism is the baseline of this skill — every batch's tasks dispatch concu
 Parse flags first, then treat the remainder as the task description:
 
 - `--team` — (Claude Code only) Dispatch each batch's agents under a shared `TeamCreate` with up-front `TaskCreate` + `addBlockedBy` dependency wiring and per-batch shutdown via `SendMessage`. Aborts if invoked from a Cursor or Codex bundle (team tools are absent there).
-- `--dry-run` — Show the orchestration plan without deploying agents. With `--team`, also prints the team name and per-batch teammate roster.
-- `--plan-only` — Create orchestration plan file at `docs/orchestration/[sanitized-task].md` without execution.
-- `--sequential` — Force sequential execution (single-task batches, for tightly dependent tasks).
+- `--dry-run` — Show the orchestration plan without deploying agents. With `--team`, also prints the team name and per-batch teammate roster. With `--worktree`, also prints a `Worktrees:` line (no scripts called).
+- `--plan-only` — Create orchestration plan file at `docs/orchestration/[sanitized-task].md` without execution. With `--worktree`, the plan gains a `## Worktree Setup` section.
+- `--sequential` — Force sequential execution (single-task batches, for tightly dependent tasks). With `--worktree`, only the parent worktree is created — no children.
+- `--worktree` — Run each parallel task in its own git worktree for true concurrent execution. Creates a parent worktree once (after decomposition) and one child per parallel task per batch; children are merged back into the parent after each batch validates. Follows `ycc/skills/_shared/references/worktree-strategy.md`. Combines freely with `--team`, `--dry-run`, `--plan-only`, and `--sequential` (though `--sequential --worktree` uses the parent only — no parallel tasks, no children).
 - `<task-description>`: The complex task to orchestrate (required, can be multi-word).
 
-Strip flags from `$ARGUMENTS` and set `TEAM_FLAG=true|false`, `DRY_RUN=true|false`, `PLAN_ONLY=true|false`, `SEQUENTIAL=true|false`. Join the remaining non-flag tokens into `TASK_DESCRIPTION`.
+Strip flags from `$ARGUMENTS` and set `TEAM_FLAG=true|false`, `DRY_RUN=true|false`, `PLAN_ONLY=true|false`, `SEQUENTIAL=true|false`, `WORKTREE_MODE=true|false`. Join the remaining non-flag tokens into `TASK_DESCRIPTION`.
+
+**Feature slug derivation** (used when `WORKTREE_MODE=true`): sanitize `TASK_DESCRIPTION` to produce `FEATURE_SLUG` — lowercase, replace `[^a-z0-9-]` with `-`, collapse runs of `-`, trim leading/trailing `-`, truncate to 20 characters. Fall back to `untitled` if empty. This is the same sanitization used for team-name context in `agent-team-dispatch.md` §1.
 
 If no task description is provided after stripping flags, abort with usage instructions:
 
 ```
-Usage: /orchestrate [--team] [--dry-run] [--plan-only] [--sequential] <task-description>
+Usage: /orchestrate [--team] [--dry-run] [--plan-only] [--sequential] [--worktree] <task-description>
 
 Examples:
   /orchestrate "Implement user authentication with tests and docs"
@@ -57,9 +63,11 @@ Examples:
   /orchestrate --plan-only "Refactor database layer"
   /orchestrate --sequential "Migrate legacy config"
   /orchestrate --team --dry-run "Update API documentation across all services"
+  /orchestrate --worktree "Refactor the auth middleware"
+  /orchestrate --team --worktree "Implement user authentication with tests and docs"
 ```
 
-**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must abort with a clear message. Those bundles ship without team tools (`TeamCreate`, `TaskCreate`, `SendMessage`, etc.). The default standalone sub-agent path is the only execution mode available there.
+**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must abort with a clear message. Those bundles ship without team tools (`TeamCreate`, `TaskCreate`, `SendMessage`, etc.). The default standalone sub-agent path is the only execution mode available there. `--worktree` is supported on all targets via the Bash-fallback path (`git worktree add`); on Cursor, emit the `git worktree add` commands as instructions rather than auto-creating.
 
 ---
 
@@ -222,6 +230,30 @@ For each subtask, prepare:
 
 ---
 
+## Phase 2.5: Worktree Setup (WORKTREE_MODE only)
+
+Skip this phase entirely when `WORKTREE_MODE=false`.
+
+When `WORKTREE_MODE=true` and `DRY_RUN=false` and `PLAN_ONLY=false`:
+
+Determine the repository name from the current directory (`basename $(git rev-parse --show-toplevel)`). Use the `FEATURE_SLUG` derived during flag parsing.
+
+Create the parent worktree **once**, before any batch dispatches:
+
+```bash
+bash ${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/setup-worktree.sh parent <repo-name> <FEATURE_SLUG>
+```
+
+Store the echoed path as `PARENT_WORKTREE_PATH`. Children are created just-in-time in Phase 4 — do NOT create them all up front.
+
+When `WORKTREE_MODE=true` and `SEQUENTIAL=true`: the parent worktree is the only worktree. Sequential tasks run in `PARENT_WORKTREE_PATH`; no child setup or merge-back is performed.
+
+When `WORKTREE_MODE=true` and `DRY_RUN=true`: skip all script calls. Instead, compute the expected parent path as `~/.claude-worktrees/<repo>-<FEATURE_SLUG>/` and proceed to Phase 3 to include it in the dry-run output.
+
+When `WORKTREE_MODE=true` and `PLAN_ONLY=true`: skip all script calls. Include the worktree annotation in the written plan (see Phase 3).
+
+---
+
 ## Phase 3: Dry Run Check
 
 ### Step 10: Check for Dry Run or Plan-Only Mode
@@ -291,6 +323,12 @@ Per-batch teammate roster:
   ...
 ```
 
+**`--worktree --dry-run`** — append a `Worktrees:` line to the dry-run output (both the default and `--team` variants). No `setup-worktree.sh`, `merge-children.sh`, or `list-worktrees.sh` calls are made in dry-run mode:
+
+```
+Worktrees:   parent=~/.claude-worktrees/<repo>-<FEATURE_SLUG>/   children=<count>  (batch <n>: <child-paths>)
+```
+
 Do **not** call `TeamCreate`, `TaskCreate`, `Agent`, `SendMessage`, or `TeamDelete` in dry-run mode. **STOP HERE**.
 
 If `--plan-only` is present:
@@ -299,6 +337,7 @@ If `--plan-only` is present:
 - Save the complete orchestration plan for later execution
 - Display the plan location and summary
 - No team cleanup required — team creation is skipped entirely in plan-only mode
+- When `WORKTREE_MODE=true`: include a `## Worktree Setup` section in the written plan (immediately after frontmatter, before Batch 1). Follow the annotation format in `ycc/skills/_shared/references/worktree-strategy.md` §2: list the parent path and one child path per parallel task across all batches.
 - **STOP HERE** — do not deploy agents
 
 ---
@@ -331,33 +370,58 @@ For each batch, do the following **in order**:
 
 **1. Build the per-batch agent list** — determine each subtask's name, agent type, focus, and deliverables.
 
-**2. Spawn ALL batch agents in a SINGLE message** using MULTIPLE `Agent` tool calls. **No `team_name`, no `name`, no `TaskCreate`** — standalone sub-agent semantics. Each prompt must use the **Path A coordination block** from `agent-prompts.md` (standalone implementor — no inter-agent coordination).
+**2. (WORKTREE_MODE only) Create child worktrees before spawn** — for each parallel subtask in this batch, call:
+
+```bash
+bash ${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/setup-worktree.sh child <repo-name> <FEATURE_SLUG> <subtask-id>
+```
+
+Store each echoed path as `CHILD_PATH_<subtask-id>`. All children must be created before the Agent spawn step. Skip this step for sequential batches (single-task batches under `--sequential`).
+
+**3. Spawn ALL batch agents in a SINGLE message** using MULTIPLE `Agent` tool calls. **No `team_name`, no `name`, no `TaskCreate`** — standalone sub-agent semantics. Each prompt must use the **Path A coordination block** from `agent-prompts.md` (standalone implementor — no inter-agent coordination).
+
+When `WORKTREE_MODE=true`, each Agent call for a parallel subtask also includes `Working directory: <CHILD_PATH_<subtask-id>>` in the prompt, and on Claude Code passes `isolation: "worktree"` pointing at the pre-created child path:
 
 ```
 Agent(
   subagent_type = "nodejs-backend-architect",
   description = "Implement auth system",
-  prompt = [substituted template with Path A coordination block]
+  isolation = "worktree",
+  prompt = "Working directory: ~/.claude-worktrees/<repo>-<FEATURE_SLUG>-<subtask-id>/\n\n[substituted template with Path A coordination block]"
 )
 Agent(
   subagent_type = "test-strategy-planner",
   description = "Create auth test plan",
-  prompt = [substituted template with Path A coordination block]
+  isolation = "worktree",
+  prompt = "Working directory: ~/.claude-worktrees/<repo>-<FEATURE_SLUG>-<subtask-id>/\n\n[substituted template with Path A coordination block]"
 )
 Agent(
   subagent_type = "documentation-writer",
   description = "Document auth API",
-  prompt = [substituted template with Path A coordination block]
+  isolation = "worktree",
+  prompt = "Working directory: ~/.claude-worktrees/<repo>-<FEATURE_SLUG>-<subtask-id>/\n\n[substituted template with Path A coordination block]"
 )
 ```
 
-**3. Wait for batch completion** — `Agent` calls block until each sub-agent returns. Completion is implicit when all parallel calls in the single message return.
+When `WORKTREE_MODE=false`, omit `isolation` and the `Working directory:` line — standard Path A semantics.
 
-**4. Process results** — review each returned summary. Update the corresponding `TodoWrite` items to `completed`.
+**4. Wait for batch completion** — `Agent` calls block until each sub-agent returns. Completion is implicit when all parallel calls in the single message return.
 
-**5. Handle failures** — if a subtask fails, note the failure, determine if dependent subtasks can proceed, and continue with independent subtasks.
+**5. Process results** — review each returned summary. Update the corresponding `TodoWrite` items to `completed`.
 
-**6. Identify next batch** — scan the `TodoWrite` list for pending subtasks whose dependencies are now all `completed`. If subtasks remain but none are unblocked, report deadlock and stop.
+**6. Handle failures** — if a subtask fails, note the failure, determine if dependent subtasks can proceed, and continue with independent subtasks.
+
+**7. (WORKTREE_MODE only) Fan-in merge after batch validates** — after all subtasks in the batch are `completed`, call:
+
+```bash
+bash ${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/merge-children.sh <repo-name> <FEATURE_SLUG> <subtask-id-1>,<subtask-id-2>,...
+```
+
+On exit 0, all children have been merged into the parent branch, child worktrees removed, and child branches deleted.
+
+On exit 1 (`CONFLICT: <subtask-id> at <path>`): **pause**, surface the conflict message and the conflicting child path to the user, and **wait for manual resolution** before starting the next batch. Never silently skip a failed child. Skip this step for sequential batches (no children).
+
+**8. Identify next batch** — scan the `TodoWrite` list for pending subtasks whose dependencies are now all `completed`. If subtasks remain but none are unblocked, report deadlock and stop.
 
 No `SendMessage` shutdown needed in Path A — there are no teammates to shut down.
 
@@ -365,11 +429,19 @@ No `SendMessage` shutdown needed in Path A — there are no teammates to shut do
 
 #### Path B — Agent Team Batches (`--team`)
 
-For each batch, do the following **in order**:
+For each batch, do the following **in order** (follows `agent-team-dispatch.md` §7 lifecycle):
 
 **1. Build the teammate list** for this batch — list each subtask's name and description so teammates know who else is working in parallel. Substitute into `{{BATCH_TEAMMATES}}`.
 
-**2. Spawn ALL batch teammates in a SINGLE message** using MULTIPLE `Agent` tool calls. Every call MUST include `team_name` AND `name`:
+**2. (WORKTREE_MODE only) Create child worktrees before spawn** — for each parallel subtask in this batch, call:
+
+```bash
+bash ${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/setup-worktree.sh child <repo-name> <FEATURE_SLUG> <subtask-id>
+```
+
+Store each echoed path as `CHILD_PATH_<subtask-id>`. All children must be created **before** the Agent spawn message. Skip for sequential batches (no parallel siblings).
+
+**3. Spawn ALL batch teammates in a SINGLE message** using MULTIPLE `Agent` tool calls. Every call MUST include `team_name` AND `name`. When `WORKTREE_MODE=true`, each call also includes `isolation: "worktree"` and a `Working directory: <CHILD_PATH_<subtask-id>>` line in the prompt:
 
 ```
 Agent(
@@ -377,33 +449,46 @@ Agent(
   name = "subtask-1",
   subagent_type = "nodejs-backend-architect",
   description = "Implement auth system",
-  prompt = [substituted template with Path B Team Communication section]
+  isolation = "worktree",
+  prompt = "Working directory: ~/.claude-worktrees/<repo>-<FEATURE_SLUG>-<subtask-id>/\n\n[substituted template with Path B Team Communication section]"
 )
 Agent(
   team_name = "orch-<sanitized-task>",
   name = "subtask-2",
   subagent_type = "test-strategy-planner",
   description = "Create auth test plan",
-  prompt = [substituted template with Path B Team Communication section]
+  isolation = "worktree",
+  prompt = "Working directory: ~/.claude-worktrees/<repo>-<FEATURE_SLUG>-<subtask-id>/\n\n[substituted template with Path B Team Communication section]"
 )
 Agent(
   team_name = "orch-<sanitized-task>",
   name = "subtask-3",
   subagent_type = "documentation-writer",
   description = "Document auth API",
-  prompt = [substituted template with Path B Team Communication section]
+  isolation = "worktree",
+  prompt = "Working directory: ~/.claude-worktrees/<repo>-<FEATURE_SLUG>-<subtask-id>/\n\n[substituted template with Path B Team Communication section]"
 )
 ```
 
-Each agent's prompt MUST include the Path B Team Communication section from `agent-prompts.md`, with `{{BATCH_NUMBER}}` and `{{BATCH_TEAMMATES}}` substituted.
+When `WORKTREE_MODE=false`, omit `isolation` and `Working directory:` — standard Path B semantics. Each prompt MUST include the Path B Team Communication section from `agent-prompts.md`, with `{{BATCH_NUMBER}}` and `{{BATCH_TEAMMATES}}` substituted.
 
-**3. Monitor progress** — use `TaskList` to check when all batch tasks are complete. If a teammate messages you with an issue, respond via `SendMessage` with guidance.
+**4. Monitor progress** — use `TaskList` to check when all batch tasks are complete. If a teammate messages you with an issue, respond via `SendMessage` with guidance.
 
-**4. Handle failures** — if a subtask fails, note the failure, determine if dependent subtasks can proceed, and continue with independent subtasks.
+**5. Handle failures** — if a subtask fails, note the failure, determine if dependent subtasks can proceed, and continue with independent subtasks.
 
-**5. Shut down batch teammates** — send `SendMessage(to="subtask-<N>", message={type: "shutdown_request"})` to each teammate of the just-completed batch. Wait for shutdowns before next batch.
+**6. Shut down batch teammates** — send `SendMessage(to="subtask-<N>", message={type: "shutdown_request"})` to each teammate of the just-completed batch. Wait for all shutdowns to complete before proceeding. (Shutdown MUST precede the fan-in merge — per `agent-team-dispatch.md` §7.1.)
 
-**6. Identify next batch** — check `TaskList` for pending tasks with all blockers completed. If tasks remain but none are unblocked, report deadlock and stop.
+**7. (WORKTREE_MODE only) Fan-in merge after shutdown** — after all teammates have shut down, call:
+
+```bash
+bash ${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/merge-children.sh <repo-name> <FEATURE_SLUG> <subtask-id-1>,<subtask-id-2>,...
+```
+
+On exit 0, all children merged, worktrees removed, branches deleted.
+
+On exit 1 (`CONFLICT: <subtask-id> at <path>`): **pause**, surface the conflict message to the user, and **wait for manual resolution** before starting the next batch. Never advance to the next batch with a dirty parent branch. Skip for sequential batches.
+
+**8. Identify next batch** — check `TaskList` for pending tasks with all blockers completed. If tasks remain but none are unblocked, report deadlock and stop.
 
 ### Step 13: Repeat Until Complete
 
@@ -450,6 +535,14 @@ Gated on `TEAM_FLAG`:
   ```
 
 ### Step 17: Final Summary
+
+When `WORKTREE_MODE=true`, call `list-worktrees.sh` and append its output to the summary:
+
+```bash
+bash ${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/list-worktrees.sh <repo-name> <FEATURE_SLUG>
+```
+
+This prints the surviving parent worktree path, its branch, and the `git worktree remove` command for manual cleanup. All child worktrees should already be gone (removed by `merge-children.sh` after each batch).
 
 Provide comprehensive completion summary:
 
@@ -555,7 +648,7 @@ Each agent assignment must have:
 
 The orchestration must:
 
-- [ ] Parse flags and set `TEAM_FLAG`, `DRY_RUN`, `PLAN_ONLY`, `SEQUENTIAL` before any side effects
+- [ ] Parse flags and set `TEAM_FLAG`, `DRY_RUN`, `PLAN_ONLY`, `SEQUENTIAL`, `WORKTREE_MODE` before any side effects
 - [ ] Deploy independent tasks in parallel (single message, multiple `Agent` calls)
 - [ ] Respect dependency ordering between batches
 - [ ] Track progress via `TodoWrite` (Path A) or `TaskList` (Path B)

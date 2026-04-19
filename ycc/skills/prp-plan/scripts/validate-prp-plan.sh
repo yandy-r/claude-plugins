@@ -130,11 +130,26 @@ RECOMMENDED_SECTIONS=(
   "Risks"
 )
 
+# Optional sections: present → pass, absent → pass (no error, no warning).
+# Add new optional sections here as the plan format evolves.
+OPTIONAL_SECTIONS=(
+  "Worktree Setup"
+)
+
 for section in "${RECOMMENDED_SECTIONS[@]}"; do
   if grep -q "^## ${section}" <<< "$CONTENT"; then
     success "Found: ## ${section}"
   else
     warning "Missing recommended section: ## ${section}"
+  fi
+done
+
+# --- Optional sections (present → note; absent → silent; never error or warning) ---
+echo ""
+echo "Checking optional sections..."
+for section in "${OPTIONAL_SECTIONS[@]}"; do
+  if grep -q "^## ${section}" <<< "$CONTENT"; then
+    success "Found optional: ## ${section}"
   fi
 done
 
@@ -182,6 +197,13 @@ if [[ $TASK_COUNT -gt 0 ]]; then
     warning "Only $MIRROR_COUNT of $TASK_COUNT tasks have MIRROR fields"
   else
     warning "No tasks have MIRROR fields"
+  fi
+
+  # Optional **Worktree**: field — present on parallel tasks when plan was generated with --worktree.
+  # Absence is not an error or warning; presence is informational only.
+  WORKTREE_FIELD_COUNT=$(grep -c '\*\*Worktree\*\*:' <<< "$CONTENT" || true)
+  if [[ $WORKTREE_FIELD_COUNT -gt 0 ]]; then
+    success "Worktree annotations present ($WORKTREE_FIELD_COUNT task(s) — optional field)"
   fi
 
   # Self-containment heuristic: tasks with all 4 core fields
@@ -324,6 +346,9 @@ if [[ $TASK_COUNT -gt 0 ]]; then
   if grep -q "^## Batches" <<< "$CONTENT"; then
     echo "  Batch fields: $BATCH_FIELD_COUNT"
     echo "  Batch table rows: $BATCH_TABLE_ROWS"
+  fi
+  if [[ ${WORKTREE_FIELD_COUNT:-0} -gt 0 ]]; then
+    echo "  Worktree annotations: $WORKTREE_FIELD_COUNT"
   fi
   echo ""
 fi
