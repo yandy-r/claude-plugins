@@ -17,26 +17,26 @@ Every worktree-enabled run uses at most two levels of worktrees.
 
 ### Parent worktree
 
-| Property     | Value                                               |
-| ------------ | --------------------------------------------------- |
-| Path         | `~/.claude-worktrees/<repo>-<feature>/`             |
-| Branch       | `feat/<feature>`                                    |
-| Created      | Once, before Batch 1 (via `setup-worktree.sh parent`) |
-| Lifetime     | Survives to end of run; used for the final PR       |
-| Removed by   | User (never auto-removed by the skill)              |
+| Property   | Value                                                 |
+| ---------- | ----------------------------------------------------- |
+| Path       | `~/.claude-worktrees/<repo>-<feature>/`               |
+| Branch     | `feat/<feature>`                                      |
+| Created    | Once, before Batch 1 (via `setup-worktree.sh parent`) |
+| Lifetime   | Survives to end of run; used for the final PR         |
+| Removed by | User (never auto-removed by the skill)                |
 
 The parent branch accumulates all work. After each parallel batch validates, child
 branches are merged back here before the next batch begins.
 
 ### Child worktrees (parallel tasks only)
 
-| Property     | Value                                                          |
-| ------------ | -------------------------------------------------------------- |
-| Path         | `~/.claude-worktrees/<repo>-<feature>-<task-id>/`              |
-| Branch       | `feat/<feature>-<task-id>`                                     |
-| Created      | Just-in-time before each parallel batch (one per parallel task) |
-| Lifetime     | Ephemeral — removed after the batch validates and merges back  |
-| Removed by   | `merge-children.sh` (automatic fan-in, post-validation)        |
+| Property   | Value                                                           |
+| ---------- | --------------------------------------------------------------- |
+| Path       | `~/.claude-worktrees/<repo>-<feature>-<task-id>/`               |
+| Branch     | `feat/<feature>-<task-id>`                                      |
+| Created    | Just-in-time before each parallel batch (one per parallel task) |
+| Lifetime   | Ephemeral — removed after the batch validates and merges back   |
+| Removed by | `merge-children.sh` (automatic fan-in, post-validation)         |
 
 One child worktree is created per parallel task in a batch. Children always branch
 from `feat/<feature>` (the parent branch) at the time of creation, so each task
@@ -75,10 +75,10 @@ Placed at the top of the plan, after frontmatter and before the first batch or s
 ```markdown
 ## Worktree Setup
 
-- **Parent**: ~/.claude-worktrees/<repo>-<feature>/          (branch: feat/<feature>)
+- **Parent**: ~/.claude-worktrees/<repo>-<feature>/ (branch: feat/<feature>)
 - **Children** (per parallel task; merged back at end of each batch):
-  - Task 1.1 → ~/.claude-worktrees/<repo>-<feature>-1-1/    (branch: feat/<feature>-1-1)
-  - Task 1.2 → ~/.claude-worktrees/<repo>-<feature>-1-2/    (branch: feat/<feature>-1-2)
+  - Task 1.1 → ~/.claude-worktrees/<repo>-<feature>-1-1/ (branch: feat/<feature>-1-1)
+  - Task 1.2 → ~/.claude-worktrees/<repo>-<feature>-1-2/ (branch: feat/<feature>-1-2)
 ```
 
 ### Per-parallel-task inline annotation
@@ -86,7 +86,7 @@ Placed at the top of the plan, after frontmatter and before the first batch or s
 Placed on its own line inside the task block, immediately after the task header:
 
 ```markdown
-- **Worktree**: ~/.claude-worktrees/<repo>-<feature>-<task-id>/   (branch: feat/<feature>-<task-id>)
+- **Worktree**: ~/.claude-worktrees/<repo>-<feature>-<task-id>/ (branch: feat/<feature>-<task-id>)
 ```
 
 ### Sequential tasks
@@ -172,12 +172,12 @@ child or continue to the next batch with a dirty parent branch.
 
 ## 4. Per-Target Dispatch Matrix
 
-| Target      | Primary mechanism                                            | Fallback                       |
-| ----------- | ------------------------------------------------------------ | ------------------------------ |
-| Claude Code | `Agent(isolation: "worktree")` + `WorktreeCreate` hook       | Bash `git worktree add`        |
-| Codex       | Bash `git worktree add` via prompt                           | same                           |
-| opencode    | Bash `git worktree add` via prompt                           | same                           |
-| Cursor      | Docs-only (emit commands; no auto-create)                    | User runs manually             |
+| Target      | Primary mechanism                                      | Fallback                |
+| ----------- | ------------------------------------------------------ | ----------------------- |
+| Claude Code | `Agent(isolation: "worktree")` + `WorktreeCreate` hook | Bash `git worktree add` |
+| Codex       | Bash `git worktree add` via prompt                     | same                    |
+| opencode    | Bash `git worktree add` via prompt                     | same                    |
+| Cursor      | Docs-only (emit commands; no auto-create)              | User runs manually      |
 
 See [target-capability-matrix.md](./target-capability-matrix.md) for the full
 per-target feature table, including the `worktree` row.

@@ -69,10 +69,10 @@ Use this exact structure for your output:
 
 _(optional — present only in worktree mode; omit entirely for non-worktree plans)_
 
-- **Parent**: `~/.claude-worktrees/<repo>-<feature>/`   (branch: `feat/<feature>`)
+- **Parent**: `~/.claude-worktrees/<repo>-<feature>/` (branch: `feat/<feature>`)
 - **Children** (per parallel task; merged back at end of each batch):
-  - Task 1.1 → `~/.claude-worktrees/<repo>-<feature>-1-1/`   (branch: `feat/<feature>-1-1`)
-  - Task 1.2 → `~/.claude-worktrees/<repo>-<feature>-1-2/`   (branch: `feat/<feature>-1-2`)
+  - Task 1.1 → `~/.claude-worktrees/<repo>-<feature>-1-1/` (branch: `feat/<feature>-1-1`)
+  - Task 1.2 → `~/.claude-worktrees/<repo>-<feature>-1-2/` (branch: `feat/<feature>-1-2`)
 
 ## Requirements
 
@@ -93,7 +93,7 @@ _(optional — present only in worktree mode; omit entirely for non-worktree pla
    - Why: Reason for this step
    - Dependencies: None / Requires step X
    - Risk: Low / Medium / High
-   - **Worktree**: `~/.claude-worktrees/<repo>-<feature>-<task-id>/`   (branch: `feat/<feature>-<task-id>`)   _(optional — present only in worktree mode, parallel tasks only)_
+   - **Worktree**: `~/.claude-worktrees/<repo>-<feature>-<task-id>/` (branch: `feat/<feature>-<task-id>`) _(optional — present only in worktree mode, parallel tasks only)_
 
 2. **[Step Name]** (File: `path/to/file.ts`)
    ...
@@ -139,6 +139,7 @@ elements in your plan:
 
 The calling skill provides `<repo>` and `<feature-slug>` in its prompt. If not provided,
 derive:
+
 - `<repo>` = basename of the current git repo root.
 - `<feature-slug>` = sanitized plan subject (lowercase, alphanumeric + hyphens,
   truncated to 20 chars).

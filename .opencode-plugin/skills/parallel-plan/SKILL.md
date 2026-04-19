@@ -405,11 +405,11 @@ and overview, before the first phase heading:
 ```markdown
 ## Worktree Setup
 
-- **Parent**: ~/.claude-worktrees/<repo>-<feature-slug>/          (branch: feat/<feature-slug>)
+- **Parent**: ~/.claude-worktrees/<repo>-<feature-slug>/ (branch: feat/<feature-slug>)
 - **Children** (per parallel task; merged back at end of each batch):
-  - Task 1.1 → ~/.claude-worktrees/<repo>-<feature-slug>-1-1/    (branch: feat/<feature-slug>-1-1)
-  - Task 1.2 → ~/.claude-worktrees/<repo>-<feature-slug>-1-2/    (branch: feat/<feature-slug>-1-2)
-  ...
+  - Task 1.1 → ~/.claude-worktrees/<repo>-<feature-slug>-1-1/ (branch: feat/<feature-slug>-1-1)
+  - Task 1.2 → ~/.claude-worktrees/<repo>-<feature-slug>-1-2/ (branch: feat/<feature-slug>-1-2)
+    ...
 ```
 
 List every parallel task across all batches. Sequential tasks are omitted from the
@@ -419,7 +419,7 @@ Children list (they run in the parent worktree).
 line for every parallel task (tasks whose `Depends on` allows concurrent execution):
 
 ```markdown
-- **Worktree**: ~/.claude-worktrees/<repo>-<feature-slug>-<task-id>/   (branch: feat/<feature-slug>-<task-id>)
+- **Worktree**: ~/.claude-worktrees/<repo>-<feature-slug>-<task-id>/ (branch: feat/<feature-slug>-<task-id>)
 ```
 
 **3. Task-ID hyphenation**: replace `.` with `-` in all worktree paths and branch

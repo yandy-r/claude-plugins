@@ -298,11 +298,11 @@ are spawned after all children exist).
 
 For each task in the batch, deploy an implementor with:
 
-| Field         | Value                                                                                           |
-| ------------- | ----------------------------------------------------------------------------------------------- |
-| subagent_type | `implementor`                                                                               |
-| description   | "Implement [Task ID]: [Title]"                                                                  |
-| prompt        | Use template with task details substituted                                                      |
+| Field         | Value                                      |
+| ------------- | ------------------------------------------ |
+| subagent_type | `implementor`                          |
+| description   | "Implement [Task ID]: [Title]"             |
+| prompt        | Use template with task details substituted |
 
 No `team_name`, no `name`, no `track the task` — standalone sub-agent semantics.
 
@@ -475,9 +475,11 @@ For each batch `B1, B2, ... BN` in dependency order, follow the ordering mandate
    - `prompt`: template-filled task spec. Include a directive that the agent must read the files listed in "READ THESE BEFORE TASK" before writing code, must validate its own modified files, and must call `update the todo tracker` to mark its task complete.
 
    **(WORKTREE_ACTIVE, parallel tasks)** also include in each parallel teammate's `prompt`:
+
    ```
    Working directory: <CHILD_PATH_<task_id>>
    ```
+
    And on **opencode**, pass `isolation: "worktree"` pointing at the pre-created
    child path. On **Codex / opencode**, the `Working directory:` line in the prompt
    is sufficient. On **Cursor**, emit a warning + manual `git worktree add` command.
@@ -594,15 +596,15 @@ Provide completion summary:
 
 [List any problems or warnings]
 
-## Worktree Status   ← include this section only when WORKTREE_ACTIVE=true
+## Worktree Status ← include this section only when WORKTREE_ACTIVE=true
 
 [Output of list-worktrees.sh]
 
 > The parent worktree at `~/.claude-worktrees/[repo]-[feature]/` survives for inspection
 > and PR creation. When you are done, run:
 >
->   git worktree remove ~/.claude-worktrees/[repo]-[feature]/
->   git branch -d feat/[feature]
+> git worktree remove ~/.claude-worktrees/[repo]-[feature]/
+> git branch -d feat/[feature]
 
 ## Next Steps
 

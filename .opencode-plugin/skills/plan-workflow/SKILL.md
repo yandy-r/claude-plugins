@@ -473,16 +473,16 @@ and hyphenated task IDs (`1.1` → `1-1`). Format exactly as defined in
 ```markdown
 ## Worktree Setup
 
-- **Parent**: ~/.claude-worktrees/<repo>-<feature-slug>/          (branch: feat/<feature-slug>)
+- **Parent**: ~/.claude-worktrees/<repo>-<feature-slug>/ (branch: feat/<feature-slug>)
 - **Children** (per parallel task; merged back at end of each batch):
-  - Task 1.1 → ~/.claude-worktrees/<repo>-<feature-slug>-1-1/    (branch: feat/<feature-slug>-1-1)
-  - Task 1.2 → ~/.claude-worktrees/<repo>-<feature-slug>-1-2/    (branch: feat/<feature-slug>-1-2)
+  - Task 1.1 → ~/.claude-worktrees/<repo>-<feature-slug>-1-1/ (branch: feat/<feature-slug>-1-1)
+  - Task 1.2 → ~/.claude-worktrees/<repo>-<feature-slug>-1-2/ (branch: feat/<feature-slug>-1-2)
 ```
 
 For each parallel task block, add immediately after the task header:
 
 ```markdown
-- **Worktree**: ~/.claude-worktrees/<repo>-<feature-slug>-<task-id>/   (branch: feat/<feature-slug>-<task-id>)
+- **Worktree**: ~/.claude-worktrees/<repo>-<feature-slug>-<task-id>/ (branch: feat/<feature-slug>-<task-id>)
 ```
 
 Sequential tasks receive no worktree annotation.

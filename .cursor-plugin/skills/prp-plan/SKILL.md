@@ -47,12 +47,12 @@ Create a detailed, self-contained implementation plan that captures all codebase
 
 Extract flags from `$ARGUMENTS`:
 
-| Flag          | Effect                                                                                                                                                                                                                                                                                                                                                  |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel`  | Fan out research into 3 **standalone sub-agent** researchers; emit tasks with batch/dependency annotations. Works in Claude Code, Cursor, and Codex.                                                                                                                                                                                                    |
-| `--team`      | (Claude Code only) Fan out the same 3 researchers as **teammates** under a shared `TeamCreate`/`TaskList` with coordinated shutdown via `SendMessage`. Same plan output as `--parallel`, but with shared task-graph observability. Heavier dispatch.                                                                                                     |
-| `--worktree`  | Annotate the emitted plan with a top-level `## Worktree Setup` section and a `**Worktree**:` field on every parallel task. The plan consumer (`/prp-implement --worktree` or auto-detect) uses these to create per-task git-isolated worktrees. Follows `ycc/skills/_shared/references/worktree-strategy.md`. Combines freely with `--parallel` and `--team`. |
-| `--dry-run`   | Only valid with `--team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                                                                                                                          |
+| Flag         | Effect                                                                                                                                                                                                                                                                                                                                                            |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel` | Fan out research into 3 **standalone sub-agent** researchers; emit tasks with batch/dependency annotations. Works in Claude Code, Cursor, and Codex.                                                                                                                                                                                                              |
+| `--team`     | (Claude Code only) Fan out the same 3 researchers as **teammates** under a shared `TeamCreate`/`TaskList` with coordinated shutdown via `SendMessage`. Same plan output as `--parallel`, but with shared task-graph observability. Heavier dispatch.                                                                                                              |
+| `--worktree` | Annotate the emitted plan with a top-level `## Worktree Setup` section and a `**Worktree**:` field on every parallel task. The plan consumer (`/prp-implement --worktree` or auto-detect) uses these to create per-task git-isolated worktrees. Follows `ycc/skills/_shared/references/worktree-strategy.md`. Combines freely with `--parallel` and `--team`. |
+| `--dry-run`  | Only valid with `--team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                                                                                                                                    |
 
 Strip the flags. Set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `WORKTREE_MODE=true|false`, `DRY_RUN=true|false`. Remaining text is the feature description or PRD path.
 
@@ -308,10 +308,10 @@ Normalize task IDs: replace `.` with `-` (e.g., `1.1` → `1-1`).
 ```markdown
 ## Worktree Setup
 
-- **Parent**: ~/.claude-worktrees/<repo>-<feature-slug>/          (branch: feat/<feature-slug>)
+- **Parent**: ~/.claude-worktrees/<repo>-<feature-slug>/ (branch: feat/<feature-slug>)
 - **Children** (per parallel task; merged back at end of each batch):
-  - Task 1.1 → ~/.claude-worktrees/<repo>-<feature-slug>-1-1/    (branch: feat/<feature-slug>-1-1)
-  - Task 1.2 → ~/.claude-worktrees/<repo>-<feature-slug>-1-2/    (branch: feat/<feature-slug>-1-2)
+  - Task 1.1 → ~/.claude-worktrees/<repo>-<feature-slug>-1-1/ (branch: feat/<feature-slug>-1-1)
+  - Task 1.2 → ~/.claude-worktrees/<repo>-<feature-slug>-1-2/ (branch: feat/<feature-slug>-1-2)
   - ...
 ```
 
@@ -320,7 +320,7 @@ List only the parallel tasks enumerated in the Batches / Step-by-Step Tasks sect
 **Per-parallel-task inline annotation** (inside the task block, immediately after the task heading line):
 
 ```markdown
-- **Worktree**: ~/.claude-worktrees/<repo>-<feature-slug>-<task-id>/   (branch: feat/<feature-slug>-<task-id>)
+- **Worktree**: ~/.claude-worktrees/<repo>-<feature-slug>-<task-id>/ (branch: feat/<feature-slug>-<task-id>)
 ```
 
 Sequential tasks receive **no** `**Worktree**:` annotation.
