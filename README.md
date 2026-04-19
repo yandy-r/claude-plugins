@@ -68,6 +68,20 @@ The source plugin ships **44 skills**, **43 slash commands** (most skills have a
 
 The plugin bundles **52** specialized agents covering codebase analysis, language experts (Go, Rust, Python, TypeScript), reviewers, planners, documenters, and infrastructure architects.
 
+<details>
+<summary>Full agent list (52 agents, grouped by role)</summary>
+
+- **Language experts & implementors** (12): `frontend-ui-developer`, `go-api-architect`, `go-expert-architect`, `nextjs-ux-ui-expert`, `nodejs-backend-architect`, `nodejs-backend-developer`, `python-developer`, `python-expert-architect`, `rust-build-resolver`, `rust-expert-architect`, `typescript-developer`, `typescript-expert-architect`
+- **Code review & quality** (4): `code-reviewer`, `code-simplifier`, `review-fixer`, `rust-reviewer`
+- **Research & discovery** (10): `code-explorer`, `code-finder`, `code-researcher`, `codebase-advisor`, `feature-researcher`, `library-docs-writer`, `practices-researcher`, `prp-researcher`, `research-specialist`, `root-cause-analyzer`
+- **Architecture & planning** (5): `architect`, `architecture-analyst`, `code-architect`, `planner`, `test-strategy-planner`
+- **Documentation** (7): `api-docs-expert`, `api-documenter`, `code-documenter`, `docs-git-committer`, `documentation-writer`, `feature-writer`, `readme-generator`
+- **Infrastructure & DevOps** (7): `ansible-automation-expert`, `cloudflare-architect`, `cloudflare-developer`, `reverse-proxy-architect`, `systems-engineering-expert`, `terraform-architect`, `terraform-developer`
+- **Databases** (3): `db-modifier`, `sql-database-developer`, `turso-database-architect`
+- **Workflow utilities** (4): `git-cleanup`, `implementor`, `project-file-cleaner`, `releaser`
+
+</details>
+
 <!-- END:GENERATED-AGENTS -->
 
 - **Claude Code:** reference any of them via `subagent_type: "ycc:{agent-name}"`. Canonical source lives in [`ycc/agents/`](ycc/agents/).
@@ -118,13 +132,13 @@ This repository maintains generated compatibility trees under **`.cursor-plugin/
 
 Shared MCP server definitions live in [`mcp-configs/mcp.json`](mcp-configs/mcp.json). The installer is organized around **targets** and **steps** — each target exposes a set of steps that can be run by default, added with an additive flag, or isolated with `--only`.
 
-| Target     | Steps                     | Notes                                                                                                                                           |
-| ---------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `claude`   | `settings`, `mcp`         | No default step — pass `--settings`, `--mcp`, or `--only <steps>`. `settings` also links user-global `CLAUDE.md` + `AGENTS.md`.                 |
-| `cursor`   | `base`, `mcp`, `settings` | `base` = generate + validate + format + rsync `skills/`, `agents/`, `rules/` into `~/.cursor/`. `settings` links user-global rules.             |
-| `codex`    | `base`, `settings`        | `base` = generate + validate + format + sync plugin & agents + merge `~/.agents/.../marketplace.json`. `settings` also links user-global rules. |
-| `opencode` | `base`, `settings`        | `base` = generate + validate + format + rsync `skills/agents/commands` into `~/.config/opencode/`. `settings` symlinks config + AGENTS.md.      |
-| `all`      | —                         | Runs `claude`, `cursor`, `codex`, then `opencode`; step flags propagate.                                                                        |
+| Target     | Steps                      | Notes                                                                                                                                                                                                                                          |
+| ---------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `claude`   | `settings`, `mcp`, `hooks` | No default step — pass `--settings`, `--mcp`, `--hooks`, or `--only <steps>`. `settings` also links user-global `CLAUDE.md` + `AGENTS.md`. `hooks` symlinks `ycc/settings/hooks/` into `~/.claude/hooks/` (enables the `WorktreeCreate` hook). |
+| `cursor`   | `base`, `mcp`, `settings`  | `base` = generate + validate + format + rsync `skills/`, `agents/`, `rules/` into `~/.cursor/`. `settings` links user-global rules.                                                                                                            |
+| `codex`    | `base`, `settings`         | `base` = generate + validate + format + sync plugin & agents + merge `~/.agents/.../marketplace.json`. `settings` also links user-global rules.                                                                                                |
+| `opencode` | `base`, `settings`         | `base` = generate + validate + format + rsync `skills/agents/commands` into `~/.config/opencode/`. `settings` symlinks config + AGENTS.md.                                                                                                     |
+| `all`      | —                          | Runs `claude`, `cursor`, `codex`, then `opencode`; step flags propagate.                                                                                                                                                                       |
 
 Step reference:
 
@@ -138,6 +152,7 @@ Step reference:
   - claude: merges `mcpServers` into `~/.claude.json` (preserves other keys such as `projects`)
   - cursor: symlinks `mcp-configs/mcp.json` → `~/.cursor/mcp.json` (kept in sync across systems)
   - opencode: there is no separate `mcp` step — the generated `opencode.json` already embeds the translated MCP block, and enabling it is part of the `settings` step.
+- `hooks` — claude-only. Symlinks `ycc/settings/hooks/` → `~/.claude/hooks/`, which wires the `WorktreeCreate` hook that redirects harness-managed worktrees from `<repo>/.claude/worktrees/` to `~/.claude-worktrees/`. Silently ignored by targets without hook support.
 
 The rules linker refuses to overwrite a real (non-symlink) `CLAUDE.md` / `AGENTS.md` at a destination. Pass `--force` to replace a user-authored file.
 
@@ -152,6 +167,7 @@ The rules linker refuses to overwrite a real (non-symlink) `CLAUDE.md` / `AGENTS
 ./install.sh --target opencode                      # base only (skills + agents + commands)
 ./install.sh --target opencode --settings           # base + link opencode.json + AGENTS.md
 ./install.sh --target claude --settings --mcp       # symlink settings + rules + merge MCP
+./install.sh --target claude --settings --mcp --hooks  # +worktree-redirect hook
 ./install.sh --target all --settings --mcp          # everything across all targets
 ./install.sh --target all --settings --force        # same, overwriting user-authored rules
 
@@ -387,11 +403,12 @@ claude-plugins/
 │   └── opencode_model_aliases.json    # Claude-shorthand → openai/gpt-5.4-family map
 ├── ycc/                       # the consolidated Claude Code plugin
 │   ├── .claude-plugin/
-│   │   └── plugin.json        # name: "ycc", version: 2.0.0
-│   ├── commands/              # 34 slash commands
-│   ├── agents/                # 50 agents (source for Cursor/Codex generation)
+│   │   └── plugin.json        # name: "ycc", current version in plugin.json
+│   ├── commands/              # slash commands (count in generated region above)
+│   ├── agents/                # agents (source for Cursor/Codex/opencode generation)
 │   ├── rules/                 # language-specific rules (common + per-language); source for Cursor .mdc generation
-│   └── skills/                # 34 skills + _shared (source for Cursor generation)
+│   ├── settings/              # shared Claude settings: settings.json, hooks/, rules/, statusline
+│   └── skills/                # skills + _shared (source for Cursor/Codex/opencode generation)
 │       ├── _shared/           # shared scripts (e.g., resolve-plans-dir.sh)
 │       └── {skill-name}/
 │           ├── SKILL.md

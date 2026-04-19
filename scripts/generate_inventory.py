@@ -59,6 +59,104 @@ MARKER_COUNTS = "GENERATED-COUNTS"
 MARKER_COMMANDS = "GENERATED-COMMANDS"
 MARKER_AGENTS = "GENERATED-AGENTS"
 
+# Agent categorization for the GENERATED-AGENTS region. New agents that don't
+# appear here fall into "Other" and trigger a stderr warning on generation —
+# add them to the right category below to silence the warning.
+AGENT_CATEGORIES: list[tuple[str, list[str]]] = [
+    (
+        "Language experts & implementors",
+        [
+            "frontend-ui-developer",
+            "go-api-architect",
+            "go-expert-architect",
+            "nextjs-ux-ui-expert",
+            "nodejs-backend-architect",
+            "nodejs-backend-developer",
+            "python-developer",
+            "python-expert-architect",
+            "rust-build-resolver",
+            "rust-expert-architect",
+            "typescript-developer",
+            "typescript-expert-architect",
+        ],
+    ),
+    (
+        "Code review & quality",
+        [
+            "code-reviewer",
+            "code-simplifier",
+            "review-fixer",
+            "rust-reviewer",
+        ],
+    ),
+    (
+        "Research & discovery",
+        [
+            "code-explorer",
+            "code-finder",
+            "code-researcher",
+            "codebase-advisor",
+            "feature-researcher",
+            "library-docs-writer",
+            "practices-researcher",
+            "prp-researcher",
+            "research-specialist",
+            "root-cause-analyzer",
+        ],
+    ),
+    (
+        "Architecture & planning",
+        [
+            "architect",
+            "architecture-analyst",
+            "code-architect",
+            "planner",
+            "test-strategy-planner",
+        ],
+    ),
+    (
+        "Documentation",
+        [
+            "api-docs-expert",
+            "api-documenter",
+            "code-documenter",
+            "docs-git-committer",
+            "documentation-writer",
+            "feature-writer",
+            "readme-generator",
+        ],
+    ),
+    (
+        "Infrastructure & DevOps",
+        [
+            "ansible-automation-expert",
+            "cloudflare-architect",
+            "cloudflare-developer",
+            "reverse-proxy-architect",
+            "systems-engineering-expert",
+            "terraform-architect",
+            "terraform-developer",
+        ],
+    ),
+    (
+        "Databases",
+        [
+            "db-modifier",
+            "sql-database-developer",
+            "turso-database-architect",
+        ],
+    ),
+    (
+        "Workflow utilities",
+        [
+            "git-cleanup",
+            "implementor",
+            "project-file-cleaner",
+            "releaser",
+        ],
+    ),
+]
+
 
 # ---------------------------------------------------------------------------
 # Frontmatter parsing
@@ -258,12 +356,58 @@ def render_commands_region(commands: list[dict[str, str]]) -> str:
     return f"<!-- BEGIN:{MARKER_COMMANDS} -->\n\n" f"{table}\n\n" f"<!-- END:{MARKER_COMMANDS} -->"
 
 
+def _group_agents(agents: list[dict[str, str]]) -> list[tuple[str, list[str]]]:
+    """Group agent names by category. Uncategorized agents land in 'Other'.
+
+    Emits a stderr warning for any uncategorized agent so new additions don't
+    silently drift out of the grouped listing.
+    """
+    known: dict[str, str] = {}
+    for category, names in AGENT_CATEGORIES:
+        for n in names:
+            known[n] = category
+
+    by_category: dict[str, list[str]] = {c: [] for c, _ in AGENT_CATEGORIES}
+    uncategorized: list[str] = []
+    agent_names = {a["name"] for a in agents}
+
+    for name in sorted(agent_names):
+        category = known.get(name)
+        if category is None:
+            uncategorized.append(name)
+        else:
+            by_category[category].append(name)
+
+    if uncategorized:
+        print(
+            f"  warning: uncategorized agents (added to 'Other'): {', '.join(uncategorized)}",
+            file=sys.stderr,
+        )
+        by_category["Other"] = uncategorized
+
+    # Preserve declared category order; append 'Other' last if present.
+    result = [(c, by_category[c]) for c, _ in AGENT_CATEGORIES if by_category.get(c)]
+    if uncategorized:
+        result.append(("Other", uncategorized))
+    return result
+
+
 def render_agents_region(agents: list[dict[str, str]]) -> str:
     na = len(agents)
-    body = (
+    summary = (
         f"The plugin bundles **{na}** specialized agents covering codebase analysis, "
         "language experts (Go, Rust, Python, TypeScript), reviewers, planners, "
         "documenters, and infrastructure architects."
+    )
+    grouped = _group_agents(agents)
+    group_lines = [
+        f"- **{category}** ({len(names)}): {', '.join(f'`{n}`' for n in names)}" for category, names in grouped
+    ]
+    body = (
+        summary + "\n\n"
+        "<details>\n"
+        f"<summary>Full agent list ({na} agents, grouped by role)</summary>\n\n" + "\n".join(group_lines) + "\n\n"
+        "</details>"
     )
     return f"<!-- BEGIN:{MARKER_AGENTS} -->\n\n{body}\n\n<!-- END:{MARKER_AGENTS} -->"
 
