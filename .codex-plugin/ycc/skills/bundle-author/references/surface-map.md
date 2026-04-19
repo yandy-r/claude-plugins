@@ -9,12 +9,18 @@ the `ycc/` tree. Use this when scaffolding to know exactly what to create and wh
 
 ### Skill
 
-| Field                | Value                                                        |
-| -------------------- | ------------------------------------------------------------ |
-| Path                 | `ycc/skills/<kebab-name>/SKILL.md`                           |
-| Required frontmatter | `name`, `description`                                        |
-| Optional frontmatter | `argument-hint`, `allowed-tools`, `disable-model-invocation` |
-| Subdirs              | `references/` (static content), `scripts/` (bash helpers)    |
+| Field                | Value                                                                          |
+| -------------------- | ------------------------------------------------------------------------------ |
+| Path                 | `ycc/skills/<kebab-name>/SKILL.md`                                             |
+| Required frontmatter | `name`, `description`                                                          |
+| Optional frontmatter | `argument-hint`, `allowed-tools`, `disable-model-invocation`, `command: false` |
+| Subdirs              | `references/` (static content), `scripts/` (bash helpers)                      |
+
+Set `command: false` only when the skill should NOT have a matching slash
+command under `ycc/commands/` — typically because it's a passive behavioral
+ruleset that's never invoked directly. The pairing validator
+(`scripts/validate-ycc-commands.sh`) enforces this as an explicit opt-out: a
+skill without `command: false` MUST have a matching command.
 
 The `description` field is the trigger surface for Codex — include plain-language
 phrasing that describes when the skill should activate.
@@ -36,17 +42,29 @@ The skill body is freeform markdown organized into phases.
 | -------------------- | ------------------------------------------------- |
 | Path                 | `ycc/commands/<kebab-name>.md`                    |
 | Required frontmatter | `description`                                     |
-| Optional frontmatter | `argument-hint`                                   |
+| Optional frontmatter | `argument-hint`, `allowed-tools`                  |
 | Invocation           | Matching slash command (same kebab-case basename) |
 
-The command body invokes its matching skill and passes `$ARGUMENTS`. One command maps to
-one skill. Do not embed logic in commands — put it in the skill.
+Every command has a matching skill (same kebab-case name). The relationship is:
 
-Example body:
+- **Skill** = workflow instructions + auto-trigger description (verbose,
+  keyword-dense, scenario-based — tuned for the model to auto-match).
+- **Command** = slash-menu surface + UI affordances that don't belong in the
+  skill (flag documentation tables, usage examples, sibling-command
+  cross-references, agent-type pinning, `$ARGUMENTS` injection, slash-scoped
+  `allowed-tools`).
+
+They are expected to differ. The command body dispatches to the skill and layers
+on slash-specific UX; logic belongs in the skill.
+
+Minimal body (scaffolded by `bundle-author`):
 
 ```
-Invoke the matching skill with `$ARGUMENTS` passed through.
+Invoke the **<kebab-name>** skill with `$ARGUMENTS` passed through.
 ```
+
+Many commands grow beyond the minimal form — see `ycc/commands/plan.md` or
+`ycc/commands/ask.md` for examples with flag tables, cross-refs, or agent pinning.
 
 ---
 
@@ -119,14 +137,18 @@ ycc/
 │   ├── _shared/
 │   │   └── scripts/        ← shared bash helpers
 │   └── <kebab-name>/
-│       ├── SKILL.md         ← required
+│       ├── SKILL.md         ← required (add `command: false` for skill-only)
 │       ├── references/      ← static reference docs
 │       └── scripts/         ← skill-scoped bash helpers
 ├── commands/
-│   └── <kebab-name>.md      ← slash command wrapper
+│   └── <kebab-name>.md      ← slash-command UX layer for the skill
 └── agents/
     └── <kebab-name>.md      ← agent system prompt
 ```
+
+Pairing policy: every skill under `skills/<kebab-name>/` has a matching
+`commands/<kebab-name>.md` UNLESS the skill declares `command: false`.
+Enforced by `scripts/validate-ycc-commands.sh`.
 
 ---
 

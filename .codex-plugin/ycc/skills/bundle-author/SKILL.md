@@ -21,9 +21,16 @@ Parse `$ARGUMENTS`:
 
 - **skill-name** (required, first positional) — kebab-case identifier, no leading or
   trailing hyphens.
-- **--with-command** — also scaffold `ycc/commands/<skill-name>.md`.
+- **--skill-only** — suppress the matching command and stamp `command: false` into
+  the skill frontmatter. Use only for passive skills that are never slash-invoked
+  (e.g., `karpathy-guidelines` behavioral rules). Without this flag, the scaffolder
+  **always** creates the paired command because every normal skill pairs with a
+  slash command under the `validate-ycc-commands.sh` policy.
 - **--with-agent** — also scaffold `ycc/agents/<skill-name>.md`.
 - **--dry-run** — preview only; writes nothing.
+
+The older `--with-command` flag is still accepted (it's now the default) but
+prefer omitting it.
 
 ## Phase 0: Guards
 
@@ -34,7 +41,7 @@ with a clear, specific message.
    uppercase letters, leading/trailing hyphens, or consecutive hyphens.
 2. None of the target paths already exist:
    - `ycc/skills/<skill-name>/`
-   - If `--with-command`: `ycc/commands/<skill-name>.md`
+   - Unless `--skill-only`: `ycc/commands/<skill-name>.md`
    - If `--with-agent`: `ycc/agents/<skill-name>.md`
      Use `test -e` for each path and abort if any returns true.
 3. Name does not collide with an existing skill, command, or agent. Use `ls` on
@@ -48,9 +55,10 @@ with a clear, specific message.
 Read `~/.codex/plugins/ycc/skills/bundle-author/references/surface-map.md`. Present the
 user with the full list of files that will be created:
 
-- `ycc/skills/<skill-name>/SKILL.md`
+- `ycc/skills/<skill-name>/SKILL.md` (with `command: false` stamped in the
+  frontmatter when `--skill-only` is set)
 - `ycc/skills/<skill-name>/references/` (directory, no files created by default)
-- If `--with-command`: `ycc/commands/<skill-name>.md`
+- Unless `--skill-only`: `ycc/commands/<skill-name>.md` (default behavior)
 - If `--with-agent`: `ycc/agents/<skill-name>.md`
 
 Note that `scripts/` subdirectories are not created by default. If the skill will need
@@ -68,7 +76,7 @@ invoke the helper script.
 Invoke the helper:
 
 ```
-~/.codex/plugins/ycc/skills/bundle-author/scripts/scaffold-skill.sh <skill-name> [--with-command] [--with-agent]
+~/.codex/plugins/ycc/skills/bundle-author/scripts/scaffold-skill.sh <skill-name> [--skill-only] [--with-agent]
 ```
 
 The helper copies templates from
@@ -80,13 +88,14 @@ the failure.
 ## Phase 4: Post-scaffold steps
 
 Always emit the following block to the user after a successful scaffold, substituting
-`<skill-name>` with the actual name. Omit lines 2, 3, and 4 when the corresponding
-flags were not passed.
+`<skill-name>` with the actual name. Omit lines 2 and 3 when the corresponding
+flags changed the scaffolded surface.
 
 ```
 Next steps:
 1. Edit ycc/skills/<skill-name>/SKILL.md to replace TODOs.
-2. If --with-command: edit ycc/commands/<skill-name>.md.
+2. Unless --skill-only: edit ycc/commands/<skill-name>.md to add flag docs,
+   usage examples, and any sibling-command cross-references.
 3. If --with-agent: edit ycc/agents/<skill-name>.md.
 4. If you added scripts under ycc/skills/<skill-name>/scripts/: chmod +x them.
 5. Regenerate derived bundles: ./scripts/sync.sh
