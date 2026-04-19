@@ -53,12 +53,13 @@ Parse `$ARGUMENTS`:
 1. **Verify working tree is a git repo**: `git rev-parse --git-dir`. Abort if not.
 2. **Determine default branch**: `git symbolic-ref refs/remotes/origin/HEAD` →
    fall back to `main` / `master` if unset.
-3. **Detect host CLIs and MCP tools** in this order:
+3. **Detect host CLIs and MCP tools**. See
+   `${CURSOR_PLUGIN_ROOT}/skills/git-cleanup/references/host-detection.md` for
+   the full decision table. Summary:
    - Prefer `mcp__github__*` tools if available for GitHub operations.
-   - Else `gh --version` for GitHub, `glab --version` for GitLab.
-   - If `--host=auto`, parse `git remote get-url origin` — `github.com` →
-     github; `gitlab.com` or any host with `/api/v4/` or GitLab-shaped paths →
-     gitlab; otherwise unknown (remote-domain audits are skipped with a note).
+   - Else `gh auth status` for GitHub, `glab auth status` for GitLab.
+   - If `--host=auto`, parse `git remote get-url origin`. Unknown hosts skip
+     the remote-domain audits with a loud notice.
 4. **Check working-tree state**: Capture `git status --porcelain` and
    `git stash list`. Record whether the current branch has unpushed commits.
 5. **Initialize progress tracking** with TodoWrite (one entry per phase).
@@ -89,7 +90,9 @@ flags that emit machine-readable output.
 ## Phase 2: Active-Code Analysis
 
 This is the gating phase. **Never** recommend deletion of a resource that
-Phase 2 flags as active.
+Phase 2 flags as active. See
+`${CURSOR_PLUGIN_ROOT}/skills/git-cleanup/references/active-code-rules.md` for
+rule rationales, edge cases, and the full decision matrix.
 
 For each candidate branch, worktree, PR, and issue, mark as **active** if any
 of the following is true:
