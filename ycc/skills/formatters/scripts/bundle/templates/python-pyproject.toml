@@ -4,12 +4,30 @@
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+# Canonical well-known paths — keep aligned with
+# scripts/bundle/lib/excludes.sh (STYLE_EXCLUDES).
 extend-exclude = [
+    "node_modules",
+    "target",
     "build",
     "dist",
+    "out",
+    "coverage",
+    "vendor",
     ".venv",
     "venv",
-    "node_modules",
+    "env",
+    "__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".next",
+    ".nuxt",
+    ".cache",
+    ".terraform",
+    ".cursor-plugin",
+    ".codex-plugin",
+    ".opencode-plugin",
 ]
 
 [tool.ruff.lint]
@@ -33,3 +51,30 @@ known-first-party = []
 [tool.black]
 line-length = 100
 target-version = ["py311"]
+# Canonical well-known paths — keep aligned with
+# scripts/bundle/lib/excludes.sh (STYLE_EXCLUDES).
+extend-exclude = '''
+/(
+    node_modules
+  | target
+  | build
+  | dist
+  | out
+  | coverage
+  | vendor
+  | \.venv
+  | venv
+  | env
+  | __pycache__
+  | \.mypy_cache
+  | \.pytest_cache
+  | \.ruff_cache
+  | \.next
+  | \.nuxt
+  | \.cache
+  | \.terraform
+  | \.cursor-plugin
+  | \.codex-plugin
+  | \.opencode-plugin
+)/
+'''
