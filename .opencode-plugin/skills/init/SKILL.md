@@ -20,17 +20,17 @@ Profiles the project, authors the AI-agent doc trio (AGENTS.md, AGENTS.md, .curs
 
 ## Arguments
 
-| Flag               | Meaning                                                                           | Example                      |
-| ------------------ | --------------------------------------------------------------------------------- | ---------------------------- |
-| `--dry-run`        | Preview every planned file; make no writes                                        | `/init --dry-run`        |
-| `--docs-only`      | Skip MCP/agent selection; emit doc trio only                                      | `/init --docs-only`      |
-| `--templates`      | Also emit `.github/` issue forms, PR template, labels                             | `/init --templates`      |
+| Flag               | Meaning                                                                            | Example                      |
+| ------------------ | ---------------------------------------------------------------------------------- | ---------------------------- |
+| `--dry-run`        | Preview every planned file; make no writes                                         | `/init --dry-run`        |
+| `--docs-only`      | Skip MCP/agent selection; emit doc trio only                                       | `/init --docs-only`      |
+| `--templates`      | Also emit `.github/` issue forms, PR template, labels                              | `/init --templates`      |
 | `--git`            | Also emit `.gitignore`, `.gitmessage`, commitlint (JS/TS), and the lefthook bundle | `/init --git`            |
-| `--vendor-neutral` | Also emit `.ai/rules/project.md` mirror of Cursor rule                            | `/init --vendor-neutral` |
-| `--formatters`     | Also bootstrap lint/format via `formatters` (scripts, configs, aliases, docs) | `/init --formatters`     |
-| `--update`         | Structured refresh of existing artifacts (merge/migrate, never clobber)           | `/init --update`         |
-| `--force`          | Overwrite existing files without prompting                                        | `/init --force`          |
-| `--profile=<lang>` | Override detected language (`rust`, `ts-node`, `python`, `go`, `mixed`, `empty`)  | `/init --profile=rust`   |
+| `--vendor-neutral` | Also emit `.ai/rules/project.md` mirror of Cursor rule                             | `/init --vendor-neutral` |
+| `--formatters`     | Also bootstrap lint/format via `formatters` (scripts, configs, aliases, docs)  | `/init --formatters`     |
+| `--update`         | Structured refresh of existing artifacts (merge/migrate, never clobber)            | `/init --update`         |
+| `--force`          | Overwrite existing files without prompting                                         | `/init --force`          |
+| `--profile=<lang>` | Override detected language (`rust`, `ts-node`, `python`, `go`, `mixed`, `empty`)   | `/init --profile=rust`   |
 
 Flags are composable. See `references/flag-reference.md` for the full matrix.
 
