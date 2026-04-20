@@ -51,6 +51,9 @@ trust_level = "trusted"
 [projects."/home/yandy/Projects/github.com/yandy-r/claude-plugins"]
 trust_level = "trusted"
 
+[projects."/home/yandy/Projects/github.com/itcn/website"]
+trust_level = "trusted"
+
 [sandbox_workspace_write]
 network_access = true
 
@@ -134,4 +137,7 @@ approval_mode = "approve"
 approval_mode = "approve"
 
 [apps.connector_76869538009648d5b282a4bb21c3d157.tools.github_update_issue]
+approval_mode = "approve"
+
+[apps.connector_76869538009648d5b282a4bb21c3d157.tools.github_remove_issue_label]
 approval_mode = "approve"
