@@ -6,17 +6,17 @@ Detailed reference for every flag accepted by `init`. See also `SKILL.md` for th
 
 ## Flag Matrix
 
-| Flag               | Default     | Affects phases | Writes to                                                                                                                                               | Example                     |
-| ------------------ | ----------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| `--dry-run`        | off         | 5 (halt)       | nothing                                                                                                                                                 | `init --dry-run`        |
-| `--docs-only`      | off         | 2, 4 (skip)    | `CLAUDE.md`, `AGENTS.md`, `.cursor/rules/project.mdc`                                                                                                   | `init --docs-only`      |
+| Flag               | Default     | Affects phases | Writes to                                                                                                                                                                                         | Example                     |
+| ------------------ | ----------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `--dry-run`        | off         | 5 (halt)       | nothing                                                                                                                                                                                           | `init --dry-run`        |
+| `--docs-only`      | off         | 2, 4 (skip)    | `CLAUDE.md`, `AGENTS.md`, `.cursor/rules/project.mdc`                                                                                                                                             | `init --docs-only`      |
 | `--templates`      | off         | 3 (extend)     | `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `.github/labels.md`, `.github/copilot-instructions.md`, `.github/workflows/pr-title.yml`, `.github/workflows/pr-title-autofix.yml` | `init --templates`      |
-| `--git`            | off         | 3 (extend)     | `.gitmessage`, `commitlint.config.cjs` (JS/TS only), `lefthook.yml`, `scripts/install-lefthook.sh`, `docs/lefthook-usage.md`                            | `init --git`            |
-| `--vendor-neutral` | off         | 3 (extend)     | `.ai/rules/project.md`                                                                                                                                  | `init --vendor-neutral` |
-| `--formatters`     | off         | 6.5 (delegate) | (delegates to `formatters` — see its flag matrix)                                                                                                   | `init --formatters`     |
-| `--update`         | off         | 6 (merge)      | existing targets only                                                                                                                                   | `init --update`         |
-| `--force`          | off         | 6 (overwrite)  | all target files                                                                                                                                        | `init --force`          |
-| `--profile=<name>` | auto-detect | 1 (skip)       | (drives template variables)                                                                                                                             | `init --profile=rust`   |
+| `--git`            | off         | 3 (extend)     | `.gitmessage`, `commitlint.config.cjs` (JS/TS only), `lefthook.yml`, `scripts/install-lefthook.sh`, `docs/lefthook-usage.md`                                                                      | `init --git`            |
+| `--vendor-neutral` | off         | 3 (extend)     | `.ai/rules/project.md`                                                                                                                                                                            | `init --vendor-neutral` |
+| `--formatters`     | off         | 6.5 (delegate) | (delegates to `formatters` — see its flag matrix)                                                                                                                                             | `init --formatters`     |
+| `--update`         | off         | 6 (merge)      | existing targets only                                                                                                                                                                             | `init --update`         |
+| `--force`          | off         | 6 (overwrite)  | all target files                                                                                                                                                                                  | `init --force`          |
+| `--profile=<name>` | auto-detect | 1 (skip)       | (drives template variables)                                                                                                                                                                       | `init --profile=rust`   |
 
 ### `--profile` accepted values
 
