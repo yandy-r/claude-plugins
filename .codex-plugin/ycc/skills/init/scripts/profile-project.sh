@@ -278,6 +278,9 @@ fi
 has_gitmessage=false
 file_exists ".gitmessage" && has_gitmessage=true
 
+has_gitignore=false
+file_exists ".gitignore" && has_gitignore=true
+
 has_commitlint_config=false
 for f in commitlint.config.cjs commitlint.config.js commitlint.config.mjs commitlint.config.ts .commitlintrc .commitlintrc.json .commitlintrc.yml; do
     if file_exists "$f"; then
@@ -343,6 +346,7 @@ echo "agents_md_is_pointer=${agents_md_is_pointer}"
 echo "has_issue_templates=${has_issue_templates}"
 echo "has_pr_template=${has_pr_template}"
 echo "has_gitmessage=${has_gitmessage}"
+echo "has_gitignore=${has_gitignore}"
 echo "has_commitlint_config=${has_commitlint_config}"
 echo "has_lefthook_config=${has_lefthook_config}"
 echo "ci_provider=${ci_provider}"

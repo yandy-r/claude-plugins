@@ -65,6 +65,7 @@ These keys let the skill trigger update/merge semantics per artifact:
 | `has_issue_templates`     | `.github/ISSUE_TEMPLATE/` contains at least one `.yml`/`.yaml`/`.md` file                  |
 | `has_pr_template`         | `pull_request_template.md` exists at a standard path                                       |
 | `has_gitmessage`          | `.gitmessage` file exists at the project root                                              |
+| `has_gitignore`           | `.gitignore` file exists at the project root                                               |
 | `has_commitlint_config`   | Any `commitlint.config.*` or `.commitlintrc*` exists                                       |
 | `has_lefthook_config`     | `lefthook.yml`, `lefthook.yaml`, `.lefthook.yml`, `.lefthook.yaml`, or `.lefthook/` exists |
 
