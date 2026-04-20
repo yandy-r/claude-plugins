@@ -15,14 +15,16 @@ opencode.json contents:
   (per the plan §6; high-reasoning default for coding-agent work)
 - `mcp`: translated from mcp-configs/mcp.json (Claude Code shape → opencode shape)
 
-AGENTS.md is derived from the repo's CLAUDE.md with opencode text transforms
-applied. The repo root AGENTS.md is just a pointer to CLAUDE.md, so we read
-CLAUDE.md directly for substantive content.
+AGENTS.md is derived from ycc/settings/rules/CLAUDE.md (the user-global
+generic ruleset) with opencode text transforms applied. The install target
+for .opencode-plugin/AGENTS.md is ~/.config/opencode/AGENTS.md — i.e., the
+user-global opencode rules file — so it must source from the generic
+ycc/settings/rules tree, not this repo's project-specific CLAUDE.md.
 
 Source of truth:
 - ycc/.claude-plugin/plugin.json (name/version reference, not emitted)
 - mcp-configs/mcp.json
-- CLAUDE.md
+- ycc/settings/rules/CLAUDE.md
 """
 
 from __future__ import annotations
@@ -39,12 +41,16 @@ from generate_opencode_common import (
     OPENCODE_CONFIG_PATH,
     OPENCODE_PLUGIN_ROOT,
     REPO_ROOT,
-    SOURCE_AGENTS_MD_CANDIDATES,
     SOURCE_MCP_PATH,
     apply_opencode_text_transforms,
     load_agent_aliases,
     translate_mcp_servers,
 )
+
+# .opencode-plugin/AGENTS.md installs into ~/.config/opencode/AGENTS.md as the
+# user-global opencode rules file, so it must source from the generic
+# user-global rules tree — not this repo's project-specific CLAUDE.md.
+SOURCE_RULES_PATH = REPO_ROOT / "ycc" / "settings" / "rules" / "CLAUDE.md"
 
 DEFAULT_MODEL = "openai/gpt-5.4"
 DEFAULT_PROVIDER_CONFIG: dict[str, object] = {
@@ -130,24 +136,18 @@ def build_opencode_config() -> dict[str, object]:
 
 
 def build_agents_md() -> str:
-    """Read the richest available source (CLAUDE.md preferred, AGENTS.md
-    fallback) and apply opencode text transforms to produce the bundle's
-    rules file.
+    """Read ycc/settings/rules/CLAUDE.md (the user-global generic rules) and
+    apply opencode text transforms to produce the bundle's rules file.
+
+    .opencode-plugin/AGENTS.md installs to ~/.config/opencode/AGENTS.md, so it
+    must source from the generic user-global rules tree — sourcing from the
+    repo-root CLAUDE.md would leak this project's contributor-specific
+    guidance into every opencode user's global rules.
     """
-    source_text: str | None = None
-    source_used: Path | None = None
-    # Prefer CLAUDE.md because repo AGENTS.md is just a pointer.
-    preferred = [
-        REPO_ROOT / "CLAUDE.md",
-        *SOURCE_AGENTS_MD_CANDIDATES,
-    ]
-    for candidate in preferred:
-        if candidate.is_file():
-            source_text = candidate.read_text(encoding="utf-8")
-            source_used = candidate
-            break
-    if source_text is None:
-        raise SystemExit("opencode plugin generator cannot find CLAUDE.md or AGENTS.md at repo root")
+    if not SOURCE_RULES_PATH.is_file():
+        raise SystemExit(f"opencode plugin generator cannot find {SOURCE_RULES_PATH.relative_to(REPO_ROOT)}")
+
+    source_text = SOURCE_RULES_PATH.read_text(encoding="utf-8")
 
     aliases = load_agent_aliases()
     transformed = apply_opencode_text_transforms(
@@ -159,7 +159,7 @@ def build_agents_md() -> str:
     transformed = normalize_agents_runtime_syntax(transformed)
 
     header = (
-        f"<!-- Generated from {source_used.relative_to(REPO_ROOT) if source_used else 'CLAUDE.md'} "
+        f"<!-- Generated from {SOURCE_RULES_PATH.relative_to(REPO_ROOT)} "
         "by scripts/generate_opencode_plugin.py — do not edit by hand. -->\n\n"
     )
     return header + transformed

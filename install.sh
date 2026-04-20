@@ -119,10 +119,10 @@ Target steps:
                       into ~/.config/opencode/.
             settings: symlink .opencode-plugin/{opencode.json,AGENTS.md} into
                       ~/.config/opencode/ (opencode's AGENTS.md is generator-
-                      produced from the repo CLAUDE.md, not the generic
-                      ycc/settings/rules tree). opencode reads MCP from
-                      opencode.json, so enable MCP via --settings — there is no
-                      separate mcp step.
+                      produced from ycc/settings/rules/CLAUDE.md — the same
+                      user-global ruleset as every other target). opencode
+                      reads MCP from opencode.json, so enable MCP via
+                      --settings — there is no separate mcp step.
   all       Run claude then cursor then codex then opencode; step flags propagate.
 
 Examples:
@@ -761,11 +761,12 @@ sync_opencode_target() {
         printf '\n%s[%d/%d] Link opencode config and rules%s\n' "${BOLD}" "$step" "$total" "${NC}"
         mkdir -p "${opencode_dir}"
         link_file "${OPENCODE_PLUGIN_DIR}/opencode.json" "${opencode_dir}/opencode.json"
-        # NOTE: opencode's AGENTS.md is generator-produced (transformed from the
-        # repo-root CLAUDE.md — see scripts/generate_opencode_plugin.py) and
-        # therefore intentionally does NOT use ycc/settings/rules/. Do not
-        # "unify" this path with the other targets without first changing the
-        # generator; it ships ycc-aware rules via the opencode bundle contract.
+        # opencode's AGENTS.md is generator-produced from
+        # ycc/settings/rules/CLAUDE.md (the same user-global ruleset the other
+        # targets symlink directly). See scripts/generate_opencode_plugin.py
+        # for the text transforms applied during generation. We link to the
+        # bundle's AGENTS.md — not directly to ycc/settings/rules/ — so the
+        # transformed copy is what lands in ~/.config/opencode/.
         link_file "${OPENCODE_PLUGIN_DIR}/AGENTS.md"    "${opencode_dir}/AGENTS.md"
     fi
 

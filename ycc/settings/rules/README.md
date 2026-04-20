@@ -13,12 +13,12 @@ This directory is the authoritative source for user-global agent rules installed
 
 ## Scope vs. other rules files in this repo
 
-| File                                       | Scope                                         |
-| ------------------------------------------ | --------------------------------------------- |
-| `ycc/settings/rules/CLAUDE.md` (this dir)  | User-global — installed everywhere.           |
-| `CLAUDE.md` (repo root)                    | Repo-specific — only applies to this repo.    |
-| `ycc/skills/init/templates/CLAUDE.md.tmpl` | Project template emitted by `/ycc:init`.      |
-| `.opencode-plugin/AGENTS.md`               | Generated from repo `CLAUDE.md` (ycc bundle). |
+| File                                       | Scope                                                                                                    |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `ycc/settings/rules/CLAUDE.md` (this dir)  | User-global — installed everywhere.                                                                      |
+| `CLAUDE.md` (repo root)                    | Repo-specific — only applies to this repo.                                                               |
+| `ycc/skills/init/templates/CLAUDE.md.tmpl` | Project template emitted by `/ycc:init`.                                                                 |
+| `.opencode-plugin/AGENTS.md`               | Generated from `ycc/settings/rules/CLAUDE.md` (same user-global ruleset, with opencode text transforms). |
 
 These are deliberately separate. The generic file here is never ycc-specific; the
 repo `CLAUDE.md` is never shipped outside this repo; the init template is what
