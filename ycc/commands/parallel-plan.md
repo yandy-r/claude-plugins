@@ -1,6 +1,6 @@
 ---
 description: Generate a detailed parallel implementation plan with task dependencies, file ownership, and batch ordering. Step 2 of the planning workflow — requires shared-context output. Produces parallel-plan.md ready for implement-plan. Defaults to standalone parallel sub-agents via the Task tool; pass --team (Claude Code only) to orchestrate the analysis and validation stages as teammates under a shared TeamCreate/TaskList with coordinated shutdown.
-argument-hint: '[--team] [--worktree] [feature-name] [--dry-run]'
+argument-hint: '[--team] [--no-worktree] [feature-name] [--dry-run]'
 ---
 
 # Parallel Plan Command
@@ -14,7 +14,8 @@ The skill analyzes the shared context, designs independent task batches with exp
 **Flags** (pass before the feature name):
 
 - `--team` — (Claude Code only) Dispatch the 3 analysis agents and 3 validation agents as teammates under a shared `TeamCreate`/`TaskList` with coordinated shutdown and inter-teammate `SendMessage` coordination. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
-- `--worktree` — Emit worktree annotations in `parallel-plan.md`: a top-level `## Worktree Setup` block and per-parallel-task `**Worktree**:` fields. Downstream `/ycc:implement-plan --worktree` (or auto-detect) uses these annotations to run each parallel task in its own git worktree. Combines freely with `--team` and `--dry-run`.
+- `--worktree` — (legacy — now default; pass `--no-worktree` to opt out) Worktree annotations are emitted by default. This flag is accepted as a silent no-op so existing pipelines continue to work.
+- `--no-worktree` — Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.
 - `--dry-run` — Preview the execution plan without deploying agents. With `--team`, also prints the team name and teammate roster.
 
 **Examples**:
@@ -22,7 +23,8 @@ The skill analyzes the shared context, designs independent task batches with exp
 ```
 /ycc:parallel-plan user-authentication
 /ycc:parallel-plan --team payment-integration
-/ycc:parallel-plan --worktree add a billing dashboard
-/ycc:parallel-plan --worktree --team user-authentication
+/ycc:parallel-plan add a billing dashboard                    # worktree annotations included by default
+/ycc:parallel-plan --no-worktree add a billing dashboard      # skip worktree annotations
+/ycc:parallel-plan --team user-authentication                 # team mode with worktree annotations (default)
 /ycc:parallel-plan payment-integration --dry-run
 ```

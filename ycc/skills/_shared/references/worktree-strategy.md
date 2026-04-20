@@ -1,17 +1,58 @@
 # Worktree Strategy — Canonical Reference
 
 Used by `ycc:plan`, `ycc:prp-plan`, `ycc:parallel-plan`, `ycc:plan-workflow`,
-`ycc:prp-implement`, `ycc:orchestrate`, and `ycc:implement-plan` when worktree
-isolation is in effect. Also used by `ycc:code-review` and `ycc:review-fix` when
-`--worktree` is set — with two twists: code-review checks out an existing PR head
-branch into the parent (see `--base-ref` below) instead of branching from HEAD, and
-review-fix keys its children by severity label (`critical`, `high`, `medium`, `low`)
-instead of by parallel task ID. This file documents the parent/child worktree model,
-naming scheme, plan annotation format, per-target dispatch matrix, fan-in merge
-protocol, conflict policy, and cleanup convention. Individual skills own their own
-`--worktree` flag plumbing and per-phase invocations; only the shared mechanism
-lives here. See [agent-team-dispatch.md](./agent-team-dispatch.md) for the
+`ycc:prp-implement`, `ycc:orchestrate`, and `ycc:implement-plan` for default
+worktree isolation. Also used by `ycc:code-review` and `ycc:review-fix` — with
+two twists: code-review checks out an existing PR head branch into the parent
+(see `--base-ref` below) instead of branching from HEAD, and review-fix keys its
+children by severity label (`critical`, `high`, `medium`, `low`) instead of by
+parallel task ID. This file documents the parent/child worktree model, naming
+scheme, plan annotation format, per-target dispatch matrix, fan-in merge
+protocol, conflict policy, and cleanup convention. Individual skills own their
+own flag plumbing and per-phase invocations; only the shared mechanism lives
+here. See [agent-team-dispatch.md](./agent-team-dispatch.md) for the
 complementary team lifecycle and how worktrees pair with teammate dispatch.
+
+---
+
+## 0. Default Behavior
+
+Worktree isolation is **on by default** for all nine worktree-aware skills:
+
+| Skill                       | Default                        | Opt out with    |
+| --------------------------- | ------------------------------ | --------------- |
+| `ycc:code-review` (PR mode) | worktree on                    | `--no-worktree` |
+| `ycc:review-fix`            | worktree on                    | `--no-worktree` |
+| `ycc:plan`                  | annotations emitted            | `--no-worktree` |
+| `ycc:prp-plan`              | annotations emitted            | `--no-worktree` |
+| `ycc:parallel-plan`         | annotations emitted            | `--no-worktree` |
+| `ycc:plan-workflow`         | annotations emitted            | `--no-worktree` |
+| `ycc:prp-implement`         | worktree on (auto-detect)      | `--no-worktree` |
+| `ycc:implement-plan`        | worktree on (auto-detect)      | `--no-worktree` |
+| `ycc:orchestrate`           | worktree on for parallel tasks | `--no-worktree` |
+
+The legacy `--worktree` flag remains accepted on every skill as a silent no-op
+(it now matches the default). Existing pipelines and documentation that pass
+`--worktree` continue to work without modification.
+
+**Auto-detect (executors)** — `prp-implement`, `implement-plan`, and
+`orchestrate` first look for a `## Worktree Setup` section in the plan and
+honor its annotations when present. When the plan has no annotations, the
+fallback is now **on** (was off). `--no-worktree` overrides both the plan
+annotations and the default.
+
+**Artifact location for `code-review`** — In PR mode the review artifact is
+now written _into the active worktree_ at
+`<worktree>/docs/prps/reviews/pr-<N>-review.md`, then committed and pushed to
+the PR's head branch. This is a deliberate change from the previous policy
+(artifact written to main repo, kept off the branch). See
+[code-review/SKILL.md](../../code-review/SKILL.md) for the full lifecycle
+(draft→ready promotion, artifact commit+push, post-review worktree removal,
+opt-outs `--keep-draft` and `--keep-worktree`).
+
+`ycc:review-fix` follows: it discovers the artifact in the active worktree's
+`docs/prps/reviews/` first, then falls back to the main repo for in-flight
+artifacts written under the previous contract.
 
 ---
 

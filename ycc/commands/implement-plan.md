@@ -1,6 +1,6 @@
 ---
-description: Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dep wiring. Step 3 of the planning workflow, requires parallel-plan.md from plan-workflow.
-argument-hint: '[--team] [--dry-run] <feature-name>'
+description: Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dep wiring. Worktree isolation is ON by default; pass --no-worktree to opt out. --worktree is accepted as a legacy no-op. Step 3 of the planning workflow, requires parallel-plan.md from plan-workflow.
+argument-hint: '[--team] [--dry-run] [--worktree] [--no-worktree] <feature-name>'
 allowed-tools:
   - Read
   - Grep
@@ -41,20 +41,25 @@ Parallelism is the baseline — every batch's implementor agents dispatch concur
 
 - `--team` — (Claude Code only) Force agent-team dispatch.
 - `--dry-run` — Print the execution plan without deploying agents. With `--team`, also prints the team name and per-batch teammate roster.
-- `--worktree` — Force worktree mode even when the input `parallel-plan.md` has no `## Worktree Setup` annotations. When the plan already contains them, they're used automatically without this flag. Each parallel task runs in its own child worktree; children are merged back after the batch validates. See `ycc/skills/_shared/references/worktree-strategy.md`.
+- `--worktree` — (legacy — now default; pass `--no-worktree` to opt out) Accepted as a silent no-op. Worktree isolation is on by default.
+- `--no-worktree` — Force worktree mode **OFF** regardless of plan annotations. Tasks run directly in the current checkout.
 
 ```
-Usage: /ycc:implement-plan [--team] [--dry-run] [--worktree] <feature-name>
+Usage: /ycc:implement-plan [--team] [--dry-run] [--worktree] [--no-worktree] <feature-name>
 
 Examples:
   /ycc:implement-plan user-authentication
+    # default: worktree isolation ON; plan annotations used when present, derived paths otherwise
+
   /ycc:implement-plan --team user-authentication
+    # agent-team dispatch (worktree still on by default)
+
   /ycc:implement-plan --dry-run payment-integration
   /ycc:implement-plan --team --dry-run payment-integration
 
-  # Plan already has ## Worktree Setup annotations — auto-detected, no flag needed:
-  /ycc:implement-plan my-feature
+  /ycc:implement-plan --no-worktree my-feature
+    # opt out of worktree isolation; tasks run directly in the current checkout
 
-  # Force worktree mode even though the plan has no annotations:
-  /ycc:implement-plan --worktree my-feature
+  /ycc:implement-plan --team --no-worktree my-feature
+    # agent-team dispatch without worktrees
 ```

@@ -138,7 +138,8 @@ else
   warning "Missing 'Advice' section"
 fi
 
-# Worktree annotations (optional — informational only)
+# Optional: --no-worktree plans omit this annotation. Worktree mode is now
+# default-on, but plans generated with --no-worktree skip the annotation.
 echo ""
 echo "Checking optional worktree annotations..."
 if echo "$CONTENT" | grep -q "^## Worktree Setup"; then

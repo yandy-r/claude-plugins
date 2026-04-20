@@ -1,6 +1,6 @@
 ---
-description: Execute a PRP plan file with per-task validation loops. Detects package manager, prepares git branch, runs 5 validation levels, writes docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans and prompts the user; pass --parallel to force standalone sub-agent batch execution, or --team (Claude Code only) to force agent-team batch execution with shared TaskList and up-front dependency wiring. Pass --worktree to force per-task git worktree isolation (plans with worktree annotations are auto-detected and need no flag).
-argument-hint: '[--parallel | --team] [--worktree] [--dry-run] <path/to/plan.md>'
+description: Execute a PRP plan file with per-task validation loops. Detects package manager, prepares git branch, runs 5 validation levels, writes docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans and prompts the user; pass --parallel to force standalone sub-agent batch execution, or --team (Claude Code only) to force agent-team batch execution with shared TaskList and up-front dependency wiring. Worktree isolation is ON by default; pass --no-worktree to opt out. --worktree is accepted as a legacy no-op.
+argument-hint: '[--parallel | --team] [--worktree] [--no-worktree] [--dry-run] <path/to/plan.md>'
 allowed-tools:
   - Read
   - Grep
@@ -56,31 +56,32 @@ The skill walks the plan's Step-by-Step Tasks, runs immediate validation after e
 
 - `--parallel` — Force parallel sub-agent execution. Skips the interactive prompt when the plan is parallel-capable. Falls back to sequential with a warning if the plan has no `Batches` section.
 - `--team` — (Claude Code only) Force agent-team execution. **Aborts** (does not fall back) if the plan has no `Batches` section — agent-team mode requires a parallel-capable plan.
-- `--worktree` — Force git worktree isolation per parallel task, even when the plan has no `## Worktree Setup` annotations. When the plan already contains worktree annotations (produced by `/ycc:prp-plan --worktree` or `/ycc:parallel-plan --worktree`), they are used automatically — no flag needed. Each parallel task runs in its own child worktree; after each batch validates, child branches are merged back into the parent. Sequential tasks always run in the parent worktree. Combines freely with `--parallel` and `--team`.
+- `--worktree` — (legacy — now default; pass `--no-worktree` to opt out) Accepted as a silent no-op. Worktree isolation is on by default; this flag matches the new default and has no additional effect.
+- `--no-worktree` — Force worktree mode **OFF** regardless of plan annotations. Tasks run directly in the current checkout. Use when you want to avoid worktree creation for a specific run.
 - `--dry-run` — Only valid with `--team`. Prints the team name, full task graph with dependencies, and per-batch teammate roster, then exits without spawning any teammates.
 
 `--parallel` and `--team` are **mutually exclusive** — pick one.
 
-**Auto-detection**: If you omit both flags and the plan is parallel-capable, the skill prompts you to choose sequential / parallel sub-agents / agent team before executing. If the plan contains a `## Worktree Setup` section, worktree mode activates automatically regardless of whether `--worktree` is passed.
+**Auto-detection**: If you omit both flags and the plan is parallel-capable, the skill prompts you to choose sequential / parallel sub-agents / agent team before executing. Worktree mode is **on by default** — it activates unless `--no-worktree` is passed. If the plan contains a `## Worktree Setup` section, those annotations are used as-is; otherwise the skill derives parent/child paths from the plan name automatically.
 
 ```
-Usage: /ycc:prp-implement [--parallel | --team] [--worktree] [--dry-run] <path/to/plan.md>
+Usage: /ycc:prp-implement [--parallel | --team] [--worktree] [--no-worktree] [--dry-run] <path/to/plan.md>
 
 Examples:
   /ycc:prp-implement docs/prps/plans/rate-limiting.plan.md
-    # auto-detect mode; if plan has ## Worktree Setup, worktree mode activates automatically
+    # default: worktree isolation ON; plan annotations used when present, derived paths otherwise
 
   /ycc:prp-implement --parallel docs/prps/plans/rate-limiting.plan.md
-    # force parallel sub-agent batch execution
+    # force parallel sub-agent batch execution (worktree still on by default)
 
   /ycc:prp-implement --team docs/prps/plans/rate-limiting.plan.md
-    # force agent-team batch execution
+    # force agent-team batch execution (worktree still on by default)
 
-  /ycc:prp-implement --worktree docs/prps/plans/rate-limiting.plan.md
-    # force worktree isolation per parallel task even though the plan has no annotations
+  /ycc:prp-implement --no-worktree docs/prps/plans/rate-limiting.plan.md
+    # opt out of worktree isolation; tasks run directly in the current checkout
 
-  /ycc:prp-implement --team --worktree docs/prps/plans/rate-limiting.plan.md
-    # agent-team execution with per-task child worktrees and fan-in merge after each batch
+  /ycc:prp-implement --team --no-worktree docs/prps/plans/rate-limiting.plan.md
+    # agent-team execution without worktrees
 
   /ycc:prp-implement --team --dry-run docs/prps/plans/rate-limiting.plan.md
     # preview team graph (no agents spawned)

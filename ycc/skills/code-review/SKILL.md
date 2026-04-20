@@ -1,7 +1,7 @@
 ---
 name: code-review
-description: Dual-mode code review — local uncommitted changes OR a GitHub pull request. Both modes now write a machine-parseable review artifact (Local → docs/prps/reviews/local-{timestamp}-review.md, PR → docs/prps/reviews/pr-{N}-review.md) with sequential finding IDs (F001, F002, ...) and Status fields (Open/Fixed/Failed) so /ycc:review-fix can consume and update them in place. Local mode runs a full security + quality pass on the diff. PR mode fetches the PR, reads each changed file in full, builds context from CLAUDE.md and PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build) for detected stacks, assigns severity, and posts the review to GitHub via gh. Pass `--parallel` to fan out the REVIEW phase across 3 standalone ycc:code-reviewer sub-agents (correctness, security, quality) and merge findings. Pass `--team` (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList, per-reviewer task tracking, and inter-reviewer communication via SendMessage. `--parallel` and `--team` are mutually exclusive. Pass --worktree to check out the PR into an isolated worktree (~/.claude-worktrees/<repo>-pr-<N>/) so concurrent reviews never collide on branches; the emitted artifact declares severity-keyed child worktrees that /ycc:review-fix --worktree creates for each fix batch. Use when the user asks to "review code", "review PR", "check uncommitted changes", "review pr N", "parallel review", "team review", or says "/code-review". Adapted from PRPs-agentic-eng by Wirasm.
-argument-hint: '[--approve | --request-changes] [--parallel | --team] [--worktree] [pr-number | pr-url | blank for local review]'
+description: Dual-mode code review — local uncommitted changes OR a GitHub pull request. Both modes now write a machine-parseable review artifact (Local → docs/prps/reviews/local-{timestamp}-review.md, PR → docs/prps/reviews/pr-{N}-review.md) with sequential finding IDs (F001, F002, ...) and Status fields (Open/Fixed/Failed) so /ycc:review-fix can consume and update them in place. Local mode runs a full security + quality pass on the diff. PR mode fetches the PR, reads each changed file in full, builds context from CLAUDE.md and PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build) for detected stacks, assigns severity, and posts the review to GitHub via gh. Pass `--parallel` to fan out the REVIEW phase across 3 standalone ycc:code-reviewer sub-agents (correctness, security, quality) and merge findings. Pass `--team` (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList, per-reviewer task tracking, and inter-reviewer communication via SendMessage. `--parallel` and `--team` are mutually exclusive. Worktree mode is on by default in PR mode — pass `--no-worktree` to opt out. Pass `--keep-draft` to skip automatic draft→ready promotion. Pass `--keep-worktree` to skip worktree removal after the review is posted. Use when the user asks to "review code", "review PR", "check uncommitted changes", "review pr N", "parallel review", "team review", or says "/code-review". Adapted from PRPs-agentic-eng by Wirasm.
+argument-hint: '[--approve | --request-changes] [--parallel | --team] [--no-worktree] [--keep-draft] [--keep-worktree] [pr-number | pr-url | blank for local review]'
 allowed-tools:
   - Read
   - Grep
@@ -47,15 +47,18 @@ allowed-tools:
 
 Before selecting mode, extract flags from `$ARGUMENTS`:
 
-| Flag                | Effect                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `--parallel`        | Fan out the REVIEW phase across 3 **standalone** `ycc:code-reviewer` sub-agents (correctness, security, quality) dispatched in parallel and merge findings. Works in Claude Code, Cursor, and Codex.                                                                                                                                                                                                                                                                                                |
-| `--team`            | (Claude Code only) Fan out the REVIEW phase across the same 3 `ycc:code-reviewer` reviewers, but dispatched as an **agent team** with up-front `TaskCreate`, shared `TaskList` observability, inter-reviewer coordination via `SendMessage`, and coordinated shutdown before merge. Heavier dispatch, richer communication.                                                                                                                                                                         |
-| `--worktree`        | Check out the PR head branch into an isolated worktree at `~/.claude-worktrees/<repo>-pr-<N>/` before reading files, then emit a `## Worktree Setup` section in the review artifact declaring one child worktree per severity that has Open findings. Downstream `/ycc:review-fix --worktree` consumes the annotation. **No effect in local mode** — local review prints a warning and continues without a worktree. Combines freely with `--parallel`, `--team`, `--approve`, `--request-changes`. |
+| Flag                | Effect                                                                                                                                                                                                                                                                                                                      |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                                                                                                                                                                                                                     |
+| `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                                                                                                                                                                                                          |
+| `--parallel`        | Fan out the REVIEW phase across 3 **standalone** `ycc:code-reviewer` sub-agents (correctness, security, quality) dispatched in parallel and merge findings. Works in Claude Code, Cursor, and Codex.                                                                                                                        |
+| `--team`            | (Claude Code only) Fan out the REVIEW phase across the same 3 `ycc:code-reviewer` reviewers, but dispatched as an **agent team** with up-front `TaskCreate`, shared `TaskList` observability, inter-reviewer coordination via `SendMessage`, and coordinated shutdown before merge. Heavier dispatch, richer communication. |
+| `--worktree`        | (legacy / now default; safe to omit) Check out the PR head branch into an isolated worktree at `~/.claude-worktrees/<repo>-pr-<N>/`. Worktree mode is on by default in PR mode; pass `--no-worktree` to opt out.                                                                                                            |
+| `--no-worktree`     | Opt out of worktree isolation in PR mode. Skip worktree creation, artifact commit+push, and cleanup. Files are read directly from the main checkout.                                                                                                                                                                        |
+| `--keep-draft`      | Skip the automatic draft→ready promotion in PR mode. Default: PR is promoted to Ready for Review before posting the review.                                                                                                                                                                                                 |
+| `--keep-worktree`   | Skip removal of the PR worktree after the review is posted. The artifact is still committed and pushed to the PR branch. Default: worktree is removed via `git worktree remove <path>` after a clean review post.                                                                                                           |
 
-Strip these from `$ARGUMENTS` and set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, and `WORKTREE_MODE=true|false`. The remaining text is the mode selector (PR number/URL or blank for local).
+Strip these from `$ARGUMENTS` and set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `NO_WORKTREE_MODE=true|false`, `KEEP_DRAFT=true|false`, and `KEEP_WORKTREE=true|false`. Compute `WORKTREE_MODE=true` unless `--no-worktree` is present (default-on in PR mode; ignored for local mode as before). The remaining text is the mode selector (PR number/URL or blank for local).
 
 **Validation**:
 
@@ -68,9 +71,9 @@ Parallel mode and team mode both apply to **both** Local Review Mode (Phase 2) a
 
 ---
 
-## Phase 0½ — SETUP (only when `--worktree`)
+## Phase 0½ — SETUP (PR mode default; skipped with `--no-worktree`)
 
-Skip this phase entirely when `WORKTREE_MODE=false`.
+Skip this phase entirely when `WORKTREE_MODE=false` (i.e., `--no-worktree` was passed).
 
 ### Local mode with `--worktree`
 
@@ -120,11 +123,11 @@ Continue with Local Review Mode but set `WORKTREE_ACTIVE=false`. **Do NOT** emit
 
 ### Behavior summary
 
-| Flag state                      | Effect                                                                     |
-| ------------------------------- | -------------------------------------------------------------------------- |
-| `WORKTREE_MODE=false` (no flag) | No worktree. Files read from main working tree (local) or GitHub API (PR). |
-| `WORKTREE_MODE=true`, local     | Warning printed; no worktree created; behaves as `WORKTREE_MODE=false`.    |
-| `WORKTREE_MODE=true`, PR        | Parent worktree created; files read from `$PARENT_WORKTREE_PATH`.          |
+| Flag state                              | Effect                                                                     |
+| --------------------------------------- | -------------------------------------------------------------------------- |
+| `WORKTREE_MODE=false` (`--no-worktree`) | No worktree. Files read from main working tree (local) or GitHub API (PR). |
+| `WORKTREE_MODE=true` (default), local   | Warning printed; no worktree created; behaves as `WORKTREE_MODE=false`.    |
+| `WORKTREE_MODE=true` (default), PR      | Parent worktree created; files read from `$PARENT_WORKTREE_PATH`.          |
 
 Proceed to Mode Selection.
 
@@ -627,7 +630,7 @@ Form recommendation based on findings:
 
 Special cases:
 
-- Draft PR → Always use **COMMENT** (not approve/block)
+- Draft PR (with `--keep-draft`) → Always use **COMMENT** (not approve/block). Without `--keep-draft`, the PR is auto-promoted to ready before this decision runs, so normal severity-based decisions apply.
 - Only docs/config changes → Lighter review, focus on correctness
 - Explicit `--approve` or `--request-changes` flag → Override decision (but still report all findings)
 
@@ -635,16 +638,54 @@ Special cases:
 
 Assign sequential finding IDs (`F001`, `F002`, ...) ordered by severity (CRITICAL first) then by file path. Every finding receives `Status: Open` on first write.
 
-Create review artifact at `docs/prps/reviews/pr-<NUMBER>-review.md`:
+#### Draft Promotion
+
+At the very start of Phase 6, in PR mode, run the draft→ready promotion unless `--keep-draft` was set:
 
 ```bash
-mkdir -p docs/prps/reviews
+if [[ "$KEEP_DRAFT" != "true" ]]; then
+  IS_DRAFT=$(gh pr view "$PR_NUMBER" --json isDraft --jq .isDraft)
+  if [[ "$IS_DRAFT" == "true" ]]; then
+    gh pr ready "$PR_NUMBER"
+    echo "Promoted PR #$PR_NUMBER from draft to ready for review."
+  fi
+fi
+```
+
+#### Artifact Write
+
+Write the artifact to `$(git rev-parse --show-toplevel)/docs/prps/reviews/pr-<N>-review.md`. When `WORKTREE_ACTIVE=true` this resolves to the worktree top-level (e.g., `~/.claude-worktrees/<repo>-pr-<N>/docs/prps/reviews/pr-<N>-review.md`); when `--no-worktree` is in effect, it resolves to the main repo. The artifact intentionally lives **with the PR branch** so it travels with the review history.
+
+```bash
+mkdir -p "$(git rev-parse --show-toplevel)/docs/prps/reviews"
 ```
 
 Use the **Review Artifact Format** defined at the bottom of this skill. The artifact must include finding IDs and `Status: Open` on every finding so that `/ycc:review-fix` can later update the file in place.
 
-- When `WORKTREE_ACTIVE=true`, write the artifact to the MAIN repo path (`docs/prps/reviews/pr-<N>-review.md`) using an absolute path — never to the worktree — so the review record is not carried by the PR branch's history. Use `$(git rev-parse --show-toplevel)` from within the main repo shell context, NOT from inside the worktree.
+- Write the artifact to `$(git rev-parse --show-toplevel)/docs/prps/reviews/pr-<N>-review.md`. When `WORKTREE_ACTIVE=true` this resolves to the worktree top-level (e.g., `~/.claude-worktrees/<repo>-pr-<N>/docs/prps/reviews/pr-<N>-review.md`); when `--no-worktree` is in effect, it resolves to the main repo. The artifact intentionally lives **with the PR branch** so it travels with the review history.
+- **Note**: the artifact will be committed to the PR branch (see commit step below). If you do not want the review record on the PR branch, add `docs/prps/reviews/` to `.gitignore` — the skill detects this and skips the commit.
 - Emit only severity rows in `## Worktree Setup` whose severity has at least one Open finding in the artifact. Omit rows for empty severities.
+
+#### Artifact Commit + Push
+
+After the artifact has been written, in PR mode when `WORKTREE_ACTIVE=true`, commit and push it to the PR branch before posting the review:
+
+```bash
+if [[ "$WORKTREE_ACTIVE" == "true" ]]; then
+  ARTIFACT_REL="docs/prps/reviews/pr-${PR_NUMBER}-review.md"
+  pushd "$WORKTREE_PATH" >/dev/null
+  if git check-ignore -q "$ARTIFACT_REL"; then
+    echo "Artifact path is gitignored; skipping commit. Worktree preserved at $WORKTREE_PATH."
+    KEEP_WORKTREE=true
+  else
+    git add "$ARTIFACT_REL"
+    git commit -m "docs(review): add review artifact for PR #${PR_NUMBER}"
+    git push
+    echo "Committed and pushed review artifact to PR #${PR_NUMBER} branch."
+  fi
+  popd >/dev/null
+fi
+```
 
 Example of the Findings section:
 
@@ -724,6 +765,24 @@ gh api "repos/{owner}/{repo}/pulls/<NUMBER>/reviews" \
   -f body="<overall summary>" \
   --input comments.json  # [{"path": "file", "line": N, "body": "comment"}, ...]
 ```
+
+#### Worktree Cleanup
+
+After `gh pr review` succeeds, remove the worktree unless `--keep-worktree` is set or the worktree is dirty:
+
+```bash
+if [[ "$WORKTREE_ACTIVE" == "true" && "$KEEP_WORKTREE" != "true" && -n "$WORKTREE_PATH" ]]; then
+  DIRTY=$(git -C "$WORKTREE_PATH" status --porcelain)
+  if [[ -n "$DIRTY" ]]; then
+    echo "Worktree has uncommitted changes; skipping cleanup. Inspect: $WORKTREE_PATH"
+  else
+    git worktree remove "$WORKTREE_PATH"
+    echo "Removed worktree $WORKTREE_PATH."
+  fi
+fi
+```
+
+The local PR branch is intentionally left alone; branch deletion is out of scope.
 
 ### Phase 8 — OUTPUT
 
@@ -867,9 +926,9 @@ Findings missing a `Suggested fix` line are valid but will be **skipped** by `/y
 - **No `gh` CLI and no GitHub MCP**: Fall back to local-only review (read the diff, skip GitHub publish). Warn user.
 - **Diverged branches**: Suggest `git fetch origin && git rebase origin/<base>` before review.
 - **Large PRs (>50 files)**: Warn about review scope. Focus on source changes first, then tests, then config/docs.
-- **`--worktree` + stale PR head**: the worktree is a snapshot of the PR head at SETUP time. If new commits land on the PR after the review starts, re-run with `--worktree` to resync.
-- **`--worktree` + concurrent runs**: two `/ycc:code-review --worktree <N>` invocations on different PR numbers never collide (each gets its own `<repo>-pr-<N>/` directory). Two invocations on the SAME PR number share the same parent worktree (idempotent), which is by design.
-- **Cleanup**: parent worktrees survive the run. After the fix workflow is done, remove with `git worktree remove ~/.claude-worktrees/<repo>-pr-<N>/`.
+- **Stale PR head (default worktree mode)**: the worktree is a snapshot of the PR head at SETUP time. If new commits land on the PR after the review starts, re-run to resync.
+- **Concurrent runs**: two `/ycc:code-review <N>` invocations on different PR numbers never collide (each gets its own `<repo>-pr-<N>/` directory). Two invocations on the SAME PR number share the same parent worktree (idempotent), which is by design.
+- **Cleanup**: worktrees are removed automatically after the review is posted (Phase 7 Worktree Cleanup). Pass `--keep-worktree` to retain the worktree. If the worktree is dirty, cleanup is skipped and you are told where to inspect. Use `--no-worktree` for the previous behavior (no worktree created or removed).
 
 ---
 
