@@ -13,10 +13,12 @@ Thumbs.db
 *.swp
 *.swo
 .idea/
-.vscode/
+.vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
-.cursor/
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 .zed/
 
 # ==============================================================================
@@ -43,7 +45,8 @@ Thumbs.db
 # ==============================================================================
 /target/
 **/*.rs.bk
-# Cargo.lock — keep for binaries; add this line back for libraries
+# Uncomment the next line for libraries (binaries should commit Cargo.lock):
+# Cargo.lock
 {{/IF_RUST}}
 {{#IF_GO}}
 # ==============================================================================
