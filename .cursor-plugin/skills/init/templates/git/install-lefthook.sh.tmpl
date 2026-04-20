@@ -47,7 +47,8 @@ install_lefthook_binary() {
     # {{PACKAGE_MANAGER}} was detected at init time.
     if [[ -f "$REPO_ROOT/package.json" ]]; then
         log "package.json present — running '{{PACKAGE_MANAGER}} install' to pull devDependencies."
-        case "{{PACKAGE_MANAGER}}" in
+        local pm="{{PACKAGE_MANAGER}}"
+        case "$pm" in
             pnpm) pnpm install ;;
             yarn) yarn install ;;
             bun)  bun install ;;

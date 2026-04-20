@@ -43,7 +43,7 @@ detect_project_root() {
     return
   fi
 
-  local start_dir="${1:-$PWD}"
+  local start_dir="$PWD"
   if is_git_repo "$start_dir"; then
     git -C "$start_dir" rev-parse --show-toplevel
     return

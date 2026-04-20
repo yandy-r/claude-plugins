@@ -12,7 +12,6 @@ concurrency:
 jobs:
 {{#IF_RUST}}
   lint-rust:
-    if: hashFiles('Cargo.toml') != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,7 +24,6 @@ jobs:
 
 {{#IF_GO}}
   lint-go:
-    if: hashFiles('go.mod') != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,7 +39,6 @@ jobs:
 
 {{#IF_TS}}
   lint-ts:
-    if: hashFiles('package.json') != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -55,7 +52,6 @@ jobs:
 
 {{#IF_PYTHON}}
   lint-python:
-    if: hashFiles('pyproject.toml') != '' || hashFiles('requirements.txt') != '' || hashFiles('setup.py') != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
