@@ -38,6 +38,15 @@ gh pr edit <number> --title "<new-title>"
 
 Or use the GitHub UI. The workflow re-runs automatically on edit.
 
+> Safety net: [`workflows/pr-title-autofix.yml`](workflows/pr-title-autofix.yml)
+> runs in parallel and will strip `[WIP]` / `[Draft]` / `Draft:` / `WIP:` /
+> `Initial plan` prefixes from the PR title server-side, then convert the PR
+> to draft. It exists because some coding-agent runtime tokens lack
+> `pull_requests:write` and cannot edit their own title after the fact.
+> **Do not rely on it** — produce a clean Conventional Commit title up-front;
+> the autofix workflow is a last-resort guardrail, not an excuse to bypass
+> these rules.
+
 ### Work-in-progress
 
 Use GitHub's native **Draft PR** status (the "Draft" toggle when opening, or

@@ -6,25 +6,26 @@ Every template the skill can render, its target path, and the variables it subst
 
 ## Template Catalog
 
-| Template file                                    | Output path                                    | Gating flag          | Placeholders used                                                                      |
-| ------------------------------------------------ | ---------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------- |
-| `templates/CLAUDE.md.tmpl`                       | `./CLAUDE.md`                                  | _(default)_          | `PROJECT_NAME`, `PRIMARY_LANG`, `TEST_CMD`, `LINT_CMD`, `BUILD_CMD`, `PROJECT_PURPOSE` |
-| `templates/AGENTS.md.tmpl`                       | `./AGENTS.md`                                  | _(default)_          | `PROJECT_NAME`                                                                         |
-| `templates/cursor-rule.mdc.tmpl`                 | `./.cursor/rules/project.mdc`                  | _(default)_          | `PROJECT_NAME`, `PRIMARY_LANG`                                                         |
-| `templates/ai-rule.md.tmpl`                      | `./.ai/rules/project.md`                       | `--vendor-neutral`   | `PROJECT_NAME`, `PRIMARY_LANG`                                                         |
-| `templates/github/bug_report.yml.tmpl`           | `./.github/ISSUE_TEMPLATE/bug_report.yml`      | `--templates`        | `PROJECT_NAME`                                                                         |
-| `templates/github/feature_request.yml.tmpl`      | `./.github/ISSUE_TEMPLATE/feature_request.yml` | `--templates`        | `PROJECT_NAME`                                                                         |
-| `templates/github/docs_request.yml.tmpl`         | `./.github/ISSUE_TEMPLATE/docs_request.yml`    | `--templates`        | `PROJECT_NAME`                                                                         |
-| `templates/github/config.yml.tmpl`               | `./.github/ISSUE_TEMPLATE/config.yml`          | `--templates`        | `PROJECT_NAME`, `GITHUB_REPO_URL`                                                      |
-| `templates/github/pull_request_template.md.tmpl` | `./.github/pull_request_template.md`           | `--templates`        | `PROJECT_NAME`, `TEST_CMD`, `PRIMARY_LANG`                                             |
-| `templates/github/labels.md.tmpl`                | `./.github/labels.md`                          | `--templates`        | `PROJECT_NAME`                                                                         |
-| `templates/github/copilot-instructions.md.tmpl`  | `./.github/copilot-instructions.md`            | `--templates`        | `PROJECT_NAME`, `PRIMARY_LANG`                                                         |
-| `templates/github/workflows/pr-title.yml.tmpl`   | `./.github/workflows/pr-title.yml`             | `--templates`        | _(none — static template)_                                                             |
-| `templates/git/gitmessage.tmpl`                  | `./.gitmessage`                                | `--git`              | _(none — static template)_                                                             |
-| `templates/git/commitlint.config.cjs.tmpl`       | `./commitlint.config.cjs`                      | `--git` + JS/TS only | `PACKAGE_MANAGER`                                                                      |
-| `templates/git/lefthook.yml.tmpl`                | `./lefthook.yml`                               | `--git`              | `PROJECT_NAME`, `TEST_CMD` + `IF_RUST`/`IF_GO`/`IF_PYTHON`/`IF_TS` language blocks     |
-| `templates/git/install-lefthook.sh.tmpl`         | `./scripts/install-lefthook.sh`                | `--git`              | `PROJECT_NAME`, `PACKAGE_MANAGER`                                                      |
-| `templates/git/lefthook-usage.md.tmpl`           | `./docs/lefthook-usage.md`                     | `--git`              | `PROJECT_NAME`, `PRIMARY_LANG`, `LINT_CMD`, `TEST_CMD`, `IF_TS` block                  |
+| Template file                                          | Output path                                    | Gating flag          | Placeholders used                                                                      |
+| ------------------------------------------------------ | ---------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------- |
+| `templates/CLAUDE.md.tmpl`                             | `./CLAUDE.md`                                  | _(default)_          | `PROJECT_NAME`, `PRIMARY_LANG`, `TEST_CMD`, `LINT_CMD`, `BUILD_CMD`, `PROJECT_PURPOSE` |
+| `templates/AGENTS.md.tmpl`                             | `./AGENTS.md`                                  | _(default)_          | `PROJECT_NAME`                                                                         |
+| `templates/cursor-rule.mdc.tmpl`                       | `./.cursor/rules/project.mdc`                  | _(default)_          | `PROJECT_NAME`, `PRIMARY_LANG`                                                         |
+| `templates/ai-rule.md.tmpl`                            | `./.ai/rules/project.md`                       | `--vendor-neutral`   | `PROJECT_NAME`, `PRIMARY_LANG`                                                         |
+| `templates/github/bug_report.yml.tmpl`                 | `./.github/ISSUE_TEMPLATE/bug_report.yml`      | `--templates`        | `PROJECT_NAME`                                                                         |
+| `templates/github/feature_request.yml.tmpl`            | `./.github/ISSUE_TEMPLATE/feature_request.yml` | `--templates`        | `PROJECT_NAME`                                                                         |
+| `templates/github/docs_request.yml.tmpl`               | `./.github/ISSUE_TEMPLATE/docs_request.yml`    | `--templates`        | `PROJECT_NAME`                                                                         |
+| `templates/github/config.yml.tmpl`                     | `./.github/ISSUE_TEMPLATE/config.yml`          | `--templates`        | `PROJECT_NAME`, `GITHUB_REPO_URL`                                                      |
+| `templates/github/pull_request_template.md.tmpl`       | `./.github/pull_request_template.md`           | `--templates`        | `PROJECT_NAME`, `TEST_CMD`, `PRIMARY_LANG`                                             |
+| `templates/github/labels.md.tmpl`                      | `./.github/labels.md`                          | `--templates`        | `PROJECT_NAME`                                                                         |
+| `templates/github/copilot-instructions.md.tmpl`        | `./.github/copilot-instructions.md`            | `--templates`        | `PROJECT_NAME`, `PRIMARY_LANG`                                                         |
+| `templates/github/workflows/pr-title.yml.tmpl`         | `./.github/workflows/pr-title.yml`             | `--templates`        | _(none — static template)_                                                             |
+| `templates/github/workflows/pr-title-autofix.yml.tmpl` | `./.github/workflows/pr-title-autofix.yml`     | `--templates`        | _(none — static template)_                                                             |
+| `templates/git/gitmessage.tmpl`                        | `./.gitmessage`                                | `--git`              | _(none — static template)_                                                             |
+| `templates/git/commitlint.config.cjs.tmpl`             | `./commitlint.config.cjs`                      | `--git` + JS/TS only | `PACKAGE_MANAGER`                                                                      |
+| `templates/git/lefthook.yml.tmpl`                      | `./lefthook.yml`                               | `--git`              | `PROJECT_NAME`, `TEST_CMD` + `IF_RUST`/`IF_GO`/`IF_PYTHON`/`IF_TS` language blocks     |
+| `templates/git/install-lefthook.sh.tmpl`               | `./scripts/install-lefthook.sh`                | `--git`              | `PROJECT_NAME`, `PACKAGE_MANAGER`                                                      |
+| `templates/git/lefthook-usage.md.tmpl`                 | `./docs/lefthook-usage.md`                     | `--git`              | `PROJECT_NAME`, `PRIMARY_LANG`, `LINT_CMD`, `TEST_CMD`, `IF_TS` block                  |
 
 ---
 
@@ -61,11 +62,16 @@ Every `{{VAR}}` used across all templates:
   `docs/lefthook-usage.md` are emitted together under `--git`. The install
   script is always overwritten (managed tooling); `lefthook.yml` follows the
   standard diff-and-ask rule so user edits are preserved.
-- **Agent-facing PR guardrails**: `copilot-instructions.md` and
-  `workflows/pr-title.yml` ship together under `--templates`. The workflow
-  enforces the Conventional Commits title rules the instructions document —
-  agents that open a PR with `[WIP]` / `Draft:` / `Initial plan` in the
-  title get a failing required check, not a silent merge. Both files follow
+- **Agent-facing PR guardrails**: `copilot-instructions.md`,
+  `workflows/pr-title.yml`, and `workflows/pr-title-autofix.yml` ship
+  together under `--templates`. The validator enforces Conventional Commits
+  title rules — agents that open a PR with `[WIP]` / `Draft:` / `Initial
+plan` in the title get a failing required check, not a silent merge. The
+  autofix workflow runs in parallel and strips those placeholder prefixes
+  server-side because GitHub Copilot's coding-agent token often lacks
+  `pull_requests:write` and cannot self-correct after the instructions file
+  has been ignored. Only the validator should be a required status check;
+  the autofix is a corrective side effect. All three files follow
   diff-and-skip update semantics.
 
 ---

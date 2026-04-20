@@ -97,25 +97,26 @@ Load each applicable `.tmpl` file from `${CLAUDE_PLUGIN_ROOT}/skills/init/templa
 
 Rendering map:
 
-| Condition                                                      | Source template                        | Target path                                  |
-| -------------------------------------------------------------- | -------------------------------------- | -------------------------------------------- |
-| Always                                                         | `CLAUDE.md.tmpl`                       | `CLAUDE.md`                                  |
-| Always                                                         | `AGENTS.md.tmpl`                       | `AGENTS.md`                                  |
-| Always                                                         | `cursor-rule.mdc.tmpl`                 | `.cursor/rules/project.mdc`                  |
-| `VENDOR_NEUTRAL=true`                                          | `ai-rule.md.tmpl`                      | `.ai/rules/project.md`                       |
-| `TEMPLATES=true`                                               | `github/bug_report.yml.tmpl`           | `.github/ISSUE_TEMPLATE/bug_report.yml`      |
-| `TEMPLATES=true`                                               | `github/feature_request.yml.tmpl`      | `.github/ISSUE_TEMPLATE/feature_request.yml` |
-| `TEMPLATES=true`                                               | `github/docs_request.yml.tmpl`         | `.github/ISSUE_TEMPLATE/docs_request.yml`    |
-| `TEMPLATES=true`                                               | `github/config.yml.tmpl`               | `.github/ISSUE_TEMPLATE/config.yml`          |
-| `TEMPLATES=true`                                               | `github/pull_request_template.md.tmpl` | `.github/pull_request_template.md`           |
-| `TEMPLATES=true`                                               | `github/labels.md.tmpl`                | `.github/labels.md`                          |
-| `TEMPLATES=true`                                               | `github/copilot-instructions.md.tmpl`  | `.github/copilot-instructions.md`            |
-| `TEMPLATES=true`                                               | `github/workflows/pr-title.yml.tmpl`   | `.github/workflows/pr-title.yml`             |
-| `GIT=true`                                                     | `git/gitmessage.tmpl`                  | `.gitmessage`                                |
-| `GIT=true`                                                     | `git/lefthook.yml.tmpl`                | `lefthook.yml`                               |
-| `GIT=true`                                                     | `git/install-lefthook.sh.tmpl`         | `scripts/install-lefthook.sh`                |
-| `GIT=true`                                                     | `git/lefthook-usage.md.tmpl`           | `docs/lefthook-usage.md`                     |
-| `GIT=true` AND `primary_language` in `{typescript,javascript}` | `git/commitlint.config.cjs.tmpl`       | `commitlint.config.cjs`                      |
+| Condition                                                      | Source template                              | Target path                                  |
+| -------------------------------------------------------------- | -------------------------------------------- | -------------------------------------------- |
+| Always                                                         | `CLAUDE.md.tmpl`                             | `CLAUDE.md`                                  |
+| Always                                                         | `AGENTS.md.tmpl`                             | `AGENTS.md`                                  |
+| Always                                                         | `cursor-rule.mdc.tmpl`                       | `.cursor/rules/project.mdc`                  |
+| `VENDOR_NEUTRAL=true`                                          | `ai-rule.md.tmpl`                            | `.ai/rules/project.md`                       |
+| `TEMPLATES=true`                                               | `github/bug_report.yml.tmpl`                 | `.github/ISSUE_TEMPLATE/bug_report.yml`      |
+| `TEMPLATES=true`                                               | `github/feature_request.yml.tmpl`            | `.github/ISSUE_TEMPLATE/feature_request.yml` |
+| `TEMPLATES=true`                                               | `github/docs_request.yml.tmpl`               | `.github/ISSUE_TEMPLATE/docs_request.yml`    |
+| `TEMPLATES=true`                                               | `github/config.yml.tmpl`                     | `.github/ISSUE_TEMPLATE/config.yml`          |
+| `TEMPLATES=true`                                               | `github/pull_request_template.md.tmpl`       | `.github/pull_request_template.md`           |
+| `TEMPLATES=true`                                               | `github/labels.md.tmpl`                      | `.github/labels.md`                          |
+| `TEMPLATES=true`                                               | `github/copilot-instructions.md.tmpl`        | `.github/copilot-instructions.md`            |
+| `TEMPLATES=true`                                               | `github/workflows/pr-title.yml.tmpl`         | `.github/workflows/pr-title.yml`             |
+| `TEMPLATES=true`                                               | `github/workflows/pr-title-autofix.yml.tmpl` | `.github/workflows/pr-title-autofix.yml`     |
+| `GIT=true`                                                     | `git/gitmessage.tmpl`                        | `.gitmessage`                                |
+| `GIT=true`                                                     | `git/lefthook.yml.tmpl`                      | `lefthook.yml`                               |
+| `GIT=true`                                                     | `git/install-lefthook.sh.tmpl`               | `scripts/install-lefthook.sh`                |
+| `GIT=true`                                                     | `git/lefthook-usage.md.tmpl`                 | `docs/lefthook-usage.md`                     |
+| `GIT=true` AND `primary_language` in `{typescript,javascript}` | `git/commitlint.config.cjs.tmpl`             | `commitlint.config.cjs`                      |
 
 See `references/template-library.md` for placeholder definitions.
 
@@ -164,6 +165,7 @@ For each rendered file from Phase 3, apply the resolution rule below. Never sile
 | `.github/labels.md`                                    | Always overwrite (reference doc, safe to refresh).                                                                                                                                                            |
 | `.github/copilot-instructions.md`                      | Show diff; default skip (users customise agent-facing rules). `--update --force` overwrites.                                                                                                                  |
 | `.github/workflows/pr-title.yml`                       | Show diff; default skip (users may customise the Conventional Commits type list or branch filters). `--update --force` overwrites.                                                                            |
+| `.github/workflows/pr-title-autofix.yml`               | Show diff; default skip (users may tune the placeholder regex or remove the draft-toggle behaviour). `--update --force` overwrites.                                                                           |
 | `.gitmessage`                                          | Show diff; default skip. `--update --force` overwrites (usually safe — it is a reference template).                                                                                                           |
 | `commitlint.config.cjs`                                | If present → show diff and default skip with a warning ("commitlint rules are often project-customized"). `--update --force` overwrites.                                                                      |
 | `lefthook.yml`                                         | Show diff; default skip (users often extend the config with project-specific commands). `--update --force` overwrites. When `has_lefthook_config=true` at Phase 1, warn the user the file already exists.     |
@@ -206,6 +208,7 @@ Produce a summary using `${CLAUDE_PLUGIN_ROOT}/skills/init/templates/workspace-r
 - Review `.github/labels.md` and run the `gh label create` commands listed there (if `TEMPLATES=true`)
 - Review `.github/copilot-instructions.md` — it restates the PR-workflow rules for GitHub Copilot's coding agent. Adjust to match project-specific conventions (e.g., if the repo customises the Conventional Commits type list, update the allowed-types line) (if `TEMPLATES=true`).
 - Enable the PR title check as a required status: **Settings → Branches → Branch protection rules**, add `Validate Conventional Commit PR title` (the job name from `.github/workflows/pr-title.yml`) to the required checks. Without this, the workflow runs but isn't enforced (if `TEMPLATES=true`).
+- `.github/workflows/pr-title-autofix.yml` runs alongside the validator and strips placeholder prefixes (`[WIP]`, `Draft:`, `Initial plan`) from PR titles server-side, because GitHub Copilot's coding-agent token often lacks `pull_requests:write` and cannot self-correct. Do **not** add this workflow to required checks — it is an auto-correcting side effect, not a gate (if `TEMPLATES=true`).
 - Open `CLAUDE.md` to review and refine the generated project rules.
 - If `has_legacy_cursorrules=true` and the migration ran: delete the legacy `.cursorrules` file once the new `.cursor/rules/project.mdc` is confirmed working.
 

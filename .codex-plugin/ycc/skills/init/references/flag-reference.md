@@ -10,7 +10,7 @@ Detailed reference for every flag accepted by `init`. See also `SKILL.md` for th
 | ------------------ | ----------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
 | `--dry-run`        | off         | 5 (halt)       | nothing                                                                                                                                                 | `init --dry-run`        |
 | `--docs-only`      | off         | 2, 4 (skip)    | `AGENTS.md`, `AGENTS.md`, `.cursor/rules/project.mdc`                                                                                                   | `init --docs-only`      |
-| `--templates`      | off         | 3 (extend)     | `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `.github/labels.md`, `.github/copilot-instructions.md`, `.github/workflows/pr-title.yml` | `init --templates`      |
+| `--templates`      | off         | 3 (extend)     | `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `.github/labels.md`, `.github/copilot-instructions.md`, `.github/workflows/pr-title.yml`, `.github/workflows/pr-title-autofix.yml` | `init --templates`      |
 | `--git`            | off         | 3 (extend)     | `.gitmessage`, `commitlint.config.cjs` (JS/TS only), `lefthook.yml`, `scripts/install-lefthook.sh`, `docs/lefthook-usage.md`                            | `init --git`            |
 | `--vendor-neutral` | off         | 3 (extend)     | `.ai/rules/project.md`                                                                                                                                  | `init --vendor-neutral` |
 | `--formatters`     | off         | 6.5 (delegate) | (delegates to `formatters` — see its flag matrix)                                                                                                   | `init --formatters`     |
@@ -71,6 +71,12 @@ Adds the full GitHub templates bundle. Extends the default run or combines with 
   prefixes (`[WIP]`, `Draft:`, `Initial plan`) that agents often open PRs
   with. Enable as a required status check in branch protection — see the
   `--templates` next-step emitted at end of `init`.
+- `.github/workflows/pr-title-autofix.yml` — runs alongside the validator
+  and strips placeholder prefixes server-side using the repo's
+  `GITHUB_TOKEN`, then toggles the PR to draft. Exists because GitHub
+  Copilot's coding-agent token typically lacks `pull_requests:write` and
+  cannot fix its own title after the instructions file has been ignored.
+  Not a required check — it is an auto-correcting side effect.
 
 ```
 $init --templates
