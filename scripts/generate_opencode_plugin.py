@@ -89,8 +89,8 @@ def normalize_agents_runtime_syntax(text: str) -> str:
         "├── .claude-plugin/\n│   └── marketplace.json     # single ycc entry",
     )
     normalized = normalized.replace(
-        '│   ├── .opencode-plugin/\n│   │   └── plugin.json      # name: "ycc", version: 2.0.0',
-        '│   ├── .claude-plugin/\n│   │   └── plugin.json      # name: "ycc", version: 2.0.0',
+        '│   ├── .opencode-plugin/\n│   │   └── plugin.json      # name: "ycc", version bumped by /ycc:bundle-release',
+        '│   ├── .claude-plugin/\n│   │   └── plugin.json      # name: "ycc", version bumped by /ycc:bundle-release',
     )
 
     # opencode bundle metadata shape is opencode.json + AGENTS.md.

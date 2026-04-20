@@ -37,7 +37,7 @@ claude-plugins/
 │   └── opencode.json        # schema + default model + MCP translation
 ├── ycc/
 │   ├── .claude-plugin/
-│   │   └── plugin.json      # name: "ycc", version: 2.0.0
+│   │   └── plugin.json      # name: "ycc", version bumped by /ycc:bundle-release
 │   ├── commands/            # slash commands (one .md per command)
 │   ├── agents/              # agents (one .md per agent)
 │   └── skills/
@@ -100,7 +100,7 @@ The marketplace registry at `.claude-plugin/marketplace.json` contains a single 
 ```json
 {
   "name": "ycc",
-  "version": "2.0.0",
+  "version": "<managed by /ycc:bundle-release>",
   "source": "./ycc"
 }
 ```
