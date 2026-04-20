@@ -21,6 +21,7 @@ Every template the skill can render, its target path, and the variables it subst
 | `templates/github/copilot-instructions.md.tmpl`        | `./.github/copilot-instructions.md`            | `--templates`        | `PROJECT_NAME`, `PRIMARY_LANG`                                                         |
 | `templates/github/workflows/pr-title.yml.tmpl`         | `./.github/workflows/pr-title.yml`             | `--templates`        | _(none — static template)_                                                             |
 | `templates/github/workflows/pr-title-autofix.yml.tmpl` | `./.github/workflows/pr-title-autofix.yml`     | `--templates`        | _(none — static template)_                                                             |
+| `templates/git/gitignore.tmpl`                         | `./.gitignore`                                 | `--git`              | `PROJECT_NAME` + `IF_RUST`/`IF_GO`/`IF_PYTHON`/`IF_TS`/`IF_TERRAFORM` language blocks  |
 | `templates/git/gitmessage.tmpl`                        | `./.gitmessage`                                | `--git`              | _(none — static template)_                                                             |
 | `templates/git/commitlint.config.cjs.tmpl`             | `./commitlint.config.cjs`                      | `--git` + JS/TS only | `PACKAGE_MANAGER`                                                                      |
 | `templates/git/lefthook.yml.tmpl`                      | `./lefthook.yml`                               | `--git`              | `PROJECT_NAME`, `TEST_CMD` + `IF_RUST`/`IF_GO`/`IF_PYTHON`/`IF_TS` language blocks     |
@@ -58,6 +59,11 @@ Every `{{VAR}}` used across all templates:
   `typescript` or `javascript` (detected from `package.json` presence). The
   `lefthook.yml` and `lefthook-usage.md` templates include a `commit-msg`
   commitlint block gated by the same `{{#IF_TS}}` conditional.
+- **Gitignore multi-language**: unlike other templates, `.gitignore` activates every
+  language block matching `primary_language` **or** any entry in `secondary_languages`.
+  A Rust+TS monorepo gets both sections; the universal OS/editor/secrets sections are
+  always included. Follows the standard diff-and-skip update rule — `--update --force`
+  overwrites.
 - **Lefthook scaffold**: `lefthook.yml` + `scripts/install-lefthook.sh` +
   `docs/lefthook-usage.md` are emitted together under `--git`. The install
   script is always overwritten (managed tooling); `lefthook.yml` follows the
