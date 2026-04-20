@@ -43,6 +43,11 @@ Checks owned by `preflight.sh`:
 - Currently on `main` branch (or user has confirmed a release branch is intentional).
 - Version parity: `ycc/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`
   carry identical version strings before the bump.
+- No stale version literals (`version: X.Y.Z` or `"version": "X.Y.Z"`) in hand-edited
+  docs (`CLAUDE.md`, `AGENTS.md`, `README.md`, `docs/README.md`) where the semver does
+  not match the current bundle version. Author should use the `<managed by
+/ycc:bundle-release>` placeholder form in example snippets — see
+  `references/version-policy.md` for the full rule.
 - `./scripts/validate.sh` passes on the pre-release tree.
 
 ## Phase 1: Semver sanity check

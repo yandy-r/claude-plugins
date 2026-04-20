@@ -21,6 +21,34 @@ generator script.
 enforces this check before any release action proceeds. If the values diverge, fix them
 manually in both hand-edited files before continuing.
 
+## No Stale Version Literals in Docs
+
+Hand-edited documentation files (`CLAUDE.md`, `AGENTS.md`, `README.md`, `docs/README.md`)
+MUST NOT carry example snippets that hard-code a specific semver in a `version` key — they
+drift silently as the bundle progresses through releases, leaving behind confusing
+references to long-past versions.
+
+When showing an example that would normally include a version, use the placeholder form
+instead:
+
+```
+# Directory tree
+plugin.json      # name: "ycc", version bumped by /bundle-release
+
+# JSON example
+"version": "<managed by /bundle-release>"
+```
+
+`bundle-release/scripts/preflight.sh` enforces this: it scans the hand-edited files for
+patterns matching `[Vv]ersion[:=]["]?<semver>` and fails if any semver does not equal the
+current bundle version. Prose mentions (e.g., "the 2.0.0 breaking change") are not
+matched because the pattern requires a `version` key preceding the semver — those are
+allowed in historical context.
+
+Generated bundles (`.cursor-plugin/`, `.codex-plugin/`, `.opencode-plugin/`) and
+historical dirs (`docs/releases/`, `docs/plans/`, `docs/research/`, `docs/internal/`)
+are excluded from the scan.
+
 ## Semver Bump Rules
 
 Use standard semver (`MAJOR.MINOR.PATCH`). Apply the first rule that matches:
