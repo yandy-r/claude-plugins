@@ -21,13 +21,13 @@ Every worktree-enabled run uses at most two levels of worktrees.
 
 ### Parent worktree
 
-| Property   | Value                                                 |
-| ---------- | ----------------------------------------------------- |
-| Path       | `~/.claude-worktrees/<repo>-<feature>/`               |
+| Property   | Value                                                  |
+| ---------- | ------------------------------------------------------ |
+| Path       | `~/.claude-worktrees/<repo>-<feature>/`                |
 | Branch     | `feat/<feature>` (default) or `<base-ref>` (see below) |
-| Created    | Once, before Batch 1 (via `setup-worktree.sh parent`) |
-| Lifetime   | Survives to end of run; used for the final PR         |
-| Removed by | User (never auto-removed by the skill)                |
+| Created    | Once, before Batch 1 (via `setup-worktree.sh parent`)  |
+| Lifetime   | Survives to end of run; used for the final PR          |
+| Removed by | User (never auto-removed by the skill)                 |
 
 The parent branch accumulates all work. After each parallel batch validates, child
 branches are merged back here before the next batch begins.
@@ -143,7 +143,7 @@ Example (emitted by `/code-review --worktree 42`, consumed by
 - **Parent**: ~/.claude-worktrees/myrepo-pr-42/ (branch: feature-x)
 - **Children** (per severity; created by /review-fix --worktree):
   - CRITICAL → ~/.claude-worktrees/myrepo-pr-42-critical/ (branch: feat/pr-42-critical)
-  - HIGH     → ~/.claude-worktrees/myrepo-pr-42-high/     (branch: feat/pr-42-high)
+  - HIGH → ~/.claude-worktrees/myrepo-pr-42-high/ (branch: feat/pr-42-high)
 ```
 
 Only severity levels that have Open findings are emitted. The parent branch is

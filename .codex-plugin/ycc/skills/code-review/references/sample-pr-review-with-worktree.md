@@ -32,8 +32,8 @@ Rules for the `## Worktree Setup` block:
 - **Parent**: ~/.claude-worktrees/myrepo-pr-42/ (branch: feat/add-widget-rendering)
 - **Children** (per severity; created by $review-fix --worktree):
   - CRITICAL → ~/.claude-worktrees/myrepo-pr-42-critical/ (branch: feat/pr-42-critical)
-  - HIGH     → ~/.claude-worktrees/myrepo-pr-42-high/     (branch: feat/pr-42-high)
-  - MEDIUM   → ~/.claude-worktrees/myrepo-pr-42-medium/   (branch: feat/pr-42-medium)
+  - HIGH → ~/.claude-worktrees/myrepo-pr-42-high/ (branch: feat/pr-42-high)
+  - MEDIUM → ~/.claude-worktrees/myrepo-pr-42-medium/ (branch: feat/pr-42-medium)
 
 ## Summary
 

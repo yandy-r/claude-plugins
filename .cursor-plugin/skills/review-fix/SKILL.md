@@ -56,12 +56,12 @@ Plan and apply fixes for code-review findings. Reads a review artifact produced 
 
 Extract flags from `$ARGUMENTS` before treating the remainder as the input:
 
-| Flag                 | Effect                                                                                                                                                                                                                                                                                                                                      |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel`         | Dispatch `review-fixer` agents as **standalone sub-agents** in parallel per batch. Level 1+2 validation between batches. Fail-stop behavior. Works in Claude Code, Cursor, and Codex.                                                                                                                                                   |
-| `--team`             | (Claude Code only) Same per-batch fixer fan-out as `--parallel`, but dispatched as an **agent team**: `TeamCreate` once, `TaskCreate` for all eligible findings up front (flat graph — batches are orchestrator-controlled, not task-graph-controlled), per-batch spawn + shutdown via `SendMessage`. Aborts if no eligible findings exist. |
-| `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).                                                                                                                                                                                                                                      |
-| `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files. When combined with `--team`, also print the team name and per-batch teammate roster.                                                                                                                                                                          |
+| Flag                 | Effect                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel`         | Dispatch `review-fixer` agents as **standalone sub-agents** in parallel per batch. Level 1+2 validation between batches. Fail-stop behavior. Works in Claude Code, Cursor, and Codex.                                                                                                                                                                                                                                                               |
+| `--team`             | (Claude Code only) Same per-batch fixer fan-out as `--parallel`, but dispatched as an **agent team**: `TeamCreate` once, `TaskCreate` for all eligible findings up front (flat graph — batches are orchestrator-controlled, not task-graph-controlled), per-batch spawn + shutdown via `SendMessage`. Aborts if no eligible findings exist.                                                                                                             |
+| `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).                                                                                                                                                                                                                                                                                                                                                  |
+| `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files. When combined with `--team`, also print the team name and per-batch teammate roster.                                                                                                                                                                                                                                                                                      |
 | `--worktree`         | Create one git worktree per severity level and apply each severity's fixes inside its own child worktree, merging back to the parent after validation. Auto-detected when the review artifact contains a `## Worktree Setup` section — the flag is only needed to FORCE worktree mode on an artifact that lacks the section (requires a PR artifact; local artifacts abort). Combines freely with `--parallel` / `--team` / `--severity` / `--dry-run`. |
 
 Strip these flags from `$ARGUMENTS` and set `PARALLEL_MODE`, `AGENT_TEAM_MODE`, `MIN_SEVERITY`, `DRY_RUN`, and `WORKTREE_MODE`. The remaining text is the input selector.
@@ -199,6 +199,7 @@ Set `WORKTREE_ACTIVE=false`. Fall through to Phase 2 unchanged (legacy path).
 Deduce paths from the artifact filename:
 
 - For `pr-<N>-review.md`: slug = `pr-<N>`; resolve PR head:
+
   ```bash
   PR_NUMBER=$(basename "$REVIEW_FILE" | sed -E 's/^pr-([0-9]+)-review\.md$/\1/')
   PR_HEAD=$(gh pr view "$PR_NUMBER" --json headRefName --jq .headRefName)
@@ -390,12 +391,14 @@ bash "${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/setup-worktree.sh" \
 **Per severity batch** (Steps 1–5):
 
 1. **Create child worktree**:
+
    ```bash
    CHILD_PATH=$(
      bash "${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/setup-worktree.sh" \
        child "${REPO}" "${SLUG}" "<severity-lowercase>"
    )
    ```
+
    (Severity labels `critical`/`high`/`medium`/`low` serve as task-id analogs. They are shell-safe and unique per batch.)
 
 2. **Dispatch review-fixer agents** (Path-specific — see each path below). All agents receive:
@@ -404,17 +407,21 @@ bash "${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/setup-worktree.sh" \
    - On Cursor / Codex / opencode: Bash-only dispatch with `Working directory:` in the prompt.
 
 3. **Validate** inside `CHILD_PATH`:
+
    ```bash
    ( cd "$CHILD_PATH" && $TYPECHECK_CMD )
    ( cd "$CHILD_PATH" && $TEST_CMD )
    ```
+
    Fail-stop recovery (`AskUserQuestion`) unchanged.
 
 4. **Fan-in merge**:
+
    ```bash
    bash "${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/merge-children.sh" \
      "${REPO}" "${SLUG}" "<severity-lowercase>"
    ```
+
    On exit code 1: surface the `CONFLICT:` line to the user, STOP the pipeline, do NOT advance to the next severity batch.
 
 5. **Inter-batch shutdown** (Path C `--team` only): `SendMessage(shutdown)` to all batch teammates BEFORE invoking `merge-children.sh`. Matches the existing team dispatch contract.
@@ -731,8 +738,8 @@ At the end of REPORT, append to the fix report:
 ### Next steps
 
 - Review the parent worktree: `git -C <PARENT_PATH> log --oneline -10`
-- Push to update the PR:      `git -C <PARENT_PATH> push origin HEAD`
-- Clean up when done:         `git worktree remove <PARENT_PATH>`
+- Push to update the PR: `git -C <PARENT_PATH> push origin HEAD`
+- Clean up when done: `git worktree remove <PARENT_PATH>`
 ```
 
 Populate the `<output of list-worktrees.sh>` block by running:

@@ -24,12 +24,12 @@ description: Dual-mode code review — local uncommitted changes OR a GitHub pul
 
 Before selecting mode, extract flags from `$ARGUMENTS`:
 
-| Flag                | Effect                                                                                                                                                                                                                                                                                                                      |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                                                                                                                                                                                                                     |
-| `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                                                                                                                                                                                                          |
-| `--parallel`        | Fan out the REVIEW phase across 3 **standalone** `code-reviewer` sub-agents (correctness, security, quality) dispatched in parallel and merge findings. Works in Codex, Cursor, and Codex.                                                                                                                        |
-| `--team`            | (Codex only) Fan out the REVIEW phase across the same 3 `code-reviewer` reviewers, but dispatched as an **agent team** with up-front `record the task`, shared `the task tracker` observability, inter-reviewer coordination via `send follow-up instructions`, and coordinated shutdown before merge. Heavier dispatch, richer communication. |
+| Flag                | Effect                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `--parallel`        | Fan out the REVIEW phase across 3 **standalone** `code-reviewer` sub-agents (correctness, security, quality) dispatched in parallel and merge findings. Works in Codex, Cursor, and Codex.                                                                                                                                                                                                                                                                                                |
+| `--team`            | (Codex only) Fan out the REVIEW phase across the same 3 `code-reviewer` reviewers, but dispatched as an **agent team** with up-front `record the task`, shared `the task tracker` observability, inter-reviewer coordination via `send follow-up instructions`, and coordinated shutdown before merge. Heavier dispatch, richer communication.                                                                                                                                                                         |
 | `--worktree`        | Check out the PR head branch into an isolated worktree at `~/.claude-worktrees/<repo>-pr-<N>/` before reading files, then emit a `## Worktree Setup` section in the review artifact declaring one child worktree per severity that has Open findings. Downstream `$review-fix --worktree` consumes the annotation. **No effect in local mode** — local review prints a warning and continues without a worktree. Combines freely with `--parallel`, `--team`, `--approve`, `--request-changes`. |
 
 Strip these from `$ARGUMENTS` and set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, and `WORKTREE_MODE=true|false`. The remaining text is the mode selector (PR number/URL or blank for local).
@@ -62,11 +62,13 @@ Continue with Local Review Mode but set `WORKTREE_ACTIVE=false`. **Do NOT** emit
 ### PR mode with `--worktree`
 
 1. Resolve `<repo>`:
+
    ```bash
    REPO=$(basename "$(git rev-parse --show-toplevel)")
    ```
 
 2. Resolve `<pr-head-branch>`:
+
    ```bash
    PR_HEAD=$(gh pr view <N> --json headRefName --jq .headRefName)
    ```
@@ -74,12 +76,14 @@ Continue with Local Review Mode but set `WORKTREE_ACTIVE=false`. **Do NOT** emit
 3. Compute slug = `pr-<N>`.
 
 4. Check out the PR head branch into an isolated worktree:
+
    ```bash
    PARENT_WORKTREE_PATH=$(
      bash "~/.codex/plugins/ycc/shared/scripts/setup-worktree.sh" \
        parent "${REPO}" "pr-<N>" --base-ref "${PR_HEAD}"
    )
    ```
+
    The script is idempotent: re-running it on an existing worktree on the same branch reuses the path.
 
 5. Record `WORKTREE_ACTIVE=true`, `PARENT_BRANCH=<PR_HEAD>`, and `PARENT_WORKTREE_PATH=<captured path>`.
@@ -93,8 +97,8 @@ Continue with Local Review Mode but set `WORKTREE_ACTIVE=false`. **Do NOT** emit
 
 ### Behavior summary
 
-| Flag state                      | Effect                                                                    |
-| ------------------------------- | ------------------------------------------------------------------------- |
+| Flag state                      | Effect                                                                     |
+| ------------------------------- | -------------------------------------------------------------------------- |
 | `WORKTREE_MODE=false` (no flag) | No worktree. Files read from main working tree (local) or GitHub API (PR). |
 | `WORKTREE_MODE=true`, local     | Warning printed; no worktree created; behaves as `WORKTREE_MODE=false`.    |
 | `WORKTREE_MODE=true`, PR        | Parent worktree created; files read from `$PARENT_WORKTREE_PATH`.          |
@@ -749,9 +753,9 @@ Both Local Review Mode and PR Review Mode write an artifact using this exact for
 - **Parent**: ~/.claude-worktrees/<repo>-pr-<N>/ (branch: <pr-head-branch>)
 - **Children** (per severity; created by $review-fix --worktree):
   - CRITICAL → ~/.claude-worktrees/<repo>-pr-<N>-critical/ (branch: feat/pr-<N>-critical)
-  - HIGH     → ~/.claude-worktrees/<repo>-pr-<N>-high/     (branch: feat/pr-<N>-high)
-  - MEDIUM   → ~/.claude-worktrees/<repo>-pr-<N>-medium/   (branch: feat/pr-<N>-medium)
-  - LOW      → ~/.claude-worktrees/<repo>-pr-<N>-low/      (branch: feat/pr-<N>-low)
+  - HIGH → ~/.claude-worktrees/<repo>-pr-<N>-high/ (branch: feat/pr-<N>-high)
+  - MEDIUM → ~/.claude-worktrees/<repo>-pr-<N>-medium/ (branch: feat/pr-<N>-medium)
+  - LOW → ~/.claude-worktrees/<repo>-pr-<N>-low/ (branch: feat/pr-<N>-low)
 
 ## Summary
 
