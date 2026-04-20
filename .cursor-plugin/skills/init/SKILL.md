@@ -36,7 +36,7 @@ Profiles the project, authors the AI-agent doc trio (CLAUDE.md, AGENTS.md, .curs
 | `--dry-run`        | Preview every planned file; make no writes                                        | `/init --dry-run`        |
 | `--docs-only`      | Skip MCP/agent selection; emit doc trio only                                      | `/init --docs-only`      |
 | `--templates`      | Also emit `.github/` issue forms, PR template, labels                             | `/init --templates`      |
-| `--git`            | Also emit `.gitmessage` and commitlint config (JS/TS)                             | `/init --git`            |
+| `--git`            | Also emit `.gitignore`, `.gitmessage`, commitlint (JS/TS), and the lefthook bundle | `/init --git`            |
 | `--vendor-neutral` | Also emit `.ai/rules/project.md` mirror of Cursor rule                            | `/init --vendor-neutral` |
 | `--formatters`     | Also bootstrap lint/format via `formatters` (scripts, configs, aliases, docs) | `/init --formatters`     |
 | `--update`         | Structured refresh of existing artifacts (merge/migrate, never clobber)           | `/init --update`         |
@@ -70,7 +70,7 @@ Defaults: all booleans off; no profile override. `--update` and `--force` are mu
 1. Run `${CURSOR_PLUGIN_ROOT}/skills/init/scripts/profile-project.sh` and parse the `key=value` output into variables. See `references/project-profile-heuristics.md` for the key list.
 2. If `PROFILE` flag is set, override `primary_language` with that value.
 3. If `is_empty=true` OR `primary_language=unknown`: ask the user conversationally for project name, purpose, and primary language. Set `project_name`, `project_purpose`, and `primary_language` from their answers.
-4. If `UPDATE=false` AND at least two of `has_claude_md`, `has_agents_md`, `has_cursor_rules`, `has_issue_templates`, `has_gitmessage` are true: warn the user "Existing doc/workflow files detected — consider re-running with `--update` for structured refresh, or `--force` to overwrite. Continuing with default skip-on-conflict behavior."
+4. If `UPDATE=false` AND at least two of `has_claude_md`, `has_agents_md`, `has_cursor_rules`, `has_issue_templates`, `has_gitmessage`, `has_gitignore` are true: warn the user "Existing doc/workflow files detected — consider re-running with `--update` for structured refresh, or `--force` to overwrite. Continuing with default skip-on-conflict behavior."
 5. Surface the resolved profile summary to the user and wait for confirmation before writing anything — except when `DRY_RUN=true`, which proceeds directly to preview.
 
 ### Phase 2 — Optional deep analysis
@@ -112,11 +112,14 @@ Rendering map:
 | `TEMPLATES=true`                                               | `github/copilot-instructions.md.tmpl`        | `.github/copilot-instructions.md`            |
 | `TEMPLATES=true`                                               | `github/workflows/pr-title.yml.tmpl`         | `.github/workflows/pr-title.yml`             |
 | `TEMPLATES=true`                                               | `github/workflows/pr-title-autofix.yml.tmpl` | `.github/workflows/pr-title-autofix.yml`     |
+| `GIT=true`                                                     | `git/gitignore.tmpl`                         | `.gitignore`                                 |
 | `GIT=true`                                                     | `git/gitmessage.tmpl`                        | `.gitmessage`                                |
 | `GIT=true`                                                     | `git/lefthook.yml.tmpl`                      | `lefthook.yml`                               |
 | `GIT=true`                                                     | `git/install-lefthook.sh.tmpl`               | `scripts/install-lefthook.sh`                |
 | `GIT=true`                                                     | `git/lefthook-usage.md.tmpl`                 | `docs/lefthook-usage.md`                     |
 | `GIT=true` AND `primary_language` in `{typescript,javascript}` | `git/commitlint.config.cjs.tmpl`             | `commitlint.config.cjs`                      |
+
+**Language-block selection**: for every template except `gitignore.tmpl`, include only the block matching `primary_language`. For `gitignore.tmpl`, include every block whose language appears in `primary_language` or `secondary_languages` (comma-separated) so mixed-stack repos get every applicable section. For `gitignore.tmpl`, `javascript` is treated as `typescript` for `{{#IF_TS}}` activation; `terraform` activates `{{#IF_TERRAFORM}}`.
 
 See `references/template-library.md` for placeholder definitions.
 
@@ -166,6 +169,7 @@ For each rendered file from Phase 3, apply the resolution rule below. Never sile
 | `.github/copilot-instructions.md`                      | Show diff; default skip (users customise agent-facing rules). `--update --force` overwrites.                                                                                                                  |
 | `.github/workflows/pr-title.yml`                       | Show diff; default skip (users may customise the Conventional Commits type list or branch filters). `--update --force` overwrites.                                                                            |
 | `.github/workflows/pr-title-autofix.yml`               | Show diff; default skip (users may tune the placeholder regex, the type-normalization pass, or the draft-toggle behaviour). `--update --force` overwrites.                                                    |
+| `.gitignore`                                           | Show diff; default skip (users curate this file heavily). `--update --force` overwrites. When `has_gitignore=true` at Phase 1, warn the user the file already exists.                                         |
 | `.gitmessage`                                          | Show diff; default skip. `--update --force` overwrites (usually safe — it is a reference template).                                                                                                           |
 | `commitlint.config.cjs`                                | If present → show diff and default skip with a warning ("commitlint rules are often project-customized"). `--update --force` overwrites.                                                                      |
 | `lefthook.yml`                                         | Show diff; default skip (users often extend the config with project-specific commands). `--update --force` overwrites. When `has_lefthook_config=true` at Phase 1, warn the user the file already exists.     |
@@ -203,6 +207,7 @@ Produce a summary using `${CURSOR_PLUGIN_ROOT}/skills/init/templates/workspace-r
 **Next steps** — suggest:
 
 - `git config commit.template .gitmessage` (if `GIT=true`)
+- Review the generated `.gitignore` — confirm language sections match the stack and add project-specific entries (secrets files, generated assets, local scratch dirs). Rust libraries should un-comment the `Cargo.lock` ignore line (if `GIT=true`).
 - `bash scripts/install-lefthook.sh` to install the `lefthook` binary and activate the hooks defined in `lefthook.yml` (if `GIT=true`). Re-runnable on every checkout; safe to rerun.
 - For JS/TS projects: run `{{PACKAGE_MANAGER}} install` (devDependencies `@commitlint/cli` + `@commitlint/config-conventional` must be installed for the `commit-msg` hook to work).
 - Review `.github/labels.md` and run the `gh label create` commands listed there (if `TEMPLATES=true`)

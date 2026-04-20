@@ -11,7 +11,7 @@ Detailed reference for every flag accepted by `init`. See also `SKILL.md` for th
 | `--dry-run`        | off         | 5 (halt)       | nothing                                                                                                                                                                                           | `init --dry-run`        |
 | `--docs-only`      | off         | 2, 4 (skip)    | `AGENTS.md`, `AGENTS.md`, `.cursor/rules/project.mdc`                                                                                                                                             | `init --docs-only`      |
 | `--templates`      | off         | 3 (extend)     | `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `.github/labels.md`, `.github/copilot-instructions.md`, `.github/workflows/pr-title.yml`, `.github/workflows/pr-title-autofix.yml` | `init --templates`      |
-| `--git`            | off         | 3 (extend)     | `.gitmessage`, `commitlint.config.cjs` (JS/TS only), `lefthook.yml`, `scripts/install-lefthook.sh`, `docs/lefthook-usage.md`                                                                      | `init --git`            |
+| `--git`            | off         | 3 (extend)     | `.gitignore`, `.gitmessage`, `commitlint.config.cjs` (JS/TS only), `lefthook.yml`, `scripts/install-lefthook.sh`, `docs/lefthook-usage.md`                                                        | `init --git`            |
 | `--vendor-neutral` | off         | 3 (extend)     | `.ai/rules/project.md`                                                                                                                                                                            | `init --vendor-neutral` |
 | `--formatters`     | off         | 6.5 (delegate) | (delegates to `formatters` — see its flag matrix)                                                                                                                                             | `init --formatters`     |
 | `--update`         | off         | 6 (merge)      | existing targets only                                                                                                                                                                             | `init --update`         |
@@ -90,6 +90,10 @@ Adds the full GitHub templates bundle. Extends the default run or combines with 
 
 Adds the full git-conventions bundle:
 
+- `.gitignore` (always) — best-practices universal entries (OS, editors, env
+  files, secrets, agent scratch) **plus** language-specific blocks activated
+  by `primary_language` and any `secondary_languages` (rust, go, python,
+  node/ts, terraform). Respects `--profile=<lang>` override.
 - `.gitmessage` (always) — Conventional Commits template. Wire with
   `git config commit.template .gitmessage`.
 - `commitlint.config.cjs` (JS/TS ecosystems only) — enforced via the
@@ -126,6 +130,7 @@ Structured refresh of existing artifacts. Never clobbers user content — merges
 - `.github/labels.md`, `docs/lefthook-usage.md`, `scripts/install-lefthook.sh`: always overwritten (managed reference docs / tooling).
 - `commitlint.config.cjs`: diff + skip by default (often customized). Pair with `--force` to overwrite.
 - `lefthook.yml`: diff + skip by default (users often extend the config). Pair with `--force` to overwrite.
+- `.gitignore`: diff + skip by default (heavily customized per-project). Pair with `--force` to overwrite.
 
 ```
 /init --update
