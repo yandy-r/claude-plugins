@@ -165,6 +165,12 @@ runtime's user-global config directory (Claude Code, Cursor, Codex, opencode).
   propagate via typed errors. Never silently swallow errors.
 - **Tests alongside changes**: New or modified behavior ships with tests in the same
   change.
+- **Default to worktrees**: For non-trivial work (multi-step features, refactors,
+  changes touching multiple files), start in a git worktree instead of the main
+  checkout. See [Git Worktrees](#git-worktrees) below. Fall back to the main
+  checkout only when the task is a one-liner, must observe the current working
+  tree state, or worktree creation is blocked (detached HEAD, shallow clone,
+  submodule issues).
 
 ## Git & Conventional Commits
 
@@ -205,6 +211,13 @@ Use `docs(internal): …` for files under `docs/plans`, `docs/research`, or
 `docs/internal`. These stay out of release notes.
 
 ## Git Worktrees
+
+**Strong preference**: work in a git worktree for any non-trivial task.
+Worktrees keep the main checkout clean for parallel work, let multiple agents
+run concurrently without stepping on each other, and make it trivial to abandon
+a failed attempt (`git worktree remove`). Use the main checkout only when the
+task is a one-liner, requires observing the current working tree state, or
+worktree creation is blocked.
 
 The Claude Code harness defaults to creating worktrees inside the current repo at
 `<repo>/.claude/worktrees/`. That location pollutes the working tree, shows up in
