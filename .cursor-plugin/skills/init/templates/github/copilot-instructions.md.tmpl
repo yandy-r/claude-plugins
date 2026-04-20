@@ -39,13 +39,15 @@ gh pr edit <number> --title "<new-title>"
 Or use the GitHub UI. The workflow re-runs automatically on edit.
 
 > Safety net: [`workflows/pr-title-autofix.yml`](workflows/pr-title-autofix.yml)
-> runs in parallel and will strip `[WIP]` / `[Draft]` / `Draft:` / `WIP:` /
+> runs in parallel and will (1) strip `[WIP]` / `[Draft]` / `Draft:` / `WIP:` /
 > `Initial plan` prefixes from the PR title server-side, then convert the PR
-> to draft. It exists because some coding-agent runtime tokens lack
-> `pull_requests:write` and cannot edit their own title after the fact.
-> **Do not rely on it** — produce a clean Conventional Commit title up-front;
-> the autofix workflow is a last-resort guardrail, not an excuse to bypass
-> these rules.
+> to draft; and (2) normalize a leading Conventional Commit type that was
+> written without a colon or with capitalization — e.g. `Refactor X` becomes
+> `refactor: X`, `Feat(auth): X` becomes `feat(auth): X`. It exists because
+> some coding-agent runtime tokens lack `pull_requests:write` and cannot edit
+> their own title after the fact. **Do not rely on it** — produce a clean
+> Conventional Commit title up-front; the autofix workflow is a last-resort
+> guardrail, not an excuse to bypass these rules.
 
 ### Work-in-progress
 
