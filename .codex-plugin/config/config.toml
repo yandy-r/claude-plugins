@@ -141,3 +141,6 @@ approval_mode = "approve"
 
 [apps.connector_76869538009648d5b282a4bb21c3d157.tools.github_remove_issue_label]
 approval_mode = "approve"
+
+[plugins."vercel-plugin@plugins-cli"]
+enabled = true
