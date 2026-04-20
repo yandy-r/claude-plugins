@@ -1,6 +1,6 @@
 ---
-description: Plan and apply fixes for findings from a code-review artifact. Parses the review file, filters by severity, dispatches review-fixer agents to apply each fix, updates Status in place (Open → Fixed/Failed), and writes a fix report. Pass --parallel for standalone sub-agent batch execution, --team (Claude Code only) for agent-team batch execution with shared TaskList and up-front dependency wiring, --severity <level> to change the threshold (default HIGH), or --dry-run to preview the plan.
-argument-hint: '[--parallel | --team] [--severity <level>] [--dry-run] <path/to/review.md | pr-number | blank>'
+description: Plan and apply fixes for findings from a code-review artifact. Parses the review file, filters by severity, dispatches review-fixer agents to apply each fix, updates Status in place (Open → Fixed/Failed), and writes a fix report. Pass --parallel for standalone sub-agent batch execution, --team (Claude Code only) for agent-team batch execution with shared TaskList and up-front dependency wiring, --severity <level> to change the threshold (default HIGH), or --dry-run to preview the plan. Pass --worktree (or use an artifact that already has a ## Worktree Setup section — auto-detected) to create one git worktree per severity level and apply fixes in isolation, with automatic fan-in merge to the parent after each severity batch validates.
+argument-hint: '[--parallel | --team] [--severity <level>] [--worktree] [--dry-run] <path/to/review.md | pr-number | blank>'
 allowed-tools:
   - Read
   - Grep
@@ -59,6 +59,7 @@ The skill parses the review file produced by `/ycc:code-review`, filters finding
 - **`--team`** — (Claude Code only) Same per-batch fixer fan-out as `--parallel`, but under a single `TeamCreate` with all eligible findings registered as tasks up front (`TaskCreate`) and coordinated per-batch shutdown via `SendMessage`. Provides shared task-graph observability across all batches. Cursor and Codex bundles lack team tools — use `--parallel` there. `--parallel` and `--team` are **mutually exclusive**.
 - **`--severity <level>`** — Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default `HIGH` (fixes CRITICAL + HIGH, skips MEDIUM + LOW). Findings below the threshold remain `Status: Open` in the source review file.
 - **`--dry-run`** — Print the fix plan (batches, files, severity distribution) and stop. No files are modified. Combine with `--team` to also preview the team name and per-batch teammate roster.
+- **`--worktree`** — Create one git worktree per severity level and apply each severity's fixes inside its own child worktree, merging back to the parent after validation. Auto-detected when the review artifact contains a `## Worktree Setup` section (emitted by `/ycc:code-review --worktree`). Use the explicit flag to FORCE worktree mode on a PR artifact that lacks the section (local artifacts abort — re-run `/ycc:code-review --worktree` instead). Combines freely with `--parallel`, `--team`, `--severity`, and `--dry-run`. Cursor bundle: emits setup commands as docs (no auto-create). Codex / opencode / Claude Code: full auto-create.
 
 ## What the skill does NOT do
 
@@ -68,7 +69,7 @@ The skill parses the review file produced by `/ycc:code-review`, filters finding
 - Does NOT touch findings that are already `Status: Fixed` or `Status: Failed` from a prior run — this skill is resumable.
 
 ```
-Usage: /ycc:review-fix [<path/to/review.md> | <pr-number> | blank] [--parallel | --team] [--severity <level>] [--dry-run]
+Usage: /ycc:review-fix [<path/to/review.md> | <pr-number> | blank] [--parallel | --team] [--severity <level>] [--worktree] [--dry-run]
 
 Examples:
   /ycc:review-fix docs/prps/reviews/pr-42-review.md
@@ -81,8 +82,14 @@ Examples:
   /ycc:review-fix 42 --team --dry-run                          # preview team + task graph, no changes
   /ycc:review-fix docs/prps/reviews/local-20260408-143022-review.md --dry-run
   /ycc:review-fix                                              # use latest review file
+  /ycc:review-fix 42 --worktree                                # severity-keyed worktrees, auto-detect from artifact
+  /ycc:review-fix 42 --worktree --severity CRITICAL            # only one child worktree (critical)
+  /ycc:review-fix 42 --parallel --worktree                     # parallel sub-agents per severity batch
+  /ycc:review-fix 42 --team --worktree                         # agent-team per severity batch
+  /ycc:review-fix 42 --worktree --dry-run                      # preview severity-keyed plan, no changes
 
 Next steps after fixes land:
   /ycc:code-review <same target>   # re-review to verify
   /ycc:git-workflow                # commit the fixes
+  git -C ~/.claude-worktrees/<repo>-pr-N push origin HEAD   # push worktree branch when --worktree was used
 ```

@@ -5,8 +5,9 @@ description: 'Plan and apply fixes for findings from a code-review artifact. Par
   --parallel for standalone sub-agent batch execution, --team (Claude Code only) for
   agent-team batch execution with shared the todo tracker and up-front dependency
   wiring, --severity <level> to change the threshold (default HIGH), or --dry-run
-  to preview the plan. Usage: [--parallel | --team] [--severity <level>] [--dry-run]
-  <path/to/review.md | pr-number | blank>'
+  to preview the plan. Pass --worktree (or use an artifact that already has a Usage:
+  [--parallel | --team] [--severity <level>] [--worktree] [--dry-run] <path/to/review.md
+  | pr-number | blank>'
 ---
 
 # Review Fix Command
@@ -31,6 +32,7 @@ The skill parses the review file produced by `/code-review`, filters findings by
 - **`--team`** — (Claude Code only) Same per-batch fixer fan-out as `--parallel`, but under a single `spawn coordinated subagents` with all eligible findings registered as tasks up front (`track the task`) and coordinated per-batch shutdown via `send follow-up instructions`. Provides shared task-graph observability across all batches. Cursor and Codex bundles lack team tools — use `--parallel` there. `--parallel` and `--team` are **mutually exclusive**.
 - **`--severity <level>`** — Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default `HIGH` (fixes CRITICAL + HIGH, skips MEDIUM + LOW). Findings below the threshold remain `Status: Open` in the source review file.
 - **`--dry-run`** — Print the fix plan (batches, files, severity distribution) and stop. No files are modified. Combine with `--team` to also preview the team name and per-batch teammate roster.
+- **`--worktree`** — Create one git worktree per severity level and apply each severity's fixes inside its own child worktree, merging back to the parent after validation. Auto-detected when the review artifact contains a `## Worktree Setup` section (emitted by `/code-review --worktree`). Use the explicit flag to FORCE worktree mode on a PR artifact that lacks the section (local artifacts abort — re-run `/code-review --worktree` instead). Combines freely with `--parallel`, `--team`, `--severity`, and `--dry-run`. Cursor bundle: emits setup commands as docs (no auto-create). Codex / opencode / opencode: full auto-create.
 
 ## What the skill does NOT do
 
@@ -40,7 +42,7 @@ The skill parses the review file produced by `/code-review`, filters findings by
 - Does NOT touch findings that are already `Status: Fixed` or `Status: Failed` from a prior run — this skill is resumable.
 
 ```
-Usage: /review-fix [<path/to/review.md> | <pr-number> | blank] [--parallel | --team] [--severity <level>] [--dry-run]
+Usage: /review-fix [<path/to/review.md> | <pr-number> | blank] [--parallel | --team] [--severity <level>] [--worktree] [--dry-run]
 
 Examples:
   /review-fix docs/prps/reviews/pr-42-review.md
@@ -53,8 +55,14 @@ Examples:
   /review-fix 42 --team --dry-run                          # preview team + task graph, no changes
   /review-fix docs/prps/reviews/local-20260408-143022-review.md --dry-run
   /review-fix                                              # use latest review file
+  /review-fix 42 --worktree                                # severity-keyed worktrees, auto-detect from artifact
+  /review-fix 42 --worktree --severity CRITICAL            # only one child worktree (critical)
+  /review-fix 42 --parallel --worktree                     # parallel sub-agents per severity batch
+  /review-fix 42 --team --worktree                         # agent-team per severity batch
+  /review-fix 42 --worktree --dry-run                      # preview severity-keyed plan, no changes
 
 Next steps after fixes land:
   /code-review <same target>   # re-review to verify
   /git-workflow                # commit the fixes
+  git -C ~/.claude-worktrees/<repo>-pr-N push origin HEAD   # push worktree branch when --worktree was used
 ```

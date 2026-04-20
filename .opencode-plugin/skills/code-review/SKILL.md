@@ -30,8 +30,9 @@ Before selecting mode, extract flags from `$ARGUMENTS`:
 | `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                                                                                                                                                                                                          |
 | `--parallel`        | Fan out the REVIEW phase across 3 **standalone** `code-reviewer` sub-agents (correctness, security, quality) dispatched in parallel and merge findings. Works in opencode, Cursor, and Codex.                                                                                                                        |
 | `--team`            | (Claude Code only) Fan out the REVIEW phase across the same 3 `code-reviewer` reviewers, but dispatched as an **agent team** with up-front `track the task`, shared `the todo tracker` observability, inter-reviewer coordination via `send follow-up instructions`, and coordinated shutdown before merge. Heavier dispatch, richer communication. |
+| `--worktree`        | Check out the PR head branch into an isolated worktree at `~/.claude-worktrees/<repo>-pr-<N>/` before reading files, then emit a `## Worktree Setup` section in the review artifact declaring one child worktree per severity that has Open findings. Downstream `/review-fix --worktree` consumes the annotation. **No effect in local mode** — local review prints a warning and continues without a worktree. Combines freely with `--parallel`, `--team`, `--approve`, `--request-changes`. |
 
-Strip these from `$ARGUMENTS` and set `PARALLEL_MODE=true|false` and `AGENT_TEAM_MODE=true|false`. The remaining text is the mode selector (PR number/URL or blank for local).
+Strip these from `$ARGUMENTS` and set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, and `WORKTREE_MODE=true|false`. The remaining text is the mode selector (PR number/URL or blank for local).
 
 **Validation**:
 
@@ -41,6 +42,64 @@ Strip these from `$ARGUMENTS` and set `PARALLEL_MODE=true|false` and `AGENT_TEAM
 **Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools — `spawn coordinated subagents`, `send follow-up instructions`, etc.). Use `--parallel` instead.
 
 Parallel mode and team mode both apply to **both** Local Review Mode (Phase 2) and PR Review Mode (Phase 3). All other phases are unchanged.
+
+---
+
+## Phase 0½ — SETUP (only when `--worktree`)
+
+Skip this phase entirely when `WORKTREE_MODE=false`.
+
+### Local mode with `--worktree`
+
+Uncommitted changes cannot be branch-isolated in a worktree. Emit:
+
+```
+Note: --worktree has no effect in local mode; uncommitted changes are not branch-isolated.
+```
+
+Continue with Local Review Mode but set `WORKTREE_ACTIVE=false`. **Do NOT** emit a `## Worktree Setup` section in the artifact.
+
+### PR mode with `--worktree`
+
+1. Resolve `<repo>`:
+   ```bash
+   REPO=$(basename "$(git rev-parse --show-toplevel)")
+   ```
+
+2. Resolve `<pr-head-branch>`:
+   ```bash
+   PR_HEAD=$(gh pr view <N> --json headRefName --jq .headRefName)
+   ```
+
+3. Compute slug = `pr-<N>`.
+
+4. Check out the PR head branch into an isolated worktree:
+   ```bash
+   PARENT_WORKTREE_PATH=$(
+     bash "~/.config/opencode/shared/scripts/setup-worktree.sh" \
+       parent "${REPO}" "pr-<N>" --base-ref "${PR_HEAD}"
+   )
+   ```
+   The script is idempotent: re-running it on an existing worktree on the same branch reuses the path.
+
+5. Record `WORKTREE_ACTIVE=true`, `PARENT_BRANCH=<PR_HEAD>`, and `PARENT_WORKTREE_PATH=<captured path>`.
+
+6. If the checkout fails (e.g., the branch is already checked out in the main repo or conflicts exist), abort with:
+   ```
+   Error: could not check out PR head '<PR_HEAD>' into a worktree.
+   Likely cause: the branch is currently checked out in the main repository.
+   Switch away from it (git switch <other-branch>) and re-run.
+   ```
+
+### Behavior summary
+
+| Flag state                      | Effect                                                                    |
+| ------------------------------- | ------------------------------------------------------------------------- |
+| `WORKTREE_MODE=false` (no flag) | No worktree. Files read from main working tree (local) or GitHub API (PR). |
+| `WORKTREE_MODE=true`, local     | Warning printed; no worktree created; behaves as `WORKTREE_MODE=false`.    |
+| `WORKTREE_MODE=true`, PR        | Parent worktree created; files read from `$PARENT_WORKTREE_PATH`.          |
+
+Proceed to Mode Selection.
 
 ---
 
@@ -311,6 +370,15 @@ Read each changed file **in full** (not just the diff hunks — you need surroun
 
 For PR reviews, fetch the full file contents at the PR head revision:
 
+**When `WORKTREE_ACTIVE=true`**: read files directly from the parent worktree using the `Read` tool — the worktree has the PR head branch checked out, so the files on disk match the PR head revision. Skip the `gh api` fetch entirely:
+
+```bash
+# Instead of: gh api "repos/{owner}/{repo}/contents/$file?ref=<head-branch>"
+# Read from:  ${PARENT_WORKTREE_PATH}/$file
+```
+
+**When `WORKTREE_ACTIVE=false`** (the existing path): continue to use `gh api` to fetch each file at the PR head ref:
+
 ```bash
 gh pr diff <NUMBER> --name-only | while IFS= read -r file; do
   gh api "repos/{owner}/{repo}/contents/$file?ref=<head-branch>" --jq '.content' | base64 -d
@@ -548,6 +616,9 @@ mkdir -p docs/prps/reviews
 
 Use the **Review Artifact Format** defined at the bottom of this skill. The artifact must include finding IDs and `Status: Open` on every finding so that `/review-fix` can later update the file in place.
 
+- When `WORKTREE_ACTIVE=true`, write the artifact to the MAIN repo path (`docs/prps/reviews/pr-<N>-review.md`) using an absolute path — never to the worktree — so the review record is not carried by the PR branch's history. Use `$(git rev-parse --show-toplevel)` from within the main repo shell context, NOT from inside the worktree.
+- Emit only severity rows in `## Worktree Setup` whose severity has at least one Open finding in the artifact. Omit rows for empty severities.
+
 Example of the Findings section:
 
 ```markdown
@@ -670,6 +741,18 @@ Both Local Review Mode and PR Review Mode write an artifact using this exact for
 **Branch**: <head> → <base>
 **Decision**: APPROVE | REQUEST CHANGES | BLOCK | COMMENT
 
+## Worktree Setup
+
+<!-- Only emitted when the review was run with --worktree and WORKTREE_ACTIVE=true.
+     Lists only severity levels that have at least one Open finding. -->
+
+- **Parent**: ~/.claude-worktrees/<repo>-pr-<N>/ (branch: <pr-head-branch>)
+- **Children** (per severity; created by /review-fix --worktree):
+  - CRITICAL → ~/.claude-worktrees/<repo>-pr-<N>-critical/ (branch: feat/pr-<N>-critical)
+  - HIGH     → ~/.claude-worktrees/<repo>-pr-<N>-high/     (branch: feat/pr-<N>-high)
+  - MEDIUM   → ~/.claude-worktrees/<repo>-pr-<N>-medium/   (branch: feat/pr-<N>-medium)
+  - LOW      → ~/.claude-worktrees/<repo>-pr-<N>-low/      (branch: feat/pr-<N>-low)
+
 ## Summary
 
 <1-2 sentence overall assessment>
@@ -757,6 +840,9 @@ Findings missing a `Suggested fix` line are valid but will be **skipped** by `/r
 - **No `gh` CLI and no GitHub MCP**: Fall back to local-only review (read the diff, skip GitHub publish). Warn user.
 - **Diverged branches**: Suggest `git fetch origin && git rebase origin/<base>` before review.
 - **Large PRs (>50 files)**: Warn about review scope. Focus on source changes first, then tests, then config/docs.
+- **`--worktree` + stale PR head**: the worktree is a snapshot of the PR head at SETUP time. If new commits land on the PR after the review starts, re-run with `--worktree` to resync.
+- **`--worktree` + concurrent runs**: two `/code-review --worktree <N>` invocations on different PR numbers never collide (each gets its own `<repo>-pr-<N>/` directory). Two invocations on the SAME PR number share the same parent worktree (idempotent), which is by design.
+- **Cleanup**: parent worktrees survive the run. After the fix workflow is done, remove with `git worktree remove ~/.claude-worktrees/<repo>-pr-<N>/`.
 
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: review-fix
-description: Plan and apply fixes for findings from a code-review artifact produced by /ycc:code-review. Parses the review file (local or PR), filters findings by severity threshold, groups them into dependency-safe batches (same-file findings stay together, different files can run in parallel), dispatches ycc:review-fixer agents to apply each fix, updates the Status field in the source review file in place (Open → Fixed or Failed), runs validation after changes, and writes a fix report to docs/prps/reviews/fixes/. Pass `--parallel` to fan out independent fixes across parallel standalone review-fixer sub-agents. Pass `--team` (Claude Code only) to run the same per-batch fan-out as a coordinated agent team with up-front TaskCreate, shared TaskList across all batches, and per-batch shutdown via SendMessage. `--parallel` and `--team` are mutually exclusive. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to change the minimum severity threshold (default HIGH). Pass `--dry-run` to preview the fix plan (and team graph, if combined with --team) without applying changes. Use when the user asks to "fix review findings", "apply review fixes", "review-fix PR 42", "fix the code review", "team review-fix", or says "/review-fix". Adapted from PRPs-agentic-eng by Wirasm.
-argument-hint: '[--parallel | --team] [--severity <level>] [--dry-run] <path/to/review.md | pr-number | blank>'
+description: Plan and apply fixes for findings from a code-review artifact produced by /ycc:code-review. Parses the review file (local or PR), filters findings by severity threshold, groups them into dependency-safe batches (same-file findings stay together, different files can run in parallel), dispatches ycc:review-fixer agents to apply each fix, updates the Status field in the source review file in place (Open → Fixed or Failed), runs validation after changes, and writes a fix report to docs/prps/reviews/fixes/. Pass `--parallel` to fan out independent fixes across parallel standalone review-fixer sub-agents. Pass `--team` (Claude Code only) to run the same per-batch fan-out as a coordinated agent team with up-front TaskCreate, shared TaskList across all batches, and per-batch shutdown via SendMessage. `--parallel` and `--team` are mutually exclusive. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to change the minimum severity threshold (default HIGH). Pass `--dry-run` to preview the fix plan (and team graph, if combined with --team) without applying changes. Pass --worktree (or use an artifact that already has a ## Worktree Setup section — auto-detected) to create one git worktree per severity level and apply fixes in isolation, with automatic fan-in merge to the parent after each severity batch validates. Use when the user asks to "fix review findings", "apply review fixes", "review-fix PR 42", "fix the code review", "team review-fix", or says "/review-fix". Adapted from PRPs-agentic-eng by Wirasm.
+argument-hint: '[--parallel | --team] [--severity <level>] [--worktree] [--dry-run] <path/to/review.md | pr-number | blank>'
 allowed-tools:
   - Read
   - Grep
@@ -56,14 +56,15 @@ Plan and apply fixes for code-review findings. Reads a review artifact produced 
 
 Extract flags from `$ARGUMENTS` before treating the remainder as the input:
 
-| Flag                 | Effect                                                                                                                                                                                                                                                                                                                                      |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel`         | Dispatch `ycc:review-fixer` agents as **standalone sub-agents** in parallel per batch. Level 1+2 validation between batches. Fail-stop behavior. Works in Claude Code, Cursor, and Codex.                                                                                                                                                   |
-| `--team`             | (Claude Code only) Same per-batch fixer fan-out as `--parallel`, but dispatched as an **agent team**: `TeamCreate` once, `TaskCreate` for all eligible findings up front (flat graph — batches are orchestrator-controlled, not task-graph-controlled), per-batch spawn + shutdown via `SendMessage`. Aborts if no eligible findings exist. |
-| `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).                                                                                                                                                                                                                                      |
-| `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files. When combined with `--team`, also print the team name and per-batch teammate roster.                                                                                                                                                                          |
+| Flag                 | Effect                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel`         | Dispatch `ycc:review-fixer` agents as **standalone sub-agents** in parallel per batch. Level 1+2 validation between batches. Fail-stop behavior. Works in Claude Code, Cursor, and Codex.                                                                                                                                                                                                                                                               |
+| `--team`             | (Claude Code only) Same per-batch fixer fan-out as `--parallel`, but dispatched as an **agent team**: `TeamCreate` once, `TaskCreate` for all eligible findings up front (flat graph — batches are orchestrator-controlled, not task-graph-controlled), per-batch spawn + shutdown via `SendMessage`. Aborts if no eligible findings exist.                                                                                                             |
+| `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).                                                                                                                                                                                                                                                                                                                                                  |
+| `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files. When combined with `--team`, also print the team name and per-batch teammate roster.                                                                                                                                                                                                                                                                                      |
+| `--worktree`         | Create one git worktree per severity level and apply each severity's fixes inside its own child worktree, merging back to the parent after validation. Auto-detected when the review artifact contains a `## Worktree Setup` section — the flag is only needed to FORCE worktree mode on an artifact that lacks the section (requires a PR artifact; local artifacts abort). Combines freely with `--parallel` / `--team` / `--severity` / `--dry-run`. |
 
-Strip these flags from `$ARGUMENTS` and set `PARALLEL_MODE`, `AGENT_TEAM_MODE`, `MIN_SEVERITY`, and `DRY_RUN`. The remaining text is the input selector.
+Strip these flags from `$ARGUMENTS` and set `PARALLEL_MODE`, `AGENT_TEAM_MODE`, `MIN_SEVERITY`, `DRY_RUN`, and `WORKTREE_MODE`. The remaining text is the input selector.
 
 **Validation**:
 
@@ -164,6 +165,65 @@ Nothing to do.
 
 **CHECKPOINT**: Review loaded. All findings parsed. At least one `Status: Open` finding exists.
 
+### Worktree Setup detection (auto or forced)
+
+After parsing findings, scan the artifact for `^## Worktree Setup`:
+
+**If the section is present** (auto-detect):
+
+Parse the block into structured variables:
+
+- `PARENT_PATH` from `- **Parent**: <path> (branch: <branch>)` → capture `<path>` and `<branch>`
+- `PARENT_BRANCH` from the same line
+- `CHILDREN_MAP[<SEVERITY>] = { path: <child-path>, branch: <child-branch> }` for each
+  `  - <SEVERITY> → <child-path> (branch: <child-branch>)` line
+
+Set `WORKTREE_ACTIVE=true` regardless of the `--worktree` flag (auto-detect: the artifact's declaration wins).
+
+Verify the parent worktree still exists on disk:
+
+```bash
+if [[ ! -d "$PARENT_PATH" ]]; then
+  echo "Error: parent worktree $PARENT_PATH is declared in the review artifact but does not exist."
+  echo "Re-run /ycc:code-review --worktree <N> to recreate it, then retry."
+  exit 1
+fi
+```
+
+**If the section is absent and `WORKTREE_MODE=false`**:
+
+Set `WORKTREE_ACTIVE=false`. Fall through to Phase 2 unchanged (legacy path).
+
+**If the section is absent and `WORKTREE_MODE=true` (forced)**:
+
+Deduce paths from the artifact filename:
+
+- For `pr-<N>-review.md`: slug = `pr-<N>`; resolve PR head:
+
+  ```bash
+  PR_NUMBER=$(basename "$REVIEW_FILE" | sed -E 's/^pr-([0-9]+)-review\.md$/\1/')
+  PR_HEAD=$(gh pr view "$PR_NUMBER" --json headRefName --jq .headRefName)
+  REPO=$(basename "$(git rev-parse --show-toplevel)")
+  PARENT_PATH=$(bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/setup-worktree.sh" \
+    parent "$REPO" "pr-$PR_NUMBER" --base-ref "$PR_HEAD")
+  PARENT_BRANCH="$PR_HEAD"
+  ```
+
+- For `local-<ts>-review.md`: abort with:
+  ```
+  Error: --worktree cannot be force-applied to a local review artifact that was produced without worktree isolation. Re-run /ycc:code-review --worktree to regenerate.
+  ```
+
+Set `WORKTREE_ACTIVE=true` and populate `CHILDREN_MAP` by convention:
+
+- For each severity S that has at least one Open finding above `MIN_SEVERITY`:
+  ```
+  CHILDREN_MAP[S] = {
+    path: ~/.claude-worktrees/<repo>-<slug>-<severity-lowercase>/,
+    branch: feat/<slug>-<severity-lowercase>
+  }
+  ```
+
 ---
 
 ## Phase 2 — FILTER
@@ -256,6 +316,40 @@ Batch 2 (HIGH, 2 fixes, 1 file with 2 findings):
 ...
 ```
 
+### Worktree-mode batching override (`WORKTREE_ACTIVE=true`)
+
+When `WORKTREE_ACTIVE=true`, override the default same-file batching with severity-keyed batching:
+
+- **Batch N = all eligible findings at one severity level.**
+- Batch order: CRITICAL (Batch 1) → HIGH (Batch 2) → MEDIUM (Batch 3) → LOW (Batch 4), stopping at `MIN_SEVERITY`. Severities with no eligible findings are skipped.
+- Within a severity batch, preserve the existing same-file grouping (findings in the same file stay together, sorted by line DESCENDING). Different files within the batch can still parallelize under Path B/C.
+- Each severity batch is bound to its own child worktree (`CHILDREN_MAP[<SEVERITY>].path`).
+
+Example plan summary when `WORKTREE_ACTIVE=true`:
+
+```
+Worktree-mode plan (4 severity batches, 7 findings, 5 files):
+
+Batch 1 — CRITICAL (2 fixes, 2 files)
+  Worktree: ~/.claude-worktrees/myrepo-pr-42-critical/ (branch: feat/pr-42-critical)
+  - F001 (src/auth.ts:42)
+  - F002 (src/api.ts:17)
+
+Batch 2 — HIGH (3 fixes, 2 files)
+  Worktree: ~/.claude-worktrees/myrepo-pr-42-high/ (branch: feat/pr-42-high)
+  - F003 (src/db/query.ts:112)
+  - F004 (src/db/query.ts:87)     ← same file as F003, descending line order
+  - F005 (src/utils/format.ts:9)
+
+Batch 3 — MEDIUM (1 fix, 1 file)
+  Worktree: ~/.claude-worktrees/myrepo-pr-42-medium/ (branch: feat/pr-42-medium)
+  - F006 (src/logging.ts:45)
+
+(LOW batch skipped — 0 eligible findings or below MIN_SEVERITY)
+```
+
+When `--dry-run` is combined with `--worktree`, print this summary and exit.
+
 ### Dry-run gate
 
 If `DRY_RUN=true` and `AGENT_TEAM_MODE=false`, stop here. Print a reminder:
@@ -281,7 +375,62 @@ Branch based on `PARALLEL_MODE` and `AGENT_TEAM_MODE`:
 | `PARALLEL_MODE`   | **Path B** — parallel standalone sub-agent batches |
 | `AGENT_TEAM_MODE` | **Path C** — agent-team batch execution            |
 
+### Worktree-mode lifecycle (`WORKTREE_ACTIVE=true`)
+
+When worktree mode is active, wrap each severity batch with the 5-step lifecycle from `ycc/skills/_shared/references/worktree-strategy.md`. The pattern is identical for Paths A, B, and C; only the agent dispatch mechanism inside Step 2 differs.
+
+**Before Batch 1** (one-time setup):
+
+If `CHILDREN_MAP` was auto-detected from the artifact, `PARENT_PATH` was already ensured in Phase 1 LOAD — nothing more to do here. If `WORKTREE_MODE=true` was forced and `PARENT_PATH` was auto-deduced, ensure it exists by calling:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/setup-worktree.sh" \
+  parent "${REPO}" "${SLUG}" --base-ref "${PARENT_BRANCH}"
+```
+
+**Per severity batch** (Steps 1–5):
+
+1. **Create child worktree**:
+
+   ```bash
+   CHILD_PATH=$(
+     bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/setup-worktree.sh" \
+       child "${REPO}" "${SLUG}" "<severity-lowercase>"
+   )
+   ```
+
+   (Severity labels `critical`/`high`/`medium`/`low` serve as task-id analogs. They are shell-safe and unique per batch.)
+
+2. **Dispatch review-fixer agents** (Path-specific — see each path below). All agents receive:
+   - `Working directory: <CHILD_PATH>` appended to their prompt, so Read/Write/Edit/Bash inside the agent target the child worktree.
+   - On Claude Code, prefer `Agent(isolation: "worktree")` with the pre-created child path (the `WorktreeCreate` hook redirects correctly).
+   - On Cursor / Codex / opencode: Bash-only dispatch with `Working directory:` in the prompt.
+
+3. **Validate** inside `CHILD_PATH`:
+
+   ```bash
+   ( cd "$CHILD_PATH" && $TYPECHECK_CMD )
+   ( cd "$CHILD_PATH" && $TEST_CMD )
+   ```
+
+   Fail-stop recovery (`AskUserQuestion`) unchanged.
+
+4. **Fan-in merge**:
+
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/merge-children.sh" \
+     "${REPO}" "${SLUG}" "<severity-lowercase>"
+   ```
+
+   On exit code 1: surface the `CONFLICT:` line to the user, STOP the pipeline, do NOT advance to the next severity batch.
+
+5. **Inter-batch shutdown** (Path C `--team` only): `SendMessage(shutdown)` to all batch teammates BEFORE invoking `merge-children.sh`. Matches the existing team dispatch contract.
+
+**Status updates**: the review artifact itself lives in the MAIN repo (outside any worktree). Always use `Edit` on the main-repo path to change `**Status**: Open` → `Fixed` / `Failed`. The review-fixer agents edit source files inside their child worktree; the review-fix orchestrator edits the review artifact in the main repo.
+
 ### Path A — Sequential Execution (default)
+
+- When `WORKTREE_ACTIVE=true`: before each severity batch, execute Step 1 (create child worktree). Dispatch the review-fixer agent with `Working directory: <CHILD_PATH>` for every finding in this severity. After all findings in the batch are processed, execute Steps 3 (validate) and 4 (merge) for this severity before moving to the next.
 
 Process batches in order. Within each batch, process findings (or same-file groups) one at a time.
 
@@ -302,6 +451,8 @@ For each finding or group:
 5. **Continue** to the next finding. Do NOT stop on a failure — continue processing remaining findings so the user gets a full picture.
 
 ### Path B — Parallel Sub-Agent Execution (`PARALLEL_MODE=true`)
+
+- When `WORKTREE_ACTIVE=true`: batches are severity-keyed (one child worktree per severity). Within a single severity batch, all same-file groups still parallelize inside that ONE child worktree — dispatch each parallel review-fixer with `Working directory: <CHILD_PATH>`. After the batch, validate → merge → advance.
 
 Process batches sequentially; within each batch, dispatch all review-fixer agents as standalone sub-agents in parallel.
 
@@ -343,6 +494,8 @@ If a `ycc:review-fixer` agent returns `STATUS: Failed`:
 - Continue with remaining findings.
 
 ### Path C — Agent Team Execution (`AGENT_TEAM_MODE=true`, Claude Code only)
+
+- When `WORKTREE_ACTIVE=true`: batches are severity-keyed. Dispatch teammates with `Working directory: <CHILD_PATH>` + `isolation: "worktree"` (Claude Code). Before each merge-children call, `SendMessage(shutdown)` to all batch teammates. Then merge → advance to the next severity.
 
 > **MANDATORY — AGENT TEAMS REQUIRED**
 >
@@ -573,6 +726,29 @@ Derive the report filename from the source review:
 - Run `/ycc:git-workflow` to commit the changes when satisfied
 ```
 
+### Worktree Summary (only when `WORKTREE_ACTIVE=true`)
+
+At the end of REPORT, append to the fix report:
+
+```markdown
+## Worktree Summary
+
+<output of list-worktrees.sh>
+
+### Next steps
+
+- Review the parent worktree: `git -C <PARENT_PATH> log --oneline -10`
+- Push to update the PR: `git -C <PARENT_PATH> push origin HEAD`
+- Clean up when done: `git worktree remove <PARENT_PATH>`
+```
+
+Populate the `<output of list-worktrees.sh>` block by running:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/list-worktrees.sh" \
+  "${REPO}" "${SLUG}"
+```
+
 ---
 
 ## Phase 7 — OUTPUT
@@ -667,6 +843,7 @@ The review file is updated incrementally after each agent returns, so if the run
 - **Audit trail**: The combination of (a) updated source review file and (b) fix report gives a complete history of what was attempted, what succeeded, and why.
 - **Parallel safety**: Parallel mode (both Path B sub-agents and Path C agent team) never dispatches two agents to the same file concurrently — same-file findings always travel together in one fixer.
 - **No auto-commit**: The skill reports success and suggests `/ycc:git-workflow` as the next step. It does not commit changes itself.
+- Does NOT automatically push the parent worktree's branch or open a follow-up PR. After fixes land, the user decides when to `git push` the parent worktree's branch.
 
 ---
 

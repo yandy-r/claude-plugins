@@ -2,9 +2,13 @@
 
 Used by `ycc:plan`, `ycc:prp-plan`, `ycc:parallel-plan`, `ycc:plan-workflow`,
 `ycc:prp-implement`, `ycc:orchestrate`, and `ycc:implement-plan` when worktree
-isolation is in effect. This file documents the parent/child worktree model, naming
-scheme, plan annotation format, per-target dispatch matrix, fan-in merge protocol,
-conflict policy, and cleanup convention. Individual skills own their own
+isolation is in effect. Also used by `ycc:code-review` and `ycc:review-fix` when
+`--worktree` is set — with two twists: code-review checks out an existing PR head
+branch into the parent (see `--base-ref` below) instead of branching from HEAD, and
+review-fix keys its children by severity label (`critical`, `high`, `medium`, `low`)
+instead of by parallel task ID. This file documents the parent/child worktree model,
+naming scheme, plan annotation format, per-target dispatch matrix, fan-in merge
+protocol, conflict policy, and cleanup convention. Individual skills own their own
 `--worktree` flag plumbing and per-phase invocations; only the shared mechanism
 lives here. See [agent-team-dispatch.md](./agent-team-dispatch.md) for the
 complementary team lifecycle and how worktrees pair with teammate dispatch.
@@ -17,16 +21,44 @@ Every worktree-enabled run uses at most two levels of worktrees.
 
 ### Parent worktree
 
-| Property   | Value                                                 |
-| ---------- | ----------------------------------------------------- |
-| Path       | `~/.claude-worktrees/<repo>-<feature>/`               |
-| Branch     | `feat/<feature>`                                      |
-| Created    | Once, before Batch 1 (via `setup-worktree.sh parent`) |
-| Lifetime   | Survives to end of run; used for the final PR         |
-| Removed by | User (never auto-removed by the skill)                |
+| Property   | Value                                                  |
+| ---------- | ------------------------------------------------------ |
+| Path       | `~/.claude-worktrees/<repo>-<feature>/`                |
+| Branch     | `feat/<feature>` (default) or `<base-ref>` (see below) |
+| Created    | Once, before Batch 1 (via `setup-worktree.sh parent`)  |
+| Lifetime   | Survives to end of run; used for the final PR          |
+| Removed by | User (never auto-removed by the skill)                 |
 
 The parent branch accumulates all work. After each parallel batch validates, child
 branches are merged back here before the next batch begins.
+
+#### Checking out an existing branch (`--base-ref`)
+
+By default the parent worktree is placed on a new `feat/<feature>` branch created
+from `HEAD`. Skills that need to isolate an **existing** branch (e.g.,
+`ycc:code-review --worktree <N>` checking out a PR head) pass `--base-ref`:
+
+```bash
+# Default — new branch from HEAD
+setup-worktree.sh parent <repo> <feature-slug>
+
+# Check out an existing branch directly
+setup-worktree.sh parent <repo> <feature-slug> --base-ref <branch>
+```
+
+When `--base-ref` is supplied:
+
+- No new branch is created. The worktree is placed directly on `<branch>`.
+- If `<branch>` does not resolve locally, the script runs
+  `git fetch origin <branch>:<branch>` once and retries.
+- The idempotency check expects the worktree to be on `<branch>`, not on
+  `feat/<feature-slug>`.
+- The worktree cannot coexist with the same branch already checked out in the
+  main repo. Switch away from `<branch>` in the main repo first, or pick a
+  different base ref.
+
+All fan-in merge behavior (children branch from the parent branch) is unchanged —
+children merge into `<branch>` instead of `feat/<feature-slug>`.
 
 ### Child worktrees (parallel tasks only)
 
@@ -93,6 +125,29 @@ Placed on its own line inside the task block, immediately after the task header:
 
 Sequential tasks carry **no** worktree annotation. Their absence of a
 `**Worktree**:` line is the signal that the task runs in the parent worktree.
+
+### Severity-keyed children (`ycc:review-fix` variant)
+
+`ycc:code-review --worktree` and `ycc:review-fix --worktree` use the same
+`## Worktree Setup` section, but children are labelled by **severity** instead of
+by task ID. Each severity label (`critical`, `high`, `medium`, `low`) functions
+as the `<task-id>` arg to `setup-worktree.sh child` and `merge-children.sh` —
+they are shell-safe, unique, and already lowercase.
+
+Example (emitted by `/ycc:code-review --worktree 42`, consumed by
+`/ycc:review-fix --worktree 42`):
+
+```markdown
+## Worktree Setup
+
+- **Parent**: ~/.claude-worktrees/myrepo-pr-42/ (branch: feature-x)
+- **Children** (per severity; created by /ycc:review-fix --worktree):
+  - CRITICAL → ~/.claude-worktrees/myrepo-pr-42-critical/ (branch: feat/pr-42-critical)
+  - HIGH → ~/.claude-worktrees/myrepo-pr-42-high/ (branch: feat/pr-42-high)
+```
+
+Only severity levels that have Open findings are emitted. The parent branch is
+the PR's head branch (via `--base-ref`), not `feat/pr-<N>`.
 
 ---
 
