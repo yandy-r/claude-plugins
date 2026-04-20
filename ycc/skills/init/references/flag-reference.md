@@ -72,11 +72,14 @@ Adds the full GitHub templates bundle. Extends the default run or combines with 
   with. Enable as a required status check in branch protection — see the
   `--templates` next-step emitted at end of `ycc:init`.
 - `.github/workflows/pr-title-autofix.yml` — runs alongside the validator
-  and strips placeholder prefixes server-side using the repo's
-  `GITHUB_TOKEN`, then toggles the PR to draft. Exists because GitHub
-  Copilot's coding-agent token typically lacks `pull_requests:write` and
-  cannot fix its own title after the instructions file has been ignored.
-  Not a required check — it is an auto-correcting side effect.
+  in two passes, server-side using the repo's `GITHUB_TOKEN`: (1) strips
+  placeholder prefixes and toggles the PR to draft; (2) normalizes a
+  leading Conventional Commit type that was written without a colon or
+  with capitalization (e.g. `Refactor X` → `refactor: X`,
+  `Feat(auth): X` → `feat(auth): X`). Exists because GitHub Copilot's
+  coding-agent token typically lacks `pull_requests:write` and cannot
+  fix its own title after the instructions file has been ignored. Not a
+  required check — it is an auto-correcting side effect.
 
 ```
 /ycc:init --templates
