@@ -1,7 +1,7 @@
 ---
 name: formatters
 description: Use this skill when the user asks to "initialize formatters", "bootstrap linting", "add lint and format scripts", "set up prettier / biome / ruff / clippy / golangci-lint / shellcheck", "add a Makefile lint target", "install a style bundle", "wire a pre-commit hook for linting", or any request to stand up a best-practices lint/format environment in a project. Profiles the target, installs a self-contained `scripts/style.sh` bundle, configures per-language tool files, injects runnable aliases (package.json / Makefile / justfile), appends a "Linting & Formatting" section to the project docs, and optionally wires CI and pre-commit hooks. Idempotent via a managed manifest — safe to re-run with `--sync`.
-argument-hint: '[--dry-run] [--force] [--yes] [--sync] [--copy] [--ci] [--hooks] [--no-aliases] [--no-docs] [--target=<dir>] [--profile=<lang>] [--rust] [--ts] [--python] [--go] [--docs] [--shell] [--all]'
+argument-hint: '[--dry-run] [--force] [--yes] [--sync] [--copy] [--ci] [--no-autofix] [--hooks] [--no-aliases] [--no-docs] [--target=<dir>] [--profile=<lang>] [--rust] [--ts] [--python] [--go] [--docs] [--shell] [--all]'
 disable-model-invocation: true
 allowed-tools:
   - Read
@@ -32,21 +32,22 @@ Installs a best-practices lint/format environment into a target project. Does no
 
 ## Arguments
 
-| Flag                                                           | Meaning                                                                | Example                                  |
-| -------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------- |
-| `--dry-run`                                                    | Preview every planned file; make no writes                             | `ycc:formatters --dry-run`               |
-| `--force`                                                      | Overwrite existing tool configs / aliases / docs without prompting     | `ycc:formatters --force`                 |
-| `--yes`                                                        | Non-interactive; keep existing files on conflict                       | `ycc:formatters --yes`                   |
-| `--sync`                                                       | Install bundle + prune stale managed files (preferred on re-run)       | `ycc:formatters --sync`                  |
-| `--copy`                                                       | Install bundle without pruning (default when no manifest exists)       | `ycc:formatters --copy`                  |
-| `--ci`                                                         | Also emit `.github/workflows/lint.yml`                                 | `ycc:formatters --ci`                    |
-| `--hooks`                                                      | Also wire a pre-commit hook (lefthook preferred, husky if detected)    | `ycc:formatters --hooks`                 |
-| `--no-aliases`                                                 | Skip package.json / Makefile / justfile alias injection                | `ycc:formatters --no-aliases`            |
-| `--no-docs`                                                    | Skip README section append                                             | `ycc:formatters --no-docs`               |
-| `--target=<dir>`                                               | Target directory (default: `$PWD`)                                     | `ycc:formatters --target=~/projects/app` |
-| `--profile=<lang>`                                             | Override detection: `rust`, `ts-node`, `python`, `go`, `docs`, `mixed` | `ycc:formatters --profile=rust`          |
-| `--rust` / `--ts` / `--python` / `--go` / `--docs` / `--shell` | Enable specific stack(s); suppresses auto-detection                    | `ycc:formatters --rust --go`             |
-| `--all`                                                        | Install every supported stack's configs regardless of detection        | `ycc:formatters --all`                   |
+| Flag                                                           | Meaning                                                                         | Example                                  |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------- | ---------------------------------------- |
+| `--dry-run`                                                    | Preview every planned file; make no writes                                      | `ycc:formatters --dry-run`               |
+| `--force`                                                      | Overwrite existing tool configs / aliases / docs without prompting              | `ycc:formatters --force`                 |
+| `--yes`                                                        | Non-interactive; keep existing files on conflict                                | `ycc:formatters --yes`                   |
+| `--sync`                                                       | Install bundle + prune stale managed files (preferred on re-run)                | `ycc:formatters --sync`                  |
+| `--copy`                                                       | Install bundle without pruning (default when no manifest exists)                | `ycc:formatters --copy`                  |
+| `--ci`                                                         | Also emit `.github/workflows/lint.yml` and `.github/workflows/lint-autofix.yml` | `ycc:formatters --ci`                    |
+| `--no-autofix`                                                 | With `--ci`: skip `lint-autofix.yml`, install the check workflow only           | `ycc:formatters --ci --no-autofix`       |
+| `--hooks`                                                      | Also wire a pre-commit hook (lefthook preferred, husky if detected)             | `ycc:formatters --hooks`                 |
+| `--no-aliases`                                                 | Skip package.json / Makefile / justfile alias injection                         | `ycc:formatters --no-aliases`            |
+| `--no-docs`                                                    | Skip README section append                                                      | `ycc:formatters --no-docs`               |
+| `--target=<dir>`                                               | Target directory (default: `$PWD`)                                              | `ycc:formatters --target=~/projects/app` |
+| `--profile=<lang>`                                             | Override detection: `rust`, `ts-node`, `python`, `go`, `docs`, `mixed`          | `ycc:formatters --profile=rust`          |
+| `--rust` / `--ts` / `--python` / `--go` / `--docs` / `--shell` | Enable specific stack(s); suppresses auto-detection                             | `ycc:formatters --rust --go`             |
+| `--all`                                                        | Install every supported stack's configs regardless of detection                 | `ycc:formatters --all`                   |
 
 Flags are composable. See `references/flag-reference.md` for the full matrix and precedence rules. See `references/best-practices.md` for per-language tool rationale.
 
@@ -58,7 +59,7 @@ Execute the phases in order. Phases are short — do not add narrative prose bet
 
 Extract booleans from `$ARGUMENTS`:
 
-- `DRY_RUN`, `FORCE`, `YES`, `CI`, `HOOKS`, `NO_ALIASES`, `NO_DOCS`
+- `DRY_RUN`, `FORCE`, `YES`, `CI`, `NO_AUTOFIX`, `HOOKS`, `NO_ALIASES`, `NO_DOCS`
 - `TARGET` — value of `--target=<dir>`; default to `$PWD`
 - `PROFILE` — value of `--profile=<lang>`; empty if unset
 - Per-stack booleans: `RUST`, `TS`, `PYTHON`, `GO`, `DOCS`, `SHELL`; `ALL` for `--all`
@@ -102,7 +103,8 @@ Tool configs:      rustfmt.toml, clippy.toml, .golangci.yml, biome.json, tsconfi
                    (* refuses to overwrite existing)
 Aliases:           (skipped if --no-aliases)  package.json / Makefile / justfile
 Docs:              (skipped if --no-docs)     README.md / CONTRIBUTING.md / AGENTS.md / CLAUDE.md
-CI workflow:       (only if --ci)             .github/workflows/lint.yml
+CI workflows:      (only if --ci)             .github/workflows/lint.yml
+                                               .github/workflows/lint-autofix.yml (unless --no-autofix)
 Pre-commit hook:   (only if --hooks)          lefthook.yml or .husky/pre-commit
 ```
 
@@ -156,8 +158,10 @@ Unless suppressed, run each applier. Each writes to a distinct file so they can 
 3. **CI** (only when `CI=true`):
 
    ```
-   ${CLAUDE_PLUGIN_ROOT}/skills/formatters/scripts/apply-ci.sh --target "$TARGET" --profile-file "$PROFILE_FILE" [--force]
+   ${CLAUDE_PLUGIN_ROOT}/skills/formatters/scripts/apply-ci.sh --target "$TARGET" --profile-file "$PROFILE_FILE" [--force] [--no-autofix]
    ```
+
+   Pass `--no-autofix` when `NO_AUTOFIX=true` to install only the check workflow. The autofix workflow runs on same-repo PRs to the default branch (`origin/HEAD`, falling back to `main`), applies `./scripts/style.sh format` + `lint --fix`, and pushes fixes back as `github-actions[bot]`; fork PRs are skipped because `GITHUB_TOKEN` cannot push to them.
 
 4. **Hooks** (only when `HOOKS=true`):
 
@@ -175,7 +179,7 @@ Produce a summary with these sections:
 - **Tool configs** — per-stack: written / skipped-existing / refused-to-overwrite (for `pyproject.toml`).
 - **Aliases** — strategy chosen (package-json / makefile / justfile) and alias keys installed.
 - **Docs** — which file was appended or created; section name.
-- **CI** — path written, or "not requested".
+- **CI** — paths written (`lint.yml` always; `lint-autofix.yml` unless `--no-autofix`), or "not requested".
 - **Hooks** — tool used (lefthook / husky / native), path written, or "not requested".
 - **Next steps** — any of:
   - `git config commit.template .gitmessage` (unrelated to this skill but often useful alongside)
