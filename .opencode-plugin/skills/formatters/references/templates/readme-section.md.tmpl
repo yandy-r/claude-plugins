@@ -75,10 +75,10 @@ just format
 ### CI
 
 {{#IF_CI_INSTALLED}}
-Lint runs automatically on every pull request via `.github/workflows/lint.yml`.
+Lint runs automatically on every pull request via `.github/workflows/lint.yml`. If `.github/workflows/lint-autofix.yml` is also present, it applies `./scripts/style.sh format` + `lint --fix` on same-repo PRs and pushes fixes back as `github-actions[bot]`; fork PRs are skipped (the `GITHUB_TOKEN` cannot push to them).
 {{/IF_CI_INSTALLED}}
 {{#IF_CI_NOT_INSTALLED}}
-To wire lint into CI, drop the template at `.github/workflows/lint.yml` (available under `.opencode-plugin/skills/formatters/references/templates/lint.yml.tmpl` or via `formatters --ci`).
+To wire lint into CI, run `formatters --ci` (installs both `lint.yml` and `lint-autofix.yml`) or pair it with `--no-autofix` to skip the autofix workflow.
 {{/IF_CI_NOT_INSTALLED}}
 
 ### Pre-commit hook (optional)

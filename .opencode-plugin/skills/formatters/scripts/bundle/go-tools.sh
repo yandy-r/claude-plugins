@@ -85,6 +85,30 @@ issues:
   exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
+  # Canonical well-known paths — keep aligned with
+  # scripts/bundle/lib/excludes.sh (STYLE_EXCLUDES).
+  exclude-dirs:
+    - node_modules
+    - target
+    - build
+    - dist
+    - out
+    - coverage
+    - vendor
+    - .venv
+    - venv
+    - env
+    - __pycache__
+    - .mypy_cache
+    - .pytest_cache
+    - .ruff_cache
+    - .next
+    - .nuxt
+    - .cache
+    - .terraform
+    - .cursor-plugin
+    - .codex-plugin
+    - .opencode-plugin
   exclude-rules:
     - path: _test\.go
       linters:

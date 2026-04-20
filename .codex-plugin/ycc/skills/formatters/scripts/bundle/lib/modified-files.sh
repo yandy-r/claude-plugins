@@ -5,6 +5,10 @@ if [[ -n "${MODIFIED_FILES_SH_LOADED:-}" ]]; then
 fi
 readonly MODIFIED_FILES_SH_LOADED=1
 
+# Load the canonical well-known-path exclusion list (STYLE_EXCLUDES).
+# shellcheck source=./excludes.sh
+. "${BASH_SOURCE%/*}/excludes.sh"
+
 resolve_script_path() {
   local source_path="$1"
 
@@ -133,9 +137,19 @@ filter_repo_paths() {
   local prefix="$2"
   shift 2
 
-  local path_value suffix
+  local path_value suffix exclude skip
   while IFS= read -r path_value; do
     [[ -n "$prefix" && "$path_value" != "$prefix"* ]] && continue
+
+    # Drop paths under any well-known excluded directory (STYLE_EXCLUDES from excludes.sh).
+    skip=0
+    for exclude in "${STYLE_EXCLUDES[@]}"; do
+      if [[ "$path_value" == "$exclude" || "$path_value" == "$exclude"/* ]]; then
+        skip=1
+        break
+      fi
+    done
+    (( skip )) && continue
 
     if (( $# == 0 )); then
       printf '%s/%s\n' "$root_dir" "$path_value"

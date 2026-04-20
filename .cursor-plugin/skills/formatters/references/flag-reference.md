@@ -6,26 +6,27 @@ Detailed reference for every flag accepted by `formatters`. See `SKILL.md` for l
 
 ## Flag Matrix
 
-| Flag               | Default     | Affects phases   | Writes to                                                       | Example                                  |
-| ------------------ | ----------- | ---------------- | --------------------------------------------------------------- | ---------------------------------------- |
-| `--dry-run`        | off         | 3 (halt)         | nothing                                                         | `formatters --dry-run`               |
-| `--force`          | off         | 4, 5 (overwrite) | all target files                                                | `formatters --force`                 |
-| `--yes`            | off         | 3 (skip prompt)  | existing files preserved                                        | `formatters --yes`                   |
-| `--sync`           | auto        | 4 (prune)        | `scripts/` bundle + removes stale managed files                 | `formatters --sync`                  |
-| `--copy`           | on          | 4 (install)      | `scripts/` bundle                                               | `formatters --copy`                  |
-| `--ci`             | off         | 5 (extend)       | `.github/workflows/lint.yml`                                    | `formatters --ci`                    |
-| `--hooks`          | off         | 5 (extend)       | `lefthook.yml` or `.husky/pre-commit`                           | `formatters --hooks`                 |
-| `--no-aliases`     | off         | 5 (skip)         | (suppresses package.json / Makefile / justfile alias injection) | `formatters --no-aliases`            |
-| `--no-docs`        | off         | 5 (skip)         | (suppresses README section append)                              | `formatters --no-docs`               |
-| `--target=<dir>`   | `$PWD`      | 1 (override)     | configs + scripts land in `<dir>`                               | `formatters --target=~/projects/app` |
-| `--profile=<lang>` | auto-detect | 1 (override)     | (forces stack flags)                                            | `formatters --profile=rust`          |
-| `--rust`           | auto        | 4 (enable)       | `rustfmt.toml`, `clippy.toml`                                   | `formatters --rust`                  |
-| `--ts`             | auto        | 4 (enable)       | `biome.json`, `tsconfig.json`, `package.json` (scaffold only)   | `formatters --ts`                    |
-| `--python`         | auto        | 4 (enable)       | `pyproject.toml` (scaffold only; refuses to overwrite)          | `formatters --python`                |
-| `--go`             | auto        | 4 (enable)       | `.golangci.yml`                                                 | `formatters --go`                    |
-| `--docs`           | auto        | 4 (enable)       | `.markdownlint.json`, `.prettierrc`, `.prettierignore`          | `formatters --docs`                  |
-| `--shell`          | auto        | 4 (enable)       | (bundled scripts; no separate config emitted)                   | `formatters --shell`                 |
-| `--all`            | off         | 4 (enable all)   | every stack regardless of detection                             | `formatters --all`                   |
+| Flag               | Default     | Affects phases   | Writes to                                                           | Example                                  |
+| ------------------ | ----------- | ---------------- | ------------------------------------------------------------------- | ---------------------------------------- |
+| `--dry-run`        | off         | 3 (halt)         | nothing                                                             | `formatters --dry-run`               |
+| `--force`          | off         | 4, 5 (overwrite) | all target files                                                    | `formatters --force`                 |
+| `--yes`            | off         | 3 (skip prompt)  | existing files preserved                                            | `formatters --yes`                   |
+| `--sync`           | auto        | 4 (prune)        | `scripts/` bundle + removes stale managed files                     | `formatters --sync`                  |
+| `--copy`           | on          | 4 (install)      | `scripts/` bundle                                                   | `formatters --copy`                  |
+| `--ci`             | off         | 5 (extend)       | `.github/workflows/lint.yml` + `.github/workflows/lint-autofix.yml` | `formatters --ci`                    |
+| `--no-autofix`     | off         | 5 (skip)         | (suppresses `lint-autofix.yml`; only meaningful with `--ci`)        | `formatters --ci --no-autofix`       |
+| `--hooks`          | off         | 5 (extend)       | `lefthook.yml` or `.husky/pre-commit`                               | `formatters --hooks`                 |
+| `--no-aliases`     | off         | 5 (skip)         | (suppresses package.json / Makefile / justfile alias injection)     | `formatters --no-aliases`            |
+| `--no-docs`        | off         | 5 (skip)         | (suppresses README section append)                                  | `formatters --no-docs`               |
+| `--target=<dir>`   | `$PWD`      | 1 (override)     | configs + scripts land in `<dir>`                                   | `formatters --target=~/projects/app` |
+| `--profile=<lang>` | auto-detect | 1 (override)     | (forces stack flags)                                                | `formatters --profile=rust`          |
+| `--rust`           | auto        | 4 (enable)       | `rustfmt.toml`, `clippy.toml`                                       | `formatters --rust`                  |
+| `--ts`             | auto        | 4 (enable)       | `biome.json`, `tsconfig.json`, `package.json` (scaffold only)       | `formatters --ts`                    |
+| `--python`         | auto        | 4 (enable)       | `pyproject.toml` (scaffold only; refuses to overwrite)              | `formatters --python`                |
+| `--go`             | auto        | 4 (enable)       | `.golangci.yml`                                                     | `formatters --go`                    |
+| `--docs`           | auto        | 4 (enable)       | `.markdownlint.json`, `.prettierrc`, `.prettierignore`              | `formatters --docs`                  |
+| `--shell`          | auto        | 4 (enable)       | (bundled scripts; no separate config emitted)                       | `formatters --shell`                 |
+| `--all`            | off         | 4 (enable all)   | every stack regardless of detection                                 | `formatters --all`                   |
 
 ### Flag precedence
 
@@ -77,11 +78,27 @@ formatters --sync
 
 ### `--ci`
 
-Emit `.github/workflows/lint.yml`. Skipped when the file already exists unless `--force` is also passed.
+Emit `.github/workflows/lint.yml` (authoritative check) **and** `.github/workflows/lint-autofix.yml` (applies `./scripts/style.sh format` + `lint --fix` and pushes fixes back to same-repo PRs). Each destination is managed independently — an existing file is skipped unless `--force` is also passed.
+
+The autofix workflow:
+
+- Triggers on pull requests to the target repo's default branch (detected via `git symbolic-ref refs/remotes/origin/HEAD`, falling back to `main`).
+- Skips fork PRs via `github.event.pull_request.head.repo.full_name == github.repository` — `GITHUB_TOKEN` cannot push to fork branches.
+- Commits as `github-actions[bot]`; the check workflow (`lint.yml`) still runs authoritatively on the resulting push.
+- Carries a commented `git add -u -- . ':(exclude)...'` placeholder — customize after install if the project has generated files that should not be auto-fixed.
 
 ```
-formatters --ci
-formatters --ci --force
+formatters --ci                     # installs both workflows
+formatters --ci --force             # overwrite both if they already exist
+formatters --ci --no-autofix        # install only lint.yml (check-only)
+```
+
+### `--no-autofix`
+
+Only meaningful when `--ci` is set. Skips installing `lint-autofix.yml`. The existing check workflow (`lint.yml`) is still installed. Use when a repo has branch-protection rules that forbid bot pushes, or when the team prefers to run formatters exclusively via pre-commit hooks.
+
+```
+formatters --ci --no-autofix
 ```
 
 ### `--hooks`
