@@ -51,21 +51,23 @@ This skill requires `${feature_dir}/shared.md` and ends after producing analysis
 Parse arguments (flags first, then the feature name):
 
 - **--team**: Optional. (Claude Code only) Deploy the analysis and validation stages as teammates under a shared `spawn coordinated subagents`/`the todo tracker` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
-- **--worktree**: Optional. Emit worktree annotations in `parallel-plan.md` — a top-level `## Worktree Setup` block and per-parallel-task `**Worktree**:` fields, so downstream `/implement-plan --worktree` (or auto-detect) can run each parallel task in its own git worktree. Follows `.opencode-plugin/skills/_shared/references/worktree-strategy.md`. Combines freely with `--team` and `--dry-run`.
+- **--worktree**: Optional. (legacy — now default; safe to omit) Worktree annotations are emitted by default. Accepted as a silent no-op so existing pipelines continue to work.
+- **--no-worktree**: Optional. Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.
 - **--dry-run**: Show what would be created without making changes. With `--team`, also prints the team name and teammate roster.
 - **feature-name**: Required. Matches directory name in `${PLANS_DIR}`.
 
 If no feature name provided, abort with usage instructions:
 
 ```
-Usage: /parallel-plan [--team] [--worktree] [feature-name] [--dry-run]
+Usage: /parallel-plan [--team] [--no-worktree] [feature-name] [--dry-run]
 
 Examples:
   /parallel-plan user-authentication
   /parallel-plan payment-integration --dry-run
   /parallel-plan --team payment-integration
   /parallel-plan --team --dry-run user-authentication
-  /parallel-plan --worktree user-authentication
+  /parallel-plan user-authentication                     # worktree annotations included by default
+  /parallel-plan --no-worktree user-authentication       # skip worktree annotations
 ```
 
 ---
@@ -87,8 +89,18 @@ Extract from `$ARGUMENTS`:
 
 1. **--team**: Boolean flag. Set `AGENT_TEAM_MODE=true` if present, else `false`.
 2. **--dry-run**: Boolean flag. Set `DRY_RUN=true` if present, else `false`.
-3. **--worktree**: Boolean flag. Set `WORKTREE_MODE=true` if present, else `false`.
+3. **--no-worktree / --worktree**: Default `WORKTREE_MODE=true`. Set `WORKTREE_MODE=false` if `--no-worktree` is present. `--worktree` is accepted as a legacy no-op (matches the default).
 4. **feature-name**: First non-flag argument (required).
+
+```bash
+# Default ON; pass --no-worktree to opt out. --worktree accepted as legacy no-op.
+WORKTREE_MODE=true
+case " $ARGUMENTS " in
+  *" --no-worktree "*) WORKTREE_MODE=false ;;
+esac
+ARGUMENTS="${ARGUMENTS//--no-worktree/}"
+ARGUMENTS="${ARGUMENTS//--worktree/}"  # legacy no-op
+```
 
 **Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools).
 
@@ -150,8 +162,8 @@ Mode: [standalone sub-agents | agent team pp-[feature-name]]
 
 ## Worktree Annotations
 
-- `WORKTREE_MODE=false` (default): no worktree annotations in `parallel-plan.md`.
-- `WORKTREE_MODE=true` (`--worktree`): `parallel-plan.md` will include a `## Worktree Setup` section listing the parent worktree and one child per parallel task, plus per-task `**Worktree**:` inline annotations. Sequential tasks are not annotated.
+- `WORKTREE_MODE=true` (default): `parallel-plan.md` will include a `## Worktree Setup` section listing the parent worktree and one child per parallel task, plus per-task `**Worktree**:` inline annotations. Sequential tasks are not annotated.
+- `WORKTREE_MODE=false` (`--no-worktree`): no worktree annotations in `parallel-plan.md`.
 
 ## Next Steps
 
@@ -239,7 +251,7 @@ Use the prompts from `analysis-prompts.md` with variables substituted:
 
 In this mode there is no shared task list; rely on each `Task`'s return value plus the artifact checks in Steps 10–11 to confirm completion. Inter-agent `send follow-up instructions` coordination is not available — each sub-agent works independently from the prompt alone.
 
-**WORKTREE MODE (Path A)**: If `WORKTREE_MODE=true`, append the following directive to the `task-structurer` prompt:
+**WORKTREE MODE (Path A)**: By default (`WORKTREE_MODE=true`), append the following directive to the `task-structurer` prompt. Omit when `--no-worktree` was passed (`WORKTREE_MODE=false`):
 
 > WORKTREE MODE: In your `analysis-tasks.md` output, clearly label each task as **parallel** (can run concurrently with siblings) or **sequential** (must follow a predecessor). This labeling is used by the orchestrator to generate worktree annotations in `parallel-plan.md`. Follow `.opencode-plugin/skills/_shared/references/worktree-strategy.md` for the annotation format.
 
@@ -260,7 +272,7 @@ Spawn all 3 teammates in **ONE message** with **THREE `Agent` tool calls**. Ever
 - `subagent_type` and `model` from the table above
 - The analysis-specific prompt from `analysis-prompts.md`
 
-**WORKTREE MODE (Path B)**: If `WORKTREE_MODE=true`, append the following directive to the `task-structurer` prompt (same directive as Path A above). Cross-reference `.opencode-plugin/skills/_shared/references/worktree-strategy.md` and `agent-team-dispatch.md` §7 in the teammate prompt.
+**WORKTREE MODE (Path B)**: By default (`WORKTREE_MODE=true`), append the following directive to the `task-structurer` prompt (same directive as Path A above). Omit when `--no-worktree` was passed. Cross-reference `.opencode-plugin/skills/_shared/references/worktree-strategy.md` and `agent-team-dispatch.md` §7 in the teammate prompt.
 
 After spawning, use `the todo tracker` to confirm all 3 tasks are `completed` before proceeding to Step 10.
 
@@ -392,10 +404,9 @@ Files to Modify
 - Specific warnings about code dependencies
 ```
 
-#### WORKTREE MODE (when `WORKTREE_MODE=true`)
+#### WORKTREE MODE (default — `WORKTREE_MODE=true`; skipped when `--no-worktree`)
 
-If `WORKTREE_MODE=true`, the generated `${feature_dir}/parallel-plan.md` must also
-include the following worktree annotations. Follow
+By default, the generated `${feature_dir}/parallel-plan.md` must also include the following worktree annotations. When `--no-worktree` was passed (`WORKTREE_MODE=false`), omit all worktree annotations. Follow
 `~/.config/opencode/shared/references/worktree-strategy.md` exactly for
 the annotation format.
 
@@ -559,7 +570,7 @@ ${feature_dir}/parallel-plan.md
 - Mode: [standalone sub-agents | agent team pp-[feature-name]]
 - Phase 1: 3 analysis agents [standalone via Task | teammates that shared findings]
 - Phase 2: 3 validation agents [standalone via Task | teammates that cross-checked each other]
-- Worktree annotations: [included (--worktree) | not included]
+- Worktree annotations: [included (default) | not included (--no-worktree)]
 
 ## Plan Overview
 
@@ -683,7 +694,7 @@ scope: local
 ## Important Notes
 
 - **You are the planning orchestrator** - coordinate analysis and validation stages
-- **Choose dispatch mode from `$ARGUMENTS`** - default is standalone sub-agents via `Task`; `--team` switches to teammates under `spawn coordinated subagents`/`the todo tracker`; `--worktree` emits worktree annotations in the plan
+- **Choose dispatch mode from `$ARGUMENTS`** - default is standalone sub-agents via `Task`; `--team` switches to teammates under `spawn coordinated subagents`/`the todo tracker`; worktree annotations are emitted by default (`--no-worktree` suppresses them)
 - **Team setup first (Path B only)** - call `spawn coordinated subagents` and register analysis tasks before spawning teammates
 - **Spawn in parallel** - a single message with multiple `Task` calls (Path A) or multiple `Agent` calls with `team_name=` + `name=` (Path B)
 - **Pass model parameters** - use `model: "sonnet"` for analysis agents, `model: "haiku"` for path/dependency validators, `model: "sonnet"` for completeness-validator

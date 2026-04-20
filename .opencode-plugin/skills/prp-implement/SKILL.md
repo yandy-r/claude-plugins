@@ -9,9 +9,9 @@ description: Execute a PRP plan file with continuous validation loops. Detects p
   and run tasks in parallel via standalone implementor sub-agents. Pass `--team` (Claude
   Code only) to run the same per-batch implementor fan-out under a shared spawn coordinated
   subagents/the todo tracker with up-front dependency wiring (`addBlockedBy`) and
-  coordinated per-batch shutdown via send follow-up instructions. Pass `--worktree`
-  to force git worktree isolation per parallel task even when the plan has no worktree
-  annotations (plans produced with `--worktree` are auto-detected and need no flag).
+  coordinated per-batch shutdown via send follow-up instructions. Worktree isolation
+  is ON by default; pass `--no-worktree` to opt out. `--worktree` is accepted as a
+  legacy no-op (matches the default). `--parallel` and `--team` are mutually exclusive.
 ---
 
 # PRP Implement
@@ -32,12 +32,13 @@ Execute a plan file step-by-step with continuous validation. Every change is ver
 
 Extract flags from `$ARGUMENTS` before treating the remainder as a plan path:
 
-| Flag         | Effect                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel` | Force parallel execution via **standalone sub-agents** when the plan is parallel-capable. Skips the interactive prompt. Falls back to sequential with a warning if the plan has no `Batches` section. Works in opencode, Cursor, and Codex.                                                                                                                                                                                                                 |
-| `--team`     | (Claude Code only) Force parallel execution via an **agent team** with up-front `track the task` + `addBlockedBy` dependency wiring, per-batch teammate spawn, and inter-batch shutdown via `send follow-up instructions`. Aborts (does NOT fall back) if the plan has no `Batches` section. Heavier dispatch with shared task-graph observability across all batches.                                                                                                             |
-| `--worktree` | Force worktree mode even when the input plan has no `## Worktree Setup` annotations. When the plan already contains those annotations, they are used automatically — no flag needed. Each parallel task runs in its own child worktree; children are merged back into the parent after the batch validates. Sequential tasks run directly in the parent worktree (no child setup). See `~/.config/opencode/shared/references/worktree-strategy.md`. |
-| `--dry-run`  | Only valid with `--team`. Prints the team name, full task graph (with dependencies), and per-batch teammate roster, then exits without spawning any teammates.                                                                                                                                                                                                                                                                                                 |
+| Flag            | Effect                                                                                                                                                                                                                                                                                                                                             |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel`    | Force parallel execution via **standalone sub-agents** when the plan is parallel-capable. Skips the interactive prompt. Falls back to sequential with a warning if the plan has no `Batches` section. Works in opencode, Cursor, and Codex.                                                                                                     |
+| `--team`        | (Claude Code only) Force parallel execution via an **agent team** with up-front `track the task` + `addBlockedBy` dependency wiring, per-batch teammate spawn, and inter-batch shutdown via `send follow-up instructions`. Aborts (does NOT fall back) if the plan has no `Batches` section. Heavier dispatch with shared task-graph observability across all batches. |
+| `--worktree`    | (legacy — now default; safe to omit) Accepted as a silent no-op. Worktree isolation is on by default; this flag matches the new default and has no additional effect.                                                                                                                                                                              |
+| `--no-worktree` | Force worktree mode **OFF** regardless of plan annotations. Tasks run directly in the current checkout. No parent or child worktrees are created.                                                                                                                                                                                                  |
+| `--dry-run`     | Only valid with `--team`. Prints the team name, full task graph (with dependencies), and per-batch teammate roster, then exits without spawning any teammates.                                                                                                                                                                                     |
 
 Strip the flags from `$ARGUMENTS` and set `PARALLEL_FLAG=true|false`, `AGENT_TEAM_FLAG=true|false`, `WORKTREE_MODE=true|false`, `DRY_RUN=true|false`. The remaining text is the plan file path.
 
@@ -45,7 +46,8 @@ Strip the flags from `$ARGUMENTS` and set `PARALLEL_FLAG=true|false`, `AGENT_TEA
 
 - `--parallel` and `--team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --team are mutually exclusive. Pick one.`
 - `--dry-run` requires `--team`. If `DRY_RUN=true` and `AGENT_TEAM_FLAG=false` → abort with: `--dry-run requires --team.`
-- `--worktree` combines freely with `--parallel` and `--team`. No exclusivity rules.
+- `--no-worktree` combines freely with `--parallel` and `--team`. No exclusivity rules.
+- `--worktree` and `--no-worktree` together → abort with: `--worktree and --no-worktree are mutually exclusive. Use --no-worktree to opt out of the default.`
 
 **Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools). Use `--parallel` instead.
 
@@ -108,6 +110,16 @@ grep -c "^## Batches" "$PLAN_PATH" || echo 0
 - **Count > 0** → Plan is **parallel-capable**. Parse the `Batches` table to extract batch ordering and `BATCH:` fields from tasks.
 - **Count = 0** → Plan is **sequential only**.
 
+### How Worktree Mode Is Decided
+
+The decision follows a strict precedence order:
+
+1. **`--no-worktree` present** → `WORKTREE_MODE=false`. Worktree isolation is forced off regardless of plan annotations. No parent or child worktrees are created.
+2. **Plan contains `## Worktree Setup`** → `WORKTREE_MODE=true`. The plan annotations are the source of truth; follow them exactly.
+3. **Neither of the above** → `WORKTREE_MODE=true` **(new default — was false)**. Worktree isolation activates even when the plan has no annotations. The skill derives parent and child paths from the plan name (see deduction rules below) and creates worktrees using `setup-worktree.sh` helpers.
+
+`--worktree` is accepted as a silent no-op and matches the new default; it has no additional effect beyond what the default already provides.
+
 ### Worktree Detection
 
 After reading the plan, scan for worktree annotations:
@@ -123,9 +135,9 @@ grep -c "^\- \*\*Worktree\*\*:" "$PLAN_PATH" || echo 0
 - `WT_FEATURE_SLUG` — the segment after `<repo>-` in the parent path (e.g. `add-widget` from `~/.claude-worktrees/my-repo-add-widget/`)
 - `WT_TASK_CHILDREN` — a map of `task-id → child-path` by reading each `Task N.N → <path>` line in the `**Children**` list, and also each inline `**Worktree**:` annotation in individual task blocks
 
-Set `WORKTREE_ACTIVE=true` if the plan contains the `## Worktree Setup` section **OR** `WORKTREE_MODE=true` (flag was passed).
+Set `WORKTREE_ACTIVE=true` if the plan contains the `## Worktree Setup` section **OR** `WORKTREE_MODE=true` (default or explicitly passed).
 
-**If `WORKTREE_MODE=true` but no `## Worktree Setup` section exists**, deduce paths:
+**If `WORKTREE_MODE=true` but no `## Worktree Setup` section exists** (the default-on fallback), deduce paths:
 
 - `WT_REPO_NAME` = `basename` of the git repository root (`git rev-parse --show-toplevel | xargs basename`)
 - `WT_FEATURE_SLUG` = sanitized plan basename (strip `.plan.md`, lowercase, replace `[^a-z0-9-]` with `-`, collapse runs, truncate to 40 chars — same rules as the team-name sanitization but without the prefix and with a longer cap)

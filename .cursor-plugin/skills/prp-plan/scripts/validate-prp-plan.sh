@@ -132,6 +132,8 @@ RECOMMENDED_SECTIONS=(
 
 # Optional sections: present → pass, absent → pass (no error, no warning).
 # Add new optional sections here as the plan format evolves.
+# Optional: --no-worktree plans omit this annotation. Worktree mode is now
+# default-on, but plans generated with --no-worktree skip the annotation.
 OPTIONAL_SECTIONS=(
   "Worktree Setup"
 )
@@ -199,8 +201,8 @@ if [[ $TASK_COUNT -gt 0 ]]; then
     warning "No tasks have MIRROR fields"
   fi
 
-  # Optional **Worktree**: field — present on parallel tasks when plan was generated with --worktree.
-  # Absence is not an error or warning; presence is informational only.
+  # Optional: --no-worktree plans omit this annotation. Worktree mode is now
+  # default-on, but plans generated with --no-worktree skip the annotation.
   WORKTREE_FIELD_COUNT=$(grep -c '\*\*Worktree\*\*:' <<< "$CONTENT" || true)
   if [[ $WORKTREE_FIELD_COUNT -gt 0 ]]; then
     success "Worktree annotations present ($WORKTREE_FIELD_COUNT task(s) — optional field)"

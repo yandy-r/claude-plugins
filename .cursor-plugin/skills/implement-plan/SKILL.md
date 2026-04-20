@@ -1,7 +1,7 @@
 ---
 name: implement-plan
-description: Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dependency wiring. Use as Step 3 after parallel-plan.
-argument-hint: '[--team] [--dry-run] <feature-name>'
+description: Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dependency wiring. Worktree isolation is ON by default; pass --no-worktree to opt out. --worktree is accepted as a legacy no-op. Use as Step 3 after parallel-plan.
+argument-hint: '[--team] [--dry-run] [--worktree] [--no-worktree] <feature-name>'
 allowed-tools:
   - Read
   - Grep
@@ -59,7 +59,8 @@ Parse flags first, then treat the remainder as the feature name:
 
 - `--team` — (Claude Code only) Dispatch each batch's implementor agents under a shared `TeamCreate` with up-front `TaskCreate` + `addBlockedBy` dependency wiring and per-batch shutdown via `SendMessage`. Aborts if invoked from a Cursor or Codex bundle (team tools are absent there).
 - `--dry-run` — Show the execution plan without deploying agents. With `--team`, also prints the team name and per-batch teammate roster.
-- `--worktree` — Force worktree mode even when the input `parallel-plan.md` has no `## Worktree Setup` annotations. When the plan already contains those annotations, they are used automatically regardless of this flag. Each parallel task runs in its own child worktree (`~/.claude-worktrees/<repo>-<feature>-<task-id>/`); children are merged back into the parent branch after every batch validates. Sequential tasks always run directly in the parent worktree. See `ycc/skills/_shared/references/worktree-strategy.md` for the full parent/child model.
+- `--worktree` — (legacy — now default; safe to omit) Accepted as a silent no-op. Worktree isolation is on by default; this flag matches the new default and has no additional effect.
+- `--no-worktree` — Force worktree mode **OFF** regardless of plan annotations. Tasks run directly in the current checkout. No parent or child worktrees are created.
 - `<feature-name>` — The name of the feature to implement (matches directory name in `docs/plans/`).
 
 Strip the flags from `$ARGUMENTS` and set `TEAM_FLAG=true|false`, `DRY_RUN=true|false`, `WORKTREE_MODE=true|false`. The remaining non-flag token is the feature name.
@@ -67,15 +68,23 @@ Strip the flags from `$ARGUMENTS` and set `TEAM_FLAG=true|false`, `DRY_RUN=true|
 If no feature name is provided after stripping flags, abort with usage instructions:
 
 ```
-Usage: /implement-plan [--team] [--dry-run] [--worktree] <feature-name>
+Usage: /implement-plan [--team] [--dry-run] [--worktree] [--no-worktree] <feature-name>
 
 Examples:
   /implement-plan user-authentication
+    # default: worktree isolation ON; plan annotations used when present, derived paths otherwise
+
   /implement-plan --team user-authentication
+    # agent-team dispatch (worktree still on by default)
+
   /implement-plan --dry-run payment-integration
   /implement-plan --team --dry-run payment-integration
-  /implement-plan --worktree my-feature
-  /implement-plan --team --worktree my-feature
+
+  /implement-plan --no-worktree my-feature
+    # opt out of worktree isolation; tasks run directly in the current checkout
+
+  /implement-plan --team --no-worktree my-feature
+    # agent-team dispatch without worktrees
 ```
 
 **Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must abort with a clear message. Those bundles ship without team tools (`TeamCreate`, `TaskCreate`, `SendMessage`, etc.). The default standalone sub-agent path is the only execution mode available there. `--worktree` is compatible with all targets: Claude Code uses `Agent(isolation: "worktree")`; Codex and opencode use Bash `git worktree add`; Cursor emits manual setup commands only.
@@ -139,16 +148,26 @@ The script emits optional header lines followed by per-task rows.
 - **Files to Modify**: From "Files to Modify"
 - **Instructions**: Implementation details
 
+### How Worktree Mode Is Decided
+
+The decision follows a strict precedence order:
+
+1. **`--no-worktree` present** → `WORKTREE_MODE=false`. Worktree isolation is forced off regardless of plan annotations. No parent or child worktrees are created.
+2. **Plan contains `## Worktree Setup`** → `WORKTREE_MODE=true`. The plan annotations are the source of truth; follow them exactly.
+3. **Neither of the above** → `WORKTREE_MODE=true` **(new default — was false)**. Worktree isolation activates even when the plan has no annotations. Parent and child paths are derived from the feature name using the deduction rules below.
+
+`--worktree` is accepted as a silent no-op and matches the new default; it has no additional effect.
+
 **After parsing**, determine worktree activation:
 
 - If any `WT_PARENT_PATH=` header line was emitted OR any task row has a non-empty 4th field → the plan has worktree annotations → set `WORKTREE_ACTIVE=true`, store `WT_PARENT_PATH` and `WT_FEATURE_SLUG`.
-- If `WORKTREE_MODE=true` (flag was passed) → set `WORKTREE_ACTIVE=true` regardless of annotation presence.
-- If `WORKTREE_ACTIVE=true` and the plan had no annotations, deduce paths using:
+- If `WORKTREE_MODE=true` (flag passed or default) → set `WORKTREE_ACTIVE=true` regardless of annotation presence.
+- If `WORKTREE_ACTIVE=true` and the plan had no annotations (the default-on fallback), deduce paths using:
   - `WT_REPO_NAME` = basename of git repo root (run `git -C . rev-parse --show-toplevel | xargs basename`)
   - `WT_FEATURE_SLUG` = the `<feature-name>` argument (same as `${feature_dir}` basename)
   - `WT_PARENT_PATH` = `~/.claude-worktrees/${WT_REPO_NAME}-${WT_FEATURE_SLUG}/`
   - Per-task child path for task `<id>` (parallel tasks only): `~/.claude-worktrees/${WT_REPO_NAME}-${WT_FEATURE_SLUG}-<hyphenated-id>/` where dots in the task ID are replaced with hyphens (e.g., `1.1` → `1-1`).
-- If `WORKTREE_ACTIVE=false` → no changes to dispatch behavior (current behavior).
+- If `WORKTREE_MODE=false` (--no-worktree) → no parent or child worktrees; set `WORKTREE_ACTIVE=false`.
 
 ### Step 4: Build Dependency Graph
 

@@ -1,7 +1,7 @@
 ---
 name: review-fix
-description: Plan and apply fixes for findings from a code-review artifact produced by /code-review. Parses the review file (local or PR), filters findings by severity threshold, groups them into dependency-safe batches (same-file findings stay together, different files can run in parallel), dispatches review-fixer agents to apply each fix, updates the Status field in the source review file in place (Open → Fixed or Failed), runs validation after changes, and writes a fix report to docs/prps/reviews/fixes/. Pass `--parallel` to fan out independent fixes across parallel standalone review-fixer sub-agents. Pass `--team` (Claude Code only) to run the same per-batch fan-out as a coordinated agent team with up-front TaskCreate, shared TaskList across all batches, and per-batch shutdown via SendMessage. `--parallel` and `--team` are mutually exclusive. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to change the minimum severity threshold (default HIGH). Pass `--dry-run` to preview the fix plan (and team graph, if combined with --team) without applying changes. Pass --worktree (or use an artifact that already has a ## Worktree Setup section — auto-detected) to create one git worktree per severity level and apply fixes in isolation, with automatic fan-in merge to the parent after each severity batch validates. Use when the user asks to "fix review findings", "apply review fixes", "review-fix PR 42", "fix the code review", "team review-fix", or says "/review-fix". Adapted from PRPs-agentic-eng by Wirasm.
-argument-hint: '[--parallel | --team] [--severity <level>] [--worktree] [--dry-run] <path/to/review.md | pr-number | blank>'
+description: Plan and apply fixes for findings from a code-review artifact produced by /code-review. Parses the review file (local or PR), filters findings by severity threshold, groups them into dependency-safe batches (same-file findings stay together, different files can run in parallel), dispatches review-fixer agents to apply each fix, updates the Status field in the source review file in place (Open → Fixed or Failed), runs validation after changes, and writes a fix report to docs/prps/reviews/fixes/. Pass `--parallel` to fan out independent fixes across parallel standalone review-fixer sub-agents. Pass `--team` (Claude Code only) to run the same per-batch fan-out as a coordinated agent team with up-front TaskCreate, shared TaskList across all batches, and per-batch shutdown via SendMessage. `--parallel` and `--team` are mutually exclusive. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to change the minimum severity threshold (default HIGH). Pass `--dry-run` to preview the fix plan (and team graph, if combined with --team) without applying changes. Worktree mode is on by default — pass `--no-worktree` to opt out. The `--worktree` flag is still accepted as a no-op. Auto-detected from ## Worktree Setup section in the artifact. The review artifact is now read from the PR branch (committed there by /code-review); if not found in the current worktree, falls back to the main repo for in-flight artifacts written under the previous contract. Use when the user asks to "fix review findings", "apply review fixes", "review-fix PR 42", "fix the code review", "team review-fix", or says "/review-fix". Adapted from PRPs-agentic-eng by Wirasm.
+argument-hint: '[--parallel | --team] [--severity <level>] [--no-worktree] [--dry-run] <path/to/review.md | pr-number | blank>'
 allowed-tools:
   - Read
   - Grep
@@ -56,15 +56,16 @@ Plan and apply fixes for code-review findings. Reads a review artifact produced 
 
 Extract flags from `$ARGUMENTS` before treating the remainder as the input:
 
-| Flag                 | Effect                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel`         | Dispatch `review-fixer` agents as **standalone sub-agents** in parallel per batch. Level 1+2 validation between batches. Fail-stop behavior. Works in Claude Code, Cursor, and Codex.                                                                                                                                                                                                                                                               |
-| `--team`             | (Claude Code only) Same per-batch fixer fan-out as `--parallel`, but dispatched as an **agent team**: `TeamCreate` once, `TaskCreate` for all eligible findings up front (flat graph — batches are orchestrator-controlled, not task-graph-controlled), per-batch spawn + shutdown via `SendMessage`. Aborts if no eligible findings exist.                                                                                                             |
-| `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).                                                                                                                                                                                                                                                                                                                                                  |
-| `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files. When combined with `--team`, also print the team name and per-batch teammate roster.                                                                                                                                                                                                                                                                                      |
-| `--worktree`         | Create one git worktree per severity level and apply each severity's fixes inside its own child worktree, merging back to the parent after validation. Auto-detected when the review artifact contains a `## Worktree Setup` section — the flag is only needed to FORCE worktree mode on an artifact that lacks the section (requires a PR artifact; local artifacts abort). Combines freely with `--parallel` / `--team` / `--severity` / `--dry-run`. |
+| Flag                 | Effect                                                                                                                                                                                                                                                                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel`         | Dispatch `review-fixer` agents as **standalone sub-agents** in parallel per batch. Level 1+2 validation between batches. Fail-stop behavior. Works in Claude Code, Cursor, and Codex.                                                                                                                                                   |
+| `--team`             | (Claude Code only) Same per-batch fixer fan-out as `--parallel`, but dispatched as an **agent team**: `TeamCreate` once, `TaskCreate` for all eligible findings up front (flat graph — batches are orchestrator-controlled, not task-graph-controlled), per-batch spawn + shutdown via `SendMessage`. Aborts if no eligible findings exist. |
+| `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).                                                                                                                                                                                                                                      |
+| `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files. When combined with `--team`, also print the team name and per-batch teammate roster.                                                                                                                                                                          |
+| `--worktree`         | (legacy / now default; safe to omit) Create one git worktree per severity level and apply each severity's fixes inside its own child worktree. Worktree mode is on by default; auto-detected from the `## Worktree Setup` section in the artifact. This flag is accepted as a no-op.                                                        |
+| `--no-worktree`      | Opt out of worktree isolation. Skip child-worktree creation, per-severity fan-out, and merge-back. All fixes are applied directly in the current working tree. Use this when running against a non-worktree checkout and no `## Worktree Setup` section exists.                                                                             |
 
-Strip these flags from `$ARGUMENTS` and set `PARALLEL_MODE`, `AGENT_TEAM_MODE`, `MIN_SEVERITY`, `DRY_RUN`, and `WORKTREE_MODE`. The remaining text is the input selector.
+Strip these flags from `$ARGUMENTS` and set `PARALLEL_MODE`, `AGENT_TEAM_MODE`, `MIN_SEVERITY`, `DRY_RUN`, and `WORKTREE_MODE=true` unless `--no-worktree` is present. The remaining text is the input selector.
 
 **Validation**:
 
@@ -74,6 +75,8 @@ Strip these flags from `$ARGUMENTS` and set `PARALLEL_MODE`, `AGENT_TEAM_MODE`, 
 
 ### Input Resolution
 
+The artifact is now committed to the PR branch by `/code-review`. When you run `/review-fix` from a worktree of that branch, the artifact is in the worktree's `docs/prps/reviews/`. If not found there (e.g., legacy artifact still in main), fall back to the main repo's `docs/prps/reviews/`.
+
 Determine the review artifact path from the stripped `$ARGUMENTS`:
 
 | Input Pattern           | Detection                 | Action                                                              |
@@ -82,10 +85,20 @@ Determine the review artifact path from the stripped `$ARGUMENTS`:
 | Pure digits (e.g. `42`) | PR number                 | Resolve to `docs/prps/reviews/pr-42-review.md`                      |
 | Empty / blank           | No input                  | Find latest file in `docs/prps/reviews/` and prompt user to confirm |
 
-For the "find latest" case:
+For the "find latest" case, use this two-pass discovery:
 
 ```bash
-ls -t docs/prps/reviews/*.md 2>/dev/null | head -1
+# Pass 1 — current worktree (or main if not in a worktree)
+CURRENT_TOP=$(git rev-parse --show-toplevel)
+REVIEW_FILE=$(ls -t "${CURRENT_TOP}/docs/prps/reviews/"*.md 2>/dev/null | head -1)
+
+# Pass 2 — fall back to main repo when current lookup misses
+if [[ -z "$REVIEW_FILE" ]]; then
+  MAIN_TOP=$(cd "$(git rev-parse --git-common-dir)/.." && pwd)
+  if [[ "$MAIN_TOP" != "$CURRENT_TOP" ]]; then
+    REVIEW_FILE=$(ls -t "${MAIN_TOP}/docs/prps/reviews/"*.md 2>/dev/null | head -1)
+  fi
+fi
 ```
 
 If no review file found:
@@ -426,7 +439,9 @@ bash "${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/setup-worktree.sh" \
 
 5. **Inter-batch shutdown** (Path C `--team` only): `SendMessage(shutdown)` to all batch teammates BEFORE invoking `merge-children.sh`. Matches the existing team dispatch contract.
 
-**Status updates**: the review artifact itself lives in the MAIN repo (outside any worktree). Always use `Edit` on the main-repo path to change `**Status**: Open` → `Fixed` / `Failed`. The review-fixer agents edit source files inside their child worktree; the review-fix orchestrator edits the review artifact in the main repo.
+**Status updates**: The review artifact lives on the PR branch (committed by `/code-review`). When working in a worktree of that branch, the artifact is at `<worktree>/docs/prps/reviews/pr-<N>-review.md`. Use `Edit` on the in-worktree path to update Status fields; these edits are committed and pushed alongside each fix-batch commit so the artifact's state stays consistent with the branch. The review-fixer agents edit source files inside their child worktree; the review-fix orchestrator edits the review artifact at its resolved path (worktree or main, whichever was found during input resolution).
+
+**Note**: Status updates (Open → Fixed) edit the artifact in the worktree; these edits are committed + pushed alongside the fix commit, so the artifact's state stays consistent with the branch.
 
 ### Path A — Sequential Execution (default)
 
@@ -649,8 +664,10 @@ Record pass/fail for each. Do NOT rollback fixes on failure — the user decides
 
 ### Create the fix report
 
+Write the fix report to `$(git rev-parse --show-toplevel)/docs/prps/reviews/fixes/`. When in a worktree this resolves to the worktree top-level; otherwise to the main repo.
+
 ```bash
-mkdir -p docs/prps/reviews/fixes
+mkdir -p "$(git rev-parse --show-toplevel)/docs/prps/reviews/fixes"
 ```
 
 Derive the report filename from the source review:
@@ -659,6 +676,15 @@ Derive the report filename from the source review:
 | --------------------------------------------------- | -------------------------------------------------------- |
 | `docs/prps/reviews/pr-42-review.md`                 | `docs/prps/reviews/fixes/pr-42-fixes.md`                 |
 | `docs/prps/reviews/local-20260408-143022-review.md` | `docs/prps/reviews/fixes/local-20260408-143022-fixes.md` |
+
+After writing the fix report, stage and commit it to the PR branch alongside the fix commits:
+
+```bash
+FIX_REPORT_REL="docs/prps/reviews/fixes/<name>-fixes.md"
+git add "$FIX_REPORT_REL"
+git commit -m "docs(review): add fix report for PR #${PR_NUMBER}"
+git push
+```
 
 ### Report template
 
@@ -820,7 +846,7 @@ The review file is updated incrementally after each agent returns, so if the run
 - **REVIEW_UPDATED**: Every attempted finding has its `Status` updated in the source review file
 - **REPORT_CREATED**: A fix report is written to `docs/prps/reviews/fixes/`
 - **VALIDATION_RUN**: Phase 5 type-check + tests completed (even if they failed)
-- **NO_UNAUTHORIZED_COMMITS**: This skill never runs `git add`, `git commit`, or `git push`
+- **REPORT_COMMITTED**: The fix report is committed and pushed to the PR branch alongside the fix commits (in worktree mode). In `--no-worktree` mode, the report is written to disk; no automatic commit is made.
 
 ---
 
@@ -842,8 +868,8 @@ The review file is updated incrementally after each agent returns, so if the run
 - **Resumable**: Re-running on the same review file skips already-processed findings.
 - **Audit trail**: The combination of (a) updated source review file and (b) fix report gives a complete history of what was attempted, what succeeded, and why.
 - **Parallel safety**: Parallel mode (both Path B sub-agents and Path C agent team) never dispatches two agents to the same file concurrently — same-file findings always travel together in one fixer.
-- **No auto-commit**: The skill reports success and suggests `/git-workflow` as the next step. It does not commit changes itself.
-- Does NOT automatically push the parent worktree's branch or open a follow-up PR. After fixes land, the user decides when to `git push` the parent worktree's branch.
+- **Commits in worktree mode**: In worktree mode (the default), the skill commits the fix report alongside fix commits and pushes to the PR branch. In `--no-worktree` mode, no automatic commit is made — run `/git-workflow` when ready.
+- Does NOT automatically open a follow-up PR. After fixes land, the parent worktree's branch already has all commits pushed; the user decides when to request a re-review.
 
 ---
 

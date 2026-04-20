@@ -150,26 +150,32 @@ opencode permission model uses per-agent `permission.{edit,bash,webfetch}` field
 `allow` / `deny` / `ask` values; there is no global override.
 
 **WORKTREE:claude**
-Full support. `Agent(isolation: "worktree")`, `EnterWorktree`, and the `WorktreeCreate` hook
+Full support. Worktree isolation is **on by default** for the 9 worktree-aware skills; pass
+`--no-worktree` to opt out. The legacy `--worktree` flag is accepted as a silent no-op.
+`Agent(isolation: "worktree")`, `EnterWorktree`, and the `WorktreeCreate` hook
 (ycc-provided, registered in `ycc/settings/settings.json`) rewrite the harness-chosen worktree
 path to `~/.claude-worktrees/<repo>-<branch>/`. A Bash fallback (`git worktree add`) is always
 available. See `ycc/skills/_shared/references/worktree-strategy.md` for the parent/child model
 and naming scheme.
 
 **WORKTREE:cursor**
-Partial. Skills emit `git worktree add` instructions for the user; no auto-creation from the
-skill layer. Worktree support is editor-side in Cursor and is not skill-programmable. See
+Partial. Worktree mode is on by default for the 9 worktree-aware skills; pass `--no-worktree`
+to opt out. The legacy `--worktree` flag is a silent no-op. Skills emit `git worktree add`
+instructions for the user; no auto-creation from the skill layer. Worktree support is
+editor-side in Cursor and is not skill-programmable. See
 `ycc/skills/_shared/references/worktree-strategy.md` for Cursor-specific guidance.
 
 **WORKTREE:codex**
-Partial. No tool-side isolation equivalent. Skills instruct the agent to run
-`git worktree add` via Bash; auto-creation happens when the instruction is embedded in the
-agent prompt. See `ycc/skills/_shared/references/worktree-strategy.md` for the Bash-fallback
-protocol.
+Partial. Worktree mode is on by default for the 9 worktree-aware skills; pass `--no-worktree`
+to opt out. The legacy `--worktree` flag is a silent no-op. No tool-side isolation equivalent.
+Skills instruct the agent to run `git worktree add` via Bash; auto-creation happens when the
+instruction is embedded in the agent prompt. See
+`ycc/skills/_shared/references/worktree-strategy.md` for the Bash-fallback protocol.
 
 **WORKTREE:opencode**
-Partial. Same as Codex — Bash via prompt, no tool-side isolation. Skills embed
-`git worktree add` commands in agent prompts. See
+Partial. Worktree mode is on by default for the 9 worktree-aware skills; pass `--no-worktree`
+to opt out. The legacy `--worktree` flag is a silent no-op. Same as Codex — Bash via prompt,
+no tool-side isolation. Skills embed `git worktree add` commands in agent prompts. See
 `ycc/skills/_shared/references/worktree-strategy.md` for the Bash-fallback protocol.
 
 ---

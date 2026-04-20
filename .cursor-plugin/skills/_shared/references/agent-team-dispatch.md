@@ -189,7 +189,9 @@ to a non-team mode — in both cases, `SendMessage(shutdown)` + `TeamDelete` fir
 
 ## 7. Worktree-aware team dispatch
 
-When a skill combines `--team` with `--worktree`, each parallel teammate must operate
+Worktree mode is **on by default** for the 9 worktree-aware skills; pass `--no-worktree`
+to opt out. The legacy `--worktree` flag is accepted as a silent no-op (it matches the
+new default). When worktree mode is active (default), each parallel teammate must operate
 in its own child worktree so concurrent work doesn't corrupt a shared tree. Sequential
 teammates share the parent worktree. The mechanism layers on top of §2's six-step
 lifecycle and the parent/child model documented in
@@ -227,8 +229,8 @@ Do **not** pass `isolation: "worktree"` or a `Working directory:` line for them.
 
 ### 7.3 Dry-run interaction
 
-`--dry-run` with `--team --worktree` adds a `Worktrees:` line to the existing dry-run
-output format (§5):
+`--dry-run` with `--team` (worktree mode is active by default; add `--no-worktree` to
+suppress) adds a `Worktrees:` line to the existing dry-run output format (§5):
 
 ```
 Worktrees:   parent=~/.claude-worktrees/<repo>-<feature>/   children=<count>  (batch <n>: <child-paths>)

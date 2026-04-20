@@ -31,18 +31,19 @@ Create a comprehensive implementation plan before writing any code. This is the 
 
 ## Flags
 
-| Flag         | Effect                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel` | Instruct the planner(s) to emit a parallel-capable plan: a `Batches` summary section at the top, hierarchical step IDs (`1.1`, `1.2`, `2.1`), and explicit `Depends on [...]` annotations on every step. Enables in-conversation parallel implementation via `implementor` agents, or file-based handoff to `/prp-implement --parallel`.                                                                                                  |
-| `--team`     | Dispatch a 3-persona planning team (architect / risk-analyst / test-strategist) under a shared `spawn coordinated subagents`/`the todo tracker` with coordinated shutdown. Produces a richer plan by merging structural, risk, and testing perspectives. Heavier than the default single-agent path.                                                                                                                                                                       |
-| `--dry-run`  | Only valid with `--team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                                                                                                                                                                                                                    |
-| `--worktree` | Instruct the planner to emit worktree annotations in the plan: a top-level `## Worktree Setup` block (parent + per-parallel-task children) and a `**Worktree**:` field on every parallel task. Follows `.opencode-plugin/skills/_shared/references/worktree-strategy.md`. The plan's implementor (e.g., `/prp-implement --worktree`) consumes these annotations to run each parallel task in its own git worktree with auto fan-in merge after each batch. |
+| Flag            | Effect                                                                                                                                                                                                                                                                                                                                           |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--parallel`    | Instruct the planner(s) to emit a parallel-capable plan: a `Batches` summary section at the top, hierarchical step IDs (`1.1`, `1.2`, `2.1`), and explicit `Depends on [...]` annotations on every step. Enables in-conversation parallel implementation via `implementor` agents, or file-based handoff to `/prp-implement --parallel`. |
+| `--team`        | Dispatch a 3-persona planning team (architect / risk-analyst / test-strategist) under a shared `spawn coordinated subagents`/`the todo tracker` with coordinated shutdown. Produces a richer plan by merging structural, risk, and testing perspectives. Heavier than the default single-agent path.                                                                      |
+| `--dry-run`     | Only valid with `--team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                                                                                                                   |
+| `--worktree`    | (legacy — now default; safe to omit) Previously required to emit worktree annotations; the annotations are now emitted by default. Accepted as a silent no-op so existing pipelines continue to work.                                                                                                                                            |
+| `--no-worktree` | Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.                                                                                                                                                                                                                |
 
 **Flag interaction**:
 
 - `--parallel` and `--team` are **independent and combinable**. `--parallel` shapes the plan's _output format_; `--team` switches the _dispatch mechanism_. Pass both for a multi-perspective plan formatted for parallel execution.
 - `--dry-run` requires `--team` (the single-agent path has nothing to dry-run).
-- `--worktree` combines freely with `--parallel` and `--team`. When combined with `--parallel`, every parallel task gets a child worktree annotation. When combined with `--team`, teammates dispatch into child worktrees per §7 of `agent-team-dispatch.md`.
+- `--no-worktree` opts out of all worktree annotations. When omitted (the default), every parallel task gets a child worktree annotation and teammates dispatch into child worktrees per §7 of `agent-team-dispatch.md`.
 
 **Note**: `--parallel` on `/plan` shapes the _output_, not the research phase. For research fan-out on larger features, use `/prp-plan --parallel` (sub-agent fan-out) or `/prp-plan --team` (Claude Code only; shared-task-list coordination).
 
@@ -62,7 +63,17 @@ Use this skill when:
 
 ### Step 1 — Parse flags and the user's request
 
-**Flag parsing**: Extract `--parallel`, `--team`, `--dry-run`, and `--worktree` from `$ARGUMENTS` before processing. Strip them out and set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `DRY_RUN=true|false`, `WORKTREE_MODE=true|false`. The remaining text is the user's request.
+**Flag parsing**: Extract `--parallel`, `--team`, `--dry-run`, `--no-worktree`, and `--worktree` from `$ARGUMENTS` before processing. Strip them out. Set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `DRY_RUN=true|false`. Default `WORKTREE_MODE=true`; set `WORKTREE_MODE=false` if `--no-worktree` is present. `--worktree` is accepted as a legacy no-op (matches the default). The remaining text is the user's request.
+
+```bash
+# Default ON; pass --no-worktree to opt out. --worktree accepted as legacy no-op.
+WORKTREE_MODE=true
+case " $ARGUMENTS " in
+  *" --no-worktree "*) WORKTREE_MODE=false ;;
+esac
+ARGUMENTS="${ARGUMENTS//--no-worktree/}"
+ARGUMENTS="${ARGUMENTS//--worktree/}"  # legacy no-op
+```
 
 **Validation**:
 
@@ -151,9 +162,9 @@ execution:
    plan? (yes / no / modify)`
 ```
 
-#### Worktree prompt (`WORKTREE_MODE=true`)
+#### Worktree prompt (default — `WORKTREE_MODE=true`; skipped when `--no-worktree`)
 
-Append these directives to the prompt:
+By default, append these directives to the prompt. When `--no-worktree` is passed (`WORKTREE_MODE=false`), omit this block entirely and do not emit any worktree annotations.
 
 ```
 WORKTREE MODE:
@@ -261,9 +272,9 @@ Each teammate's prompt MUST include:
 - If `PARALLEL_MODE=true`: append the same parallel output directives from Path A
   (section "Parallel prompt") — each teammate should structure its own slice with
   hierarchical step IDs and `Depends on` annotations
-- If `WORKTREE_MODE=true`: append the same worktree directives from Path A
+- If `WORKTREE_MODE=true` (default): append the same worktree directives from Path A
   (section "Worktree prompt") — each teammate should annotate its parallel tasks
-  with child worktree paths per §7 of `agent-team-dispatch.md`
+  with child worktree paths per §7 of `agent-team-dispatch.md`. Omit when `--no-worktree` was passed.
 
 #### B.6 Monitor and collect results
 
@@ -452,9 +463,11 @@ there has no effect — use `--parallel` instead.
 - **`/prp-plan --team`** — Team-coordinated research with shared the todo tracker for medium/large features that will produce an artifact file.
 - **`/prp-implement --team`** — Team-coordinated execution with shared the todo tracker across all batches. Best for implementation runs where you want coordinated inter-batch shutdown and a single shared task graph.
 
-### When to use `--worktree`
+### When to use `--no-worktree`
 
-Add `--worktree` whenever you want the plan consumer to isolate each parallel task in its own git worktree. The flag is additive — combine freely with `--parallel` and `--team`:
+Worktree annotations are emitted by default. Pass `--no-worktree` to suppress the `## Worktree Setup` section and all per-task `**Worktree**:` annotations when you do not intend to use git worktree isolation:
 
-- **`/plan --worktree --parallel <request>`** — Parallel-capable plan with full worktree annotations (parent path, per-task child paths, `**Worktree**:` fields). Hand off to `/prp-implement --worktree` for isolated execution.
-- **`/plan --worktree --parallel --team <request>`** — Multi-perspective plan formatted for both parallel execution and worktree isolation.
+- **`/plan --parallel <request>`** — Parallel-capable plan with full worktree annotations (default). Hand off to `/prp-implement` for isolated execution.
+- **`/plan --no-worktree --parallel <request>`** — Parallel-capable plan without worktree annotations. Use when worktree isolation is not desired.
+- **`/plan --parallel --team <request>`** — Multi-perspective plan formatted for both parallel execution and worktree isolation (default).
+- **`/plan --no-worktree --parallel --team <request>`** — Multi-perspective plan with parallel execution but no worktree annotations.

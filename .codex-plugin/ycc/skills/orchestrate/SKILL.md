@@ -5,7 +5,8 @@ description: Orchestrate multiple specialized agents in parallel to accomplish c
   and synthesizes results. Defaults to standalone sub-agents; pass --team (Codex only)
   to dispatch via an agent team with shared the task tracker, up-front record the
   task/addBlockedBy dependency wiring, and coordinated inter-batch shutdown via send
-  follow-up instructions.
+  follow-up instructions. Worktree isolation is ON by default for parallel tasks;
+  pass --no-worktree to opt out. --worktree is accepted as a legacy no-op.
 ---
 
 # Multi-Agent Orchestration Skill
@@ -24,10 +25,11 @@ Parallelism is the baseline of this skill — every batch's tasks dispatch concu
 Parse flags first, then treat the remainder as the task description:
 
 - `--team` — (Codex only) Dispatch each batch's agents under a shared `create an agent group` with up-front `record the task` + `addBlockedBy` dependency wiring and per-batch shutdown via `send follow-up instructions`. Aborts if invoked from a Cursor or Codex bundle (team tools are absent there).
-- `--dry-run` — Show the orchestration plan without deploying agents. With `--team`, also prints the team name and per-batch teammate roster. With `--worktree`, also prints a `Worktrees:` line (no scripts called).
-- `--plan-only` — Create orchestration plan file at `docs/orchestration/[sanitized-task].md` without execution. With `--worktree`, the plan gains a `## Worktree Setup` section.
-- `--sequential` — Force sequential execution (single-task batches, for tightly dependent tasks). With `--worktree`, only the parent worktree is created — no children.
-- `--worktree` — Run each parallel task in its own git worktree for true concurrent execution. Creates a parent worktree once (after decomposition) and one child per parallel task per batch; children are merged back into the parent after each batch validates. Follows `ycc/skills/_shared/references/worktree-strategy.md`. Combines freely with `--team`, `--dry-run`, `--plan-only`, and `--sequential` (though `--sequential --worktree` uses the parent only — no parallel tasks, no children).
+- `--dry-run` — Show the orchestration plan without deploying agents. With `--team`, also prints the team name and per-batch teammate roster. Prints a `Worktrees:` line when worktree mode is active (no scripts called).
+- `--plan-only` — Create orchestration plan file at `docs/orchestration/[sanitized-task].md` without execution. When worktree mode is active, the plan gains a `## Worktree Setup` section.
+- `--sequential` — Force sequential execution (single-task batches, for tightly dependent tasks). When worktree mode is active, only the parent worktree is created — no children (sequential tasks always run in the parent).
+- `--worktree` — (legacy — now default for parallel tasks; safe to omit) Accepted as a silent no-op. Worktree isolation is on by default; this flag matches the new default and has no additional effect.
+- `--no-worktree` — Force worktree mode **OFF** regardless of task structure. Parallel tasks run directly in the current checkout; no parent or child worktrees are created.
 - `<task-description>`: The complex task to orchestrate (required, can be multi-word).
 
 Strip flags from `$ARGUMENTS` and set `TEAM_FLAG=true|false`, `DRY_RUN=true|false`, `PLAN_ONLY=true|false`, `SEQUENTIAL=true|false`, `WORKTREE_MODE=true|false`. Join the remaining non-flag tokens into `TASK_DESCRIPTION`.
@@ -37,17 +39,25 @@ Strip flags from `$ARGUMENTS` and set `TEAM_FLAG=true|false`, `DRY_RUN=true|fals
 If no task description is provided after stripping flags, abort with usage instructions:
 
 ```
-Usage: $orchestrate [--team] [--dry-run] [--plan-only] [--sequential] [--worktree] <task-description>
+Usage: $orchestrate [--team] [--dry-run] [--plan-only] [--sequential] [--worktree] [--no-worktree] <task-description>
 
 Examples:
   $orchestrate "Implement user authentication with tests and docs"
+    # default: parallel tasks get child worktrees; sequential tasks run in parent
+
   $orchestrate --team "Implement user authentication with tests and docs"
+    # agent-team dispatch (worktree still on by default for parallel tasks)
+
   $orchestrate --dry-run "Debug payment processing failure"
   $orchestrate --plan-only "Refactor database layer"
   $orchestrate --sequential "Migrate legacy config"
   $orchestrate --team --dry-run "Update API documentation across all services"
-  $orchestrate --worktree "Refactor the auth middleware"
-  $orchestrate --team --worktree "Implement user authentication with tests and docs"
+
+  $orchestrate --no-worktree "Refactor the auth middleware"
+    # opt out of worktree isolation; all tasks run in the current checkout
+
+  $orchestrate --team --no-worktree "Implement user authentication with tests and docs"
+    # agent-team dispatch without worktrees
 ```
 
 **Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must abort with a clear message. Those bundles ship without team tools (`create an agent group`, `record the task`, `send follow-up instructions`, etc.). The default standalone sub-agent path is the only execution mode available there. `--worktree` is supported on all targets via the Bash-fallback path (`git worktree add`); on Cursor, emit the `git worktree add` commands as instructions rather than auto-creating.
@@ -213,7 +223,16 @@ For each subtask, prepare:
 
 ---
 
-## Phase 2.5: Worktree Setup (WORKTREE_MODE only)
+## Phase 2.5: Worktree Setup
+
+### How Worktree Mode Is Decided
+
+The decision follows a strict precedence order:
+
+1. **`--no-worktree` present** → `WORKTREE_MODE=false`. Worktree isolation is forced off. Parallel tasks run directly in the current checkout alongside sequential tasks. No parent or child worktrees are created.
+2. **Neither `--no-worktree` nor any explicit flag** → `WORKTREE_MODE=true` **(new default — was false)**. Parallel tasks get child worktrees by default. Sequential tasks always run in the parent worktree.
+
+`--worktree` is accepted as a silent no-op and matches the new default; it has no additional effect. Note: this skill does not auto-detect `## Worktree Setup` annotations from a plan (it creates its own decomposition), so the only opt-out is `--no-worktree`.
 
 Skip this phase entirely when `WORKTREE_MODE=false`.
 
@@ -386,7 +405,7 @@ Agent(
 )
 ```
 
-When `WORKTREE_MODE=false`, omit `isolation` and the `Working directory:` line — standard Path A semantics.
+When `WORKTREE_MODE=false` (--no-worktree), omit `isolation` and the `Working directory:` line — standard Path A semantics.
 
 **4. Wait for batch completion** — `Agent` calls block until each sub-agent returns. Completion is implicit when all parallel calls in the single message return.
 
@@ -453,7 +472,7 @@ Agent(
 )
 ```
 
-When `WORKTREE_MODE=false`, omit `isolation` and `Working directory:` — standard Path B semantics. Each prompt MUST include the Path B Team Communication section from `agent-prompts.md`, with `{{BATCH_NUMBER}}` and `{{BATCH_TEAMMATES}}` substituted.
+When `WORKTREE_MODE=false` (--no-worktree), omit `isolation` and `Working directory:` — standard Path B semantics. Each prompt MUST include the Path B Team Communication section from `agent-prompts.md`, with `{{BATCH_NUMBER}}` and `{{BATCH_TEAMMATES}}` substituted.
 
 **4. Monitor progress** — use `the task tracker` to check when all batch tasks are complete. If a teammate messages you with an issue, respond via `send follow-up instructions` with guidance.
 
@@ -631,7 +650,7 @@ Each agent assignment must have:
 
 The orchestration must:
 
-- [ ] Parse flags and set `TEAM_FLAG`, `DRY_RUN`, `PLAN_ONLY`, `SEQUENTIAL`, `WORKTREE_MODE` before any side effects
+- [ ] Parse flags and set `TEAM_FLAG`, `DRY_RUN`, `PLAN_ONLY`, `SEQUENTIAL`, `WORKTREE_MODE` before any side effects (default: `WORKTREE_MODE=true` unless `--no-worktree` is passed)
 - [ ] Deploy independent tasks in parallel (single message, multiple `Agent` calls)
 - [ ] Respect dependency ordering between batches
 - [ ] Track progress via `the task tracker` (Path A) or `the task tracker` (Path B)

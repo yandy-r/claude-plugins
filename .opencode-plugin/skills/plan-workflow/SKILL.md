@@ -41,7 +41,8 @@ Parse arguments (flags first, then the feature name):
 - **--no-checkpoint**: No pause between research and planning
 - **--optimized**: Use 7-agent optimized deployment (default: 10-agent standard)
 - **--dry-run**: Show execution plan without running. With `--team`, also prints the team name and teammate roster.
-- **--worktree**: Emit worktree annotations in the generated `parallel-plan.md` (Phase 8) — a top-level `## Worktree Setup` block and per-parallel-task `**Worktree**:` fields. Consumed by `/implement-plan --worktree` (or auto-detected). Follows `.opencode-plugin/skills/_shared/references/worktree-strategy.md`. Combines freely with all other flags. No effect when `--research-only` is passed (no plan file is generated). Honored with `--plan-only`.
+- **--worktree**: Optional. (legacy — now default; safe to omit) Worktree annotations are emitted in the generated `parallel-plan.md` by default. Accepted as a silent no-op so existing pipelines continue to work.
+- **--no-worktree**: Optional. Opt out of worktree annotations in the generated `parallel-plan.md`. No effect when `--research-only` is passed (no plan file is generated). Honored with `--plan-only`.
 - **feature-name**: Required. Directory name in `${PLANS_DIR}/`
 
 If no feature name provided, abort with usage instructions:
@@ -56,7 +57,8 @@ Options:
   --no-checkpoint   No pause between research and planning (default: checkpoint enabled)
   --optimized       Use 7-agent optimized deployment (default: 10-agent standard)
   --dry-run         Show execution plan without running
-  --worktree        Emit worktree annotations in the generated parallel-plan.md
+  --worktree        (legacy — now default; safe to omit) Worktree annotations emitted by default
+  --no-worktree     Opt out of worktree annotations in the generated parallel-plan.md
 
 Examples:
   /plan-workflow user-authentication
@@ -65,7 +67,8 @@ Examples:
   /plan-workflow user-auth --plan-only
   /plan-workflow --team new-feature --optimized
   /plan-workflow --team --dry-run new-feature
-  /plan-workflow --worktree add-billing-dashboard
+  /plan-workflow add-billing-dashboard                 # worktree annotations included by default
+  /plan-workflow --no-worktree add-billing-dashboard   # skip worktree annotations
 ```
 
 ---
@@ -78,7 +81,18 @@ Extract from `$ARGUMENTS`:
 
 1. **--team**: Boolean flag. Set `AGENT_TEAM_MODE=true` if present, else `false`.
 2. **--research-only / --plan-only / --no-checkpoint / --optimized / --dry-run**: Boolean flags. Set each corresponding variable if present.
-3. **--worktree**: Boolean flag. Set `WORKTREE_MODE=true` if present, else `false`. Has no effect when `--research-only` is set (no plan file is generated). Honored with `--plan-only`.
+3. **--no-worktree / --worktree**: Default `WORKTREE_MODE=true`. Set `WORKTREE_MODE=false` if `--no-worktree` is present. `--worktree` is accepted as a legacy no-op (matches the default). Has no effect when `--research-only` is set (no plan file is generated). Honored with `--plan-only`.
+
+```bash
+# Default ON; pass --no-worktree to opt out. --worktree accepted as legacy no-op.
+WORKTREE_MODE=true
+case " $ARGUMENTS " in
+  *" --no-worktree "*) WORKTREE_MODE=false ;;
+esac
+ARGUMENTS="${ARGUMENTS//--no-worktree/}"
+ARGUMENTS="${ARGUMENTS//--worktree/}"  # legacy no-op
+```
+
 4. **feature-name**: First non-flag argument (required).
 
 Validate the feature name:
@@ -464,8 +478,7 @@ Required sections:
 - Implementation Plan with Phases and Tasks
 - Advice section
 
-**Worktree annotations** (when `WORKTREE_MODE=true`): insert a `## Worktree Setup`
-section immediately after the title/overview and before the first batch. Use
+**Worktree annotations** (default — `WORKTREE_MODE=true`; skipped when `--no-worktree`): insert a `## Worktree Setup` section immediately after the title/overview and before the first batch. When `WORKTREE_MODE=false`, omit all worktree annotations. Use
 `<feature-slug>` = the sanitized feature name (same as `${feature_dir}` basename)
 and hyphenated task IDs (`1.1` → `1-1`). Format exactly as defined in
 `~/.config/opencode/shared/references/worktree-strategy.md` §2:
@@ -487,8 +500,7 @@ For each parallel task block, add immediately after the task header:
 
 Sequential tasks receive no worktree annotation.
 
-**Plan-generation agent prompt** (both standalone Path A and `--team` Path B): when
-`WORKTREE_MODE=true`, append the following directive to the plan-generation prompt:
+**Plan-generation agent prompt** (both standalone Path A and `--team` Path B): by default (`WORKTREE_MODE=true`), append the following directive to the plan-generation prompt. Omit when `--no-worktree` was passed (`WORKTREE_MODE=false`):
 
 > WORKTREE MODE: Annotate the generated `parallel-plan.md` with worktree paths
 > following `~/.config/opencode/shared/references/worktree-strategy.md` §2.

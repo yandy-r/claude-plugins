@@ -22,7 +22,7 @@
     },
     {
       "name": "code-review",
-      "description": "Dual-mode code review \u2014 local uncommitted changes OR a GitHub pull request. Both modes now write a machine-parseable review artifact (Local \u2192 docs/prps/reviews/local-{timestamp}-review.md, PR \u2192 docs/prps/reviews/pr-{N}-review.md) with sequential finding IDs (F001, F002, ...) and Status fields (Open/Fixed/Failed) so /ycc:review-fix can consume and update them in place. Local mode runs a full security + quality pass on the diff. PR mode fetches the PR, reads each changed file in full, builds context from CLAUDE.md and PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build) for detected stacks, assigns severity, and posts the review to GitHub via gh. Pass `--parallel` to fan out the REVIEW phase across 3 standalone ycc:code-reviewer sub-agents (correctness, security, quality) and merge findings. Pass `--team` (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList, per-reviewer task tracking, and inter-reviewer communication via SendMessage. `--parallel` and `--team` are mutually exclusive. Pass --worktree to check out the PR into an isolated worktree (~/.claude-worktrees/<repo>-pr-<N>/) so concurrent reviews never collide on branches; the emitted artifact declares severity-keyed child worktrees that /ycc:review-fix --worktree creates for each fix batch. Use when the user asks to \"review code\", \"review PR\", \"check uncommitted changes\", \"review pr N\", \"parallel review\", \"team review\", or says \"/code-review\". Adapted from PRPs-agentic-eng by Wirasm."
+      "description": "Dual-mode code review \u2014 local uncommitted changes OR a GitHub pull request. Both modes now write a machine-parseable review artifact (Local \u2192 docs/prps/reviews/local-{timestamp}-review.md, PR \u2192 docs/prps/reviews/pr-{N}-review.md) with sequential finding IDs (F001, F002, ...) and Status fields (Open/Fixed/Failed) so /ycc:review-fix can consume and update them in place. Local mode runs a full security + quality pass on the diff. PR mode fetches the PR, reads each changed file in full, builds context from CLAUDE.md and PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build) for detected stacks, assigns severity, and posts the review to GitHub via gh. Pass `--parallel` to fan out the REVIEW phase across 3 standalone ycc:code-reviewer sub-agents (correctness, security, quality) and merge findings. Pass `--team` (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList, per-reviewer task tracking, and inter-reviewer communication via SendMessage. `--parallel` and `--team` are mutually exclusive. Worktree mode is on by default in PR mode \u2014 pass `--no-worktree` to opt out. Pass `--keep-draft` to skip automatic draft\u2192ready promotion. Pass `--keep-worktree` to skip worktree removal after the review is posted. Use when the user asks to \"review code\", \"review PR\", \"check uncommitted changes\", \"review pr N\", \"parallel review\", \"team review\", or says \"/code-review\". Adapted from PRPs-agentic-eng by Wirasm."
     },
     {
       "name": "compatibility-audit",
@@ -74,7 +74,7 @@
     },
     {
       "name": "implement-plan",
-      "description": "Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dependency wiring. Use as Step 3 after parallel-plan."
+      "description": "Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dependency wiring. Worktree isolation is ON by default; pass --no-worktree to opt out. --worktree is accepted as a legacy no-op. Use as Step 3 after parallel-plan."
     },
     {
       "name": "init",
@@ -86,7 +86,7 @@
     },
     {
       "name": "orchestrate",
-      "description": "Orchestrate multiple specialized agents in parallel to accomplish complex tasks. Decomposes the task, deploys implementor agents in dependency-resolved batches, and synthesizes results. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList, up-front TaskCreate/addBlockedBy dependency wiring, and coordinated inter-batch shutdown via SendMessage."
+      "description": "Orchestrate multiple specialized agents in parallel to accomplish complex tasks. Decomposes the task, deploys implementor agents in dependency-resolved batches, and synthesizes results. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList, up-front TaskCreate/addBlockedBy dependency wiring, and coordinated inter-batch shutdown via SendMessage. Worktree isolation is ON by default for parallel tasks; pass --no-worktree to opt out. --worktree is accepted as a legacy no-op."
     },
     {
       "name": "parallel-plan",
@@ -106,7 +106,7 @@
     },
     {
       "name": "prp-implement",
-      "description": "Execute a PRP plan file with continuous validation loops. Detects package manager, prepares git branch, processes tasks with per-task validation, runs all 5 validation levels (static, unit, build, integration, edge cases), writes an implementation report to docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans (those with a Batches section and Depends on annotations) and prompts the user to choose sequential or parallel execution. Pass `--parallel` to skip the prompt and run tasks in parallel via standalone ycc:implementor sub-agents. Pass `--team` (Claude Code only) to run the same per-batch implementor fan-out under a shared TeamCreate/TaskList with up-front dependency wiring (`addBlockedBy`) and coordinated per-batch shutdown via SendMessage. Pass `--worktree` to force git worktree isolation per parallel task even when the plan has no worktree annotations (plans produced with `--worktree` are auto-detected and need no flag). `--parallel` and `--team` are mutually exclusive. Use when the user asks to \"execute a PRP plan\", \"implement from a plan file\", \"run prp-implement\", \"parallel PRP implement\", \"team PRP implement\", or provides a path to a .plan.md file. Adapted from PRPs-agentic-eng by Wirasm."
+      "description": "Execute a PRP plan file with continuous validation loops. Detects package manager, prepares git branch, processes tasks with per-task validation, runs all 5 validation levels (static, unit, build, integration, edge cases), writes an implementation report to docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans (those with a Batches section and Depends on annotations) and prompts the user to choose sequential or parallel execution. Pass `--parallel` to skip the prompt and run tasks in parallel via standalone ycc:implementor sub-agents. Pass `--team` (Claude Code only) to run the same per-batch implementor fan-out under a shared TeamCreate/TaskList with up-front dependency wiring (`addBlockedBy`) and coordinated per-batch shutdown via SendMessage. Worktree isolation is ON by default; pass `--no-worktree` to opt out. `--worktree` is accepted as a legacy no-op (matches the default). `--parallel` and `--team` are mutually exclusive. Use when the user asks to \"execute a PRP plan\", \"implement from a plan file\", \"run prp-implement\", \"parallel PRP implement\", \"team PRP implement\", or provides a path to a .plan.md file. Adapted from PRPs-agentic-eng by Wirasm."
     },
     {
       "name": "prp-plan",
@@ -146,7 +146,7 @@
     },
     {
       "name": "review-fix",
-      "description": "Plan and apply fixes for findings from a code-review artifact produced by /ycc:code-review. Parses the review file (local or PR), filters findings by severity threshold, groups them into dependency-safe batches (same-file findings stay together, different files can run in parallel), dispatches ycc:review-fixer agents to apply each fix, updates the Status field in the source review file in place (Open \u2192 Fixed or Failed), runs validation after changes, and writes a fix report to docs/prps/reviews/fixes/. Pass `--parallel` to fan out independent fixes across parallel standalone review-fixer sub-agents. Pass `--team` (Claude Code only) to run the same per-batch fan-out as a coordinated agent team with up-front TaskCreate, shared TaskList across all batches, and per-batch shutdown via SendMessage. `--parallel` and `--team` are mutually exclusive. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to change the minimum severity threshold (default HIGH). Pass `--dry-run` to preview the fix plan (and team graph, if combined with --team) without applying changes. Pass --worktree (or use an artifact that already has a"
+      "description": "Plan and apply fixes for findings from a code-review artifact produced by /ycc:code-review. Parses the review file (local or PR), filters findings by severity threshold, groups them into dependency-safe batches (same-file findings stay together, different files can run in parallel), dispatches ycc:review-fixer agents to apply each fix, updates the Status field in the source review file in place (Open \u2192 Fixed or Failed), runs validation after changes, and writes a fix report to docs/prps/reviews/fixes/. Pass `--parallel` to fan out independent fixes across parallel standalone review-fixer sub-agents. Pass `--team` (Claude Code only) to run the same per-batch fan-out as a coordinated agent team with up-front TaskCreate, shared TaskList across all batches, and per-batch shutdown via SendMessage. `--parallel` and `--team` are mutually exclusive. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to change the minimum severity threshold (default HIGH). Pass `--dry-run` to preview the fix plan (and team graph, if combined with --team) without applying changes. Worktree mode is on by default \u2014 pass `--no-worktree` to opt out. The `--worktree` flag is still accepted as a no-op. Auto-detected from"
     },
     {
       "name": "rust-patterns",
@@ -200,7 +200,7 @@
     },
     {
       "name": "code-review",
-      "description": "Code review \u2014 local uncommitted changes or a GitHub PR (pass PR number/URL for PR mode). Runs security + quality checks, executes validation commands, writes an artifact, and posts the review. Pass --parallel to fan out the review phase across 3 specialized reviewer agents (correctness, security, quality) and merge findings. Pass --team (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList and per-reviewer task tracking. Pass --worktree to check out the PR into an isolated worktree and emit severity-keyed worktree annotations for /ycc:review-fix."
+      "description": "Code review \u2014 local uncommitted changes or a GitHub PR (pass PR number/URL for PR mode). Runs security + quality checks, executes validation commands, writes an artifact, and posts the review. Pass --parallel to fan out the review phase across 3 specialized reviewer agents (correctness, security, quality) and merge findings. Pass --team (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList and per-reviewer task tracking. Worktree mode is on by default in PR mode \u2014 pass --no-worktree to opt out. Pass --keep-draft to skip automatic draft\u2192ready promotion. Pass --keep-worktree to skip worktree removal after the review is posted."
     },
     {
       "name": "compatibility-audit",
@@ -252,7 +252,7 @@
     },
     {
       "name": "implement-plan",
-      "description": "Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dep wiring. Step 3 of the planning workflow, requires parallel-plan.md from plan-workflow."
+      "description": "Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dep wiring. Worktree isolation is ON by default; pass --no-worktree to opt out. --worktree is accepted as a legacy no-op. Step 3 of the planning workflow, requires parallel-plan.md from plan-workflow."
     },
     {
       "name": "init",
@@ -260,7 +260,7 @@
     },
     {
       "name": "orchestrate",
-      "description": "Orchestrate multiple specialized agents to accomplish a complex task through intelligent decomposition and parallel execution. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dependency wiring."
+      "description": "Orchestrate multiple specialized agents to accomplish a complex task through intelligent decomposition and parallel execution. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dependency wiring. Worktree isolation is ON by default for parallel tasks; pass --no-worktree to opt out. --worktree is accepted as a legacy no-op."
     },
     {
       "name": "parallel-plan",
@@ -280,7 +280,7 @@
     },
     {
       "name": "prp-implement",
-      "description": "Execute a PRP plan file with per-task validation loops. Detects package manager, prepares git branch, runs 5 validation levels, writes docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans and prompts the user; pass --parallel to force standalone sub-agent batch execution, or --team (Claude Code only) to force agent-team batch execution with shared TaskList and up-front dependency wiring. Pass --worktree to force per-task git worktree isolation (plans with worktree annotations are auto-detected and need no flag)."
+      "description": "Execute a PRP plan file with per-task validation loops. Detects package manager, prepares git branch, runs 5 validation levels, writes docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans and prompts the user; pass --parallel to force standalone sub-agent batch execution, or --team (Claude Code only) to force agent-team batch execution with shared TaskList and up-front dependency wiring. Worktree isolation is ON by default; pass --no-worktree to opt out. --worktree is accepted as a legacy no-op."
     },
     {
       "name": "prp-plan",
@@ -320,7 +320,7 @@
     },
     {
       "name": "review-fix",
-      "description": "Plan and apply fixes for findings from a code-review artifact. Parses the review file, filters by severity, dispatches review-fixer agents to apply each fix, updates Status in place (Open \u2192 Fixed/Failed), and writes a fix report. Pass --parallel for standalone sub-agent batch execution, --team (Claude Code only) for agent-team batch execution with shared TaskList and up-front dependency wiring, --severity <level> to change the threshold (default HIGH), or --dry-run to preview the plan. Pass --worktree (or use an artifact that already has a"
+      "description": "Plan and apply fixes for findings from a code-review artifact. Parses the review file, filters by severity, dispatches review-fixer agents to apply each fix, updates Status in place (Open \u2192 Fixed/Failed), and writes a fix report. Pass --parallel for standalone sub-agent batch execution, --team (Claude Code only) for agent-team batch execution with shared TaskList and up-front dependency wiring, --severity <level> to change the threshold (default HIGH), or --dry-run to preview the plan. Worktree mode is on by default \u2014 pass --no-worktree to opt out. The artifact is now read from the PR branch (committed there by /ycc:code-review), not from the main repo."
     },
     {
       "name": "rust-patterns",
