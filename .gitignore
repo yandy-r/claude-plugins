@@ -34,3 +34,7 @@ __pycache__/
 
 # opencode model-alias overrides (per-user, optional)
 scripts/opencode_model_aliases.local.json
+
+# yci customer-isolation fixture cache (populated on the fly by detect.sh
+# during test runs; regenerated as needed — never a source artifact)
+yci/skills/*/tests/fixtures/.cache/
