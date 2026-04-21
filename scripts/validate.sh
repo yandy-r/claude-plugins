@@ -1,27 +1,36 @@
 #!/usr/bin/env bash
-# Unified validate entrypoint — run every validator that guards the ycc/ source-of-truth
-# and its generated Cursor/Codex bundles.
+# Unified validate entrypoint — run every validator that guards the plugin
+# source-of-truth directories and their generated Cursor/Codex/opencode bundles.
 #
 # Usage:
-#   ./scripts/validate.sh                       # all targets
+#   ./scripts/validate.sh                       # all targets for all plugins
 #   ./scripts/validate.sh --only inventory      # single target
 #   ./scripts/validate.sh --only cursor,codex   # comma-separated subset
+#   ./scripts/validate.sh --only yci            # yci-only validation
 #
-# Targets: inventory, cursor, codex, opencode, json
-#   - json validates .claude-plugin/marketplace.json and ycc/.claude-plugin/plugin.json
+# Targets: inventory, cursor, codex, opencode, json, yci
+#   - inventory  validates ycc skill↔command pairing and the shared inventory
+#   - json       validates .claude-plugin/marketplace.json (once) plus each
+#                plugin's .claude-plugin/plugin.json
+#   - yci        validates yci plugin surface (Phase 0: plugin.json + hello skill)
+# Plugins: ycc (full validators), yci (Phase 0 — validate-yci-skills.sh only)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-VALID_TARGETS=(inventory cursor codex opencode json)
+# Plugin list — add new plugins here as they gain validators.
+PLUGINS=(ycc yci)
+
+VALID_TARGETS=(inventory cursor codex opencode json yci)
 TARGETS=("${VALID_TARGETS[@]}")
 
 usage() {
     cat <<EOF
 Usage: $(basename "$0") [--only <targets>]
 
-Run every validator for the ycc/ source-of-truth and generated bundles.
+Run every validator for all plugin source-of-truth directories and their
+generated bundles.
 
 Options:
   --only <targets>   Comma-separated subset (valid: ${VALID_TARGETS[*]})
@@ -31,6 +40,7 @@ Examples:
   $(basename "$0")
   $(basename "$0") --only inventory
   $(basename "$0") --only cursor,codex
+  $(basename "$0") --only yci
 EOF
 }
 
@@ -69,7 +79,12 @@ fail() {
     exit 1
 }
 
-run_target() {
+# ---------------------------------------------------------------------------
+# Per-plugin validator dispatch
+# ---------------------------------------------------------------------------
+
+# Run a single cross-target validator for the ycc plugin (unchanged from pre-refactor).
+run_ycc_target() {
     case "$1" in
         inventory)
             echo "== validate: inventory =="
@@ -103,19 +118,87 @@ run_target() {
             echo "== validate: opencode plugin =="
             "${REPO_ROOT}/scripts/validate-opencode-plugin.sh" || fail "validate-opencode-plugin.sh"
             ;;
-        json)
-            echo "== validate: marketplace and plugin manifests =="
-            python3 -m json.tool "${REPO_ROOT}/.claude-plugin/marketplace.json" > /dev/null || fail ".claude-plugin/marketplace.json"
-            python3 -m json.tool "${REPO_ROOT}/ycc/.claude-plugin/plugin.json" > /dev/null || fail "ycc/.claude-plugin/plugin.json"
-            echo "OK: manifest JSON is valid."
-            echo "== validate: hooks symlink =="
-            "${REPO_ROOT}/scripts/validate-hooks.sh" || fail "validate-hooks.sh"
+        # json and yci are cross-plugin targets handled outside this function.
+    esac
+}
+
+# Run a single validator for the yci plugin.
+# Phase 1a: add new yci cross-target validators here (one case per target).
+run_yci_target() {
+    case "$1" in
+        yci)
+            echo "== validate: yci skills (Phase 0) =="
+            "${REPO_ROOT}/scripts/validate-yci-skills.sh" || fail "validate-yci-skills.sh"
+            ;;
+        # Phase 1a breadcrumb: cursor|codex|opencode|inventory cases go here.
+    esac
+}
+
+# Dispatch a target for a named plugin.
+run_plugin_target() {
+    local plugin="$1"
+    local target="$2"
+    case "${plugin}" in
+        ycc)
+            run_ycc_target "${target}"
+            ;;
+        yci)
+            run_yci_target "${target}"
             ;;
     esac
 }
 
+# ---------------------------------------------------------------------------
+# Cross-plugin targets (run once, not per-plugin)
+# ---------------------------------------------------------------------------
+
+run_cross_target() {
+    case "$1" in
+        json)
+            echo "== validate: marketplace and plugin manifests =="
+            # Shared marketplace — validated once.
+            python3 -m json.tool "${REPO_ROOT}/.claude-plugin/marketplace.json" > /dev/null \
+                || fail ".claude-plugin/marketplace.json"
+            # Per-plugin plugin.json — loop over all plugins.
+            for plugin in "${PLUGINS[@]}"; do
+                python3 -m json.tool "${REPO_ROOT}/${plugin}/.claude-plugin/plugin.json" > /dev/null \
+                    || fail "${plugin}/.claude-plugin/plugin.json"
+            done
+            echo "OK: manifest JSON is valid."
+            echo "== validate: hooks symlink =="
+            "${REPO_ROOT}/scripts/validate-hooks.sh" || fail "validate-hooks.sh"
+            ;;
+        yci)
+            # yci is handled per-plugin in run_yci_target; iterate all plugins
+            # so that only yci gets called for this target key.
+            for plugin in "${PLUGINS[@]}"; do
+                run_plugin_target "${plugin}" "yci"
+            done
+            ;;
+    esac
+}
+
+# ---------------------------------------------------------------------------
+# Main dispatch loop
+# ---------------------------------------------------------------------------
+
+# Targets that are cross-plugin (not dispatched per-plugin from the outer loop).
+is_cross_target() {
+    case "$1" in
+        json|yci) return 0 ;;
+        *)         return 1 ;;
+    esac
+}
+
 for target in "${TARGETS[@]}"; do
-    run_target "$target"
+    if is_cross_target "${target}"; then
+        run_cross_target "${target}"
+    else
+        # Per-plugin targets: run each plugin's validator for this target.
+        for plugin in "${PLUGINS[@]}"; do
+            run_plugin_target "${plugin}" "${target}"
+        done
+    fi
 done
 
 echo "validate.sh: done (${TARGETS[*]})"
