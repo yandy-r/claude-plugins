@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
-# Unified sync entrypoint — regenerate all derived artifacts from the ycc/ source-of-truth.
+# Unified sync entrypoint — regenerate all derived artifacts from plugin source-of-truth.
 #
 # Usage:
-#   ./scripts/sync.sh                            # all targets
+#   ./scripts/sync.sh                            # all targets for all plugins
 #   ./scripts/sync.sh --only inventory           # single target
 #   ./scripts/sync.sh --only cursor,codex        # comma-separated subset
 #
 # Targets: inventory, cursor, codex, opencode
+# Plugins: ycc (full generators), yci (Phase 0 — breadcrumb only)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# Plugin list — add new plugins here as they gain cross-target generators.
+PLUGINS=(ycc yci)
 
 VALID_TARGETS=(inventory cursor codex opencode)
 TARGETS=("${VALID_TARGETS[@]}")
@@ -19,7 +23,7 @@ usage() {
     cat <<EOF
 Usage: $(basename "$0") [--only <targets>]
 
-Regenerate derived artifacts from ycc/ source-of-truth.
+Regenerate derived artifacts from plugin source-of-truth directories.
 
 Options:
   --only <targets>   Comma-separated subset (valid: ${VALID_TARGETS[*]})
@@ -63,7 +67,8 @@ for target in "${TARGETS[@]}"; do
     fi
 done
 
-run_target() {
+# Run a single target for the ycc plugin (full generator dispatch — unchanged).
+run_ycc_target() {
     case "$1" in
         inventory)
             echo "== sync: inventory =="
@@ -98,8 +103,27 @@ run_target() {
     esac
 }
 
-for target in "${TARGETS[@]}"; do
-    run_target "$target"
+# Dispatch a single target for a named plugin.
+# Phase 1a: add a new case here (e.g., yci) once its generators exist.
+run_plugin_target() {
+    local plugin="$1"
+    local target="$2"
+    case "${plugin}" in
+        ycc)
+            run_ycc_target "${target}"
+            ;;
+        yci)
+            # Phase 0 — cross-target generators for yci are not yet parameterized.
+            # This breadcrumb is the correct no-op until Phase 1a lands.
+            echo "== sync: yci (Phase 0 scaffolding — no cross-target generators yet) =="
+            ;;
+    esac
+}
+
+for plugin in "${PLUGINS[@]}"; do
+    for target in "${TARGETS[@]}"; do
+        run_plugin_target "${plugin}" "${target}"
+    done
 done
 
-echo "sync.sh: done (${TARGETS[*]})"
+echo "sync.sh: done (plugins: ${PLUGINS[*]}) (targets: ${TARGETS[*]})"
