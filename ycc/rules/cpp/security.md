@@ -32,6 +32,7 @@ paths:
 - Avoid signed integer overflow
 - Never dereference null or dangling pointers
 - Use sanitizers in CI:
+
   ```bash
   cmake -DCMAKE_CXX_FLAGS="-fsanitize=address,undefined" ..
   ```
@@ -39,10 +40,13 @@ paths:
 ## Static Analysis
 
 - Use **clang-tidy** for automated checks:
+
   ```bash
   clang-tidy --checks='*' src/*.cpp
   ```
+
 - Use **cppcheck** for additional analysis:
+
   ```bash
   cppcheck --enable=all src/
   ```

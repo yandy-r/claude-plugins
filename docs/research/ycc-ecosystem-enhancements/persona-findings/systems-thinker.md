@@ -36,8 +36,9 @@ source→4-target→validator chain in parity.
 "the current bottleneck is maintenance integrity (drift, inventory accuracy, generator
 sync), not missing subjects." The expansion proposal pulls in the _opposite_ direction.
 The highest-leverage intervention is not "add more skills" (parameters — leverage point
-#12) but **change the rule that governs what counts as a skill** (rules — leverage
-point #5) and **reframe the system's purpose** (goals — leverage point #3).
+
+12. but **change the rule that governs what counts as a skill** (rules — leverage
+    point #5) and **reframe the system's purpose** (goals — leverage point #3).
 
 **Net delta for the maximal expansion** (rough, directional): total user value unlocked
 ≈ moderate (discoverable infra workflows for niche domains); total system fragility

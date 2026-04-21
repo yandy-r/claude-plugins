@@ -67,19 +67,16 @@ Can both be true in different contexts? **Yes, and the context is narrow.** The 
 **Position A (Futurist)**:
 
 > "By 2027, `ycc` skills will predominantly _consume_ vendor MCP servers, not wrap vendor CLIs. ... **reject** 'cisco-ios-skill', 'fortigate-skill', 'panos-skill', 'junos-skill' as separate skills." (futurist, §10.2 + §10.7)
-
 > "Every major vendor ships MCP by 2027 → vendor-CLI wrappers in `ycc` become technical debt." (futurist, §10.7)
 
 **Position B (Archaeologist)**:
 
 > "modern tools assume APIs and declarative state; real-world 2026 networks still contain 20–40% screen-scrape territory. A Claude plugin bundle that pretends otherwise will miss the wildest, most error-prone half of the work." (archaeologist, Executive Summary)
-
 > "CLI-only devices still exist (firewalls, load balancers, OOB, legacy switches). ... Expect scripts are not dead; they are subterranean." (archaeologist, Forgotten Wisdom + Insights)
 
 **Position C (Journalist — empirical midpoint)**:
 
 > "Every major vendor has at least one MCP server (official or first-party community) ... this is not a gap to fill with new MCPs; it's a gap to fill with Claude-side orchestration, safety, and context." (journalist, Key Insights)
-
 > But also: "No official Panorama/PAN-OS MCP server yet (as of April 2026). Community fills the gap." (journalist, Palo Alto section)
 
 **Evidence quality**:
@@ -105,7 +102,6 @@ Can both be true in different contexts? **Yes, and the context is the user's dev
 **Position A (Systems-Thinker)**:
 
 > "The `ycc` bundle is already at or near a **fragility cliff**, and the proposed expansion into 6 new infrastructure domains (networking, K8s, containers, virt, netsec, cloud, vendor platforms) pushes it over. ... Tipping point: my estimate ... is **~70–90 skills** before B2 becomes the dominant loop and per-skill value starts to decline." (systems-thinker, Executive Summary + §Feedback Loops)
-
 > "The expansion proposal is an LP #12 move in LP #3 clothing. ... the least leveraged intervention available, and the one most likely to backfire." (systems-thinker, Key Insights)
 
 **Position B (Archaeologist + Negative-Space + Analogist — aggregated)**:
@@ -148,7 +144,6 @@ Can both be true? **Yes.** The systems-thinker's framework applies at scale; the
 **Position A (Contrarian)**:
 
 > "A skill that tells the model 'be careful with Cisco ACL order' is worse than useless — it creates false confidence. A pre-tool-use hook that blocks `kubectl delete` against a context named `*-prod-*` is _actually_ safety." (contrarian, Executive Summary)
-
 > "A skill = a prompt = probabilistic. A hook = a script with exit code 1 = deterministic. The problem class is wrong-tool-for-wrong-problem mapping." (contrarian, Questionable Assumption E)
 
 **Position B (Analogist)**:
@@ -228,13 +223,11 @@ Can both be true in different contexts? **Yes.**
 **Position A (Historian — first half)**:
 
 > "October 2015: Red Hat acquires Ansible. This is the single biggest catalytic moment for _actual_ network automation adoption. ... 60+ network modules emerge; cisco.ios, arista.eos, junos, nxos become collections." (historian, 2010s Timeline)
-
 > "NetDevOps Survey 2019 shows Ansible at ~60% share vs. Puppet/Chef near-zero in networking." (historian, Puppet/Chef vs Ansible)
 
 **Position B (Historian — second half, self-contradicting)**:
 
 > "Ansible Core 2.19 (2025) broke most network modules via netcommon changes — the NetDevOps community reacts with 'has Ansible abandoned networking?'" (historian, 2020s)
-
 > "'Ansible won networking' vs. 'Ansible is abandoning networking.' The 2015-2019 data clearly shows Ansible winning. The 2025 breakage of network modules in Ansible Core 2.19 and the January 2028 deprecation of templated configs is cause for concern. ... This is actively unresolved in April 2026." (historian, Contradictions)
 
 **Position C (Contrarian — cites same concern)**:
@@ -260,7 +253,6 @@ Can both be true? **Yes, sequentially**. Ansible won 2015–2022; Ansible appear
 **Position A (Systems-Thinker)**:
 
 > "Composition beats coverage. 'Skills-of-skills' (a router skill that invokes existing workflows conditionally) has sub-linear descriptor cost. Vendor-per-skill has super-linear cost." (systems-thinker, Key Insights)
-
 > "invest in meta-skills for routing instead of broadening leaf skills. A `ycc:infra-route` skill that reads a repo signature (K8s manifests? Terraform? Cisco configs?) and dispatches to the right workflow is a LP #6 play — one descriptor in the system prompt unlocks N latent workflows without N descriptors." (systems-thinker, Leverage Points)
 
 **Position B (Analogist)**:
@@ -305,7 +297,6 @@ This is a **vendor-agnostic workflow skill that happens to handle vendor specifi
 **Position C (Systems-Thinker)**:
 
 > "If `ycc` is primarily the maintainer's personal tool, then 'unknown user mix' does not constrain decisions and Chain C is obviously correct. If ycc has a real downstream audience, R2 matters and domain expansion may be defensible for specific high-value niches (e.g., K8s day-2)." (systems-thinker, Contradictions)
-
 > "The owner's actual month-to-month domain weighting is unknown. If 80% of months are networking and 20% K8s, recommendations differ from 30/30/20/20 distribution. Self-reported 'spans 7 domains' may over-represent breadth." (contrarian, Uncertainty 3)
 
 **Evidence quality**: This is a contradiction between **self-reported scope** (the objective) and **inferred usage pattern** (contrarian's skepticism, systems-thinker's frame). No primary source resolves it.
@@ -331,7 +322,6 @@ Can both be true? **Only one can be empirically true**. The objective's "spans 7
 **Position B (Journalist)**:
 
 > "Every major vendor now has AI tooling in production: Cisco AI Assistant ... HPE Juniper Marvis AI ... Fortinet FortiAI ... Palo Alto Precision AI ... Amazon Q Developer ... Azure Copilot agents ... Gemini Cloud Assist" (journalist, Executive Summary)
-
 > "The debate has shifted: **not 'should I use AI for network/infra ops'** but **'how fast, with what governance, and how much do I trust the agent to take write actions?'**" (journalist, Executive Summary)
 
 **Position C (Futurist)**:

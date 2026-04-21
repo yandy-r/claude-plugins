@@ -83,11 +83,13 @@ After creating all child issues and capturing their issue numbers, update depend
 
 1. Build a map: `Task N.M -> Issue #XX`
 2. For each child issue with dependencies, note in the issue body:
+
    ```
    ## Dependencies
    - Depends on #42 (Task 1.1: Set up data models)
    - Depends on #43 (Task 1.2: Configure auth)
    ```
+
 3. For tracking issues, include a dependency summary showing which tasks in the phase can start independently vs which are blocked.
 
 If issue numbers are not yet known at body composition time, use placeholder text: `Depends on Task N.M (issue number TBD -- update after creation)`. Then update after all issues are created if the tool supports editing, or note the cross-references in the tracking issue.

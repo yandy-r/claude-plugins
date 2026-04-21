@@ -19,7 +19,7 @@ Rules for the `## Worktree Setup` block:
 
 ---
 
-# PR Review #42 — Add widget rendering pipeline
+## PR Review #42 — Add widget rendering pipeline
 
 **Reviewed**: 2026-04-19T10:00:00-04:00
 **Mode**: PR

@@ -165,6 +165,7 @@ environments/
   ```
 
 - **Lifecycle Rules**:
+
   ```hcl
   lifecycle {
     create_before_destroy = true

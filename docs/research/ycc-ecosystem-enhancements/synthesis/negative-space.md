@@ -178,43 +178,43 @@ Systems-thinker's B3 (complexity-collapse tail risk) is probability-weighted by 
 
 Flagging gaps the research team should own — places where we were weaker than we could have been.
 
-### G1. We studied the ecosystem more than we studied the owner.
+### G1. We studied the ecosystem more than we studied the owner
 
 We have a very detailed map of vendor-MCP landscape (journalist), hallucination research (contrarian), historical ancestry (historian + archaeologist), and scaling math (systems-thinker). We have almost no data on the owner's actual workflow. Every persona treated the objective's 7-domain statement as ground truth. **That is the biggest methodological gap.** A proper personalization pass (30-minute structured interview or 60-day workflow retrospective) would compress three of the top-four unanswered questions.
 
-### G2. We cited persona findings as if they were primary evidence.
+### G2. We cited persona findings as if they were primary evidence
 
 Systems-thinker's 70-90 tipping point, futurist's 25% Gartner, analogist's Gawande layering — these are _synthesized_ claims inside persona findings. The ACH matrix scores them as evidence items (E17, E12, E15) with various quality tags, but the crucible analysis treats the persona's _synthesis_ as if it were the underlying data. This is evidence-of-evidence, and while it's how the method works, we should be honest that the +21 C-I score for H4 is softer than it looks.
 
-### G3. We did not validate the evidence standards in the objective.
+### G3. We did not validate the evidence standards in the objective
 
 The objective set evidence hierarchy (Primary > Secondary > Synthetic > Speculative) but the personas mixed tiers freely. For example, Gartner's "25% of network configs by GenAI by 2027" appears as both a primary-source claim (when cited from Gartner directly) and a synthetic-aggregator claim (when cited via a blog that cites Gartner). The research did not consistently distinguish.
 
-### G4. We smoothed some contradictions we said we wouldn't.
+### G4. We smoothed some contradictions we said we wouldn't
 
 The objective explicitly said "contradictions between 'more tooling helps' and 'avoid bloat / stay lean' are preserved, not smoothed." The ACH analysis preserved these at the hypothesis level but the crucible's Executive Summary ends with "H4 is the leading primary strategy" — a smoothed synthesis. The contradiction-mapper did a better job preserving tensions. The two synthesis documents disagree on how much smoothing is appropriate and that disagreement is not surfaced.
 
-### G5. We did not sanity-check our own skill-authoring discipline.
+### G5. We did not sanity-check our own skill-authoring discipline
 
 Every persona critique of "don't add skills you can't sustain" applied to ycc. We did not apply the same critique to our own output — this research produces ~300K of documentation that the single maintainer now must integrate. The research tax is itself a maintenance cost we introduced.
 
-### G6. We addressed the 7 domains unevenly.
+### G6. We addressed the 7 domains unevenly
 
 The objective listed 7 domains in parallel (networking, K8s, containers, virt, netsec, cloud, vendor platforms). The research disproportionately addressed networking and vendor platforms; K8s got moderate depth (context-guard, day-2 ops); containers, virtualization, and cloud got thin coverage. Virtualization especially — Proxmox/KVM/ESXi — is arguably under-researched. The "reject per-vendor matrix" conclusion is conveniently compatible with this unevenness; we should flag that our uneven coverage partially _produced_ the recommendation.
 
-### G7. We did not deeply examine what happens at +5 skills vs. +15 vs. +40.
+### G7. We did not deeply examine what happens at +5 skills vs. +15 vs. +40
 
 The research bundles H1 (25-40 skills) against H4 (4-6) with a 70-90 tipping point claim. It does not model the sensitivity of the recommendation to the actual expansion size. A tight H1 (10-12 skills, carefully chosen) might survive better than the research's framing suggests. We eliminated H1 mostly by appeal to the bias list in objective.md and to evidence about unchecked scope creep, not by modeling a disciplined H1.
 
-### G8. We did not integrate compatibility with the owner's existing private tooling.
+### G8. We did not integrate compatibility with the owner's existing private tooling
 
 The research treated ycc as if it exists in isolation. It does not. The owner has a shell, aliases, MCP configs, VS Code/IDE setup, private dotfiles. An H4 workflow skill that duplicates what the owner's shell aliases already provide is net-negative. We have no data on what private tooling exists.
 
-### G9. We treated "air-gapped" as a binary.
+### G9. We treated "air-gapped" as a binary
 
 Negative-space flagged air-gap as a barrier for 10-20% of users. The real gradient is subtler: air-gap for inference vs. air-gap for data exfil vs. regulated-but-connected. The research did not taxonomize.
 
-### G10. We assumed Claude Opus 4.7 is static.
+### G10. We assumed Claude Opus 4.7 is static
 
 The research framed the decision at a single model version. Claude Opus 5.x in 2026-H2 / 2027 may absorb descriptors gracefully (systems-thinker's Uncertainty #3), which would delay the fragility cliff. Or it may introduce new primitives (e.g., first-class skill clusters) that make meta-skills (H5) trivially cheap. The research did not hedge on model evolution beyond a paragraph of caveat.
 
@@ -222,35 +222,35 @@ The research framed the decision at a single model version. Claude Opus 5.x in 2
 
 ## Key Insights
 
-### Insight 1 — The owner-side gaps are the center of gravity.
+### Insight 1 — The owner-side gaps are the center of gravity
 
 Q1, Q2, Q7 (domain weighting, audience, hand-rolled patterns) are not research gaps; they are owner-report gaps. The research has hit its information ceiling on everything downstream of these three. Any additional research time should shift from more external scanning to direct owner elicitation.
 
-### Insight 2 — The empirical gap on context-rot is the only technical gap that could reverse the recommendation.
+### Insight 2 — The empirical gap on context-rot is the only technical gap that could reverse the recommendation
 
 Everything else tunes priorities; this one reorders hypotheses. If someone built the small eval suite systems-thinker recommends as LP #8, and the threshold turned out to be 150+, the research's entire "bundle near fragility cliff" frame collapses. This is the highest-leverage measurement to take.
 
-### Insight 3 — The theoretical gaps are real but non-blocking.
+### Insight 3 — The theoretical gaps are real but non-blocking
 
 We don't need a formal theory of skill composability or descriptor economics or blast radius to ship H3 hooks + H7 archaeological P0. We would need them to ship H5 (pure composition) confidently — which is why H5 got demoted to a design principle.
 
-### Insight 4 — The practical gaps are the ones that MUST be closed before shipping.
+### Insight 4 — The practical gaps are the ones that MUST be closed before shipping
 
 P-gaps 1 (no reference hook), 3 (no NL→IR spine reference), 4 (no cook-and-diff regex catalog), 7 (no MCP client posture) are all "ship-blockers" — shipping H4 without closing them produces half-artifacts that fall exactly in the chasm Crossing-the-Chasm / Gawande warn against.
 
-### Insight 5 — The research itself has real maintenance cost.
+### Insight 5 — The research itself has real maintenance cost
 
 G5 is not just self-critique; it's real decision input. 300K of documentation must be triaged or archived by the maintainer before the recommendation can be acted on. Most of the documentation is supporting evidence that does not need to live in `ycc/`. An `archive/` move or deletion policy is needed.
 
-### Insight 6 — The "hooks are the empty niche" claim is evidentially strong but operationally under-specified.
+### Insight 6 — The "hooks are the empty niche" claim is evidentially strong but operationally under-specified
 
 F2 in the verification log is "High confidence" and 5 of 8 personas convergent. But the research never shipped one hook to measure. The confidence on the _diagnosis_ is not confidence on the _implementation cost_. P-gap 1 is the correctable gap.
 
-### Insight 7 — We have evidence against H1 that would survive most counter-arguments.
+### Insight 7 — We have evidence against H1 that would survive most counter-arguments
 
 H1 is gone. The -21 ACH score is unusually decisive. Even under favorable assumptions (context-rot threshold at 150, owner weighting 60% networking-deep, vendor MCPs slow through 2027), H1's per-vendor matrix remains dominated by H4's workflow-agnostic approach. The firmness of the H1 rejection is itself a research asset. Use it as the policy anchor in CONTRIBUTING.md.
 
-### Insight 8 — The H4-vs-H7 discriminator is operational, not epistemic.
+### Insight 8 — The H4-vs-H7 discriminator is operational, not epistemic
 
 At +20 (H7) vs. +21 (H4), the statistical discrimination is noise. The real discriminator is whether the owner has _personally used_ change-review and evidence-bundle workflows in the last 60 days. That is a 5-minute conversation, not more research. The research has set up the decision; the owner has to make it.
 
@@ -258,7 +258,7 @@ At +20 (H7) vs. +21 (H4), the statistical discrimination is noise. The real disc
 
 Whether you reach for H3, H4, or H7, the first artifact should be a hook (context-guard or blast-radius-warn). Every surviving hypothesis agrees on this order. If the owner wants to test the 4× multiplier cost (E-gap 5 / Q6) cheaply, shipping one hook is the instrument.
 
-### Insight 10 — Honest acknowledgment of our G1–G10 gaps is the strongest epistemic move we can make in the final deliverable.
+### Insight 10 — Honest acknowledgment of our G1–G10 gaps is the strongest epistemic move we can make in the final deliverable
 
 A build-decision document that ships with named, ranked research gaps is more trustworthy than one that claims certainty. The owner is the maintainer; they will make better decisions with the gap list in hand than with a clean recommendation that papers over them.
 

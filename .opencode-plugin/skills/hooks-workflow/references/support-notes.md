@@ -17,7 +17,7 @@ Hook support on Claude Code is production-grade and is the primary target for th
 
 - **PreToolUse**
   - Status: supported
-  - Documentation: Anthropic hooks guide — https://docs.anthropic.com/en/docs/claude-code/hooks-guide
+  - Documentation: Anthropic hooks guide — <https://docs.anthropic.com/en/docs/claude-code/hooks-guide>
   - Config location: `~/.claude/settings.json` (global) or `.claude/settings.json` in the
     repo root (project-local). Project-local settings take precedence when both exist.
   - Execution model: Claude Code invokes the hook command as a subprocess with the tool

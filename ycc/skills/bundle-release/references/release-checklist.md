@@ -23,9 +23,11 @@ If pre-flight fails: resolve all failing conditions before proceeding. Do not sk
 ## Phase 1: Decide Bump
 
 - [ ] Review commits since the last tag:
+
   ```
   git log $(git describe --tags --abbrev=0)..HEAD --oneline
   ```
+
 - [ ] Select the semver bump level (major / minor / patch) per `references/version-policy.md`.
 - [ ] Record the chosen new version: `<new-version>`
 
@@ -125,17 +127,23 @@ gh release create v<new-version> --notes-file docs/releases/<new-version>.md --t
 If anything fails after Phase 1:
 
 1. Restore version files:
+
    ```
    git checkout -- ycc/.claude-plugin/plugin.json .claude-plugin/marketplace.json
    ```
+
 2. Restore generated bundles to pre-release state:
+
    ```
    ./scripts/sync.sh
    ```
+
 3. Remove the draft release notes if they were created:
+
    ```
    rm -f docs/releases/<new-version>.md
    ```
+
 4. Investigate the root cause, then restart from Phase 0.
 
 ---

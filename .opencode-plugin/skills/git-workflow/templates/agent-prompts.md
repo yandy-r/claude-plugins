@@ -11,15 +11,15 @@ All docs-git-committer agents should receive prompts following this structure:
 ````
 You are handling the git commit and documentation for: [FEATURE SCOPE]
 
-## Changed Files in Your Scope
+## Standard: Changed Files in Your Scope
 
 [List of files related to this feature]
 
-## Context
+## Standard: Context
 
 [Brief description of what changed and why]
 
-## Documentation Templates
+## Standard: Documentation Templates
 
 Read these templates BEFORE creating documentation:
 - Feature docs: ~/.config/opencode/file-templates/feature-doc.template.md
@@ -27,7 +27,7 @@ Read these templates BEFORE creating documentation:
 - Architecture docs: ~/.config/opencode/file-templates/arch.template.md
 - API docs: ~/.config/opencode/file-templates/api.template.md
 
-## Your Tasks
+## Standard: Your Tasks
 
 1. Review the changes in your assigned files
 2. Determine if documentation updates are needed (use documentation-decision.md)
@@ -39,7 +39,7 @@ Read these templates BEFORE creating documentation:
 4. Stage all files (source + docs) and commit with conventional message
 5. Return summary of what you committed
 
-## Important Constraints
+## Standard: Important Constraints
 
 - **ALWAYS use conventional commit format** — this is mandatory, not optional
 - Read the reference BEFORE writing your commit message: ~/.config/opencode/skills/git-workflow/templates/commit-types.md
@@ -90,11 +90,11 @@ Return a summary including:
 
 You are handling the git commit and documentation for: [FEATURE NAME]
 
-## Changed Files in Your Scope
+## New Feature: Changed Files in Your Scope
 
 [List of implementation files]
 
-## Context
+## New Feature: Context
 
 This is a NEW FEATURE that [description of what it does].
 
@@ -104,13 +104,13 @@ Key changes:
 - [File 2]: [what was added/changed]
 - [File 3]: [what was added/changed]
 
-## Documentation Templates
+## New Feature: Documentation Templates
 
 Read BEFORE documenting:
 
 - Feature docs: ~/.config/opencode/file-templates/feature-doc.template.md
 
-## Your Tasks
+## New Feature: Your Tasks
 
 1. Review the implementation files
 2. **Create feature documentation** at docs/features/[feature-name].doc.md
@@ -122,7 +122,7 @@ Read BEFORE documenting:
 4. Commit with message format: feat([scope]): [description]
 5. Return summary
 
-## Important
+## New Feature: Important
 
 - This is a new feature, so feature docs ARE NEEDED
 - Keep docs concise and user-focused
@@ -137,15 +137,15 @@ Read BEFORE documenting:
 
 You are handling the git commit and documentation for: [BUG DESCRIPTION]
 
-## Changed Files in Your Scope
+## Bug Fix: Changed Files in Your Scope
 
 [List of fixed files]
 
-## Context
+## Bug Fix: Context
 
 This fixes a bug where [description of the problem and solution].
 
-## Your Tasks
+## Bug Fix: Your Tasks
 
 1. Review the bug fix
 2. **Skip documentation** - bug fixes don't need docs unless behavior changes
@@ -153,7 +153,7 @@ This fixes a bug where [description of the problem and solution].
 4. Commit with message format: fix([scope]): [description]
 5. Return summary
 
-## Important
+## Bug Fix: Important
 
 - Bug fixes typically DON'T need documentation
 - Use "fix" type in commit message
@@ -168,25 +168,25 @@ This fixes a bug where [description of the problem and solution].
 
 You are handling the git commit and documentation for: [API CHANGES]
 
-## Changed Files in Your Scope
+## API Changes: Changed Files in Your Scope
 
 [List of API-related files]
 
-## Context
+## API Changes: Context
 
 This changes the following APIs:
 
 - [Endpoint 1]: [what changed]
 - [Endpoint 2]: [what changed]
 
-## Documentation Templates
+## API Changes: Documentation Templates
 
 Read BEFORE documenting:
 
 - API docs: ~/.config/opencode/file-templates/api.template.md
 - Feature docs: ~/.config/opencode/file-templates/feature-doc.template.md (if needed)
 
-## Your Tasks
+## API Changes: Your Tasks
 
 1. Review the API changes
 2. **Update API documentation** at docs/api/[relevant-file].md
@@ -198,7 +198,7 @@ Read BEFORE documenting:
 5. Commit with message format: feat([scope]): [description] or feat([scope])!: if breaking
 6. Return summary
 
-## Important
+## API Changes: Important
 
 - API changes ALWAYS need API docs updated
 - Breaking changes need BREAKING CHANGE footer
@@ -213,17 +213,17 @@ Read BEFORE documenting:
 
 You are handling the git commit and documentation for: [REFACTORING DESCRIPTION]
 
-## Changed Files in Your Scope
+## Refactoring: Changed Files in Your Scope
 
 [List of refactored files]
 
-## Context
+## Refactoring: Context
 
 This refactors [what was refactored] to [why it was refactored].
 
 No functional changes - purely organizational/quality improvements.
 
-## Your Tasks
+## Refactoring: Your Tasks
 
 1. Review the refactoring
 2. **Skip documentation** - refactoring without behavior change doesn't need docs
@@ -231,7 +231,7 @@ No functional changes - purely organizational/quality improvements.
 4. Commit with message format: refactor([scope]): [description]
 5. Return summary
 
-## Important
+## Refactoring: Important
 
 - Refactoring typically does NOT need documentation
 - Use "refactor" type in commit message
@@ -246,24 +246,24 @@ No functional changes - purely organizational/quality improvements.
 
 You are handling the git commit and documentation for: [SECURITY FEATURE]
 
-## Changed Files in Your Scope
+## Security Pattern: Changed Files in Your Scope
 
 [List of security-related files]
 
-## Context
+## Security Pattern: Context
 
 This introduces [security measure] to [protect against what].
 
 This is a CRITICAL security pattern that must be followed consistently.
 
-## Documentation Templates
+## Security Pattern: Documentation Templates
 
 Read BEFORE documenting:
 
 - AGENTS.md: ~/.config/opencode/file-templates/agents.template.md
 - Architecture docs: ~/.config/opencode/file-templates/arch.template.md
 
-## Your Tasks
+## Security Pattern: Your Tasks
 
 1. Review the security implementation
 2. **Consider AGENTS.md update** - IF this is a critical pattern for the specific directory
@@ -279,7 +279,7 @@ Read BEFORE documenting:
 5. Commit with message format: feat([scope]): [description]
 6. Return summary
 
-## Important
+## Security Pattern: Important
 
 - Security patterns MAY warrant AGENTS.md updates (but rarely)
 - Always create architecture docs for security measures

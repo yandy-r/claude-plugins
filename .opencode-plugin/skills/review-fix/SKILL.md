@@ -165,7 +165,7 @@ Parse the block into structured variables:
 - `PARENT_PATH` from `- **Parent**: <path> (branch: <branch>)` → capture `<path>` and `<branch>`
 - `PARENT_BRANCH` from the same line
 - `CHILDREN_MAP[<SEVERITY>] = { path: <child-path>, branch: <child-branch> }` for each
-  `  - <SEVERITY> → <child-path> (branch: <child-branch>)` line
+  `- <SEVERITY> → <child-path> (branch: <child-branch>)` line
 
 Set `WORKTREE_ACTIVE=true` regardless of the `--worktree` flag (auto-detect: the artifact's declaration wins).
 
@@ -199,6 +199,7 @@ Deduce paths from the artifact filename:
   ```
 
 - For `local-<ts>-review.md`: abort with:
+
   ```
   Error: --worktree cannot be force-applied to a local review artifact that was produced without worktree isolation. Re-run /code-review --worktree to regenerate.
   ```
@@ -206,6 +207,7 @@ Deduce paths from the artifact filename:
 Set `WORKTREE_ACTIVE=true` and populate `CHILDREN_MAP` by convention:
 
 - For each severity S that has at least one Open finding above `MIN_SEVERITY`:
+
   ```
   CHILDREN_MAP[S] = {
     path: ~/.claude-worktrees/<repo>-<slug>-<severity-lowercase>/,

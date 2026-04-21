@@ -118,11 +118,14 @@ Store the matrix for Phases 5, 6, and 7.
 Unless `--skip-notes` was passed:
 
 1. Invoke:
+
    ```
    ~/.codex/plugins/ycc/skills/releaser/scripts/draft-changelog.sh <new-version>
    ```
+
    The helper writes grouped, conventional-commit-based Markdown to stdout
    (sections: **Features**, **Fixes**, **Breaking Changes**, **Docs**, **Chore**).
+
 2. Update the project's changelog file in place. Supported layouts:
    - `CHANGELOG.md` with `## [Unreleased]` section → insert a new dated entry above it.
    - `CHANGELOG.md` with no `Unreleased` marker → prepend a new entry under the title.

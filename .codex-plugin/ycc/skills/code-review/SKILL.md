@@ -92,6 +92,7 @@ Continue with Local Review Mode but set `WORKTREE_ACTIVE=false`. **Do NOT** emit
 5. Record `WORKTREE_ACTIVE=true`, `PARENT_BRANCH=<PR_HEAD>`, and `PARENT_WORKTREE_PATH=<captured path>`.
 
 6. If the checkout fails (e.g., the branch is already checked out in the main repo or conflicts exist), abort with:
+
    ```
    Error: could not check out PR head '<PR_HEAD>' into a worktree.
    Likely cause: the branch is currently checked out in the main repository.

@@ -11,7 +11,7 @@ A single file at `docs/prps/plans/{name}.plan.md`. PRP plans come in two structu
 Check for these signals in order:
 
 1. **Standard format** (ACTION/IMPLEMENT fields): Contains `### Task` headings AND task bodies with `ACTION:` or `IMPLEMENT:` field labels
-2. **Narrative format** (bold task markers): Contains `**T` bold task markers (e.g., `**T1 — Title**`) with `_Depends on []._ ` italic dependency notation and free-form narrative descriptions ending with `Acceptance:` criteria
+2. **Narrative format** (bold task markers): Contains `**T` bold task markers (e.g., `**T1 — Title**`) with `_Depends on []._` italic dependency notation and free-form narrative descriptions ending with `Acceptance:` criteria
 
 Both formats may include a `## Batches` section (parallel mode) or be sequential-only.
 
@@ -126,7 +126,7 @@ Acceptance: {acceptance criteria}
 For each task, extract:
 
 - **Task number** (N from `T{N}`)
-- **Task title** (text between `— ` and `**`)
+- **Task title** (text between `—` and `**`)
 - **Dependencies**: Parse from `_Depends on [{deps}]._` (e.g., `[]` for none, `[T2]` for single dep)
 - **Batch assignment**: From the `### Batch X` sub-heading the task appears under
 - **Implementation guidance**: The full narrative description (everything between the dependency notation and "Acceptance:")

@@ -11,7 +11,7 @@ live under `.cursor-plugin/rules/` (nested layout preserved). Regenerate after e
 Generated files use YAML frontmatter (`description`, `alwaysApply`, `globs`) and Cursor-native path
 wording. Prefer **single-root** Cursor workspaces when using nested `.cursor/rules/**` trees.
 
-### Cursor `.mdc` frontmatter
+## Cursor `.mdc` frontmatter
 
 Each generated rule starts with YAML between `---` lines:
 
@@ -94,9 +94,11 @@ To add support for a new language (e.g., `rust/`):
    - `hooks.md` — PostToolUse hooks for formatters, linters, type checkers
    - `security.md` — secret management, security scanning tools
 3. Each file should start with:
+
    ```
    > This file extends [common/xxx.mdc](../common/xxx.mdc) with <Language> specific content.
    ```
+
 4. Reference existing skills if available, or create new ones under `skills/`.
 
 For non-language domains like `web/`, follow the same layered pattern when there is enough reusable domain-specific guidance to justify a standalone ruleset.

@@ -147,6 +147,7 @@ Output format by target:
 
 - **Claude** — a JSON fragment containing only the `hooks` key, suitable for
   merging into `~/.codex/settings.json`. Example structure:
+
   ```json
   {
     "hooks": {
@@ -156,16 +157,20 @@ Output format by target:
     }
   }
   ```
+
 - **Cursor** — a `.mdc` rule-embedded fragment where the matrix shows `partial`
   support. Where an event is `unsupported`, the script emits an advisory-only
   marker comment instead of executable config.
 - **Codex** — always an advisory-only `config.toml` fragment. The script MUST
   prefix the entire output with:
+
   ```
   # Advisory only — Codex hooks under development as of 2026-04-16.
   ```
+
   Codex output is printed to stdout unless `--force` was passed. If `--force`
   is absent and `--out` resolves to a file path, STOP before writing and emit:
+
   ```
   Codex output requires --force to write to disk. Re-run with --force to
   confirm. Output printed to stdout:
@@ -198,6 +203,7 @@ After all phases complete, always emit:
    `--dry-run` or Codex without `--force`).
 2. The matrix row(s) that justified the decision, quoted verbatim from the
    matrix table. For example:
+
    ```
    Matrix justification:
      | HOOKS.PreToolUse | supported | partial | unsupported |
