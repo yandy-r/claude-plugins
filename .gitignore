@@ -25,6 +25,9 @@ node_modules/
 .vscode/
 *.sublime-*
 
+# Pinned tools (scripts/install-shellcheck.sh installs repo-local binary here)
+/tools/shellcheck
+
 # Python
 __pycache__/
 *.py[cod]

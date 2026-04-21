@@ -23,5 +23,8 @@ jobs:
       - name: Install Python deps
         run: pip install pyyaml
 
+      - name: Install pinned shellcheck
+        run: ./scripts/install-shellcheck.sh
+
       - name: Run unified validator
         run: ./scripts/validate.sh
