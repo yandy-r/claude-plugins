@@ -8,6 +8,12 @@ YCI_TEST_FILE="${BASH_SOURCE[1]##*/}"  # caller's basename
 
 # Resolve key directory paths (tolerates missing dirs — scripts may not yet exist)
 _HELPERS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+# yci plugin root (parent of skills/) — matches CLAUDE_PLUGIN_ROOT when the
+# plugin runs under Claude Code.
+if [ -z "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+    CLAUDE_PLUGIN_ROOT="$(cd "${_HELPERS_DIR}/../../../.." && pwd -P)"
+fi
+export CLAUDE_PLUGIN_ROOT
 if cd "${_HELPERS_DIR}/../scripts" 2>/dev/null; then
     YCI_SCRIPTS_DIR="$(pwd -P)"
     cd "${_HELPERS_DIR}" || true
@@ -47,12 +53,17 @@ _yci_test_report() {
     local status="$1" name="$2" detail="${3:-}"
     if [ "$status" = "PASS" ]; then
         YCI_TEST_PASS=$((YCI_TEST_PASS + 1))
-        [ "${YCI_TEST_VERBOSE:-0}" = "1" ] && printf '  \033[32m+\033[0m %s\n' "$name"
+        if [ "${YCI_TEST_VERBOSE:-0}" = "1" ]; then
+            printf '  \033[32m+\033[0m %s\n' "$name"
+        fi
     else
         YCI_TEST_FAIL=$((YCI_TEST_FAIL + 1))
         printf '  \033[31mFAIL\033[0m %s\n' "$name" >&2
-        [ -n "$detail" ] && printf '    %s\n' "$detail" >&2
+        if [ -n "$detail" ]; then
+            printf '    %s\n' "$detail" >&2
+        fi
     fi
+    return 0
 }
 
 # ---------------------------------------------------------------------------

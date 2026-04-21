@@ -11,38 +11,37 @@
 #   YCI_ACTIVE_CUSTOMER        — required; the active customer id
 #   YCI_DATA_ROOT_RESOLVED     — required; canonicalized yci data root
 #
-# Exit: 0 on decision emitted (allow OR deny); non-zero on internal error only.
+# Exit: 0 on decision emitted (allow OR deny); non-zero on internal error only
+# (missing env, allowlist load failure, extractor failure, bundle build failure).
 #
 # No `set -euo pipefail` — sourceable library.
 
 # ---------------------------------------------------------------------------
-# Resolve script directory at source time (hermetic).
+# Resolve customer-isolation scripts from the invoking plugin root.
+# Claude sets CLAUDE_PLUGIN_ROOT; the customer-guard hook sets YCI_ROOT to the
+# same layout (…/skills/_shared/customer-isolation/...).
 # ---------------------------------------------------------------------------
 
-_CI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
-_CI_SCRIPTS="${_CI_DIR}/scripts"
-
-# Source path and allowlist helpers. Track missing-helpers at source time so
-# isolation_check_payload can emit a fail-closed deny rather than silently
-# falling through to allow when a helper function would be undefined at call
-# time.
-_CI_BROKEN=""
+_CI_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${YCI_ROOT:-}}"
+if [ -z "$_CI_PLUGIN_ROOT" ]; then
+    printf 'yci guard: detect.sh requires CLAUDE_PLUGIN_ROOT or YCI_ROOT\n' >&2
+    exit 1
+fi
+_CI_SCRIPTS="${_CI_PLUGIN_ROOT%/}/skills/_shared/customer-isolation/scripts"
 
 if [ ! -f "${_CI_SCRIPTS}/path-match.sh" ]; then
     printf 'yci guard: path-match.sh not found at %s\n' "${_CI_SCRIPTS}/path-match.sh" >&2
-    _CI_BROKEN="path-match.sh missing"
-else
-    # shellcheck source=/dev/null
-    source "${_CI_SCRIPTS}/path-match.sh"
+    exit 1
 fi
+# shellcheck source=/dev/null
+source "${_CI_SCRIPTS}/path-match.sh"
 
 if [ ! -f "${_CI_SCRIPTS}/allowlist.sh" ]; then
     printf 'yci guard: allowlist.sh not found at %s\n' "${_CI_SCRIPTS}/allowlist.sh" >&2
-    _CI_BROKEN="${_CI_BROKEN:+${_CI_BROKEN}; }allowlist.sh missing"
-else
-    # shellcheck source=/dev/null
-    source "${_CI_SCRIPTS}/allowlist.sh"
+    exit 1
 fi
+# shellcheck source=/dev/null
+source "${_CI_SCRIPTS}/allowlist.sh"
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -83,21 +82,8 @@ if isinstance(cur, list):
 # Reads the PreToolUse JSON payload and emits a single-line decision on stdout.
 # Returns:
 #   0  — decision emitted (allow or deny)
-#   1  — internal error (missing required env vars)
+#   1  — internal error (missing env, allowlist load, extractors, bundle build)
 isolation_check_payload() {
-    # -----------------------------------------------------------------------
-    # 0. Fail-closed if helpers were missing at source time. Without the
-    #    helpers the collision loops would silently skip their checks and the
-    #    function would emit {"decision":"allow"} — a real safety hole.
-    # -----------------------------------------------------------------------
-    if [ -n "${_CI_BROKEN:-}" ]; then
-        printf 'yci guard: detection library broken at source time (%s); fail-closed deny emitted.\n' \
-            "$_CI_BROKEN" >&2
-        printf '{"decision":"deny","collision":{"active":"?","foreign":"?","kind":"internal-error","evidence":"detect.sh helpers missing: %s"}}\n' \
-            "$_CI_BROKEN"
-        return 0
-    fi
-
     # -----------------------------------------------------------------------
     # 1. Guard env
     # -----------------------------------------------------------------------
@@ -152,20 +138,22 @@ isolation_check_payload() {
     # 4. Extract candidates
     # -----------------------------------------------------------------------
     local cand_paths cand_tokens
-    cand_paths="$(printf '%s' "$payload" | python3 "${_CI_SCRIPTS}/extract-paths.py")"
-    cand_tokens="$(printf '%s' "$payload" | python3 "${_CI_SCRIPTS}/extract-tokens.py")"
+    if ! cand_paths="$(printf '%s' "$payload" | python3 "${_CI_SCRIPTS}/extract-paths.py")"; then
+        printf 'yci guard: extract-paths.py failed\n' >&2
+        return 1
+    fi
+    if ! cand_tokens="$(printf '%s' "$payload" | python3 "${_CI_SCRIPTS}/extract-tokens.py")"; then
+        printf 'yci guard: extract-tokens.py failed\n' >&2
+        return 1
+    fi
 
     # -----------------------------------------------------------------------
     # 5. Load allowlist for the active customer
     # -----------------------------------------------------------------------
     if ! allowlist_load "$YCI_DATA_ROOT_RESOLVED" "$YCI_ACTIVE_CUSTOMER"; then
-        printf 'yci guard: allowlist load failed; treating as empty allowlist.\n' >&2
-        # Arrays populated in allowlist.sh and consumed via allowlist_contains
-        # (cross-file usage is invisible to the linter).
-        # shellcheck disable=SC2034
-        ALLOWLIST_PATHS=()
-        # shellcheck disable=SC2034
-        ALLOWLIST_TOKENS=()
+        printf 'yci guard: allowlist load failed for customer %s (see stderr from allowlist_load).\n' \
+            "$YCI_ACTIVE_CUSTOMER" >&2
+        return 1
     fi
 
     # -----------------------------------------------------------------------
@@ -178,9 +166,9 @@ isolation_check_payload() {
             --data-root "$YCI_DATA_ROOT_RESOLVED" --customer "$fc" 2>/dev/null)"
         bundle_rc=$?
         if [ "$bundle_rc" -ne 0 ]; then
-            printf 'yci guard: failed to build fingerprint bundle for foreign customer %s (rc=%d); skipping.\n' \
+            printf 'yci guard: failed to build fingerprint bundle for foreign customer %s (rc=%d).\n' \
                 "$fc" "$bundle_rc" >&2
-            continue
+            return 1
         fi
 
         # -------------------------------------------------------------------
@@ -194,13 +182,13 @@ isolation_check_payload() {
             while IFS= read -r froot; do
                 [ -z "$froot" ] && continue
                 if path_is_under "$cand_path" "$froot"; then
-                    if ! allowlist_contains path "$cand_path"; then
-                        local resolved
-                        resolved="$(path_canonicalize "$cand_path")"
+                    local resolved
+                    resolved="$(path_canonicalize "$cand_path")"
+                    if ! allowlist_contains path "$resolved"; then
                         printf '{"decision":"deny","collision":{"active":"%s","foreign":"%s","kind":"path","evidence":"%s","resolved":"%s"}}\n' \
                             "$YCI_ACTIVE_CUSTOMER" \
                             "$fc" \
-                            "$(_ci_json_escape "$cand_path")" \
+                            "$(_ci_json_escape "$resolved")" \
                             "$(_ci_json_escape "$resolved")"
                         return 0
                     fi

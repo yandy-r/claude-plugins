@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
+set -euo pipefail
 # Tests for extract-tokens.py — category extraction + whitelist filtering.
+if [ -z "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+    CLAUDE_PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd -P)"
+    export CLAUDE_PLUGIN_ROOT
+fi
 # shellcheck disable=SC1091
-source "$(dirname "${BASH_SOURCE[0]}")/helpers.sh"
+source "${CLAUDE_PLUGIN_ROOT}/skills/_shared/customer-isolation/tests/helpers.sh"
 
-EXTRACTOR="${YCI_SCRIPTS_DIR}/extract-tokens.py"
+EXTRACTOR="${CLAUDE_PLUGIN_ROOT}/skills/_shared/customer-isolation/scripts/extract-tokens.py"
 
 _extractor_ok() {
     if [ ! -f "$EXTRACTOR" ]; then
@@ -13,22 +18,27 @@ _extractor_ok() {
     return 0
 }
 
+_require_extractor() {
+    if ! _extractor_ok; then
+        _yci_test_report FAIL "extract-tokens.py missing at $EXTRACTOR"
+        return 1
+    fi
+}
+
 _run() {
     printf '%s' "$1" | python3 "$EXTRACTOR" 2>/dev/null
 }
 
 # ---------------------------------------------------------------------------
 test_ipv4_whitelisted() {
-    local _sb="$1"
-    _extractor_ok || { _yci_test_report PASS "ipv4_wl: skipped"; return 0; }
+    _require_extractor || return 1
     local out
     out="$(_run '{"tool_name":"Write","tool_input":{"content":"server 127.0.0.1"}}')"
     assert_not_contains "$out" "127.0.0.1" "ipv4_wl: loopback not emitted"
 }
 
 test_ipv4_real() {
-    local _sb="$1"
-    _extractor_ok || { _yci_test_report PASS "ipv4_real: skipped"; return 0; }
+    _require_extractor || return 1
     local out
     out="$(_run '{"tool_name":"Write","tool_input":{"content":"host 10.2.2.2"}}')"
     assert_contains "$out" "ipv4" "ipv4_real: category emitted"
@@ -36,8 +46,7 @@ test_ipv4_real() {
 }
 
 test_ipv6_real() {
-    local _sb="$1"
-    _extractor_ok || { _yci_test_report PASS "ipv6_real: skipped"; return 0; }
+    _require_extractor || return 1
     local out
     # Use a full-form non-whitelisted IPv6 address (compressed forms like ::1 match only
     # the loopback part; full-colon-separated form is required for the regex).
@@ -47,16 +56,14 @@ test_ipv6_real() {
 }
 
 test_ipv6_whitelisted() {
-    local _sb="$1"
-    _extractor_ok || { _yci_test_report PASS "ipv6_wl: skipped"; return 0; }
+    _require_extractor || return 1
     local out
     out="$(_run '{"tool_name":"Write","tool_input":{"content":"loopback ::1"}}')"
     assert_not_contains "$out" "::1" "ipv6_wl: loopback not emitted"
 }
 
 test_hostname_real() {
-    local _sb="$1"
-    _extractor_ok || { _yci_test_report PASS "hostname_real: skipped"; return 0; }
+    _require_extractor || return 1
     local out
     out="$(_run '{"tool_name":"Write","tool_input":{"content":"target bb01.bigbank.corp"}}')"
     assert_contains "$out" "hostname" "hostname_real: category emitted"
@@ -64,16 +71,14 @@ test_hostname_real() {
 }
 
 test_hostname_whitelisted() {
-    local _sb="$1"
-    _extractor_ok || { _yci_test_report PASS "hostname_wl: skipped"; return 0; }
+    _require_extractor || return 1
     local out
     out="$(_run '{"tool_name":"Write","tool_input":{"content":"see example.com for docs"}}')"
     assert_not_contains "$out" "example.com" "hostname_wl: example.com not emitted"
 }
 
 test_asn() {
-    local _sb="$1"
-    _extractor_ok || { _yci_test_report PASS "asn: skipped"; return 0; }
+    _require_extractor || return 1
     local out
     out="$(_run '{"tool_name":"Write","tool_input":{"content":"prefix from AS65001"}}')"
     assert_contains "$out" "asn" "asn: category emitted"
@@ -81,8 +86,7 @@ test_asn() {
 }
 
 test_sow_ref() {
-    local _sb="$1"
-    _extractor_ok || { _yci_test_report PASS "sow_ref: skipped"; return 0; }
+    _require_extractor || return 1
     local out
     out="$(_run '{"tool_name":"Write","tool_input":{"content":"per SOW-1234 this is done"}}')"
     assert_contains "$out" "sow-ref" "sow_ref: category emitted"
@@ -90,8 +94,7 @@ test_sow_ref() {
 }
 
 test_credential_ref() {
-    local _sb="$1"
-    _extractor_ok || { _yci_test_report PASS "cred_ref: skipped"; return 0; }
+    _require_extractor || return 1
     local out
     out="$(_run '{"tool_name":"Write","tool_input":{"content":"password vault:prod/db/password"}}')"
     assert_contains "$out" "credential-ref" "cred_ref: category emitted"
@@ -99,8 +102,7 @@ test_credential_ref() {
 }
 
 test_content_cap() {
-    local _sb="$1"
-    _extractor_ok || { _yci_test_report PASS "content_cap: skipped"; return 0; }
+    _require_extractor || return 1
     # Build content > 1 MiB
     local json
     json="$(python3 -c "
@@ -114,8 +116,7 @@ print(json.dumps(payload))
 }
 
 test_invalid_json() {
-    local _sb="$1"
-    _extractor_ok || { _yci_test_report PASS "tokens_invalid_json: skipped"; return 0; }
+    _require_extractor || return 1
     local stderr_out rc
     stderr_out="$(printf 'not json' | python3 "$EXTRACTOR" 2>&1 1>/dev/null)"; rc=$?
     assert_contains "$stderr_out" "truncated:tokens:invalid-json" "tokens_invalid_json: marker on stderr"
