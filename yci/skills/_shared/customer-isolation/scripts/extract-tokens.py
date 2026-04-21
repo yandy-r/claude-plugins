@@ -17,9 +17,29 @@ import sys
 # Must stay byte-identical to inventory-fingerprint.py per fingerprint-rules.md.
 # ---------------------------------------------------------------------------
 
+# IPv6 regex — covers full, compressed, and mixed forms. Downstream validation
+# via ipaddress.ip_address() always runs, so over-matching is tolerable; the
+# point is to not UNDER-match common compressed literals like 2001:db8::1.
+# Pattern adapted from the widely cited RegexLib IPv6 expression.
+_IPV6_PATTERN = (
+    r"(?<![A-Fa-f0-9:])"
+    r"(?:"
+    r"(?:[A-Fa-f0-9]{1,4}:){7}[A-Fa-f0-9]{1,4}"  # 1:2:3:4:5:6:7:8
+    r"|(?:[A-Fa-f0-9]{1,4}:){1,7}:"  # 1:: … 1:2:3:4:5:6:7::
+    r"|(?:[A-Fa-f0-9]{1,4}:){1,6}:[A-Fa-f0-9]{1,4}"  # 1::8 … 1:2:3:4:5:6::8
+    r"|(?:[A-Fa-f0-9]{1,4}:){1,5}(?::[A-Fa-f0-9]{1,4}){1,2}"
+    r"|(?:[A-Fa-f0-9]{1,4}:){1,4}(?::[A-Fa-f0-9]{1,4}){1,3}"
+    r"|(?:[A-Fa-f0-9]{1,4}:){1,3}(?::[A-Fa-f0-9]{1,4}){1,4}"
+    r"|(?:[A-Fa-f0-9]{1,4}:){1,2}(?::[A-Fa-f0-9]{1,4}){1,5}"
+    r"|[A-Fa-f0-9]{1,4}:(?::[A-Fa-f0-9]{1,4}){1,6}"
+    r"|:(?:(?::[A-Fa-f0-9]{1,4}){1,7}|:)"  # ::8 … ::
+    r")"
+    r"(?![A-Fa-f0-9:])"
+)
+
 CATEGORY_REGEXES = {
     "ipv4": re.compile(r"\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b"),
-    "ipv6": re.compile(r"\b(?:[A-Fa-f0-9]{1,4}:){2,7}[A-Fa-f0-9]{1,4}\b|::1"),
+    "ipv6": re.compile(_IPV6_PATTERN),
     "hostname": re.compile(
         r"\b[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+\b",
         re.IGNORECASE,

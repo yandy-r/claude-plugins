@@ -22,9 +22,15 @@
 _CI_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 _CI_SCRIPTS="${_CI_DIR}/scripts"
 
-# Source path and allowlist helpers.
+# Source path and allowlist helpers. Track missing-helpers at source time so
+# isolation_check_payload can emit a fail-closed deny rather than silently
+# falling through to allow when a helper function would be undefined at call
+# time.
+_CI_BROKEN=""
+
 if [ ! -f "${_CI_SCRIPTS}/path-match.sh" ]; then
     printf 'yci guard: path-match.sh not found at %s\n' "${_CI_SCRIPTS}/path-match.sh" >&2
+    _CI_BROKEN="path-match.sh missing"
 else
     # shellcheck source=/dev/null
     source "${_CI_SCRIPTS}/path-match.sh"
@@ -32,6 +38,7 @@ fi
 
 if [ ! -f "${_CI_SCRIPTS}/allowlist.sh" ]; then
     printf 'yci guard: allowlist.sh not found at %s\n' "${_CI_SCRIPTS}/allowlist.sh" >&2
+    _CI_BROKEN="${_CI_BROKEN:+${_CI_BROKEN}; }allowlist.sh missing"
 else
     # shellcheck source=/dev/null
     source "${_CI_SCRIPTS}/allowlist.sh"
@@ -78,6 +85,19 @@ if isinstance(cur, list):
 #   0  — decision emitted (allow or deny)
 #   1  — internal error (missing required env vars)
 isolation_check_payload() {
+    # -----------------------------------------------------------------------
+    # 0. Fail-closed if helpers were missing at source time. Without the
+    #    helpers the collision loops would silently skip their checks and the
+    #    function would emit {"decision":"allow"} — a real safety hole.
+    # -----------------------------------------------------------------------
+    if [ -n "${_CI_BROKEN:-}" ]; then
+        printf 'yci guard: detection library broken at source time (%s); fail-closed deny emitted.\n' \
+            "$_CI_BROKEN" >&2
+        printf '{"decision":"deny","collision":{"active":"?","foreign":"?","kind":"internal-error","evidence":"detect.sh helpers missing: %s"}}\n' \
+            "$_CI_BROKEN"
+        return 0
+    fi
+
     # -----------------------------------------------------------------------
     # 1. Guard env
     # -----------------------------------------------------------------------

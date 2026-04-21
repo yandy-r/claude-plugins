@@ -28,41 +28,65 @@ except ImportError:
 # Keep byte-identical with extract-tokens.py.  Compile once at module level.
 # ---------------------------------------------------------------------------
 
+# IPv6 regex — covers full, compressed, and mixed forms. Must match
+# extract-tokens.py's _IPV6_PATTERN byte-for-byte.
+_IPV6_PATTERN = (
+    r"(?<![A-Fa-f0-9:])"
+    r"(?:"
+    r"(?:[A-Fa-f0-9]{1,4}:){7}[A-Fa-f0-9]{1,4}"
+    r"|(?:[A-Fa-f0-9]{1,4}:){1,7}:"
+    r"|(?:[A-Fa-f0-9]{1,4}:){1,6}:[A-Fa-f0-9]{1,4}"
+    r"|(?:[A-Fa-f0-9]{1,4}:){1,5}(?::[A-Fa-f0-9]{1,4}){1,2}"
+    r"|(?:[A-Fa-f0-9]{1,4}:){1,4}(?::[A-Fa-f0-9]{1,4}){1,3}"
+    r"|(?:[A-Fa-f0-9]{1,4}:){1,3}(?::[A-Fa-f0-9]{1,4}){1,4}"
+    r"|(?:[A-Fa-f0-9]{1,4}:){1,2}(?::[A-Fa-f0-9]{1,4}){1,5}"
+    r"|[A-Fa-f0-9]{1,4}:(?::[A-Fa-f0-9]{1,4}){1,6}"
+    r"|:(?:(?::[A-Fa-f0-9]{1,4}){1,7}|:)"
+    r")"
+    r"(?![A-Fa-f0-9:])"
+)
+
 CATEGORY_REGEXES: dict[str, re.Pattern[str]] = {
     "ipv4": re.compile(r"\b(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}" r"(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\b"),
-    "ipv6": re.compile(
-        r"\b(?:[A-Fa-f0-9]{1,4}:){2,7}[A-Fa-f0-9]{1,4}\b|::1",
-        re.IGNORECASE,
-    ),
+    "ipv6": re.compile(_IPV6_PATTERN),
     "hostname": re.compile(
         r"\b[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+\b",
         re.IGNORECASE,
     ),
     "asn": re.compile(r"\bAS\d+\b", re.IGNORECASE),
     "sow-ref": re.compile(r"\bSOW[-/ ]\d+\b", re.IGNORECASE),
-    "credential-ref": re.compile(r"\b(?:vault|secret|kms):[\w./-]+\b", re.IGNORECASE),
+    # Case-sensitive to match extract-tokens.py — credential schemes are
+    # lowercase-by-convention (vault:, secret:, kms:).
+    "credential-ref": re.compile(r"\b(?:vault|secret|kms):[\w./-]+\b"),
     "customer-id": re.compile(r"\b[a-z0-9][a-z0-9-]{2,63}\b"),
 }
 
 # ---------------------------------------------------------------------------
-# Generic-token whitelist — from fingerprint-rules.md.
+# Generic-token whitelist — must stay aligned with extract-tokens.py.
 # ---------------------------------------------------------------------------
 
 _IPV4_WHITELIST_CIDRS = [
     ipaddress.ip_network("127.0.0.0/8"),
     ipaddress.ip_network("0.0.0.0/32"),
-    ipaddress.ip_network("192.0.2.0/24"),
-    ipaddress.ip_network("198.51.100.0/24"),
-    ipaddress.ip_network("203.0.113.0/24"),
+    ipaddress.ip_network("192.0.2.0/24"),  # RFC 5737 TEST-NET-1
+    ipaddress.ip_network("198.51.100.0/24"),  # RFC 5737 TEST-NET-2
+    ipaddress.ip_network("203.0.113.0/24"),  # RFC 5737 TEST-NET-3
 ]
 
-_IPV6_WHITELIST = {
-    ipaddress.ip_address("::1"),
+_IPV6_WHITELIST_NETWORKS = [
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("2001:db8::/32"),  # RFC 3849 documentation prefix
+]
+
+_HOSTNAME_WHITELIST = {
+    "localhost",
+    "example.com",
+    "example.net",
+    "example.org",
+    "www.example.com",
+    "www.example.net",
+    "www.example.org",
 }
-
-_HOSTNAME_WHITELIST = {"localhost", "example.com", "example.net", "example.org"}
-
-_IPV6_DOC_PREFIX = ipaddress.ip_network("2001:db8::/32")
 
 MAX_INVENTORY_FILES = 2000
 
@@ -89,7 +113,7 @@ def _is_whitelisted_ipv6(token: str) -> bool:
         return False
     if not isinstance(addr, ipaddress.IPv6Address):
         return False
-    return addr in _IPV6_WHITELIST or addr in _IPV6_DOC_PREFIX
+    return any(addr in net for net in _IPV6_WHITELIST_NETWORKS)
 
 
 def _is_valid_ipv4(token: str) -> bool:
@@ -347,7 +371,13 @@ def _cache_path(data_root: str, cid: str) -> str:
 
 
 def _write_cache(cache_file: str, bundle: dict) -> None:
-    """Atomically write bundle JSON to cache_file.  Warn on failure; never raise."""
+    """Atomically write bundle JSON to cache_file.  Warn on failure; never raise.
+
+    Uses a unique temporary filename in the same directory (via tempfile.mkstemp)
+    so concurrent writers can't clobber each other's in-flight .tmp files.
+    """
+    import tempfile
+
     cache_dir = os.path.dirname(cache_file)
     try:
         os.makedirs(cache_dir, exist_ok=True)
@@ -355,19 +385,39 @@ def _write_cache(cache_file: str, bundle: dict) -> None:
         print(f"warn: cache unwritable at {cache_dir}: {exc}", file=sys.stderr)
         return
 
-    tmp_file = cache_file + ".tmp"
+    tmp_fd = -1
+    tmp_path = ""
     try:
-        with open(tmp_file, "w") as fh:
+        tmp_fd, tmp_path = tempfile.mkstemp(
+            prefix=f".{os.path.basename(cache_file)}.",
+            suffix=".tmp",
+            dir=cache_dir,
+        )
+        with os.fdopen(tmp_fd, "w") as fh:
+            tmp_fd = -1  # fdopen now owns the fd; don't double-close below
             json.dump(bundle, fh, indent=2)
             fh.write("\n")
-        os.replace(tmp_file, cache_file)
+            fh.flush()
+            try:
+                os.fsync(fh.fileno())
+            except OSError:
+                # fsync is best-effort — e.g. on tmpfs or unsupported FS
+                pass
+        os.replace(tmp_path, cache_file)
+        tmp_path = ""  # replaced, nothing to clean
     except OSError as exc:
         print(f"warn: cache unwritable at {cache_file}: {exc}", file=sys.stderr)
-        # Clean up stale .tmp if possible.
-        try:
-            os.unlink(tmp_file)
-        except OSError:
-            pass
+    finally:
+        if tmp_fd >= 0:
+            try:
+                os.close(tmp_fd)
+            except OSError:
+                pass
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
 
 def _try_load_cache(

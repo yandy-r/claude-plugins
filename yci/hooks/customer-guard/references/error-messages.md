@@ -29,11 +29,15 @@ corresponding test in the same change.
 
 - **ID**: `guard-no-active-customer`
 - **Producer**: `pretool.sh`
-- **Exit code**: 1 (only when `YCI_GUARD_FAIL_OPEN` is unset or `0`; emits deny
-  JSON on stdout and exits 0 when fail-closed path is taken)
-- **Trigger**: the active-customer resolver exits non-zero AND `YCI_GUARD_FAIL_OPEN`
-  is unset or `0`, so the hook refuses to evaluate the tool call rather than emitting
-  a decision JSON.
+- **Exit code**: 0 in all paths (`pretool.sh` never exits non-zero — Claude Code
+  reads the decision on stdout, and a non-zero exit would be interpreted as
+  "hook errored" instead of "deny"). When `YCI_GUARD_FAIL_OPEN` is unset or `0`
+  the hook emits the deny decision JSON below on stdout (fail-closed default).
+  When `YCI_GUARD_FAIL_OPEN=1` the hook writes a stderr warning and exits 0
+  with empty stdout (fail-open opt-in).
+- **Trigger**: the active-customer resolver (`resolve-customer.sh`) exits
+  non-zero — no `$YCI_CUSTOMER`, no `.yci-customer` dotfile, no `state.json` —
+  so the hook cannot identify which customer's policy applies.
 - **Message**:
   ```
   yci guard: no active customer; refusing to evaluate tool call fail-closed.

@@ -84,10 +84,10 @@ DECISION="$(printf '%s' "$INPUT" | isolation_check_payload)"
 # ---------------------------------------------------------------------------
 
 case "$DECISION" in
-    '{"decision":"allow"}')
+    *'"decision":"allow"'*)
         exit 0
         ;;
-    '{"decision":"deny"'*)
+    *'"decision":"deny"'*)
         # Extract catalogued reason from the decision JSON
         REASON="$(printf '%s' "$DECISION" | python3 -c '
 import json, sys

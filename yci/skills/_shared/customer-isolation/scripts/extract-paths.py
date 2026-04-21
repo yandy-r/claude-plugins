@@ -165,7 +165,9 @@ def main() -> None:
 if __name__ == "__main__":
     try:
         main()
-    except Exception:
-        # Never raise past the top level — always exit 0.
-        pass
+    except Exception as exc:
+        # Never raise past the top level — always exit 0 so an unexpected
+        # crash can't take down the whole PreToolUse hook. Emit a recognizable
+        # marker on stderr so callers can still tell something went wrong.
+        print(f"truncated:paths:internal-error:{exc!r}", file=sys.stderr)
     sys.exit(0)

@@ -130,18 +130,31 @@ taking precedence on overlapping tokens.
 # specific paths / tokens bypass the cross-customer guard WITHOUT changing the
 # default posture. Every entry MUST include a `note:` citing the SOW or ticket
 # authorizing the cross-reference.
+#
+# Two equivalent forms are accepted; pick whichever reads better for the
+# engagement. See below for the strict flat form that supports `note:` today
+# (the dict-of-lists form uses YAML comments for the note until the loader
+# grows a richer schema).
 
+# Form 1 — dict-of-lists (notes as YAML comments; loader-compatible today)
 paths:
-  - /shared/acme/dropbox/cross-customer-export/
-    note: "SOW-2026-0117 §4.2 — monthly handoff to Bigbank-managed Dropbox"
+  - /shared/acme/dropbox/cross-customer-export/ # SOW-2026-0117 §4.2 — monthly handoff to Bigbank-managed Dropbox
 
 tokens:
   hostname:
-    - bb01.bigbank.corp
-      note: "ticket JIRA-8812 — acme-managed Bigbank secondary DNS, 30-day temp"
+    - bb01.bigbank.corp # ticket JIRA-8812 — acme-managed Bigbank secondary DNS, 30-day temp
   ipv4:
-    - 10.2.2.2
-      note: "same as above"
+    - 10.2.2.2 # same as above
+
+
+# Form 2 — flat list-of-dicts (native `note:` field; also loader-compatible)
+# tokens:
+#   - category: hostname
+#     token: bb01.bigbank.corp
+#     note: "ticket JIRA-8812 — acme-managed Bigbank secondary DNS, 30-day temp"
+#   - category: ipv4
+#     token: 10.2.2.2
+#     note: "same as above"
 ```
 
 **`paths:`** — A list of absolute paths. Match is a prefix comparison after `realpath`

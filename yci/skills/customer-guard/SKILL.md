@@ -91,19 +91,34 @@ Capture the full stdout as `DECISION_JSON`.
 Print `DECISION_JSON` verbatim.
 
 If the decision is `deny` (the JSON contains `"decision": "deny"`), also print
-a human-readable summary:
+a human-readable summary. The emitted JSON shape is:
 
-1. Extract `kind` from the JSON.
-2. If `kind` is `path`:
+```json
+{
+  "decision": "deny",
+  "collision": {
+    "active": "<active-customer>",
+    "foreign": "<foreign-customer>",
+    "kind": "path" | "token",
+    "evidence": "<offending-path-or-token>",
+    "resolved": "<realpath>",          // path kind only
+    "category": "<fingerprint-category>" // token kind only
+  }
+}
+```
+
+1. Extract `collision.kind` from the JSON.
+2. If `kind == "path"`:
    - Error ID: `guard-path-collision`
-   - Extract `active`, `foreign`, `evidence.resolved` from the JSON.
+   - Extract `collision.active`, `collision.foreign`, `collision.evidence`,
+     `collision.resolved` from the JSON.
    - Print the full message from
      `yci/hooks/customer-guard/references/error-messages.md` for
      `guard-path-collision`, substituting the extracted values.
-3. If `kind` is `token`:
+3. If `kind == "token"`:
    - Error ID: `guard-fingerprint-collision`
-   - Extract `active`, `foreign`, `evidence.category`, `evidence.token` from the
-     JSON.
+   - Extract `collision.active`, `collision.foreign`, `collision.category`,
+     `collision.evidence` from the JSON.
    - Print the full message from
      `yci/hooks/customer-guard/references/error-messages.md` for
      `guard-fingerprint-collision`, substituting the extracted values.

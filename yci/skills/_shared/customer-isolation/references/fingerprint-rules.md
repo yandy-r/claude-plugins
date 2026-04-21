@@ -75,8 +75,11 @@ fingerprint status:
 - **Hostnames**: must be at least 4 characters long AND match the `hostname` regex
   in [§ Category regexes](#category-regexes) below, OR appear verbatim in an
   inventory file associated with the current or a different customer. Bare
-  filesystem tokens like `file.txt` must NOT match — the TLD-ish last-label
-  requirement in the regex provides this protection.
+  filesystem tokens like `file.txt` WILL match the regex (it is intentionally
+  structural and loose); downstream enforcement happens in extractor-side
+  post-filtering — the last label must contain at least one letter (so pure-digit
+  labels that look like truncated IPs don't match) and the token must not be in
+  `WHITELISTED_HOSTNAMES`. See `_is_valid_hostname()` in `extract-tokens.py`.
 
 - **IPv4 / IPv6**: must pass CIDR validation via Python `ipaddress.ip_address()`
   after the regex match. The literal string `10.0.0.1` inside a shell command is a
