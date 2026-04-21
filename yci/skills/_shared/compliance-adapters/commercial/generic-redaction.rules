@@ -29,7 +29,7 @@ RE:(?i)bearer\s+[A-Za-z0-9._~+/\-]+=*
 # --- private keys ---
 
 NAME:private_key_header
-RE:-----BEGIN (?:RSA|DSA|EC|OPENSSH|PRIVATE) PRIVATE KEY-----
+RE:-----BEGIN (?:(?:RSA|DSA|EC|OPENSSH|ENCRYPTED) )?PRIVATE KEY-----
 
 # --- RFC1918 + link-local IPs ---
 

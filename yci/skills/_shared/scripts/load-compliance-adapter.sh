@@ -34,15 +34,18 @@ fi
 # shellcheck source=/dev/null
 . "${CLAUDE_PLUGIN_ROOT}/skills/customer-profile/scripts/profile-schema.sh"
 
-# Source adapter-schema.sh — provides YCI_ADAPTER_REQUIRED_FILES / YCI_ADAPTER_SCHEMA_EXEMPT.
-# Falls back to built-in defaults so this script is testable before Task 2.2 lands.
+# Source adapter-schema.sh — provides the contract constants and helpers.
+# Falls back to built-in defaults mirroring adapter-schema.sh exactly, so the
+# loader remains safe if the library is ever missing.
 _ADAPTER_SCHEMA_LIB="${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/adapter-schema.sh"
 if [ -r "${_ADAPTER_SCHEMA_LIB}" ]; then
     # shellcheck source=/dev/null
     . "${_ADAPTER_SCHEMA_LIB}"
 else
     printf 'yci: warning: adapter-schema.sh not found; using built-in defaults\n' >&2
-    YCI_ADAPTER_REQUIRED_FILES=(ADAPTER.md evidence-template.md handoff-checklist.md)
+    YCI_ADAPTER_REQUIRED_FILES=(ADAPTER.md)
+    YCI_ADAPTER_PHASE1_FILES=(evidence-template.md handoff-checklist.md)
+    YCI_ADAPTER_PHASE1_REGIMES=(commercial none)
     YCI_ADAPTER_SCHEMA_EXEMPT=(none)
 fi
 

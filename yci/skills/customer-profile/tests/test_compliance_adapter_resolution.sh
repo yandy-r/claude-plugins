@@ -47,10 +47,10 @@ test_internal_resolves_none() {
     local sb="$1"
 
     if ! _loader_present; then
-        _yci_test_report PASS "internal_none: skipped (load-profile absent)"; return 0
+        _yci_test_report SKIP "internal_none (load-profile absent)"; return 0
     fi
     if ! _adapter_loader_present; then
-        _yci_test_report PASS "internal_none: skipped (adapter loader absent)"; return 0
+        _yci_test_report SKIP "internal_none (adapter loader absent)"; return 0
     fi
     if [ ! -f "$_INTERNAL_YAML" ]; then
         _yci_test_report FAIL "internal_none: _internal.yaml.example not found at $_INTERNAL_YAML"
@@ -95,10 +95,10 @@ test_commercial_resolves_commercial() {
     local sb="$1"
 
     if ! _loader_present; then
-        _yci_test_report PASS "commercial: skipped (load-profile absent)"; return 0
+        _yci_test_report SKIP "commercial (load-profile absent)"; return 0
     fi
     if ! _adapter_loader_present; then
-        _yci_test_report PASS "commercial: skipped (adapter loader absent)"; return 0
+        _yci_test_report SKIP "commercial (adapter loader absent)"; return 0
     fi
     if [ ! -f "$_COMMERCIAL_FIXTURE" ]; then
         _yci_test_report FAIL "commercial: fixture not found at $_COMMERCIAL_FIXTURE"
@@ -150,7 +150,7 @@ test_unknown_regime_exits_2() {
     local sb="$1"
 
     if ! _adapter_loader_present; then
-        _yci_test_report PASS "unknown_regime: skipped (adapter loader absent)"; return 0
+        _yci_test_report SKIP "unknown_regime (adapter loader absent)"; return 0
     fi
 
     local synthetic_json
