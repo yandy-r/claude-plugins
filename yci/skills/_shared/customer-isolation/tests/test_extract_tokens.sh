@@ -99,11 +99,9 @@ test_credential_ref() {
 }
 
 test_content_cap() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "content_cap: skipped"; return 0; }
     # Build content > 1 MiB
-    local big_content
-    big_content="$(python3 -c "print('a' * 1100000)")"
     local json
     json="$(python3 -c "
 import json
@@ -116,7 +114,7 @@ print(json.dumps(payload))
 }
 
 test_invalid_json() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "tokens_invalid_json: skipped"; return 0; }
     local stderr_out rc
     stderr_out="$(printf 'not json' | python3 "$EXTRACTOR" 2>&1 1>/dev/null)"; rc=$?

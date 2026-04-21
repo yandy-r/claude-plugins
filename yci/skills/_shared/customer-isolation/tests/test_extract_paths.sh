@@ -154,7 +154,7 @@ test_missing_file_path() {
 }
 
 test_invalid_json() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "invalid_json: skipped"; return 0; }
     local stderr_out rc
     stderr_out="$(printf 'not json' | python3 "$EXTRACTOR" 2>&1 1>/dev/null)"; rc=$?

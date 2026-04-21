@@ -21,7 +21,7 @@ ALLOWLIST_TOKENS=()
 
 _allowlist_merge_file() {
     local f="$1"
-    local py_out py_exit_code line category token path_val
+    local py_out py_exit_code category token path_val
 
     py_out="$(python3 - "$f" 2>&1 <<'PY'
 import sys, yaml

@@ -140,7 +140,11 @@ isolation_check_payload() {
     # -----------------------------------------------------------------------
     if ! allowlist_load "$YCI_DATA_ROOT_RESOLVED" "$YCI_ACTIVE_CUSTOMER"; then
         printf 'yci guard: allowlist load failed; treating as empty allowlist.\n' >&2
+        # Arrays populated in allowlist.sh and consumed via allowlist_contains
+        # (cross-file usage is invisible to the linter).
+        # shellcheck disable=SC2034
         ALLOWLIST_PATHS=()
+        # shellcheck disable=SC2034
         ALLOWLIST_TOKENS=()
     fi
 
