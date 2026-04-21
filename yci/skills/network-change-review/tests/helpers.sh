@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Shared test helpers for yci network-change-review tests.
 # Source this file from every test_*.sh.
-# Do NOT set -euo here — tests need fine-grained control over exit behavior.
+# This helper enables strict mode. Test scripts that expect a failing command should
+# wrap that command with `set +e` / `set -e` or an `if` / `|| true` guard.
+
+set -euo pipefail
 
 YCI_TEST_PASS=0
 YCI_TEST_FAIL=0
@@ -21,8 +24,8 @@ fi
 SKILL_ROOT="$(cd "${_HELPERS_DIR}/.." && pwd -P)"
 export SKILL_ROOT
 
-# PLUGIN_ROOT is the yci plugin root (parent of skills/)
-PLUGIN_ROOT="$(cd "${_HELPERS_DIR}/../../.." && pwd -P)"
+# PLUGIN_ROOT — runtime plugin install (invoking repo); falls back for bare test runs.
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "${_HELPERS_DIR}/../../.." && pwd -P)}"
 export PLUGIN_ROOT
 
 FIXTURES_ROOT="${_HELPERS_DIR}/fixtures"
@@ -36,11 +39,15 @@ _yci_test_report() {
     local status="$1" name="$2" detail="${3:-}"
     if [ "$status" = "PASS" ]; then
         YCI_TEST_PASS=$((YCI_TEST_PASS + 1))
-        [ "${YCI_TEST_VERBOSE:-0}" = "1" ] && printf '  \033[32m+\033[0m %s\n' "$name"
+        if [ "${YCI_TEST_VERBOSE:-0}" = "1" ]; then
+            printf '  \033[32m+\033[0m %s\n' "$name"
+        fi
     else
         YCI_TEST_FAIL=$((YCI_TEST_FAIL + 1))
         printf '  \033[31mFAIL\033[0m %s\n' "$name" >&2
-        [ -n "$detail" ] && printf '    %s\n' "$detail" >&2
+        if [ -n "$detail" ]; then
+            printf '    %s\n' "$detail" >&2
+        fi
     fi
 }
 

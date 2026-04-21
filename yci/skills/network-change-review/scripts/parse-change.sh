@@ -289,7 +289,6 @@ elif kind == "structured-yaml":
                 if dedup_key not in seen:
                     seen.add(dedup_key)
                     targets.append({"kind": entry_kind, "id": entry_id})
-                break  # only first matching key per step
 
     if not targets:
         emit_fatal("Could not resolve any targets from change input.")

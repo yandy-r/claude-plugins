@@ -2,7 +2,7 @@
 # yci network-change-review — parse-change.sh tests
 # Tests cover: diff-kind detection, inventory resolution, error IDs, JSON validity.
 
-set -uo pipefail
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 # shellcheck source=/dev/null
@@ -69,6 +69,30 @@ print(arr[0].get('id','') if arr else '')
 }
 
 # ---------------------------------------------------------------------------
+# 2b. structured-yaml — multiple identifier keys in one step
+# ---------------------------------------------------------------------------
+test_structured_yaml_multi_identifiers() {
+    local out rc
+    out="$("$PARSE_CHANGE" --input "${CHANGES_DIR}/structured-multi-id.yaml" 2>/dev/null)"
+    rc=$?
+
+    assert_exit_code 0 "$rc" "structured-yaml multi-id: exit 0"
+    assert_json_field "$out" "diff_kind" "structured-yaml" "structured-yaml multi-id: diff_kind"
+
+    local n
+    n="$(python3 -c "
+import json, sys
+d = json.loads(sys.argv[1])
+print(len(d.get('targets', [])))
+" "$out" 2>/dev/null)"
+    if [ "$n" -ge 2 ]; then
+        _yci_test_report PASS "structured-yaml multi-id: >=2 targets from one step"
+    else
+        _yci_test_report FAIL "structured-yaml multi-id: >=2 targets from one step" "got count=$n"
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # 3. structured-yaml detection
 # ---------------------------------------------------------------------------
 test_structured_yaml_detection() {
@@ -98,8 +122,10 @@ test_playbook_detection() {
 # ---------------------------------------------------------------------------
 test_missing_input_flag() {
     local out rc
+    set +e
     out="$("$PARSE_CHANGE" 2>&1)"
     rc=$?
+    set -e
 
     if [ "$rc" -ne 0 ]; then
         _yci_test_report PASS "missing --input: exit non-zero"
@@ -115,8 +141,10 @@ test_missing_input_flag() {
 # ---------------------------------------------------------------------------
 test_nonexistent_input_file() {
     local out rc
+    set +e
     out="$("$PARSE_CHANGE" --input "/tmp/ncr-test-nonexistent-$(date +%s).patch" 2>&1)"
     rc=$?
+    set -e
 
     if [ "$rc" -ne 0 ]; then
         _yci_test_report PASS "nonexistent file: exit non-zero"
@@ -144,9 +172,11 @@ test_unresolvable_targets_with_inventory() {
 PATCH
 
     stderr_out="$(mktemp)"
+    set +e
     YCI_INVENTORY_ROOT="${WIDGETCORP_INV}" \
         "$PARSE_CHANGE" --input "$tmp_patch" 2>"$stderr_out"
     rc=$?
+    set -e
     local err_content
     err_content="$(cat "$stderr_out")"
     rm -f "$tmp_patch" "$stderr_out"
@@ -178,6 +208,7 @@ test_json_output_validity() {
 main() {
     test_unified_diff_detection
     test_unified_diff_with_inventory
+    test_structured_yaml_multi_identifiers
     test_structured_yaml_detection
     test_playbook_detection
     test_missing_input_flag

@@ -105,7 +105,8 @@ esac
 export NCR_PROFILE_PATH="${profile_path}"
 
 stub="$(python3 <<PYEOF
-import json, sys, os, subprocess, datetime, hashlib
+import json, sys, os, subprocess, hashlib
+from datetime import datetime, timezone
 
 try:
     profile = json.load(open("${profile_path}"))
@@ -128,9 +129,9 @@ except Exception as e:
 # Derive change_id: sha256(raw)[:8] + '-' + utc yyyymmdd-hhmm
 raw = change.get("raw", "")
 cid = hashlib.sha256(raw.encode()).hexdigest()[:8]
-ts = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M")
+ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")
 change_id = "{}-{}".format(cid, ts)
-timestamp = datetime.datetime.utcnow().isoformat() + "Z"
+timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 # yci_commit: run git rev-parse inside CLAUDE_PLUGIN_ROOT
 try:

@@ -54,6 +54,9 @@ trust_level = "trusted"
 [projects."/home/yandy/Projects/github.com/itcn/website"]
 trust_level = "trusted"
 
+[projects."/home/yandy/Projects/github.com/itcn/business-plan"]
+trust_level = "trusted"
+
 [sandbox_workspace_write]
 network_access = true
 

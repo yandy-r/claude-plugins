@@ -68,9 +68,11 @@ Target derivation is keyed by `diff_kind`.
 2. For each `<path>`, take the last two path segments (e.g., `routers/dc1-edge-01.conf`
    → `["routers", "dc1-edge-01.conf"]`).
 3. Search the active inventory root (`$YCI_DATA_ROOT/inventories/<customer>/`) for
-   any file whose name contains either segment as a substring. A match maps the diff
-   path to an inventory record and produces a `targets[]` entry with `kind` inferred
-   from the inventory record's `type` field.
+   any file whose name contains either segment as a substring. Which subdirectory the
+   match lives under (`devices/`, `services/`, `tenants/`, …) determines `targets[].kind`
+   (see `KIND_MAP` in `parse-change.sh`). The parser reads only the `id` field from the
+   matched YAML record (falling back to the filename stem) — it does **not** read a
+   `type` property from the inventory file.
 4. If zero targets resolve across all `+++ b/` headers, exit with
    `ncr-targets-unresolvable`. The operator must either add explicit `targets:` (use
    a `structured-yaml` wrapper) or adjust the diff path naming to match inventory

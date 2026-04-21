@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # yci network-change-review — render-artifact.sh tests
 
+# Intentionally omit -e: several tests assert on non-zero exits from render-artifact.sh
+# using `|| true` or explicit rc capture (see failure-path tests below).
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
@@ -245,7 +247,8 @@ PYEOF
     make_evidence_stub "${TMP_BASE}/evidence-stub.yaml" > /dev/null
 
     local out="${TMP_BASE}/artifact-bad-header.md"
-    local stderr_out
+    local stderr_out rc
+    set +e
     stderr_out="$(
         CLAUDE_PLUGIN_ROOT="${PLUGIN_ROOT}" \
         "${RENDER}" \
@@ -262,7 +265,8 @@ PYEOF
             --output         "${out}" \
         2>&1 >/dev/null
     )"
-    local rc=$?
+    rc=$?
+    set -e
 
     assert_exit 6 "${rc}" "missing-header: exits 6"
     assert_contains "ncr-branding-template-missing" "${stderr_out}" \
@@ -329,7 +333,8 @@ test_missing_output_flag() {
     make_inputs "${TMP_BASE}"
     make_evidence_stub "${TMP_BASE}/evidence-stub.yaml" > /dev/null
 
-    local stderr_out
+    local stderr_out rc
+    set +e
     stderr_out="$(
         CLAUDE_PLUGIN_ROOT="${PLUGIN_ROOT}" \
         "${RENDER}" \
@@ -345,7 +350,8 @@ test_missing_output_flag() {
             --evidence-stub  "${TMP_BASE}/evidence-stub.yaml" \
         2>&1 >/dev/null
     )"
-    local rc=$?
+    rc=$?
+    set -e
 
     if [[ "${rc}" -ne 0 ]]; then
         _yci_test_report PASS "missing-output: exits non-zero"
@@ -363,10 +369,10 @@ test_missing_output_flag() {
 }
 
 # ---------------------------------------------------------------------------
-# test_evidence_stub_yaml_fence
+# test_evidence_stub_embedded — artifact-template.md embeds {{evidence_stub}} as-is
 # ---------------------------------------------------------------------------
 
-test_evidence_stub_yaml_fence() {
+test_evidence_stub_embedded() {
     setup_tmp
 
     make_profile_json "${TMP_BASE}" > /dev/null
@@ -380,10 +386,8 @@ test_evidence_stub_yaml_fence() {
     local content
     content="$(cat "${out}" 2>/dev/null || true)"
 
-    # The template wraps evidence_stub in a ```yaml fence inside a <details> block.
-    assert_contains '```yaml' "${content}" "evidence-stub: output contains yaml fence"
-    # The stub's key content should be embedded.
-    assert_contains "change_id:" "${content}" "evidence-stub: stub content embedded in artifact"
+    assert_contains "## Evidence Stub" "${content}" "evidence-stub: section heading present"
+    assert_contains "change_id:" "${content}" "evidence-stub: stub YAML content embedded in artifact"
 
     teardown_tmp
 }
@@ -399,7 +403,7 @@ main() {
     test_missing_branding_template
     test_inline_branding_string
     test_missing_output_flag
-    test_evidence_stub_yaml_fence
+    test_evidence_stub_embedded
     yci_test_summary
 }
 

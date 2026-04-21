@@ -28,6 +28,9 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+export NCR_CATALOG_SCRIPT_DIR="$SCRIPT_DIR"
+
 # ---------------------------------------------------------------------------
 # err <id> <message> <exit-code>
 # Write a structured error to stderr then exit.
@@ -108,11 +111,16 @@ done
 # The caller (main) assigns this to pre_check.
 # ---------------------------------------------------------------------------
 derive_adapter_checks() {
-    python3 - <<PYEOF
+    export NCR_ADAPTER_DIR="$adapter_dir"
+    export NCR_LABEL_PATH="$label_path"
+    python3 - <<'PYEOF'
 import json, os, re, sys
 
-adapter_dir = """$adapter_dir"""
-label_path  = """$label_path"""
+sys.path.insert(0, os.environ["NCR_CATALOG_SCRIPT_DIR"])
+from catalog_classify import classify
+
+adapter_dir = os.environ["NCR_ADAPTER_DIR"]
+label_path = os.environ["NCR_LABEL_PATH"]
 
 pre_checks = []
 
@@ -125,18 +133,6 @@ else:
         text = fh.read()
 
     entries = re.findall(r"^\s*-\s*\[[ xX]\]\s*(.+)", text, flags=re.MULTILINE)
-
-    def classify(desc):
-        d = desc.lower()
-        if any(k in d for k in ("redact", "sanitiz", "rollback rehears", "verify before",
-                                 "check before", "confirm profile", "inventory fresh",
-                                 "no cross-customer", "cross-customer")):
-            return "pre"
-        if any(k in d for k in ("timestamp", "post-change", "confirm after", "verify after",
-                                  "attest", "sign", "profile_commit", "evidence bundle signed",
-                                  "pre-check and post-check")):
-            return "post"
-        return "pre"
 
     for idx, desc in enumerate(entries):
         desc = desc.strip()
@@ -187,11 +183,16 @@ PYEOF
 # The caller (main) assigns this to post_check.
 # ---------------------------------------------------------------------------
 derive_blast_radius_checks() {
-    python3 - <<PYEOF
+    export NCR_ADAPTER_DIR="$adapter_dir"
+    export NCR_LABEL_PATH="$label_path"
+    python3 - <<'PYEOF'
 import json, os, re, sys
 
-adapter_dir = """$adapter_dir"""
-label_path  = """$label_path"""
+sys.path.insert(0, os.environ["NCR_CATALOG_SCRIPT_DIR"])
+from catalog_classify import classify
+
+adapter_dir = os.environ["NCR_ADAPTER_DIR"]
+label_path = os.environ["NCR_LABEL_PATH"]
 
 post_checks = []
 
@@ -250,18 +251,6 @@ if os.path.exists(checklist_path):
         text = fh.read()
 
     entries = re.findall(r"^\s*-\s*\[[ xX]\]\s*(.+)", text, flags=re.MULTILINE)
-
-    def classify(desc):
-        d = desc.lower()
-        if any(k in d for k in ("redact", "sanitiz", "rollback rehears", "verify before",
-                                  "check before", "confirm profile", "inventory fresh",
-                                  "no cross-customer", "cross-customer")):
-            return "pre"
-        if any(k in d for k in ("timestamp", "post-change", "confirm after", "verify after",
-                                  "attest", "sign", "profile_commit", "evidence bundle signed",
-                                  "pre-check and post-check")):
-            return "post"
-        return "pre"
 
     for idx, desc in enumerate(entries):
         desc = desc.strip()

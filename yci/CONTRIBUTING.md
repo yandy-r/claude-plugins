@@ -349,16 +349,17 @@ The orchestrator (`review.sh`) runs these stages in order:
    `<data-root>/profiles/`, extract `customer_id`, `hostname_suffix`,
    `ipv4_ranges`, and grep the raw input for any match. Any hit exits
    `ncr-cross-customer-leak-detected` immediately — before any parsing.
-4. **Parse** — `parse-change.sh` validates the sanitized diff against
-   `change-input-schema.md`; produces normalized change JSON.
+4. **Parse** — `parse-change.sh` validates the raw change file (preserving raw
+   identifiers) against `change-input-schema.md` and produces normalized change JSON.
 5. **Rollback** — `derive-rollback.sh` derives the rollback plan; low confidence
    inserts a `> **WARNING**` callout rather than failing.
 6. **Blast-radius** — `blast-radius/scripts/reason.sh` + `render-markdown.sh`.
-7. **Catalogs** — `build-check-catalogs.sh` produces pre/post check catalog JSON
+7. **Catalogs** — `build-check-catalogs.sh` produces pre/post-check catalog JSON
    from the adapter's `evidence-template.md` and `evidence-schema.json`.
-8. **Plan + review** (subagent dispatches) — SKILL.md dispatches
-   `ycc:planner` and `ycc:code-reviewer` in parallel via the Agent tool **before**
-   invoking `review.sh`; the orchestrator receives the output files as flags.
+8. **Plan + review** (SKILL layer, before `review.sh`) — run the same cross-customer
+   preflight as `review.sh` (`preflight-cross-customer.sh`), then dispatch
+   `ycc:planner` and `ycc:code-reviewer` in parallel via the Agent tool; pass their
+   outputs with `--change-plan` and `--diff-review` into `review.sh`.
 9. **Render** — `render-evidence-stub.sh` then `render-artifact.sh` assemble the
    full review markdown in memory.
 10. **Sanitize** — `pre-write-artifact.sh` (strict mode, sanitizer pass 2) runs

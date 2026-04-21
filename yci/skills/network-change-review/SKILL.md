@@ -105,11 +105,29 @@ No active customer. Run /yci:switch <customer> first.
 Do not pass `--change` to the orchestrator until the customer is confirmed. This
 preflight keeps the error message clear and avoids a partial workdir being created.
 
-### Step 2 — Spawn ycc:planner and ycc:code-reviewer in parallel
+### Step 2 — Cross-customer leak preflight (before ycc agents)
 
-Before invoking the orchestrator, dispatch both subagents in **one message with two
-Agent tool calls**. Read the raw change file content with the Read tool and pass it
-inline in each prompt. Save each output to a temp file.
+Run the same foreign-identifier scan `review.sh` performs **before** parsing the
+change, so raw content is never handed to subagents until this gate passes. Resolve
+`YCI_DATA_ROOT` (or pass `--data-root`) the same way you will for `review.sh`, then:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/skills/network-change-review/scripts/preflight-cross-customer.sh" \
+  --data-root "<resolved-data-root>" \
+  --customer "<customer-id>" \
+  --change "<change-path>"
+```
+
+On exit 7, stop with `ncr-cross-customer-leak-detected` — do **not** spawn
+`ycc:planner` or `ycc:code-reviewer`.
+
+### Step 3 — Spawn ycc:planner and ycc:code-reviewer in parallel
+
+After preflight succeeds, dispatch both subagents in **one message with two Agent
+tool calls**. **Do not** paste the raw change file into prompts (avoids leaking
+content across customers before the orchestrator runs). Give each subagent the
+**absolute path** to the change file only and instruct them to read it themselves
+via their normal file access. Save each output to a temp file:
 
 ```
 NCR_WORKDIR=$(mktemp -d -t yci-ncr-skill-XXXX)
@@ -120,13 +138,13 @@ NCR_WORKDIR=$(mktemp -d -t yci-ncr-skill-XXXX)
 ```
 subagent_type: "ycc:planner"
 prompt: >
-  A network change has been proposed for customer <customer-id>. Read the change
-  diff at <path> and produce a concise implementation plan for the operator
-  performing the change. Use your standard Plan Format but keep it tight (no
-  parallel-mode directives). Focus on: (a) preparation steps, (b) execution
-  steps, (c) immediate post-change validation. Target length: 40–80 lines. Do NOT
-  end with the standard WAITING FOR CONFIRMATION prompt — this output will be
-  embedded in a deliverable, not used for interactive approval.
+  A network change has been proposed for customer <customer-id>. The change file is
+  at <absolute-path>; read it from disk and produce a concise implementation plan for
+  the operator performing the change. Use your standard Plan Format but keep it tight
+  (no parallel-mode directives). Focus on: (a) preparation steps, (b) execution steps,
+  (c) immediate post-change validation. Target length: 40–80 lines. Do NOT end with the
+  standard WAITING FOR CONFIRMATION prompt — this output will be embedded in a
+  deliverable, not used for interactive approval.
 ```
 
 Save output to `$NCR_WORKDIR/change-plan.md`.
@@ -136,17 +154,17 @@ Save output to `$NCR_WORKDIR/change-plan.md`.
 ```
 subagent_type: "ycc:code-reviewer"
 prompt: >
-  A network change has been proposed for customer <customer-id>. Review the diff
-  at <path> for correctness, risk, and operational concerns. Focus on: (a) syntax /
-  config correctness, (b) rollback readiness, (c) cross-device side effects,
-  (d) monitoring coverage. Use your standard review format, medium severity
-  threshold. Target length: 40–80 lines. Output as markdown findings, no preamble,
-  no trailing summary.
+  A network change has been proposed for customer <customer-id>. The change file is
+  at <absolute-path>; read it from disk and review it for correctness, risk, and
+  operational concerns. Focus on: (a) syntax / config correctness, (b) rollback
+  readiness, (c) cross-device side effects, (d) monitoring coverage. Use your standard
+  review format, medium severity threshold. Target length: 40–80 lines. Output as
+  markdown findings, no preamble, no trailing summary.
 ```
 
 Save output to `$NCR_WORKDIR/diff-review.md`.
 
-### Step 3 — Invoke the orchestrator
+### Step 4 — Invoke the orchestrator
 
 After both subagents return, invoke `review.sh` with the real subagent outputs:
 
@@ -169,7 +187,7 @@ stub, artifact render, post-render sanitizer, isolation check, output dir, artif
 write). Step 14 copies `change-plan.md` and step 15 copies `diff-review.md` directly
 into the workdir; no placeholder is inserted because both files are pre-generated.
 
-### Step 4 — Relay artifact path to user
+### Step 5 — Relay artifact path to user
 
 Capture the single line printed to stdout by the orchestrator. Return it to the user
 with a one-line summary:

@@ -995,8 +995,8 @@ if len(parts) < 3:
 fm = yaml.safe_load(parts[1])
 if not isinstance(fm, dict):
     sys.stderr.write("change-reviewer.md: frontmatter is not a mapping\n"); sys.exit(1)
-if not fm.get('description') and not fm.get('name'):
-    sys.stderr.write("change-reviewer.md: description or name missing\n"); sys.exit(1)
+if not fm.get('description') or not fm.get('name'):
+    sys.stderr.write("change-reviewer.md: description and name are required\n"); sys.exit(1)
 PY
             ok "agents/change-reviewer.md frontmatter valid"
         else

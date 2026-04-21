@@ -12,21 +12,21 @@ exit code + stderr ID prefix (`[ncr-<id>]`), not on message text, which may evol
 
 ## Error ID Catalog
 
-| ID                                 | Triggered by                                              | Message template                                                                | Exit | Recovery                                                        |
-| ---------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------- | ---- | --------------------------------------------------------------- |
-| `ncr-customer-unresolved`          | `review.sh` after `resolve-customer.sh` returns empty     | `No active customer. Run /yci:switch <customer> first.`                         | 2    | Set active customer via `/yci:switch`                           |
-| `ncr-profile-load-failed`          | `load-profile.sh` error                                   | `Failed to load profile: {detail}`                                              | 2    | Fix profile YAML; re-run                                        |
-| `ncr-adapter-unresolvable`         | `load-compliance-adapter.sh` error                        | `Failed to resolve compliance adapter: {detail}`                                | 2    | Check profile `compliance.regime` matches a shipped adapter     |
-| `ncr-diff-unsupported-shape`       | `parse-change.sh` detection                               | `Unsupported change shape. Supported: unified-diff, structured-yaml, playbook.` | 3    | Reshape input to a supported format                             |
-| `ncr-targets-unresolvable`         | `parse-change.sh` heuristic failure                       | `Could not resolve any targets from change input.`                              | 3    | Add explicit `targets:` or adjust diff paths to match inventory |
-| `ncr-sanitizer-input-rejected`     | `sanitize-output.sh` strict mode                          | `Sanitizer rejected input diff: {detail}`                                       | 4    | Review diff; remove disallowed content before re-running        |
-| `ncr-rollback-missing-reverse`     | `derive-rollback.sh` — structured-yaml without `reverse:` | `Structured change lacks required \`reverse:\` block.`                          | 3    | Supply `reverse:` block alongside `forward:` in change file     |
-| `ncr-rollback-ambiguous`           | `derive-rollback.sh` — playbook or unknown `diff_kind`    | `Rollback confidence: low. Manual derivation required.`                         | 0    | Review the artifact warning callout; derive rollback manually   |
-| `ncr-rollback-binary-unsupported`  | `derive-rollback.sh` — binary chunk detected in diff      | `Binary diffs are not auto-reversible.`                                         | 3    | Supply a structured-yaml change with an explicit `reverse:`     |
-| `ncr-blast-radius-failed`          | `blast-radius/scripts/reason.sh` non-zero exit            | `Blast radius reasoner failed: {detail}`                                        | 5    | Inspect reasoner stderr output; fix input or reasoner config    |
-| `ncr-branding-template-missing`    | `render-artifact.sh` — customer brand path not found      | `Customer branding template not found at {path}.`                               | 6    | Fix `deliverable.header_template` in profile, then re-run       |
-| `ncr-adapter-template-missing`     | `render-artifact.sh` — adapter evidence template missing  | `Compliance adapter template not found at {path}.`                              | 6    | Verify adapter directory integrity; re-install plugin           |
-| `ncr-cross-customer-leak-detected` | `customer-isolation/detect.sh` post-render scan           | `Cross-customer identifier leak detected; artifact discarded.`                  | 7    | Review sanitizer rules; correct cross-reference; re-run         |
+| ID                                 | Triggered by                                                                                                        | Message template                                                                | Exit | Recovery                                                        |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ---- | --------------------------------------------------------------- |
+| `ncr-customer-unresolved`          | `review.sh` after `resolve-customer.sh` returns empty                                                               | `No active customer. Run /yci:switch <customer> first.`                         | 2    | Set active customer via `/yci:switch`                           |
+| `ncr-profile-load-failed`          | `load-profile.sh` error                                                                                             | `Failed to load profile: {detail}`                                              | 2    | Fix profile YAML; re-run                                        |
+| `ncr-adapter-unresolvable`         | `load-compliance-adapter.sh` error                                                                                  | `Failed to resolve compliance adapter: {detail}`                                | 2    | Check profile `compliance.regime` matches a shipped adapter     |
+| `ncr-diff-unsupported-shape`       | `parse-change.sh` detection                                                                                         | `Unsupported change shape. Supported: unified-diff, structured-yaml, playbook.` | 3    | Reshape input to a supported format                             |
+| `ncr-targets-unresolvable`         | `parse-change.sh` heuristic failure                                                                                 | `Could not resolve any targets from change input.`                              | 3    | Add explicit `targets:` or adjust diff paths to match inventory |
+| `ncr-sanitizer-input-rejected`     | `sanitize-output.sh` strict mode                                                                                    | `Sanitizer rejected input diff: {detail}`                                       | 4    | Review diff; remove disallowed content before re-running        |
+| `ncr-rollback-missing-reverse`     | `derive-rollback.sh` — structured-yaml without `reverse:`                                                           | `Structured change lacks required \`reverse:\` block.`                          | 3    | Supply `reverse:` block alongside `forward:` in change file     |
+| `ncr-rollback-ambiguous`           | `derive-rollback.sh` — playbook or unknown `diff_kind`                                                              | `Rollback confidence: low. Manual derivation required.`                         | 0    | Review the artifact warning callout; derive rollback manually   |
+| `ncr-rollback-binary-unsupported`  | `derive-rollback.sh` — binary chunk detected in diff                                                                | `Binary diffs are not auto-reversible.`                                         | 3    | Supply a structured-yaml change with an explicit `reverse:`     |
+| `ncr-blast-radius-failed`          | `blast-radius/scripts/reason.sh` non-zero exit                                                                      | `Blast radius reasoner failed: {detail}`                                        | 5    | Inspect reasoner stderr output; fix input or reasoner config    |
+| `ncr-branding-template-missing`    | `render-artifact.sh` — customer brand path not found                                                                | `Customer branding template not found at {path}.`                               | 6    | Fix `deliverable.header_template` in profile, then re-run       |
+| `ncr-adapter-template-missing`     | `render-artifact.sh` — adapter evidence template missing                                                            | `Compliance adapter template not found at {path}.`                              | 6    | Verify adapter directory integrity; re-install plugin           |
+| `ncr-cross-customer-leak-detected` | `review.sh` step 8 preflight (`preflight-cross-customer.sh`) **or** `customer-isolation/detect.sh` post-render scan | `Cross-customer identifier leak detected; artifact discarded.`                  | 7    | Review sanitizer rules; correct cross-reference; re-run         |
 
 ---
 
@@ -65,11 +65,13 @@ or in the customer profile are absent. These typically indicate a misconfigured
 profile (`deliverable.header_template` points to a non-existent file) or a corrupt
 plugin install. The partial artifact is discarded.
 
-**Exit 7 — isolation / security gate** (`ncr-cross-customer-leak-detected`): the
-post-render cross-customer isolation scan found identifiers from another customer
-engagement in the rendered artifact. The artifact is discarded immediately. This
-exit code MUST NOT be silently suppressed by calling scripts. Any suppression would
-bypass a critical data-isolation control.
+**Exit 7 — isolation / security gate** (`ncr-cross-customer-leak-detected`): either
+the **preflight** scan on the raw change input (`review.sh` step 8 /
+`preflight-cross-customer.sh`) or the **post-render** `customer-isolation/detect.sh`
+scan found identifiers from another customer engagement. The artifact is discarded
+immediately (or never produced, when preflight fails). This exit code MUST NOT be
+silently suppressed by calling scripts. Any suppression would bypass a critical
+data-isolation control.
 
 ### Exit 0 warnings
 

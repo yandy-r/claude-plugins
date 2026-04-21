@@ -198,52 +198,11 @@ export YCI_ACTIVE_REGIME="${YCI_ADAPTER_REGIME:-}"
 step 8 "Preflight: scanning input for foreign-customer identifiers"
 
 preflight_exit=0
-python3 - "$data_root" "$customer" "$change_path" > "${workdir}/preflight.out" 2>"${workdir}/preflight.err" <<'PYEOF' || preflight_exit=$?
-import sys, os, re
-try:
-    import yaml
-except ImportError:
-    sys.exit(0)  # no yaml → skip preflight; step 20 is the real safety net
-
-data_root, active_customer, change_path = sys.argv[1], sys.argv[2], sys.argv[3]
-profiles_dir = os.path.join(data_root, "profiles")
-if not os.path.isdir(profiles_dir):
-    sys.exit(0)
-
-change_text = open(change_path).read()
-hits = []
-
-for fname in sorted(os.listdir(profiles_dir)):
-    if not fname.endswith(".yaml"):
-        continue
-    pid = os.path.splitext(fname)[0]
-    if pid == active_customer or pid.startswith("_"):
-        continue
-    try:
-        prof = yaml.safe_load(open(os.path.join(profiles_dir, fname))) or {}
-    except Exception:
-        continue
-    foreign_ids = set()
-    c = prof.get("customer", {}) or {}
-    if c.get("id"):       foreign_ids.add(str(c["id"]))
-    if c.get("sow_ref"):  foreign_ids.add(str(c["sow_ref"]))
-    n = prof.get("network", {}) or {}
-    if n.get("hostname_suffix"): foreign_ids.add(str(n["hostname_suffix"]))
-    for r in (n.get("ipv4_ranges") or []):
-        # Strip CIDR and leave a prefix grep would match
-        s = str(r).split("/")[0]
-        octets = s.split(".")
-        if len(octets) >= 3:
-            foreign_ids.add(".".join(octets[:3]) + ".")
-    for fid in foreign_ids:
-        if fid and fid in change_text:
-            hits.append((pid, fid))
-
-if hits:
-    for pid, fid in hits:
-        sys.stderr.write(f"  foreign identifier '{fid}' (customer={pid}) present in change\n")
-    sys.exit(7)
-PYEOF
+bash "${PLUGIN_ROOT}/skills/network-change-review/scripts/preflight-cross-customer.sh" \
+  --data-root "$data_root" \
+  --customer "$customer" \
+  --change "$change_path" \
+  > "${workdir}/preflight.out" 2>"${workdir}/preflight.err" || preflight_exit=$?
 if [[ $preflight_exit -eq 7 ]]; then
   err "ncr-cross-customer-leak-detected" \
     "Foreign-customer identifiers detected in raw change input — refusing to proceed. $(< "${workdir}/preflight.err")" 7
@@ -290,9 +249,10 @@ if ! cat "${workdir}/change.json" \
    | bash "${PLUGIN_ROOT}/skills/network-change-review/scripts/derive-rollback.sh" \
        --output "${workdir}/rollback.txt" \
        2>"${workdir}/rollback.err"; then
+  rc=$?
   rollback_err="$(< "${workdir}/rollback.err")"
   printf '%s\n' "$rollback_err" >&2
-  exit $?
+  exit "$rc"
 fi
 
 if grep -q "MANUAL DERIVATION REQUIRED" "${workdir}/rollback.txt" 2>/dev/null \
@@ -316,6 +276,8 @@ fi
 python3 - "${workdir}/change.json" "$customer" \
   "${inventory_json}" "${workdir}/blast-radius-payload.json" <<'PYEOF'
 import json, sys, hashlib, datetime
+from datetime import timezone
+
 change_path, customer, inv_json_str, out_path = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 with open(change_path) as fh:
     change_data = json.load(fh)
@@ -323,7 +285,7 @@ inventory = json.loads(inv_json_str)
 if not change_data.get("change_id"):
     raw = change_data.get("raw", "")
     cid = hashlib.sha256(raw.encode()).hexdigest()[:8]
-    ts = datetime.datetime.utcnow().strftime("%Y%m%d-%H%M")
+    ts = datetime.datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")
     change_data["change_id"] = f"{cid}-{ts}"
 payload = {"inventory": inventory, "change": change_data, "customer": customer}
 with open(out_path, "w") as fh:
@@ -344,9 +306,9 @@ fi
 # ── Step 13 — Render blast-radius markdown ────────────────────────────────────
 step 13 "Rendering blast-radius markdown"
 
-if ! YCI_ACTIVE_REGIME="${YCI_ADAPTER_REGIME:-}" \
-   cat "${workdir}/blast-radius-label.json" \
-   | bash "${PLUGIN_ROOT}/skills/blast-radius/scripts/render-markdown.sh" \
+if ! cat "${workdir}/blast-radius-label.json" \
+   | YCI_ACTIVE_REGIME="${YCI_ADAPTER_REGIME:-}" \
+     bash "${PLUGIN_ROOT}/skills/blast-radius/scripts/render-markdown.sh" \
        > "${workdir}/blast-radius.md" \
        2>"${workdir}/br-render.err"; then
   err "ncr-blast-radius-failed" \
@@ -428,9 +390,10 @@ if ! bash "${PLUGIN_ROOT}/skills/network-change-review/scripts/render-artifact.s
      --evidence-stub "${workdir}/evidence-stub.yaml" \
      --output "${workdir}/artifact-draft.md" \
      2>"${workdir}/render.err"; then
+  rc=$?
   render_err="$(< "${workdir}/render.err")"
   printf '%s\n' "$render_err" >&2
-  exit $?
+  exit "$rc"
 fi
 
 # ── Step 19 — Sanitize rendered artifact (post-render, pass 2) ───────────────

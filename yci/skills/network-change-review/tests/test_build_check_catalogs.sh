@@ -69,6 +69,16 @@ print("schema ok")
 PYEOF
 }
 
+# Shared assertion block for commercial + rich label (single place to edit).
+read -r -d '' ASSERTIONS_COMMERCIAL_RICH <<'PYA' || true
+assert any(c["source"] == "adapter" for c in d["pre_check"]),       "no adapter-sourced pre-check"
+assert any(c["source"] == "blast-radius" for c in d["pre_check"]),  "no blast-radius pre-check"
+assert any(c["source"] == "adapter" for c in d["post_check"]),      "no adapter-sourced post-check"
+assert any(c["source"] == "blast-radius" for c in d["post_check"]), "no blast-radius post-check"
+assert any("dc1-edge-01" in str(c) for c in d["pre_check"] + d["post_check"]), "device dc1-edge-01 not referenced in any check"
+assert any("svc-api" in str(c) for c in d["post_check"]),           "service svc-api not in any post-check"
+PYA
+
 # ---------------------------------------------------------------------------
 # TEST 1 — commercial adapter + rich label
 # ---------------------------------------------------------------------------
@@ -83,26 +93,12 @@ test_commercial_rich_label() {
     assert_file_exists "$out" "commercial rich: output file written"
 
     # --- JSON shape + content via python ----------------------------------------
-    if py_check_schema "$out" "commercial-rich" '
-assert any(c["source"] == "adapter" for c in d["pre_check"]),       "no adapter-sourced pre-check"
-assert any(c["source"] == "blast-radius" for c in d["pre_check"]),  "no blast-radius pre-check"
-assert any(c["source"] == "adapter" for c in d["post_check"]),      "no adapter-sourced post-check"
-assert any(c["source"] == "blast-radius" for c in d["post_check"]), "no blast-radius post-check"
-assert any("dc1-edge-01" in str(c) for c in d["pre_check"] + d["post_check"]), "device dc1-edge-01 not referenced in any check"
-assert any("svc-api" in str(c) for c in d["post_check"]),           "service svc-api not in any post-check"
-' > /dev/null 2>&1; then
+    if py_check_schema "$out" "commercial-rich" "$ASSERTIONS_COMMERCIAL_RICH" > /dev/null 2>&1; then
         _yci_test_report PASS "commercial rich: schema and content checks pass"
     else
         # Re-run to surface the actual assertion message
         local detail
-        detail="$(py_check_schema "$out" "commercial-rich" '
-assert any(c["source"] == "adapter" for c in d["pre_check"]),       "no adapter-sourced pre-check"
-assert any(c["source"] == "blast-radius" for c in d["pre_check"]),  "no blast-radius pre-check"
-assert any(c["source"] == "adapter" for c in d["post_check"]),      "no adapter-sourced post-check"
-assert any(c["source"] == "blast-radius" for c in d["post_check"]), "no blast-radius post-check"
-assert any("dc1-edge-01" in str(c) for c in d["pre_check"] + d["post_check"]), "device dc1-edge-01 not referenced in any check"
-assert any("svc-api" in str(c) for c in d["post_check"]),           "service svc-api not in any post-check"
-' 2>&1 || true)"
+        detail="$(py_check_schema "$out" "commercial-rich" "$ASSERTIONS_COMMERCIAL_RICH" 2>&1 || true)"
         _yci_test_report FAIL "commercial rich: schema and content checks pass" "$detail"
     fi
 }

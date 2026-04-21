@@ -152,7 +152,7 @@ consultant_brand_src="${PLUGIN_ROOT}/skills/network-change-review/references/con
 if [[ ! -f "${consultant_brand_src}" ]]; then
     err "ncr-adapter-template-missing" "Consultant brand file not found at ${consultant_brand_src}" 6
 fi
-consultant_brand_block="$(python3 - "${consultant_brand_src}" <<'PYEXTRACT'
+if ! consultant_brand_block="$(python3 - "${consultant_brand_src}" <<'PYEXTRACT'
 import sys, re
 text = open(sys.argv[1]).read()
 # Find content between the first --- and last --- separators.
@@ -166,10 +166,11 @@ else:
     block = parts[1].strip()
 print(block)
 PYEXTRACT
-)"
-if [[ $? -ne 0 || -z "${consultant_brand_block}" ]]; then
+)"; then
     err "ncr-adapter-template-missing" "Failed to extract brand block from ${consultant_brand_src}" 6
 fi
+[[ -n "${consultant_brand_block}" ]] \
+    || err "ncr-adapter-template-missing" "Failed to extract brand block from ${consultant_brand_src}" 6
 consultant_brand_block="${consultant_brand_block//\{\{yci_commit\}\}/${yci_commit}}"
 
 # Resolve customer brand block from profile.deliverable.header_template.

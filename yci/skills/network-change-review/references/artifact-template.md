@@ -120,14 +120,7 @@ slot source failed, and discards the partially-rendered artifact.
 
 ## Evidence Stub
 
-<details>
-<summary>Evidence YAML (expand to view)</summary>
-
-```yaml
-{ { evidence_stub } }
-```
-
-</details>
+{{evidence_stub}}
 
 ---
 

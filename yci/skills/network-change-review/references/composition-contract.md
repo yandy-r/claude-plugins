@@ -19,9 +19,10 @@ steps that consume the same inputs in parallel order of readiness; they are not
 concurrent process forks in the shell script — `review.sh` runs them sequentially
 in this order.
 
-1. **Parse flags.** Extract `--change-file`, `--data-root`, and any override flags
-   from script arguments. Validate that `--change-file` is present and readable; exit
-   `ncr-change-file-missing` (exit 1) otherwise.
+1. **Parse flags.** Extract `--change`, `--data-root`, and any override flags from
+   script arguments. Validate that `--change` is present, the path exists, and the
+   file is readable; otherwise exit `ncr-diff-unsupported-shape` (exit 3), matching
+   `review.sh` and `parse-change.sh` callers/tests.
 
 2. **Resolve data root.** Invoke
    `_shared/scripts/resolve-data-root.sh [--data-root <path>]`. Capture the
@@ -45,39 +46,46 @@ in this order.
    `YCI_ADAPTER_HAS_SCHEMA`) via `eval`. Non-zero exit propagates verbatim; the
    orchestrator does not substitute a fallback regime.
 
-6. **Sanitize input diff (strict mode).** Pipe the raw change file content through
-   `_shared/telemetry-sanitizer/scripts/sanitize-output.sh` (strict mode, default).
-   Capture the sanitized text on stdout. On sanitizer failure exit
-   `ncr-sanitizer-input-rejected`.
+6. **Preflight: cross-customer identifier scan (raw input).** Before parsing, scan the
+   **unmodified** `--change` file for identifiers belonging to any other customer under
+   `<data-root>/profiles/` (same logic as `scripts/preflight-cross-customer.sh` /
+   `review.sh` step 8). On a hit, exit `ncr-cross-customer-leak-detected` (exit 7). The
+   orchestrator does **not** pipe the change file through `sanitize-output.sh` before
+   `parse-change.sh`, because strict redaction would strip hostnames that inventory-based
+   target resolution needs (see `review.sh` comment above step 8). Policy enforcement
+   that maps to `ncr-sanitizer-input-rejected` applies on the **rendered** artifact via
+   `pre-write-artifact.sh` (later step), not on the raw change file at this stage.
 
-7. **Parse and validate the change file.** Parse the sanitized diff/change content
-   against the schema documented in `./change-input-schema.md`. Required fields:
-   `change_id`, `change_type`, `summary`, `targets`. On unresolvable targets exit
-   `ncr-targets-unresolvable`.
+7. **Parse and validate the change file.** Run `parse-change.sh --input <change>` and
+   capture the canonical JSON envelope documented in `./change-input-schema.md`:
+   `diff_kind`, `raw`, `summary`, and `targets`. These are the required top-level fields
+   at parse time (`change_id` / `change_type` are **not** part of this envelope — they
+   may be synthesized later for blast-radius payload helpers). If no inventory-backed
+   target can be resolved where required, exit `ncr-targets-unresolvable`.
 
-8. **Produce normalized change JSON.** Serialize the parsed change object to a
-   normalized JSON structure that steps 9–13 consume. This is the single canonical
-   in-memory representation; all downstream steps read this JSON rather than
-   re-parsing the original file.
+8. **Persist normalized change JSON.** Write the envelope to `${NCR_WORKDIR}/change.json`
+   (or equivalent); steps 9–13 consume this file as the single canonical representation.
 
-9. **Run `yci:blast-radius` reasoning.** Invoke
-   `blast-radius/scripts/reason.sh` with a payload constructed from the normalized
-   change JSON, the loaded profile JSON, and the resolved inventory path. Capture
-   the label JSON on stdout. On failure exit `ncr-blast-radius-failed`.
+9. **Derive rollback.** Invoke `scripts/derive-rollback.sh` with the normalized
+   change JSON on stdin. Capture the rollback plan text (and stderr warning for
+   `ncr-rollback-ambiguous` when confidence is low). On `confidence: low` for
+   **playbook-shaped** inputs, proceed with a `> **WARNING**` callout — do **not** fail
+   the run for low confidence. For `diff_kind: unknown`, `derive-rollback.sh` exits
+   non-zero with `ncr-diff-unsupported-shape` (fatal). See `./rollback-derivation.md`.
 
-10. **Render blast-radius markdown.** Pipe the label JSON through
-    `blast-radius/scripts/render-markdown.sh` with `YCI_ACTIVE_REGIME` set from the
-    loaded adapter. Capture the rendered markdown for inclusion in the final artifact.
+10. **Build blast-radius payload; run reasoner; render markdown.** Construct the JSON
+    payload (see `review.sh`), run `blast-radius/scripts/reason.sh`, then pipe
+    `blast-radius-label.json` into `blast-radius/scripts/render-markdown.sh`. Set
+    `YCI_ACTIVE_REGIME` from `YCI_ADAPTER_REGIME` on the **renderer** process (not on
+    `cat`). On failure exit `ncr-blast-radius-failed`.
 
-11. **Derive rollback.** Invoke `scripts/derive-rollback.sh` with the normalized
-    change JSON and profile JSON. Capture the rollback JSON on stdout. On
-    `confidence: low` result: proceed with a `> **WARNING**` callout in the artifact
-    — do NOT fail. The warning content is defined in `./rollback-derivation.md`.
+11. **Populate change-plan and diff-review slots.** Copy `--change-plan` /
+    `--diff-review` inputs when provided; otherwise write placeholders. (These files are
+    produced by `ycc:planner` / `ycc:code-reviewer` at the SKILL layer.)
 
-12. **Build check catalogs.** Invoke `scripts/build-check-catalogs.sh` with the
-    normalized change JSON, the profile JSON, and the adapter's `evidence-template.md`
-    and `evidence-schema.json` paths from `YCI_ADAPTER_DIR`. Capture the pre-check
-    and post-check catalog JSON on stdout.
+12. **Build check catalogs.** Invoke `scripts/build-check-catalogs.sh` with
+    `--adapter-dir` and `--blast-radius-label`. Capture pre-check and post-check JSON
+    (adapter `handoff-checklist.md` plus blast-radius-derived checks).
 
 13. **Load adapter handoff checklist.** Read `${YCI_ADAPTER_DIR}/handoff-checklist.md`
     from disk. This file is referenced verbatim in the evidence stub and in the final
@@ -124,9 +132,9 @@ in this order.
 | `yci:customer-profile`                     | Shell scripts: `resolve-customer.sh`, `load-profile.sh`                                                                                                                                              | `review.sh`                                                                                                                             |
 | `yci:customer-guard` (PreToolUse hook)     | Automatic hook intercept; NOT invoked directly                                                                                                                                                       | Claude Code runtime — NOT `review.sh`                                                                                                   |
 | `yci:_shared/customer-isolation/detect.sh` | Shell script sourced and function called                                                                                                                                                             | `review.sh` (step 17 — final belt-and-suspenders negative check)                                                                        |
-| `yci:telemetry-sanitizer`                  | Shell scripts: `sanitize-output.sh` (strict mode) THEN `pre-write-artifact.sh`                                                                                                                       | `review.sh` TWICE: once on input diff (step 6), once on rendered artifact (step 16)                                                     |
+| `yci:telemetry-sanitizer`                  | `pre-write-artifact.sh` on the rendered artifact (strict / internal per profile); optional `sanitize-output.sh` for other CLIs — **not** used on the raw `--change` file before parse in `review.sh` | `review.sh` (post-render pass); raw change is scanned in preflight instead of sanitized early                                           |
 | Compliance adapter                         | `_shared/scripts/load-compliance-adapter.sh --export --profile-json-path <path>` + filesystem reads of `evidence-template.md`, `evidence-schema.json`, `handoff-checklist.md` from `YCI_ADAPTER_DIR` | `review.sh` (step 5) and consumed by check-catalog builder (step 12), evidence-stub renderer (step 14), and artifact renderer (step 15) |
-| `yci:blast-radius`                         | Shell scripts: `blast-radius/scripts/reason.sh`, `blast-radius/scripts/render-markdown.sh`                                                                                                           | `review.sh` (steps 9–10)                                                                                                                |
+| `yci:blast-radius`                         | Shell scripts: `blast-radius/scripts/reason.sh`, `blast-radius/scripts/render-markdown.sh`                                                                                                           | `review.sh` (after rollback derivation)                                                                                                 |
 | `ycc:plan` (Change Plan section)           | Agent tool with `subagent_type: "ycc:planner"` — prompt in, structured plan text out                                                                                                                 | SKILL.md prompt — NOT `review.sh`                                                                                                       |
 | `ycc:code-review` (Diff Review section)    | Agent tool with `subagent_type: "ycc:code-reviewer"` — prompt in, findings text out                                                                                                                  | SKILL.md prompt — NOT `review.sh`                                                                                                       |
 
@@ -164,32 +172,27 @@ only through documented, runtime-stable channels (the Agent tool).
 raw change file
     |
     v
-[Step 6] sanitize-output.sh (strict mode, sanitizer pass 1)
+[Preflight] foreign-customer identifier scan (raw text; same as preflight-cross-customer.sh)
     |
     v
-sanitized change text
-    |
-    v
-[Step 7] parse-change (schema validation against change-input-schema.md)
+[Parse] parse-change.sh → envelope { diff_kind, raw, summary, targets }  (change-input-schema.md)
     |
     v
 normalized change JSON  ←────────────────────────────────┐
     |                                                     │
-    ├──[Step 9]──► blast-radius/reason.sh ──► label JSON  │
-    │               |                                     │
-    │               └──[Step 10]─► render-markdown.sh     │
-    │                               |                     │
-    ├──[Step 11]─► derive-rollback.sh ──► rollback JSON   │
-    │               (low confidence → warning, not fail)   │
+    ├──[Rollback] derive-rollback.sh ──► rollback text     │
+    │               (playbook → low confidence warning)    │
+    │               (unknown diff_kind → ncr-diff-unsupported-shape)
     │                                                     │
-    └──[Step 12]─► build-check-catalogs.sh                │
-                    (+ adapter evidence-template.md        │
-                       + adapter evidence-schema.json)     │
-                    ──► pre/post check catalog JSON        │
+    ├──[Blast radius] reason.sh ──► label JSON             │
+    │               └── render-markdown.sh (YCI_ACTIVE_REGIME on renderer)
+    │                                                     │
+    └──[Catalogs] build-check-catalogs.sh                 │
+                    ──► pre/post-check catalog JSON        │
                                                           │
-                    [Step 13] load adapter handoff-checklist.md
+                    load adapter handoff-checklist.md
                                                           │
-[Step 14] render-evidence-stub.sh                         │
+[Evidence stub] render-evidence-stub.sh                   │
     (label JSON + rollback JSON + catalog JSON            │
      + adapter paths + profile JSON)                      │
     |                                                     │
@@ -227,14 +230,14 @@ Each failure mode has a canonical error code. The full error text for every code
 lives in `./error-messages.md` — this section references that catalog and does not
 duplicate the message copy.
 
-| Failure condition                              | Orchestrator behavior                               | Error code                             |
-| ---------------------------------------------- | --------------------------------------------------- | -------------------------------------- |
-| `customer-profile` REFUSE — no active customer | Exit immediately; do not proceed                    | `ncr-customer-unresolved`              |
-| Sanitizer strict-mode failure on input diff    | Exit immediately; artifact is never started         | `ncr-sanitizer-input-rejected`         |
-| Parse-change: unresolvable targets             | Exit immediately; blast-radius is never attempted   | `ncr-targets-unresolvable`             |
-| `derive-rollback` returns `confidence: low`    | Proceed; insert `> **WARNING**` callout in artifact | (no exit — handled in artifact render) |
-| `blast-radius/reason.sh` non-zero exit         | Exit immediately                                    | `ncr-blast-radius-failed`              |
-| Post-render isolation detect returns `deny`    | DELETE the partially-written temp artifact; exit    | `ncr-cross-customer-leak-detected`     |
+| Failure condition                               | Orchestrator behavior                               | Error code                             |
+| ----------------------------------------------- | --------------------------------------------------- | -------------------------------------- |
+| `customer-profile` REFUSE — no active customer  | Exit immediately; do not proceed                    | `ncr-customer-unresolved`              |
+| Sanitizer / policy failure on rendered artifact | Exit immediately; temp artifact discarded           | `ncr-sanitizer-input-rejected`         |
+| Parse-change: unresolvable targets              | Exit immediately; blast-radius is never attempted   | `ncr-targets-unresolvable`             |
+| `derive-rollback` returns `confidence: low`     | Proceed; insert `> **WARNING**` callout in artifact | (no exit — handled in artifact render) |
+| `blast-radius/reason.sh` non-zero exit          | Exit immediately                                    | `ncr-blast-radius-failed`              |
+| Post-render isolation detect returns `deny`     | DELETE the partially-written temp artifact; exit    | `ncr-cross-customer-leak-detected`     |
 
 The canonical error catalog with literal message text, exit codes, and operator
 guidance is in `./error-messages.md`.

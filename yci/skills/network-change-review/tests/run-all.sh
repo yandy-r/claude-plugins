@@ -8,11 +8,16 @@
 #   run-all.sh --verbose     # show per-assertion output
 #   run-all.sh test_foo.sh   # run a specific test file
 
-set -uo pipefail  # intentional: no -e here; tests handle their own failures
+set -euo pipefail
 
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+HELPERS="${TESTS_DIR}/helpers.sh"
+if [[ ! -f "$HELPERS" || ! -r "$HELPERS" ]]; then
+    printf 'run-all.sh: missing or unreadable helpers: %s\n' "$HELPERS" >&2
+    exit 1
+fi
 # shellcheck source=/dev/null
-source "${TESTS_DIR}/helpers.sh"
+source "$HELPERS"
 
 VERBOSE=0
 FILTER=()
@@ -20,7 +25,7 @@ for arg in "$@"; do
     case "$arg" in
         --verbose|-v) VERBOSE=1 ;;
         test_*.sh)    FILTER+=("$arg") ;;
-        *)            printf 'unknown arg: %s\n' "$arg" >&2; exit 2 ;;
+        *)            printf 'unknown arg: %s\n' "$arg" >&2; exit 1 ;;
     esac
 done
 export YCI_TEST_VERBOSE=$VERBOSE
@@ -33,6 +38,22 @@ if [ "${#FILTER[@]}" -eq 0 ]; then
 else
     test_files=("${FILTER[@]}")
 fi
+
+for tf in "${test_files[@]}"; do
+    path="${TESTS_DIR}/${tf}"
+    if [[ ! -f "$path" ]]; then
+        printf 'run-all.sh: test file not found: %s\n' "$path" >&2
+        exit 1
+    fi
+    if [[ ! -r "$path" ]]; then
+        printf 'run-all.sh: test file not readable: %s\n' "$path" >&2
+        exit 1
+    fi
+    if [[ ! -x "$path" ]]; then
+        printf 'run-all.sh: test file not executable: %s\n' "$path" >&2
+        exit 1
+    fi
+done
 
 if [ "${#test_files[@]}" -eq 0 ]; then
     printf 'no tests found in %s\n' "$TESTS_DIR"

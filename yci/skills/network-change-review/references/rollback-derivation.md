@@ -106,8 +106,8 @@ collapse.
 
 **Binary diffs.**
 Lines matching `Binary files a/<X> and b/<Y> differ` cannot be mechanically
-reversed. Detect this pattern, emit the stub (§5), and set `confidence: low` with
-error `ncr-rollback-binary-unsupported`.
+reversed. Detect this pattern and fail with `ncr-rollback-binary-unsupported` (exit
+non-zero) — do not emit a fake mechanical rollback.
 
 ---
 
@@ -146,9 +146,9 @@ Exit code 1. Do NOT attempt to infer the reverse from the `forward:` block.
 
 ## 5. Ambiguous / Playbook Handling
 
-When the input is detected as `playbook` or `unknown`, emit this stub to stdout and
-exit 0 (the artifact is valid but low-confidence; the error is surfaced to the
-operator via the `confidence: low` marker, not via a non-zero exit):
+When the input is detected as **`playbook`**, emit this stub to stdout and exit 0
+(the artifact is valid but low-confidence; the warning is surfaced via the
+`confidence: low` marker and stderr `ncr-rollback-ambiguous`, not via a non-zero exit):
 
 ```
 # ROLLBACK PLAN — MANUAL DERIVATION REQUIRED
@@ -157,23 +157,28 @@ No mechanical inverse is available for this change shape. The operator must
 supply or derive the rollback steps manually before proceeding.
 
 Confidence: low
-Detected shape: <playbook|unknown>
+Detected shape: playbook
 Input: <path>
 ```
 
-The literal string `MANUAL DERIVATION REQUIRED` must appear verbatim so that
-downstream tooling (e.g., `render-artifact.sh`) can grep for it as a sentinel.
-Do **not** fabricate steps. Do **not** guess at device state.
+When the input is detected as **`unknown`**, do **not** emit this stub with exit 0.
+`derive-rollback.sh` MUST exit non-zero with `ncr-diff-unsupported-shape` (see §2 and
+`error-messages.md`) — the same fatal contract as `parse-change.sh` for unsupported
+shapes.
+
+The literal string `MANUAL DERIVATION REQUIRED` must appear verbatim for **playbook**
+stubs so that downstream tooling (e.g., `render-artifact.sh`) can grep for it as a
+sentinel. Do **not** fabricate steps. Do **not** guess at device state.
 
 ---
 
 ## 6. Confidence Levels
 
-| Level    | Meaning                                                                                                                 |
-| -------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `high`   | Mechanical reversal is exact: `unified-diff` processed per §3, or `structured-yaml` with an explicit `reverse:` block.  |
-| `medium` | Reserved for future cases where partial inference produces a likely-correct-but-unverified reverse. Not currently used. |
-| `low`    | Manual derivation required: `playbook`, `unknown`, or binary diff. The rollback plan is a stub.                         |
+| Level    | Meaning                                                                                                                                         |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `high`   | Mechanical reversal is exact: `unified-diff` processed per §3, or `structured-yaml` with an explicit `reverse:` block.                          |
+| `medium` | Reserved for future cases where partial inference produces a likely-correct-but-unverified reverse. Not currently used.                         |
+| `low`    | Manual derivation required: `playbook` or binary diff (stub). `unknown` is **not** low-confidence — it is fatal (`ncr-diff-unsupported-shape`). |
 
 The `render-artifact.sh` renderer **must** surface `confidence: low` as a visible
 warning callout in the generated artifact (bolded block or highlighted admonition).
@@ -187,7 +192,7 @@ This constraint is cross-referenced in `./artifact-template.md` under the
 The canonical error catalog with full message text, exit codes, and remediation
 guidance lives in `./error-messages.md`. The IDs relevant to rollback derivation are:
 
-- `ncr-rollback-ambiguous` — input matched more than one `diff_kind` pattern
+- `ncr-rollback-ambiguous` — low-confidence **playbook** stub emitted (stderr warning; exit 0)
 - `ncr-rollback-missing-reverse` — structured YAML has `forward:` but no `reverse:`
 - `ncr-diff-unsupported-shape` — input did not match any known `diff_kind`
 - `ncr-rollback-binary-unsupported` — binary diff cannot be mechanically reversed

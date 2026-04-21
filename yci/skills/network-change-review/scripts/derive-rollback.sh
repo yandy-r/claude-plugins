@@ -305,25 +305,33 @@ PYEOF
 # Errors with ncr-rollback-missing-reverse if reverse: key is absent.
 # ---------------------------------------------------------------------------
 reverse_structured_yaml() {
-  local raw
-  raw="$(read_stdin_json raw)"
-
-  python3 - <<PY
-import sys
+  # Read `raw` from the captured JSON envelope in _NCR_STDIN — never interpolate YAML
+  # into the heredoc (triple quotes in the payload could break out or inject code).
+  python3 - <<'PY'
+import json
 import os
-
-raw = """${raw}"""
+import sys
 
 try:
     import yaml
 except ImportError:
-    # TODO(3.2): yaml not available — fallback to simple key scan
-    # This basic check avoids a hard dep on PyYAML in the skeleton.
+    yaml = None
+
+try:
+    data = json.loads(os.environ["_NCR_STDIN"])
+except Exception as exc:
+    sys.stderr.write(f"[ncr-diff-unsupported-shape] Invalid JSON envelope: {exc}\n")
+    sys.exit(3)
+
+raw = data.get("raw", "")
+if not isinstance(raw, str):
+    raw = ""
+
+if yaml is None:
     has_reverse = "reverse:" in raw
     if not has_reverse:
         sys.stderr.write("[ncr-rollback-missing-reverse] Structured change lacks required 'reverse:' block.\n")
         sys.exit(3)
-    # Extract everything after the first 'reverse:' line
     lines = raw.splitlines()
     in_reverse = False
     out = []
@@ -339,20 +347,20 @@ except ImportError:
     sys.exit(0)
 
 try:
-    data = yaml.safe_load(raw)
+    ydata = yaml.safe_load(raw)
 except Exception as exc:
     sys.stderr.write(f"[ncr-diff-unsupported-shape] Failed to parse structured YAML: {exc}\n")
     sys.exit(3)
 
-if not isinstance(data, dict):
+if not isinstance(ydata, dict):
     sys.stderr.write("[ncr-diff-unsupported-shape] Structured YAML must be a mapping at top level.\n")
     sys.exit(3)
 
-if "reverse" not in data:
+if "reverse" not in ydata:
     sys.stderr.write("[ncr-rollback-missing-reverse] Structured change lacks required 'reverse:' block.\n")
     sys.exit(3)
 
-print(yaml.dump(data["reverse"], default_flow_style=False).rstrip())
+print(yaml.dump(ydata["reverse"], default_flow_style=False).rstrip())
 PY
 }
 

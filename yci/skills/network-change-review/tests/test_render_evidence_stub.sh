@@ -360,6 +360,7 @@ test_missing_required_flag() {
 
     # Omit --profile; expect non-zero exit and a friendly error on stderr.
     local stderr_out rc
+    set +e
     stderr_out="$(
         CLAUDE_PLUGIN_ROOT="${PLUGIN_ROOT}" \
         "${RENDER}" \
@@ -370,6 +371,7 @@ test_missing_required_flag() {
         2>&1 >/dev/null
     )"
     rc=$?
+    set -e
 
     if [[ "${rc}" -ne 0 ]]; then
         _yci_test_report PASS "missing-flag: exits non-zero"
@@ -404,6 +406,7 @@ test_invalid_json_input() {
     label_json="$(make_label_json high "${TMP_BASE}/label.json")"
 
     local stderr_out rc
+    set +e
     stderr_out="$(
         CLAUDE_PLUGIN_ROOT="${PLUGIN_ROOT}" \
         "${RENDER}" \
@@ -415,6 +418,7 @@ test_invalid_json_input() {
         2>&1 >/dev/null
     )"
     rc=$?
+    set -e
 
     if [[ "${rc}" -ne 0 ]]; then
         _yci_test_report PASS "invalid-json: exits non-zero"

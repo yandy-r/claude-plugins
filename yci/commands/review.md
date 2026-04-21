@@ -24,7 +24,8 @@ artifact the operator can hand to the customer.
 - Tags the artifact with the active customer id, engagement id, and compliance
   regime.
 - Writes the artifact to the deliverable path defined in the profile
-  (default: `$YCI_DATA_ROOT/artifacts/<customer>/<engagement>/<timestamp>-review/`).
+  (default: `$YCI_DATA_ROOT/artifacts/<customer>/network-change-review/<change_id>-<timestamp>/`,
+  matching `yci:network-change-review` / `SKILL.md`).
 
 ## Arguments
 

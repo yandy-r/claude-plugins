@@ -166,8 +166,10 @@ YAML
     local envelope stderr_out rc err_content
     envelope="$(build_envelope "structured-yaml" "$forward_only_yaml")"
     stderr_out="$(mktemp)"
+    set +e
     printf '%s' "$envelope" | "$DERIVE_ROLLBACK" 2>"$stderr_out"
     rc=$?
+    set -e
     err_content="$(cat "$stderr_out")"
     rm -f "$forward_only_yaml" "$stderr_out"
 
@@ -202,8 +204,10 @@ test_unknown_diff_kind() {
     local envelope stderr_out rc err_content
     envelope="$(build_envelope_raw "garbage" "some raw content")"
     stderr_out="$(mktemp)"
+    set +e
     printf '%s' "$envelope" | "$DERIVE_ROLLBACK" 2>"$stderr_out"
     rc=$?
+    set -e
     err_content="$(cat "$stderr_out")"
     rm -f "$stderr_out"
 
@@ -225,8 +229,10 @@ test_binary_diff_rejection() {
 
     envelope="$(build_envelope_raw "unified-diff" "$binary_raw")"
     stderr_out="$(mktemp)"
+    set +e
     printf '%s' "$envelope" | "$DERIVE_ROLLBACK" 2>"$stderr_out"
     rc=$?
+    set -e
     err_content="$(cat "$stderr_out")"
     rm -f "$stderr_out"
 
