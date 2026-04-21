@@ -19,7 +19,7 @@ _run() {
 
 # ---------------------------------------------------------------------------
 test_ipv4_whitelisted() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "ipv4_wl: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"Write","tool_input":{"content":"server 127.0.0.1"}}')"
@@ -27,7 +27,7 @@ test_ipv4_whitelisted() {
 }
 
 test_ipv4_real() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "ipv4_real: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"Write","tool_input":{"content":"host 10.2.2.2"}}')"
@@ -36,7 +36,7 @@ test_ipv4_real() {
 }
 
 test_ipv6_real() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "ipv6_real: skipped"; return 0; }
     local out
     # Use a full-form non-whitelisted IPv6 address (compressed forms like ::1 match only
@@ -47,7 +47,7 @@ test_ipv6_real() {
 }
 
 test_ipv6_whitelisted() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "ipv6_wl: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"Write","tool_input":{"content":"loopback ::1"}}')"
@@ -55,7 +55,7 @@ test_ipv6_whitelisted() {
 }
 
 test_hostname_real() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "hostname_real: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"Write","tool_input":{"content":"target bb01.bigbank.corp"}}')"
@@ -64,7 +64,7 @@ test_hostname_real() {
 }
 
 test_hostname_whitelisted() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "hostname_wl: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"Write","tool_input":{"content":"see example.com for docs"}}')"
@@ -72,7 +72,7 @@ test_hostname_whitelisted() {
 }
 
 test_asn() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "asn: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"Write","tool_input":{"content":"prefix from AS65001"}}')"
@@ -81,7 +81,7 @@ test_asn() {
 }
 
 test_sow_ref() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "sow_ref: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"Write","tool_input":{"content":"per SOW-1234 this is done"}}')"
@@ -90,7 +90,7 @@ test_sow_ref() {
 }
 
 test_credential_ref() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "cred_ref: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"Write","tool_input":{"content":"password vault:prod/db/password"}}')"

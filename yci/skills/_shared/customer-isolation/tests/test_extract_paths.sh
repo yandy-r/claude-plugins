@@ -26,7 +26,7 @@ _run_with_stderr() {
 
 # ---------------------------------------------------------------------------
 test_read() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "read: skipped (extractor absent)"; return 0; }
     local out
     out="$(_run '{"tool_name":"Read","tool_input":{"file_path":"/tmp/x"}}')"
@@ -34,7 +34,7 @@ test_read() {
 }
 
 test_write() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "write: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"Write","tool_input":{"file_path":"/var/data/output.txt"}}')"
@@ -42,7 +42,7 @@ test_write() {
 }
 
 test_edit() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "edit: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"Edit","tool_input":{"file_path":"/etc/config.conf"}}')"
@@ -50,7 +50,7 @@ test_edit() {
 }
 
 test_multi_edit() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "multi_edit: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"MultiEdit","tool_input":{"file_path":"/srv/app/main.py"}}')"
@@ -58,7 +58,7 @@ test_multi_edit() {
 }
 
 test_notebook_edit() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "notebook_edit: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"NotebookEdit","tool_input":{"notebook_path":"/home/user/analysis.ipynb"}}')"
@@ -66,7 +66,7 @@ test_notebook_edit() {
 }
 
 test_glob_with_path() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "glob_path: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"Glob","tool_input":{"pattern":"**/*.py","path":"/project/src"}}')"
@@ -74,7 +74,7 @@ test_glob_with_path() {
 }
 
 test_grep_with_path() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "grep_path: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"Grep","tool_input":{"pattern":"TODO","path":"/workspace/app"}}')"
@@ -82,7 +82,7 @@ test_grep_with_path() {
 }
 
 test_bash_simple() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "bash_simple: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"Bash","tool_input":{"command":"cat /etc/hosts"}}')"
@@ -90,7 +90,7 @@ test_bash_simple() {
 }
 
 test_bash_grep_foreign_path() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "bash_grep_path: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"Bash","tool_input":{"command":"grep foo /foreign/path"}}')"
@@ -98,7 +98,7 @@ test_bash_grep_foreign_path() {
 }
 
 test_bash_truncation() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "bash_trunc: skipped"; return 0; }
     # Build a command with >512 tokens: "echo 1 2 3 ..."
     local cmd="echo"
@@ -112,7 +112,7 @@ test_bash_truncation() {
 }
 
 test_webfetch_file() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "webfetch_file: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"WebFetch","tool_input":{"url":"file:///etc/hosts"}}')"
@@ -120,7 +120,7 @@ test_webfetch_file() {
 }
 
 test_webfetch_https() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "webfetch_https: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"WebFetch","tool_input":{"url":"https://example.com/page"}}')"
@@ -128,7 +128,7 @@ test_webfetch_https() {
 }
 
 test_task_prompt() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "task_prompt: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"Task","tool_input":{"prompt":"Please read ~/foo/bar.md and ./local.txt"}}')"
@@ -137,7 +137,7 @@ test_task_prompt() {
 }
 
 test_relative_with_cwd() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "relative_cwd: skipped"; return 0; }
     local out
     out="$(_run '{"tool_name":"Write","tool_input":{"file_path":"./relative.md"},"cwd":"/tmp/work"}')"
@@ -145,7 +145,7 @@ test_relative_with_cwd() {
 }
 
 test_missing_file_path() {
-    local sb="$1"
+    local _sb="$1"
     _extractor_ok || { _yci_test_report PASS "missing_fp: skipped"; return 0; }
     local out rc
     out="$(_run '{"tool_name":"Read","tool_input":{}}')"; rc=$?
