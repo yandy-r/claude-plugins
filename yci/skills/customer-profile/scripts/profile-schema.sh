@@ -55,36 +55,11 @@ YCI_SCOPE_ENFORCEMENT=(warn block off)
 # Values for deliverable.handoff_format (schema.md "deliverable" table).
 YCI_DELIVERABLE_HANDOFF_FORMATS=(git-repo zip confluence pdf-bundle)
 
-# Inventory/approval adapter types: schema.md enumerates these but the loader
-# validates adapter presence (non-empty string), not a closed enum, because
-# new adapters are added without schema changes. Uncomment if stricter
-# validation is desired in a future iteration.
-# YCI_INVENTORY_ADAPTERS=(file netbox nautobot servicenow-cmdb infoblox)
-# YCI_APPROVAL_ADAPTERS=(github-pr email-signoff jira servicenow-request none)
+# Values for change_window.adapter (schema.md "change_window" table).
+# Only validated when change_window is present (the whole block is optional).
+YCI_CHANGE_WINDOW_ADAPTERS=(ical servicenow-cab json-schedule always-open none)
 
-# Helpers ---------------------------------------------------------------------
-
-# yci_enum_contains <array-name> <value>
-#   Returns 0 if <value> is in the named array, 1 otherwise.
-yci_enum_contains() {
-    local -n _yci_arr="$1"
-    local needle="$2"
-    local item
-    for item in "${_yci_arr[@]}"; do
-        [ "$item" = "$needle" ] && return 0
-    done
-    return 1
-}
-
-# yci_required_for <section>
-#   Echoes the space-separated required field list for <section>,
-#   or nothing if no required fields are declared for that section.
-yci_required_for() {
-    local section
-    section="$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]')"
-    local varname="YCI_${section}_REQUIRED"
-    if [ -n "${!varname+set}" ]; then
-        local -n _yci_req_arr="$varname"
-        printf '%s ' "${_yci_req_arr[@]}"
-    fi
-}
+# Inventory/approval adapter types: schema.md lists common adapters but the
+# loader validates the field as a non-empty string, not a closed enum — new
+# adapters are added without schema changes. See schema.md "Adapter note"
+# under inventory and approval.

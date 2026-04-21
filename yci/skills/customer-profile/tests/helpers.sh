@@ -138,26 +138,45 @@ assert_error_id() {
 
 with_sandbox() {
     # Usage: with_sandbox <fn-name>
-    # Calls <fn-name> with the sandbox path as its first argument, inside
-    # a subshell cd-ed to $sandbox/cwd. Cleans up on exit.
+    # Calls <fn-name> with the sandbox path as its first argument. Runs in the
+    # CURRENT shell (not a subshell) so that assertion counters
+    # YCI_TEST_PASS / YCI_TEST_FAIL propagate to yci_test_summary. Save/restore
+    # HOME, YCI_DATA_ROOT, YCI_CUSTOMER, and the working directory around the
+    # call so cross-test state never leaks.
     local fn="$1"
     local sb
     sb="$(mktemp -d -t yci-test-XXXXXX)"
-    export YCI_TEST_SANDBOX="$sb"
     mkdir -p "$sb/real" "$sb/home" "$sb/cwd"
-    local saved_home="$HOME"
+
+    # Save previous env + cwd (use +x for "was the var set at all" vs. empty).
+    local saved_home="${HOME:-}"
+    local saved_dr_set=${YCI_DATA_ROOT+x} saved_dr="${YCI_DATA_ROOT:-}"
+    local saved_cu_set=${YCI_CUSTOMER+x}  saved_cu="${YCI_CUSTOMER:-}"
+    local saved_cwd; saved_cwd="$(pwd -P)"
+
+    export YCI_TEST_SANDBOX="$sb"
     export HOME="$sb/home"
     export YCI_DATA_ROOT=""
     export YCI_CUSTOMER=""
-    (
-        cd "$sb/cwd" || exit 1
-        "$fn" "$sb"
-    )
-    local rc=$?
+
+    local rc=0
+    if cd "$sb/cwd"; then
+        "$fn" "$sb" || rc=$?
+    else
+        rc=1
+    fi
+
+    # Restore cwd first (so cleanup doesn't delete the CWD out from under us).
+    cd "$saved_cwd" || true
+
+    # Restore env vars to their prior state (set vs. unset vs. value).
     export HOME="$saved_home"
+    if [ -n "$saved_dr_set" ]; then export YCI_DATA_ROOT="$saved_dr"; else unset YCI_DATA_ROOT; fi
+    if [ -n "$saved_cu_set" ]; then export YCI_CUSTOMER="$saved_cu";  else unset YCI_CUSTOMER; fi
+
     rm -rf "$sb"
     unset YCI_TEST_SANDBOX
-    return $rc
+    return "$rc"
 }
 
 # ---------------------------------------------------------------------------

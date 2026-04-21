@@ -29,13 +29,19 @@ fi
 # --- load and validate profile (propagates loader exit codes) ---------------
 profile_json="$("${SCRIPT_DIR}/load-profile.sh" "$data_root" "$customer")"
 
-# --- extract summary fields for confirmation line ---------------------------
-engagement_id="$(printf '%s' "$profile_json" | python3 -c \
-    "import json,sys; d=json.load(sys.stdin); print(d.get('engagement',{}).get('id',''))")"
-compliance_regime="$(printf '%s' "$profile_json" | python3 -c \
-    "import json,sys; d=json.load(sys.stdin); print(d.get('compliance',{}).get('regime',''))")"
-default_posture="$(printf '%s' "$profile_json" | python3 -c \
-    "import json,sys; d=json.load(sys.stdin); print(d.get('safety',{}).get('default_posture',''))")"
+# --- extract summary fields for confirmation line (single python3 invocation) ---
+IFS=$'\t' read -r engagement_id compliance_regime default_posture < <(
+    printf '%s' "$profile_json" | python3 -c '
+import json, sys
+d = json.load(sys.stdin)
+print(
+    d.get("engagement", {}).get("id", ""),
+    d.get("compliance", {}).get("regime", ""),
+    d.get("safety", {}).get("default_posture", ""),
+    sep="\t",
+)
+'
+)
 
 # --- persist active state (propagates state-io exit codes) ------------------
 state_write_active "$data_root" "$customer"

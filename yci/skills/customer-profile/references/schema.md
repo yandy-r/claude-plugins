@@ -87,22 +87,31 @@ Required when `safety.change_window_required: true`. If omitted and that flag is
 
 ### `inventory`
 
-| Field            | Type   | Required | Allowed values                                              | Notes                                             |
-| ---------------- | ------ | -------- | ----------------------------------------------------------- | ------------------------------------------------- |
-| `adapter`        | string | yes      | `file`, `netbox`, `nautobot`, `servicenow-cmdb`, `infoblox` | CMDB adapter to load                              |
-| `endpoint`       | string | cond.    | URL                                                         | Required for API-backed adapters                  |
-| `credential_ref` | string | cond.    | `<customer-id>/<key-name>`                                  | Reference into the vaults subtree; no raw secrets |
-| `path`           | string | no       | any path                                                    | Override for inventory storage location           |
+| Field            | Type   | Required | Example values                                                        | Notes                                             |
+| ---------------- | ------ | -------- | --------------------------------------------------------------------- | ------------------------------------------------- |
+| `adapter`        | string | yes      | `file`, `manual`, `netbox`, `nautobot`, `servicenow-cmdb`, `infoblox` | CMDB adapter to load — see adapter note below     |
+| `endpoint`       | string | cond.    | URL                                                                   | Required for API-backed adapters                  |
+| `credential_ref` | string | cond.    | `<customer-id>/<key-name>`                                            | Reference into the vaults subtree; no raw secrets |
+| `path`           | string | no       | any path                                                              | Override for inventory storage location           |
+
+> **Adapter note** — `inventory.adapter` is validated as a non-empty string, not
+> a closed enum. The values above are illustrative common adapters; new
+> adapters can be added to a profile without a schema change, provided the
+> consuming hook knows how to read them. `profile-schema.sh` reflects this
+> (no `YCI_INVENTORY_ADAPTERS` enum array is declared).
 
 ---
 
 ### `approval`
 
-| Field            | Type   | Required | Allowed values                                                     | Notes                                             |
-| ---------------- | ------ | -------- | ------------------------------------------------------------------ | ------------------------------------------------- |
-| `adapter`        | string | yes      | `github-pr`, `email-signoff`, `jira`, `servicenow-request`, `none` | Approval-workflow adapter                         |
-| `endpoint`       | string | cond.    | URL                                                                | Required for API-backed adapters                  |
-| `credential_ref` | string | cond.    | `<customer-id>/<key-name>`                                         | Reference into the vaults subtree; no raw secrets |
+| Field            | Type   | Required | Example values                                                               | Notes                                              |
+| ---------------- | ------ | -------- | ---------------------------------------------------------------------------- | -------------------------------------------------- |
+| `adapter`        | string | yes      | `github-pr`, `email-signoff`, `jira`, `servicenow-request`, `manual`, `none` | Approval-workflow adapter — see adapter note below |
+| `endpoint`       | string | cond.    | URL                                                                          | Required for API-backed adapters                   |
+| `credential_ref` | string | cond.    | `<customer-id>/<key-name>`                                                   | Reference into the vaults subtree; no raw secrets  |
+
+> **Adapter note** — like `inventory.adapter`, `approval.adapter` is validated
+> as a non-empty string, not a closed enum. The list above is illustrative.
 
 ---
 

@@ -13,7 +13,11 @@
 # Do NOT set -euo pipefail at file scope — that breaks sourcing scripts that
 # don't expect strict mode. Callers enable strict mode themselves.
 
-readonly YCI_STATE_MRU_DEFAULT_CAP=20
+# Guard the readonly decl so repeated sourcing (tests, nested callers) doesn't
+# trip "YCI_STATE_MRU_DEFAULT_CAP: readonly variable" on the second source.
+if [ -z "${YCI_STATE_MRU_DEFAULT_CAP:-}" ]; then
+    readonly YCI_STATE_MRU_DEFAULT_CAP=20
+fi
 
 _yci_state_path() {
     printf '%s' "$1/state.json"
@@ -161,7 +165,10 @@ state_push_mru() {
         case "$1" in
             --cap) cap="${2:-$YCI_STATE_MRU_DEFAULT_CAP}"; shift 2 ;;
             --cap=*) cap="${1#*=}"; shift ;;
-            *) shift ;;
+            *)
+                printf "yci: state_push_mru: unknown argument: '%s'\n" "$1" >&2
+                return 1
+                ;;
         esac
     done
     local now; now="$(_yci_state_iso_now)"

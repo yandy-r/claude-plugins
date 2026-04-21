@@ -42,6 +42,7 @@ export YCI_SAFETY_POSTURES_ENV="${YCI_SAFETY_POSTURES[*]}"
 export YCI_ENGAGEMENT_TYPES_ENV="${YCI_ENGAGEMENT_TYPES[*]}"
 export YCI_SCOPE_ENFORCEMENT_ENV="${YCI_SCOPE_ENFORCEMENT[*]}"
 export YCI_HANDOFF_FORMATS_ENV="${YCI_DELIVERABLE_HANDOFF_FORMATS[*]}"
+export YCI_CHANGE_WINDOW_ADAPTERS_ENV="${YCI_CHANGE_WINDOW_ADAPTERS[*]}"
 
 python3 - "$profile_path" <<'PY'
 import json, os, sys
@@ -129,6 +130,21 @@ for (sec, field), allowed in enums.items():
         sys.stderr.write(
             f"yci: invalid value for '{sec}.{field}': '{val}'\n"
             f"  allowed values: {sorted(allowed)}\n"
+            "  see yci/skills/customer-profile/references/schema.md for the canonical enum lists\n"
+        )
+        sys.exit(2)
+
+# --- optional-section enum validation ---------------------------------------
+# change_window is optional at the top level; only validate its adapter when
+# the block is present.
+cw = data.get("change_window")
+if isinstance(cw, dict):
+    cw_allowed = set(os.environ["YCI_CHANGE_WINDOW_ADAPTERS_ENV"].split())
+    cw_adapter = cw.get("adapter")
+    if cw_adapter is not None and str(cw_adapter) not in cw_allowed:
+        sys.stderr.write(
+            f"yci: invalid value for 'change_window.adapter': '{cw_adapter}'\n"
+            f"  allowed values: {sorted(cw_allowed)}\n"
             "  see yci/skills/customer-profile/references/schema.md for the canonical enum lists\n"
         )
         sys.exit(2)

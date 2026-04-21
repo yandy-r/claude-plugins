@@ -69,9 +69,14 @@ exists. Format reference (for documentation and test purposes):
 [a-z0-9][a-z0-9-]*
 ```
 
-Examples of valid IDs: `acme`, `acme-healthcare`, `bigbank-cdc`, `_internal`.
+Examples of valid IDs: `acme`, `acme-healthcare`, `bigbank-cdc`.
 Examples of invalid IDs: `ACME` (uppercase), `acme_corp` (underscore),
-`-acme` (leading hyphen).
+`-acme` (leading hyphen), `_internal` (leading underscore).
+
+> **Reserved IDs** — IDs starting with `_` (e.g. `_internal`, `_template`) are
+> reserved for template/example use and rejected by the regex above. See
+> `init-profile.sh` `--allow-reserved` and the `init-reserved-id` entry in
+> `error-messages.md` for the init-side policy.
 
 > The resolver does NOT validate format or profile existence. It returns the
 > trimmed string. Format validation and profile loading are the caller's
@@ -241,9 +246,15 @@ The following properties MUST hold at all times:
   Exit code 0 means "a customer ID was printed to stdout." Callers MUST
   treat a non-zero exit as a hard failure and propagate it.
 
-- **Schema errors exit 2**: format validation failures (invalid ID characters,
-  malformed state.json after the file was found) exit 2 to distinguish them
-  from "no customer found" (exit 1). Callers can branch on these separately.
+- **User-input errors exit 1**: invalid ID characters in `$YCI_CUSTOMER`, the
+  dotfile, or `state.json`'s `.active` field exit 1 (same code as refusal) —
+  this is a user-provided-data error, indistinguishable at the shell level
+  from "no customer found." Canonical message: `resolver-invalid-id-format` in
+  `error-messages.md`.
+
+- **Data corruption exits 2**: `state.json` that exists but fails JSON parse
+  exits 2 (canonical: `state-corrupt-json`). This is distinct from "no
+  state.json found" (treated as no-MRU, falls through to refusal = exit 1).
 
 ---
 

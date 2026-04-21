@@ -105,11 +105,7 @@ test_init_respects_data_root_flag() {
     "${YCI_SCRIPTS_DIR}/init-profile.sh" "$alt" flag-test
     rc=$?
     assert_exit 0 "$rc" "init alternate-root: exit 0"
-    if [ -f "$alt/profiles/flag-test.yaml" ]; then
-        assert_eq "yes" "yes" "init alternate-root: file in alt root"
-    else
-        assert_eq "yes" "no" "init alternate-root: file in alt root"
-    fi
+    assert_file_exists "$alt/profiles/flag-test.yaml" "init alternate-root: file in alt root"
 }
 
 # ---------------------------------------------------------------------------

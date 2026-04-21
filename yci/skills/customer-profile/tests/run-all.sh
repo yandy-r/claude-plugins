@@ -8,7 +8,7 @@
 #   run-all.sh --verbose     # show per-assertion output
 #   run-all.sh test_foo.sh   # run a specific test file
 
-set -u  # intentional: no -e here; tests handle their own failures
+set -uo pipefail  # intentional: no -e here; tests handle their own failures
 
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 # shellcheck source=/dev/null
@@ -26,7 +26,10 @@ done
 export YCI_TEST_VERBOSE=$VERBOSE
 
 if [ "${#FILTER[@]}" -eq 0 ]; then
-    mapfile -t test_files < <(cd "$TESTS_DIR" && ls test_*.sh 2>/dev/null | sort)
+    mapfile -t test_files < <(
+        find "$TESTS_DIR" -maxdepth 1 -type f -name 'test_*.sh' -printf '%f\n' 2>/dev/null \
+            | sort
+    )
 else
     test_files=("${FILTER[@]}")
 fi

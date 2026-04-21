@@ -25,6 +25,7 @@ Scaffold a new yci customer profile. Copies `yci/skills/customer-profile/referen
 - Refuses if `<data-root>/profiles/<customer>.yaml` already exists, unless `--force`.
 - Copies the template with mode `0600`.
 - Prints confirmation:
+
   ```
   yci: scaffolded profile at <path>
     edit the <TODO: ...> placeholders, then run: /yci:switch <customer>

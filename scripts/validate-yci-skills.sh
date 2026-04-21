@@ -127,16 +127,25 @@ validate_customer_profile_skill() {
     if [ -f "${skill_root}/SKILL.md" ]; then
         ok "customer-profile/SKILL.md present"
         if python3 - "${skill_root}/SKILL.md" <<'PY'; then
-import yaml, sys
+import sys
+import yaml
 src = open(sys.argv[1]).read()
 parts = src.split('---', 2)
 if len(parts) < 3:
-    sys.exit(1)
+    sys.stderr.write("SKILL.md: missing YAML frontmatter\n"); sys.exit(1)
 fm = yaml.safe_load(parts[1])
-assert fm.get('name') == 'customer-profile', 'name must be customer-profile'
-assert fm.get('description') and len(fm['description']) >= 50, 'description too short'
-assert 'argument-hint' in fm, 'argument-hint missing'
-assert isinstance(fm.get('allowed-tools'), list) and fm['allowed-tools'], 'allowed-tools must be non-empty list'
+if not isinstance(fm, dict):
+    sys.stderr.write("SKILL.md: frontmatter is not a mapping\n"); sys.exit(1)
+if fm.get('name') != 'customer-profile':
+    sys.stderr.write("SKILL.md: name must be 'customer-profile'\n"); sys.exit(1)
+desc = fm.get('description')
+if not (isinstance(desc, str) and len(desc) >= 50):
+    sys.stderr.write("SKILL.md: description missing or too short (>=50 chars)\n"); sys.exit(1)
+if 'argument-hint' not in fm:
+    sys.stderr.write("SKILL.md: argument-hint missing\n"); sys.exit(1)
+tools = fm.get('allowed-tools')
+if not (isinstance(tools, list) and tools):
+    sys.stderr.write("SKILL.md: allowed-tools must be a non-empty list\n"); sys.exit(1)
 PY
             ok "customer-profile/SKILL.md frontmatter valid"
         else
@@ -181,21 +190,44 @@ PY
         render-whoami.sh
         init-profile.sh
     )
+    # Script validation: executable + bash shebang + safety flags. state-io.sh
+    # and profile-schema.sh are sourceable libraries that must NOT self-enable
+    # `set -euo pipefail` at file scope (would corrupt callers' shell options).
+    local -a safety_exempt=(state-io.sh profile-schema.sh)
     for s in "${skill_scripts[@]}"; do
         local p="${skill_root}/scripts/${s}"
-        if [ -x "$p" ] && head -1 "$p" | grep -q '^#!/usr/bin/env bash'; then
-            ok "script ${s} present, executable, correct shebang"
+        if ! [ -x "$p" ]; then
+            fail "script ${s}: not executable or missing"
+            continue
+        fi
+        if ! head -1 "$p" | grep -q '^#!/usr/bin/env bash'; then
+            fail "script ${s}: wrong shebang (expected #!/usr/bin/env bash)"
+            continue
+        fi
+        # Safety flags required only on runnable scripts; sourceable libraries
+        # must not self-enable strict mode because it leaks into the caller.
+        local exempt=0
+        for ex in "${safety_exempt[@]}"; do [ "$s" = "$ex" ] && exempt=1; done
+        if [ "$exempt" -eq 1 ]; then
+            ok "script ${s} present, executable, correct shebang (sourceable library)"
+        elif head -20 "$p" | grep -qE '^[[:space:]]*set[[:space:]]+-euo[[:space:]]+pipefail[[:space:]]*$'; then
+            ok "script ${s} present, executable, correct shebang, has set -euo pipefail"
         else
-            fail "script ${s}: missing, not executable, or wrong shebang"
+            fail "script ${s}: missing 'set -euo pipefail' in first 20 lines"
         fi
     done
 
-    # shared data-root resolver
+    # shared data-root resolver — runnable AND sourceable; require safety flags
+    # since it's invoked as a CLI by resolve-customer.sh and init-profile.sh.
     local rdr="${shared_scripts}/resolve-data-root.sh"
-    if [ -x "$rdr" ] && head -1 "$rdr" | grep -q '^#!/usr/bin/env bash'; then
-        ok "shared resolve-data-root.sh present, executable, correct shebang"
+    if ! [ -x "$rdr" ]; then
+        fail "shared resolve-data-root.sh: missing or not executable"
+    elif ! head -1 "$rdr" | grep -q '^#!/usr/bin/env bash'; then
+        fail "shared resolve-data-root.sh: wrong shebang"
+    elif head -20 "$rdr" | grep -qE '^[[:space:]]*set[[:space:]]+-euo[[:space:]]+pipefail[[:space:]]*$'; then
+        ok "shared resolve-data-root.sh present, executable, correct shebang, has set -euo pipefail"
     else
-        fail "shared resolve-data-root.sh: missing, not executable, or wrong shebang"
+        fail "shared resolve-data-root.sh: missing 'set -euo pipefail' in first 20 lines"
     fi
 
     # --- slash-command wrappers ---
@@ -203,12 +235,17 @@ PY
         local md="${commands_dir}/${cmd}.md"
         if [ -f "$md" ]; then
             if python3 - "$md" <<'PY'; then
-import yaml, sys
+import sys
+import yaml
 src = open(sys.argv[1]).read()
 parts = src.split('---', 2)
-if len(parts) < 3: sys.exit(1)
+if len(parts) < 3:
+    sys.stderr.write("command.md: missing YAML frontmatter\n"); sys.exit(1)
 fm = yaml.safe_load(parts[1])
-assert fm.get('description'), 'description missing'
+if not isinstance(fm, dict):
+    sys.stderr.write("command.md: frontmatter is not a mapping\n"); sys.exit(1)
+if not fm.get('description'):
+    sys.stderr.write("command.md: description missing or empty\n"); sys.exit(1)
 PY
                 ok "command ${cmd}.md frontmatter valid"
             else

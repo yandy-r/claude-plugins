@@ -23,7 +23,11 @@ while [ "$#" -gt 0 ]; do
     case "$1" in
         --force)           force=1 ;;
         --allow-reserved)  allow_reserved=1 ;;
-        *) ;;
+        *)
+            printf "yci: unknown flag: '%s'\n" "$1" >&2
+            printf '  valid flags: --force, --allow-reserved\n' >&2
+            exit 1
+            ;;
     esac
     shift
 done
