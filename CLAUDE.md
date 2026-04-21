@@ -327,6 +327,9 @@ The Claude Code harness defaults to creating worktrees inside the current repo a
 ## Commands
 
 ```bash
+# One-time: install pinned shellcheck (matches .tool-versions; same binary as CI)
+./scripts/install-shellcheck.sh
+
 # Lint (Python + Shell)
 npm run lint              # or: scripts/lint.sh --python --shell
 npm run lint:modified     # only files changed vs. git HEAD

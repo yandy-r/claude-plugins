@@ -14,6 +14,8 @@ SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_PATH")" >/dev/null 2>&1 && pwd)"
 
 # shellcheck source=bin/lib/modified-files.sh
 source "$SCRIPT_DIR/lib/modified-files.sh"
+# shellcheck source=bin/lib/shellcheck-resolve.sh
+source "$SCRIPT_DIR/lib/shellcheck-resolve.sh"
 
 PROJECT_ROOT="$(detect_project_root)"
 readonly PROJECT_ROOT
@@ -32,6 +34,7 @@ BUNDLE_MANAGED_FILES=(
   "init-formatters.sh"
   "go-tools.sh"
   "lib/modified-files.sh"
+  "lib/shellcheck-resolve.sh"
   "templates/markdownlint.json"
   "templates/markdownlintignore"
   "templates/prettierrc.json"
@@ -320,7 +323,7 @@ run_ts_lint() {
 run_shell_lint() {
   local git_scope="$1"
 
-  if ! require_command shellcheck; then
+  if ! resolve_shellcheck_bin; then
     return 1
   fi
 
@@ -342,7 +345,7 @@ run_shell_lint() {
   fi
 
   echo "=== Shell: shellcheck ==="
-  shellcheck --severity=warning "${shell_files[@]}"
+  "$SHELLCHECK_BIN" --severity=warning "${shell_files[@]}"
 }
 
 run_python_lint() {
