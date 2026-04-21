@@ -71,15 +71,19 @@ described in PRD §5.3, and it is intended to be load-bearing: it is what will
 allow the same skill to produce HIPAA-shaped evidence for one customer and
 PCI-shaped evidence for another without any changes to the skill itself.
 
-> **Phase 0 excludes adapter implementation.** The layout and requirements
-> described below are a design contract for Phase 1 and later phases, not a
-> Phase-0 deliverable. No adapter directories or schemas ship in Phase 0.
-> This section exists to lock the pattern early so future contributions conform.
+> **Phase 1 baseline (issue #30) ships two adapters**: `commercial` and `none`.
+> Both live under `yci/skills/_shared/compliance-adapters/` in the tree
+> introduced by issue #30. Additional regimes (`hipaa`, `pci`, `sox`, `soc2`,
+> `iso27001`, `nist`) are declared valid in `YCI_COMPLIANCE_REGIMES` (see
+> `yci/skills/customer-profile/scripts/profile-schema.sh`) but do not yet ship
+> adapter directories. A customer profile that pins one of those regimes will
+> receive exit code 3 from the loader until the corresponding adapter directory
+> lands.
 
-### Directory Layout (future phases)
+### Directory Layout
 
-When adapters ship, they should live under
-`yci/skills/_shared/compliance-adapters/`, one directory per supported regime:
+Adapters live under `yci/skills/_shared/compliance-adapters/`, one directory
+per supported regime:
 
 ```
 yci/skills/_shared/compliance-adapters/
@@ -133,37 +137,96 @@ at minimum:
 The `none` adapter is expected to be exempt from the evidence schema and
 redaction rules — its checklist is minimal by design.
 
-### How Skills Should Use Adapters (design contract)
+#### Machine-readable contract
+
+The filesystem contract is mirrored in
+`yci/skills/_shared/scripts/adapter-schema.sh`, which every new adapter must
+satisfy. Required files for every adapter are declared in
+`YCI_ADAPTER_REQUIRED_FILES` (`ADAPTER.md`, `evidence-template.md`,
+`handoff-checklist.md`). Non-exempt adapters additionally ship
+`evidence-schema.json` and `redaction.rules`, captured in
+`YCI_ADAPTER_FULL_FILES`. The exemption list lives in
+`YCI_ADAPTER_SCHEMA_EXEMPT`; at the time of writing it contains only `none`.
+
+### How Skills Should Use Adapters
 
 A skill that emits a compliance-relevant artifact (evidence bundle, MOP,
 handoff pack) should read `compliance.regime` from the active customer profile
 and load the matching adapter directory. Schema, redaction rules, and templates
 are adapter-provided. The skill should not branch on regime names in its own code.
 
-Correct:
-
-```
-# skill loads adapter path from profile
-adapter_dir="${CLAUDE_PLUGIN_ROOT}/skills/_shared/compliance-adapters/${regime}"
-schema="${adapter_dir}/evidence-schema.json"
-template="${adapter_dir}/evidence-template.md"
-```
-
-Incorrect:
-
 ```bash
-# never do this — hardcoded regime logic belongs in the adapter, not the skill
-if [[ "${regime}" == "hipaa" ]]; then
-  ...
-fi
+# Resolve the adapter directory for the active customer profile.
+# Requires load-profile.sh's JSON output piped on stdin, or pass --regime
+# directly for tests and smoke checks.
+
+# (A) one-shot: capture the adapter dir
+adapter_dir="$(
+  bash "${CLAUDE_PLUGIN_ROOT}/skills/customer-profile/scripts/load-profile.sh" \
+       "${YCI_DATA_ROOT}" "${customer_slug}" \
+    | bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/load-compliance-adapter.sh"
+)"
+
+# (B) sourceable shape: populate YCI_ADAPTER_DIR / _REGIME / _HAS_SCHEMA
+eval "$(bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/load-compliance-adapter.sh" \
+          --export --regime "${active_regime}")"
 ```
+
+The loader exits 2 on an unknown or empty regime, 3 when the adapter directory
+does not exist on disk, and 4 when the adapter directory is present but
+incomplete (missing required files per the contract in `adapter-schema.sh`).
+Skills must not branch on `${YCI_ADAPTER_REGIME}` or any other regime name —
+consume `${YCI_ADAPTER_DIR}` and let the adapter's files drive behaviour. If
+the loader returns a non-zero exit, the skill must halt and surface the stderr
+message to the operator; substituting a default regime silently is a defect.
+
+### Baseline adapters shipped in Phase 1
+
+- **`commercial`** — the generic best-practice default for non-regulated
+  customer engagements; applies standard change-management hygiene without any
+  regulator-specific framing. See
+  `yci/skills/_shared/compliance-adapters/commercial/ADAPTER.md` for the full
+  contract.
+- **`none`** — the schema- and redaction-exempt regime intended for internal,
+  homelab, and non-production work; the `_internal` stock profile defaults here.
+  See `yci/skills/_shared/compliance-adapters/none/ADAPTER.md`.
+
+Both adapters land together as a single change (issue #30) so the baseline is
+non-ambiguous: either both are present or neither is.
 
 ### Adding a New Regime
 
-Add a new directory under `compliance-adapters/` with the required files. The
-core `yci` skill code does not change. The new adapter is available to all
-skills as soon as the directory exists and is wired into the active profile's
-`compliance.regime` field.
+1. **Add the regime to `YCI_COMPLIANCE_REGIMES`** in
+   `yci/skills/customer-profile/scripts/profile-schema.sh`. Use lowercase;
+   avoid hyphens if a single word fits. Confirm no existing profile uses the
+   same slug under a different name before committing.
+
+2. **Create the adapter directory** at
+   `yci/skills/_shared/compliance-adapters/<regime>/`. Populate the files
+   declared in `YCI_ADAPTER_REQUIRED_FILES`. If the regime is NOT listed in
+   `YCI_ADAPTER_SCHEMA_EXEMPT`, also populate the additional files declared in
+   `YCI_ADAPTER_FULL_FILES` (`evidence-schema.json` and `redaction.rules`).
+
+3. **Write `ADAPTER.md`** covering: regime name, intent, evidence schema
+   reference (and version), redaction-rules reference, handoff-checklist
+   reference, any regime-specific invariants, and the promises the adapter
+   makes to callers. Use `commercial/ADAPTER.md` as the template — its
+   structure is the canonical model.
+
+4. **If the regime needs a schema exemption**, add it to
+   `YCI_ADAPTER_SCHEMA_EXEMPT` in
+   `yci/skills/_shared/scripts/adapter-schema.sh`, then document the exemption
+   in the adapter's `ADAPTER.md` — explain why it is exempt and what the
+   operator loses by not having a schema or redaction rules.
+
+5. **Extend the validator** in
+   `scripts/validate-yci-skills.sh :: validate_compliance_adapters` if the new
+   regime requires a regime-specific structural check beyond the contract
+   already enforced for all adapters. Most new regimes will not need this step.
+
+6. **Update the "Baseline adapters shipped in Phase 1" section** above to
+   include the new regime and a one-sentence description so the list stays
+   current.
 
 ---
 
