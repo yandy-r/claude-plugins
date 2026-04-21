@@ -567,6 +567,271 @@ validate_customer_isolation_lib() {
 }
 
 # ---------------------------------------------------------------------------
+# compliance-adapters checks
+# ---------------------------------------------------------------------------
+validate_compliance_adapters() {
+    echo "--- compliance adapters ---"
+
+    local schema_lib="${REPO_ROOT}/yci/skills/_shared/scripts/adapter-schema.sh"
+    local loader="${REPO_ROOT}/yci/skills/_shared/scripts/load-compliance-adapter.sh"
+    local adapters_root="${REPO_ROOT}/yci/skills/_shared/compliance-adapters"
+
+    # ---- Check A: Sourceable library shape of adapter-schema.sh ---------------
+
+    # A1. File exists and is readable
+    if [ ! -f "$schema_lib" ]; then
+        fail "adapter-schema.sh: file not found"
+    elif [ ! -r "$schema_lib" ]; then
+        fail "adapter-schema.sh: not readable"
+    else
+        ok "adapter-schema.sh present and readable"
+
+        # A2. First non-comment, non-blank line after shebang must NOT begin with set -
+        local first_non_comment
+        first_non_comment="$(grep -v '^[[:space:]]*#' "$schema_lib" | grep -v '^[[:space:]]*$' | tail -n +2 | head -1)"
+        case "$first_non_comment" in
+            set\ -*)
+                fail "adapter-schema.sh: first non-comment line begins with 'set -' (sourceable library must not self-enable strict mode at file scope)" ;;
+            *)
+                ok "adapter-schema.sh: no 'set -' at file scope" ;;
+        esac
+
+        # A3. Sources cleanly and exports YCI_ADAPTER_REQUIRED_FILES
+        local source_out
+        if source_out="$(bash -c ". '${schema_lib}'; echo \"\${YCI_ADAPTER_REQUIRED_FILES[*]}\"" 2>&1)"; then
+            if [ -n "$source_out" ]; then
+                ok "adapter-schema.sh sources cleanly; YCI_ADAPTER_REQUIRED_FILES non-empty"
+            else
+                fail "adapter-schema.sh: sourced without error but YCI_ADAPTER_REQUIRED_FILES is empty"
+            fi
+        else
+            fail "adapter-schema.sh: source failed: ${source_out}"
+        fi
+
+        # A4. YCI_ADAPTER_REQUIRED_FILES has at least 3 entries
+        local req_count
+        req_count="$(bash -c ". '${schema_lib}'; echo \"\${#YCI_ADAPTER_REQUIRED_FILES[@]}\"" 2>/dev/null)"
+        if [ "${req_count:-0}" -ge 3 ]; then
+            ok "adapter-schema.sh: YCI_ADAPTER_REQUIRED_FILES has ${req_count} entries (>=3)"
+        else
+            fail "adapter-schema.sh: YCI_ADAPTER_REQUIRED_FILES has ${req_count:-0} entries (need >=3)"
+        fi
+
+        # A5. YCI_ADAPTER_SCHEMA_EXEMPT has at least 1 entry
+        local exempt_count
+        exempt_count="$(bash -c ". '${schema_lib}'; echo \"\${#YCI_ADAPTER_SCHEMA_EXEMPT[@]}\"" 2>/dev/null)"
+        if [ "${exempt_count:-0}" -ge 1 ]; then
+            ok "adapter-schema.sh: YCI_ADAPTER_SCHEMA_EXEMPT has ${exempt_count} entries (>=1)"
+        else
+            fail "adapter-schema.sh: YCI_ADAPTER_SCHEMA_EXEMPT has ${exempt_count:-0} entries (need >=1)"
+        fi
+
+        # A6. yci_adapter_is_schema_exempt none returns 0
+        if bash -c ". '${schema_lib}'; yci_adapter_is_schema_exempt none" 2>/dev/null; then
+            ok "adapter-schema.sh: yci_adapter_is_schema_exempt none returns 0"
+        else
+            fail "adapter-schema.sh: yci_adapter_is_schema_exempt none did not return 0"
+        fi
+
+        # A7. yci_adapter_is_schema_exempt commercial returns non-zero
+        if bash -c ". '${schema_lib}'; yci_adapter_is_schema_exempt commercial" 2>/dev/null; then
+            fail "adapter-schema.sh: yci_adapter_is_schema_exempt commercial returned 0 (expected non-zero)"
+        else
+            ok "adapter-schema.sh: yci_adapter_is_schema_exempt commercial returns non-zero"
+        fi
+    fi
+
+    # ---- Check B: Loader script safety -----------------------------------------
+
+    if [ ! -f "$loader" ]; then
+        fail "load-compliance-adapter.sh: file not found"
+    else
+        ok "load-compliance-adapter.sh present"
+
+        # B1. Executable
+        if [ ! -x "$loader" ]; then
+            fail "load-compliance-adapter.sh: not executable"
+        else
+            ok "load-compliance-adapter.sh: executable"
+        fi
+
+        # B2. Shebang on line 1
+        if head -1 "$loader" | grep -q '^#!/usr/bin/env bash'; then
+            ok "load-compliance-adapter.sh: correct shebang"
+        else
+            fail "load-compliance-adapter.sh: wrong shebang (expected #!/usr/bin/env bash)"
+        fi
+
+        # B3. set -euo pipefail in first 20 lines
+        if head -20 "$loader" | grep -qE '^[[:space:]]*set[[:space:]]+-euo[[:space:]]+pipefail[[:space:]]*$'; then
+            ok "load-compliance-adapter.sh: has set -euo pipefail in first 20 lines"
+        else
+            fail "load-compliance-adapter.sh: missing 'set -euo pipefail' in first 20 lines"
+        fi
+
+        # B4. Syntactically valid
+        if bash -n "$loader" 2>/dev/null; then
+            ok "load-compliance-adapter.sh: bash -n passes"
+        else
+            fail "load-compliance-adapter.sh: bash -n reported syntax errors"
+        fi
+    fi
+
+    # ---- Check C: Adapter directory structure ----------------------------------
+
+    # Source adapter-schema.sh once to get helper functions and arrays.
+    # Use a subshell for checks that need the functions, not polluting this shell.
+    local regimes=(commercial none)
+    local regime
+
+    for regime in "${regimes[@]}"; do
+        local adapter_dir="${adapters_root}/${regime}"
+
+        # C1. Directory exists
+        if [ ! -d "$adapter_dir" ]; then
+            fail "compliance-adapters/${regime}/: directory missing"
+            continue
+        fi
+        ok "compliance-adapters/${regime}/: directory present"
+
+        # C2. All expected files present and non-empty
+        local expected_files
+        expected_files="$(bash -c ". '${schema_lib}'; yci_adapter_expected_files '${regime}'" 2>/dev/null)"
+        local f
+        while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            if [ -s "${adapter_dir}/${f}" ]; then
+                ok "compliance-adapters/${regime}/${f}: present and non-empty"
+            else
+                fail "compliance-adapters/${regime}/${f}: missing or empty"
+            fi
+        done <<< "$expected_files"
+
+        # C3. evidence-schema.json: parse as JSON if not exempt; must be absent if exempt
+        local is_exempt
+        if bash -c ". '${schema_lib}'; yci_adapter_is_schema_exempt '${regime}'" 2>/dev/null; then
+            is_exempt=1
+        else
+            is_exempt=0
+        fi
+
+        if [ "$is_exempt" -eq 0 ]; then
+            # Non-exempt: evidence-schema.json must exist and parse as valid JSON
+            if python3 -m json.tool "${adapter_dir}/evidence-schema.json" > /dev/null 2>&1; then
+                ok "compliance-adapters/${regime}/evidence-schema.json: valid JSON"
+            else
+                fail "compliance-adapters/${regime}/evidence-schema.json: missing or invalid JSON"
+            fi
+        else
+            # Exempt: evidence-schema.json must NOT exist (absence is load-bearing)
+            if [ ! -f "${adapter_dir}/evidence-schema.json" ]; then
+                ok "compliance-adapters/${regime}/: evidence-schema.json correctly absent (exempt regime)"
+            else
+                fail "compliance-adapters/${regime}/evidence-schema.json: must NOT exist for exempt regime '${regime}'"
+            fi
+        fi
+    done
+
+    # ---- Check D: End-to-end smoke: _internal resolves to none adapter ---------
+
+    local tmpdir
+    tmpdir="$(mktemp -d)"
+    # shellcheck disable=SC2064
+    trap "rm -rf '${tmpdir}'" EXIT
+
+    local smoke_ok=1
+
+    # D1. Copy _internal.yaml.example into a temporary profiles dir
+    local example_profile="${REPO_ROOT}/yci/docs/profiles/_internal.yaml.example"
+    if [ ! -f "$example_profile" ]; then
+        fail "smoke test: _internal.yaml.example not found at ${example_profile}"
+        smoke_ok=0
+    else
+        mkdir -p "${tmpdir}/profiles"
+        cp "$example_profile" "${tmpdir}/profiles/_internal.yaml"
+        # _internal.yaml.example omits header_template intentionally for prose clarity,
+        # and uses unquoted YAML-1.1 booleans (off/false) that PyYAML misreads.
+        # Patch at the text level to avoid a round-trip through PyYAML, which would
+        # corrupt those values.  Two edits: add header_template under deliverable, and
+        # quote scope_enforcement so PyYAML does not treat "off" as Python False.
+        python3 - "${tmpdir}/profiles/_internal.yaml" <<'PY'
+import sys, re
+path = sys.argv[1]
+with open(path) as fh:
+    lines = fh.readlines()
+in_deliverable = False
+patched = []
+inserted = False
+for line in lines:
+    # Quote bare 'off' in scope_enforcement to avoid PyYAML bool coercion.
+    line = re.sub(
+        r'^(\s*scope_enforcement:\s*)off(\s*(#.*)?)$',
+        r'\g<1>"off"\g<2>',
+        line
+    )
+    patched.append(line)
+    if re.match(r'^deliverable:', line):
+        in_deliverable = True
+    elif re.match(r'^[a-zA-Z]', line) and not re.match(r'^deliverable:', line):
+        in_deliverable = False
+    if in_deliverable and not inserted and re.match(r'^  handoff_format:', line):
+        patched.append('  header_template: ""\n')
+        inserted = True
+if not inserted:
+    # fallback: append under deliverable block
+    for i, line in enumerate(patched):
+        if re.match(r'^deliverable:', line):
+            patched.insert(i + 1, '  header_template: ""\n')
+            break
+with open(path, "w") as fh:
+    fh.writelines(patched)
+PY
+
+        # D2. Load profile
+        local profile_json
+        local load_profile="${REPO_ROOT}/yci/skills/customer-profile/scripts/load-profile.sh"
+        if profile_json="$(bash "$load_profile" "$tmpdir" _internal 2>/dev/null)"; then
+            ok "smoke test: load-profile.sh resolved _internal profile"
+        else
+            fail "smoke test: load-profile.sh failed for _internal"
+            smoke_ok=0
+        fi
+
+        if [ "$smoke_ok" -eq 1 ]; then
+            # D3. Pipe profile JSON into load-compliance-adapter.sh and capture path
+            local adapter_path
+            if adapter_path="$(printf '%s\n' "$profile_json" | bash "$loader" 2>/dev/null)"; then
+                ok "smoke test: load-compliance-adapter.sh resolved adapter path: ${adapter_path}"
+            else
+                fail "smoke test: load-compliance-adapter.sh failed (non-zero exit)"
+                smoke_ok=0
+            fi
+
+            if [ "$smoke_ok" -eq 1 ]; then
+                # D4. Assert path ends with /compliance-adapters/none
+                case "$adapter_path" in
+                    */compliance-adapters/none)
+                        ok "smoke test: resolved path ends with /compliance-adapters/none" ;;
+                    *)
+                        fail "smoke test: resolved path '${adapter_path}' does not end with /compliance-adapters/none" ;;
+                esac
+
+                # D5. Assert it is a real directory
+                if [ -d "$adapter_path" ]; then
+                    ok "smoke test: resolved adapter path is a real directory"
+                else
+                    fail "smoke test: resolved adapter path '${adapter_path}' is not a directory"
+                fi
+            fi
+        fi
+    fi
+
+    # Cleanup trap fires on EXIT; also cancel it now that we are done with tmpdir
+    rm -rf "$tmpdir"
+    trap - EXIT
+}
+
+# ---------------------------------------------------------------------------
 main() {
     echo "=== validate-yci-skills.sh ==="
     validate_hello_skill
@@ -576,6 +841,8 @@ main() {
     validate_customer_guard_hook
     echo
     validate_customer_isolation_lib
+    echo
+    validate_compliance_adapters
     echo
 
     if [ "$ERRORS" -eq 0 ]; then
