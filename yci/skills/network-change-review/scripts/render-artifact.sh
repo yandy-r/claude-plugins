@@ -341,12 +341,20 @@ def read_file(env_key, slot_name):
         sys.stderr.write(f"[ncr-adapter-template-missing] Cannot read {slot_name} ({path}): {exc}\n")
         sys.exit(6)
 
-# The evidence_stub slot is the raw YAML content (the template already wraps it
-# in a ```yaml ... ``` fence and <details> block).
+# The evidence_stub slot: collapsible <details> + ```yaml fence (artifact-template).
 raw_yaml_content = stub_text.strip()
 # Remove the outer --- fences so we don't double-fence.
 raw_yaml_content = re.sub(r'^---\s*\n', '', raw_yaml_content, count=1)
 raw_yaml_content = re.sub(r'\n---\s*$', '', raw_yaml_content)
+raw_yaml_content = raw_yaml_content.strip()
+evidence_stub_block = (
+    "<details>\n"
+    "<summary>Evidence YAML (expand to view)</summary>\n\n"
+    "```yaml\n"
+    + raw_yaml_content
+    + "\n```\n\n"
+    "</details>\n"
+)
 
 # ── Assemble slot map ─────────────────────────────────────────────────────────
 slots = {
@@ -366,7 +374,7 @@ slots = {
     "rollback_confidence_callout": rollback_callout,
     "pre_check_catalog":          render_checks(pre_checks),
     "post_check_catalog":         render_checks(post_checks),
-    "evidence_stub":              raw_yaml_content,
+    "evidence_stub":              evidence_stub_block,
 }
 
 # ── Perform slot replacement ──────────────────────────────────────────────────
@@ -392,5 +400,51 @@ except OSError as exc:
     sys.stderr.write(f"[ncr-adapter-template-missing] Cannot write output {output_path}: {exc}\n")
     sys.exit(6)
 PYEOF
+
+# Post-render cross-customer isolation when the caller provides a resolved data root
+# (same belt-and-suspenders pass as review.sh step 20). Exit 7 on deny.
+if [[ -n "${YCI_DATA_ROOT_RESOLVED:-}" ]]; then
+  active="${YCI_ACTIVE_CUSTOMER:-}"
+  if [[ -z "$active" ]]; then
+    active="$(
+      python3 -c "import yaml,sys; print(yaml.safe_load(open(sys.argv[1]))['customer_id'])" \
+        "${evidence_stub_path}" 2>/dev/null || true
+    )"
+  fi
+  if [[ -n "$active" ]]; then
+    _iso_payload="$(mktemp)"
+    python3 - "${output_path}" "${_iso_payload}" <<'PYISO'
+import json, sys
+path, out_path = sys.argv[1], sys.argv[2]
+payload = {
+    "tool_name": "Write",
+    "tool_input": {"file_path": path, "content": open(path).read()},
+}
+with open(out_path, "w") as fh:
+    json.dump(payload, fh)
+PYISO
+    export CLAUDE_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT}}"
+    # shellcheck source=/dev/null
+    source "${PLUGIN_ROOT}/skills/_shared/customer-isolation/detect.sh"
+    set +e
+    isolation_decision="$(
+      YCI_ACTIVE_CUSTOMER="$active" \
+      YCI_DATA_ROOT_RESOLVED="${YCI_DATA_ROOT_RESOLVED}" \
+      isolation_check_payload --payload-file "${_iso_payload}"
+    )"
+    iso_rc=$?
+    set -e
+    rm -f "${_iso_payload}"
+    if [[ "${iso_rc}" -ne 0 ]]; then
+      rm -f "${output_path}"
+      err "ncr-cross-customer-leak-detected" "Customer isolation check failed (internal error)." 7
+    fi
+    decision_value="$(python3 -c "import json,sys; print(json.loads(sys.argv[1]).get('decision','deny'))" "${isolation_decision}" 2>/dev/null || echo deny)"
+    if [[ "${decision_value}" == "deny" ]]; then
+      rm -f "${output_path}"
+      err "ncr-cross-customer-leak-detected" "Cross-customer identifier leak detected in rendered artifact." 7
+    fi
+  fi
+fi
 
 printf '%s\n' "${output_path}"

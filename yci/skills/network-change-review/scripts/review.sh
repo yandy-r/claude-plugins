@@ -124,7 +124,9 @@ export YCI_DATA_ROOT_RESOLVED="$data_root"
 step 4 "Resolving active customer"
 
 if [[ -n "$customer_flag" ]]; then
-  customer="$customer_flag"
+  customer="$(YCI_CUSTOMER="$customer_flag" bash "${PLUGIN_ROOT}/skills/customer-profile/scripts/resolve-customer.sh" \
+    --data-root "$data_root" 2>&1)" \
+    || err "ncr-customer-unresolved" "Invalid or unresolved customer (--customer). Use a valid id (see resolve-customer.sh)." 2
 else
   customer="$(bash "${PLUGIN_ROOT}/skills/customer-profile/scripts/resolve-customer.sh" \
     --data-root "$data_root" 2>&1)" \
@@ -206,8 +208,11 @@ bash "${PLUGIN_ROOT}/skills/network-change-review/scripts/preflight-cross-custom
 if [[ $preflight_exit -eq 7 ]]; then
   err "ncr-cross-customer-leak-detected" \
     "Foreign-customer identifiers detected in raw change input — refusing to proceed. $(< "${workdir}/preflight.err")" 7
+elif [[ $preflight_exit -eq 1 ]]; then
+  err "ncr-adapter-unresolvable" \
+    "Preflight configuration error: $(< "${workdir}/preflight.err")" 2
 elif [[ $preflight_exit -ne 0 ]]; then
-  err "ncr-cross-customer-leak-detected" "Preflight scan failed: $(< "${workdir}/preflight.err")" 7
+  err "ncr-adapter-unresolvable" "Preflight failed: $(< "${workdir}/preflight.err")" 2
 fi
 
 # ── Step 9 — Parse and normalize the (unmodified) change ─────────────────────
@@ -245,11 +250,14 @@ fi
 step 10 "Deriving rollback plan"
 
 rollback_confidence="high"
-if ! cat "${workdir}/change.json" \
-   | bash "${PLUGIN_ROOT}/skills/network-change-review/scripts/derive-rollback.sh" \
-       --output "${workdir}/rollback.txt" \
-       2>"${workdir}/rollback.err"; then
-  rc=$?
+set +e
+cat "${workdir}/change.json" \
+  | bash "${PLUGIN_ROOT}/skills/network-change-review/scripts/derive-rollback.sh" \
+      --output "${workdir}/rollback.txt" \
+      2>"${workdir}/rollback.err"
+rc=$?
+set -e
+if [[ $rc -ne 0 ]]; then
   rollback_err="$(< "${workdir}/rollback.err")"
   printf '%s\n' "$rollback_err" >&2
   exit "$rc"
@@ -377,7 +385,8 @@ step 18 "Rendering final artifact (draft)"
 
 # catalog.json holds both pre_check and post_check; pass it for both flags.
 # render-artifact.sh's load_catalog_array() handles the combined-object shape.
-if ! bash "${PLUGIN_ROOT}/skills/network-change-review/scripts/render-artifact.sh" \
+set +e
+bash "${PLUGIN_ROOT}/skills/network-change-review/scripts/render-artifact.sh" \
      --profile "${workdir}/profile.json" \
      --adapter-dir "${YCI_ADAPTER_DIR}" \
      --change-plan "${workdir}/change-plan.md" \
@@ -389,8 +398,10 @@ if ! bash "${PLUGIN_ROOT}/skills/network-change-review/scripts/render-artifact.s
      --post-check-catalog "${workdir}/catalog.json" \
      --evidence-stub "${workdir}/evidence-stub.yaml" \
      --output "${workdir}/artifact-draft.md" \
-     2>"${workdir}/render.err"; then
-  rc=$?
+     2>"${workdir}/render.err"
+rc=$?
+set -e
+if [[ $rc -ne 0 ]]; then
   render_err="$(< "${workdir}/render.err")"
   printf '%s\n' "$render_err" >&2
   exit "$rc"

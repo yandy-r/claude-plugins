@@ -127,33 +127,37 @@ pre_checks = []
 # --- adapter checklist -------------------------------------------------
 checklist_path = os.path.join(adapter_dir, "handoff-checklist.md")
 if not os.path.exists(checklist_path):
-    sys.stderr.write(f"[warn] adapter checklist not found: {checklist_path}\n")
-else:
-    with open(checklist_path) as fh:
-        text = fh.read()
+    sys.stderr.write(
+        f"[ncr-adapter-unresolvable] handoff-checklist.md missing (required): {checklist_path}\n"
+    )
+    sys.exit(1)
+with open(checklist_path) as fh:
+    text = fh.read()
 
-    entries = re.findall(r"^\s*-\s*\[[ xX]\]\s*(.+)", text, flags=re.MULTILINE)
+entries = re.findall(r"^\s*-\s*\[[ xX]\]\s*(.+)", text, flags=re.MULTILINE)
 
-    for idx, desc in enumerate(entries):
-        desc = desc.strip()
-        slug = re.sub(r"[^a-z0-9]+", "-", desc.lower())[:48].strip("-") or f"adapter-{idx}"
-        check_id = f"adapter-{slug}"
-        if classify(desc) == "pre":
-            pre_checks.append({
-                "id": check_id,
-                "category": "adapter",
-                "source": "adapter",
-                "description": desc,
-                "applies_to": "all",
-            })
+for idx, desc in enumerate(entries):
+    desc = desc.strip()
+    slug = re.sub(r"[^a-z0-9]+", "-", desc.lower())[:48].strip("-") or f"adapter-{idx}"
+    check_id = f"adapter-{slug}"
+    if classify(desc) == "pre":
+        pre_checks.append({
+            "id": check_id,
+            "category": "adapter",
+            "source": "adapter",
+            "description": desc,
+            "applies_to": "all",
+        })
 
 # --- blast-radius device pre-checks ------------------------------------
 try:
     with open(label_path) as fh:
         label = json.load(fh)
 except Exception as exc:
-    sys.stderr.write(f"[warn] could not read label for br pre-checks: {label_path}: {exc}\n")
-    label = {}
+    sys.stderr.write(
+        f"[ncr-blast-radius-failed] could not parse blast-radius label JSON: {label_path}: {exc}\n"
+    )
+    sys.exit(1)
 
 for dev in label.get("direct_devices", []):
     dev_id = dev.get("id") or "unknown"
@@ -196,13 +200,22 @@ label_path = os.environ["NCR_LABEL_PATH"]
 
 post_checks = []
 
+checklist_path = os.path.join(adapter_dir, "handoff-checklist.md")
+if not os.path.exists(checklist_path):
+    sys.stderr.write(
+        f"[ncr-adapter-unresolvable] handoff-checklist.md missing (required): {checklist_path}\n"
+    )
+    sys.exit(1)
+
 # --- blast-radius label checks -----------------------------------------
 try:
     with open(label_path) as fh:
         label = json.load(fh)
 except Exception as exc:
-    sys.stderr.write(f"[error] could not read label: {label_path}: {exc}\n")
-    label = {}
+    sys.stderr.write(
+        f"[ncr-blast-radius-failed] could not parse blast-radius label JSON: {label_path}: {exc}\n"
+    )
+    sys.exit(1)
 
 for dev in label.get("direct_devices", []):
     dev_id = dev.get("id") or "unknown"
@@ -245,25 +258,23 @@ for dep in label.get("dependencies", []):
     })
 
 # --- adapter post-checks -----------------------------------------------
-checklist_path = os.path.join(adapter_dir, "handoff-checklist.md")
-if os.path.exists(checklist_path):
-    with open(checklist_path) as fh:
-        text = fh.read()
+with open(checklist_path) as fh:
+    text = fh.read()
 
-    entries = re.findall(r"^\s*-\s*\[[ xX]\]\s*(.+)", text, flags=re.MULTILINE)
+entries = re.findall(r"^\s*-\s*\[[ xX]\]\s*(.+)", text, flags=re.MULTILINE)
 
-    for idx, desc in enumerate(entries):
-        desc = desc.strip()
-        slug = re.sub(r"[^a-z0-9]+", "-", desc.lower())[:48].strip("-") or f"adapter-{idx}"
-        check_id = f"adapter-{slug}"
-        if classify(desc) == "post":
-            post_checks.append({
-                "id": check_id,
-                "category": "adapter",
-                "source": "adapter",
-                "description": desc,
-                "applies_to": "all",
-            })
+for idx, desc in enumerate(entries):
+    desc = desc.strip()
+    slug = re.sub(r"[^a-z0-9]+", "-", desc.lower())[:48].strip("-") or f"adapter-{idx}"
+    check_id = f"adapter-{slug}"
+    if classify(desc) == "post":
+        post_checks.append({
+            "id": check_id,
+            "category": "adapter",
+            "source": "adapter",
+            "description": desc,
+            "applies_to": "all",
+        })
 
 print(json.dumps(post_checks, indent=2))
 PYEOF

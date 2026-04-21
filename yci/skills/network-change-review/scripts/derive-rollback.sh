@@ -216,6 +216,13 @@ while i < len(lines):
             i += 1
         hunks.append((hunk_hdr, hunk_body))
 
+    if not hunks:
+        sys.stderr.write(
+            "[ncr-diff-unsupported-shape] Unified diff file section has no @@ hunks "
+            "(header-only or empty diff).\n"
+        )
+        sys.exit(3)
+
     file_diffs.append((preamble, old_hdr, new_hdr, hunks))
 
 # -----------------------------------------------------------------------
@@ -343,7 +350,11 @@ if yaml is None:
             if line and not line[0].isspace() and line[0] != "-":
                 break
             out.append(line)
-    print("\n".join(out))
+    body = "\n".join(out)
+    if body.strip():
+        print("reverse:\n" + body)
+    else:
+        print("reverse:")
     sys.exit(0)
 
 try:
@@ -360,7 +371,7 @@ if "reverse" not in ydata:
     sys.stderr.write("[ncr-rollback-missing-reverse] Structured change lacks required 'reverse:' block.\n")
     sys.exit(3)
 
-print(yaml.dump(ydata["reverse"], default_flow_style=False).rstrip())
+print(yaml.dump({"reverse": ydata["reverse"]}, default_flow_style=False).rstrip())
 PY
 }
 

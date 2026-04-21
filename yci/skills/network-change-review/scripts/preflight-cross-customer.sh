@@ -10,7 +10,7 @@
 # --data-root must be the resolved data root (same string review.sh uses after
 # resolve-data-root.sh).
 #
-# Exit: 0 ok | 7 foreign identifier hit (ncr-cross-customer-leak-detected)
+# Exit: 0 ok | 1 configuration (PyYAML / profiles dir) | 7 foreign identifier hit
 
 set -euo pipefail
 
@@ -41,13 +41,19 @@ import sys
 
 try:
     import yaml
-except ImportError:
-    sys.exit(0)
+except ImportError as exc:
+    sys.stderr.write(
+        f"preflight-cross-customer.sh: PyYAML is required for profile scanning: {exc}\n"
+    )
+    sys.exit(1)
 
 data_root, active_customer, change_path = sys.argv[1], sys.argv[2], sys.argv[3]
 profiles_dir = os.path.join(data_root, "profiles")
 if not os.path.isdir(profiles_dir):
-    sys.exit(0)
+    sys.stderr.write(
+        f"preflight-cross-customer.sh: profiles directory not found: {profiles_dir}\n"
+    )
+    sys.exit(1)
 
 change_text = open(change_path).read()
 hits = []

@@ -41,18 +41,26 @@ output_path=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --input)
-      input_path="${2:?--input requires a path argument}"
+      if [[ -z "${2:-}" ]]; then
+        usage >&2
+        err "ncr-diff-unsupported-shape" "Missing value for --input" 3
+      fi
+      input_path="$2"
       shift 2
       ;;
     --output)
-      output_path="${2:?--output requires a path argument}"
+      if [[ -z "${2:-}" ]]; then
+        usage >&2
+        err "ncr-diff-unsupported-shape" "Missing value for --output" 3
+      fi
+      output_path="$2"
       shift 2
       ;;
     -h|--help)
       usage; exit 0
       ;;
     *)
-      usage
+      usage >&2
       err "ncr-diff-unsupported-shape" "Unknown flag: $1" 3
       ;;
   esac

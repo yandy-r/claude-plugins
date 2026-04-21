@@ -156,7 +156,7 @@ Engagement: SOW-2026-007
 
 # Network Change Review
 
-**Change ID:** `a3f1b2c4-260421-1430`
+**Change ID:** `a3f1b2c4-20260421-1430`
 **Customer:** `widget-corp`
 **Compliance regime:** `commercial`
 **Timestamp (UTC):** `2026-04-21T14:30:00Z`
@@ -223,7 +223,7 @@ orders-api, inventory-service. Indirect: payment-gateway (shares edge path).
 
 \`\`\`yaml
 schema_version: "commercial/1"
-change_id: "a3f1b2c4-260421-1430"
+change_id: "a3f1b2c4-20260421-1430"
 ...
 \`\`\`
 

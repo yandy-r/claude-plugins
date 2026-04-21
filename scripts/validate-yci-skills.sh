@@ -893,7 +893,7 @@ PY
     # 3. Scripts: shebang, set -euo pipefail, executable, no hardcoded yci/ paths
     local s
     for s in build-check-catalogs.sh derive-rollback.sh parse-change.sh \
-              render-artifact.sh render-evidence-stub.sh review.sh; do
+              preflight-cross-customer.sh render-artifact.sh render-evidence-stub.sh review.sh; do
         local p="${skill_root}/scripts/${s}"
         if ! [ -x "$p" ]; then
             fail "script ${s}: not executable or missing"

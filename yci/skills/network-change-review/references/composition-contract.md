@@ -97,11 +97,16 @@ in this order.
     The stub schema is documented in `./evidence-stub-schema.md`. This stub is
     consumed verbatim by `yci:evidence-bundle` (P0.4).
 
-15. **Render final artifact.** Invoke `scripts/render-artifact.sh` with all
-    preceding rendered sections, the profile JSON (for branding and metadata), and
-    the adapter's `evidence-template.md`. Produce the full review markdown in the
-    shape documented in `./artifact-template.md`. Capture the artifact content in a
-    temp variable — do NOT write to disk yet.
+15. **Render final artifact.** Invoke `scripts/render-artifact.sh` with the profile
+    JSON, resolved adapter directory, the change-plan and diff-review markdown files,
+    blast-radius markdown, rollback text and confidence, pre/post check catalog JSON
+    (from `build-check-catalogs.sh`), the rendered evidence-stub YAML path, and paths
+    to `references/artifact-template.md` and `references/consultant-brand.md` (resolved
+    inside the script from the plugin root). The renderer reads the template and
+    customer header template, substitutes every `{{slot}}` from parsed evidence stub
+    and the section files, and captures the full artifact in a temp variable without
+    writing to disk yet. The adapter does **not** pass a separate `evidence-template.md`
+    input — evidence shape is defined by `artifact-template.md` and the stub pipeline.
 
 16. **Sanitize rendered artifact (strict mode).** Pipe the artifact content through
     `_shared/telemetry-sanitizer/scripts/pre-write-artifact.sh --output <tmp-path>`

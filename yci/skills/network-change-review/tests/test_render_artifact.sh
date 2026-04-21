@@ -91,7 +91,11 @@ YAML
 # ---------------------------------------------------------------------------
 run_render() {
     local confidence="${1}"; local out="${2}"; shift 2
+    mkdir -p "${TMP_BASE}/profiles"
+    cp "${FIXTURE_PROFILE_YAML}" "${TMP_BASE}/profiles/widget-corp.yaml"
     CLAUDE_PLUGIN_ROOT="${PLUGIN_ROOT}" \
+    YCI_DATA_ROOT_RESOLVED="${TMP_BASE}" \
+    YCI_ACTIVE_CUSTOMER="widget-corp" \
     "${RENDER}" \
         --profile        "${TMP_BASE}/profile.json" \
         --adapter-dir    "${ADAPTER_DIR}" \
@@ -121,7 +125,10 @@ test_happy_path_widget_corp() {
     make_evidence_stub "${TMP_BASE}/evidence-stub.yaml" > /dev/null
 
     local out="${TMP_BASE}/artifact.md"
-    run_render high "${out}" || true
+    local rc
+    run_render high "${out}"
+    rc=$?
+    assert_exit_code 0 "$rc" "happy-path: render-artifact exits 0"
 
     assert_file_exists "${out}" "happy-path: output file exists"
 
@@ -180,7 +187,10 @@ test_rollback_confidence_low() {
     make_evidence_stub "${TMP_BASE}/evidence-stub.yaml" > /dev/null
 
     local out="${TMP_BASE}/artifact-low.md"
-    run_render low "${out}" || true
+    local rc
+    run_render low "${out}"
+    rc=$?
+    assert_exit_code 0 "$rc" "rollback-low: render-artifact exits 0"
 
     local content
     content="$(cat "${out}" 2>/dev/null || true)"
@@ -211,7 +221,10 @@ test_rollback_confidence_high() {
     make_evidence_stub "${TMP_BASE}/evidence-stub.yaml" > /dev/null
 
     local out="${TMP_BASE}/artifact-high.md"
-    run_render high "${out}" || true
+    local rc
+    run_render high "${out}"
+    rc=$?
+    assert_exit_code 0 "$rc" "rollback-high: render-artifact exits 0"
 
     local content
     content="$(cat "${out}" 2>/dev/null || true)"
@@ -297,7 +310,13 @@ PYEOF
 
     local out="${TMP_BASE}/artifact-inline.md"
 
+    mkdir -p "${TMP_BASE}/profiles"
+    cp "${FIXTURE_PROFILE_YAML}" "${TMP_BASE}/profiles/widget-corp.yaml"
+    local rc
+    set +e
     CLAUDE_PLUGIN_ROOT="${PLUGIN_ROOT}" \
+    YCI_DATA_ROOT_RESOLVED="${TMP_BASE}" \
+    YCI_ACTIVE_CUSTOMER="widget-corp" \
     "${RENDER}" \
         --profile        "${profile_json}" \
         --adapter-dir    "${ADAPTER_DIR}" \
@@ -310,7 +329,10 @@ PYEOF
         --post-check-catalog  "${TMP_BASE}/post-checks.json" \
         --evidence-stub  "${TMP_BASE}/evidence-stub.yaml" \
         --output         "${out}" \
-    >/dev/null 2>&1 || true
+    >/dev/null 2>&1
+    rc=$?
+    set -e
+    assert_exit_code 0 "$rc" "inline-brand: render-artifact exits 0"
 
     local content
     content="$(cat "${out}" 2>/dev/null || true)"
@@ -381,12 +403,16 @@ test_evidence_stub_embedded() {
     make_evidence_stub "${TMP_BASE}/evidence-stub.yaml" > /dev/null
 
     local out="${TMP_BASE}/artifact-stub-check.md"
-    run_render high "${out}" || true
+    local rc
+    run_render high "${out}"
+    rc=$?
+    assert_exit_code 0 "$rc" "evidence-stub: render-artifact exits 0"
 
     local content
     content="$(cat "${out}" 2>/dev/null || true)"
 
     assert_contains "## Evidence Stub" "${content}" "evidence-stub: section heading present"
+    assert_contains "<details>" "${content}" "evidence-stub: collapsible details block present"
     assert_contains "change_id:" "${content}" "evidence-stub: stub YAML content embedded in artifact"
 
     teardown_tmp

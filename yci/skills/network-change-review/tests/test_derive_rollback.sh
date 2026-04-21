@@ -217,7 +217,30 @@ test_unknown_diff_kind() {
 }
 
 # ---------------------------------------------------------------------------
-# 7. binary diff rejection — exit 3, ncr-rollback-binary-unsupported
+# 7. unified-diff with headers only (no @@ hunks) — exit 3
+# ---------------------------------------------------------------------------
+test_header_only_unified_diff_rejected() {
+    local header_only_raw stderr_out rc err_content envelope
+    header_only_raw="$(printf '%s\n' \
+        '--- a/foo.txt' \
+        '+++ b/foo.txt')"
+
+    envelope="$(build_envelope_raw "unified-diff" "$header_only_raw")"
+    stderr_out="$(mktemp)"
+    set +e
+    printf '%s' "$envelope" | "$DERIVE_ROLLBACK" 2>"$stderr_out"
+    rc=$?
+    set -e
+    err_content="$(cat "$stderr_out")"
+    rm -f "$stderr_out"
+
+    assert_exit_code 3 "$rc" "header-only: exit 3"
+    assert_contains "ncr-diff-unsupported-shape" "$err_content" \
+        "header-only: stderr contains ncr-diff-unsupported-shape"
+}
+
+# ---------------------------------------------------------------------------
+# 8. binary diff rejection — exit 3, ncr-rollback-binary-unsupported
 # ---------------------------------------------------------------------------
 test_binary_diff_rejection() {
     # Construct a unified-diff whose raw field contains a binary marker line.
@@ -251,6 +274,7 @@ main() {
     test_structured_yaml_missing_reverse
     test_playbook_manual_derivation
     test_unknown_diff_kind
+    test_header_only_unified_diff_rejected
     test_binary_diff_rejection
     summary
 }
