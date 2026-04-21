@@ -441,6 +441,100 @@ run_go_lint() {
   fi
 }
 
+run_docs_lint() {
+  local fix="$1"
+  local git_scope="$2"
+  local exit_code=0
+
+  if ! detect_docs_project; then
+    print_skip "Markdown/JSON/YAML" "no package.json, prettier config, or docs files found in ${DOCS_PROJECT_DIR}"
+    return 0
+  fi
+
+  if ! require_command npx; then
+    return 1
+  fi
+
+  local docs_prefix
+  docs_prefix="$(path_prefix_for "$DOCS_PROJECT_DIR")"
+
+  local -a docs_files=()
+  if [[ -n "$git_scope" ]]; then
+    mapfile -t docs_files < <(list_modified_repo_paths "$git_scope" "$docs_prefix" ".md" ".mdx" ".json" ".jsonc" ".yaml" ".yml")
+    if (( ${#docs_files[@]} == 0 )); then
+      echo "=== Markdown/JSON/YAML ==="
+      echo "No $(scope_noun "$git_scope") Markdown, JSON, or YAML files."
+      return 0
+    fi
+  else
+    mapfile -t docs_files < <(list_repo_paths "$docs_prefix" ".md" ".mdx" ".json" ".jsonc" ".yaml" ".yml")
+    if (( ${#docs_files[@]} == 0 )); then
+      echo "=== Markdown/JSON/YAML ==="
+      echo "No Markdown, JSON, or YAML files found."
+      return 0
+    fi
+  fi
+
+  local -a docs_relative_files=()
+  mapfile -t docs_relative_files < <(relativize_paths "$DOCS_PROJECT_DIR" "${docs_files[@]}")
+
+  local -a markdownlint_args=()
+  if [[ -f "$DOCS_PROJECT_DIR/.markdownlintignore" ]]; then
+    markdownlint_args+=(--ignore-path "$DOCS_PROJECT_DIR/.markdownlintignore")
+  fi
+
+  local markdownlint_config=''
+  local markdownlint_candidate
+  for markdownlint_candidate in \
+    .markdownlint.json \
+    .markdownlint.jsonc \
+    .markdownlint.yaml \
+    .markdownlint.yml
+  do
+    if [[ -f "$DOCS_PROJECT_DIR/$markdownlint_candidate" ]]; then
+      markdownlint_config="$DOCS_PROJECT_DIR/$markdownlint_candidate"
+      break
+    fi
+  done
+  if [[ -n "$markdownlint_config" ]]; then
+    markdownlint_args+=(--config "$markdownlint_config")
+  fi
+
+  local -a prettier_args=()
+  if [[ -f "$DOCS_PROJECT_DIR/.prettierignore" ]]; then
+    prettier_args+=(--ignore-path "$DOCS_PROJECT_DIR/.prettierignore")
+  fi
+  if [[ -f "$DOCS_PROJECT_DIR/.prettierrc" ]]; then
+    prettier_args+=(--config "$DOCS_PROJECT_DIR/.prettierrc")
+  fi
+
+  echo "=== Markdown: markdownlint ==="
+  local -a markdown_relative_files=()
+  local docs_relative_file
+  for docs_relative_file in "${docs_relative_files[@]}"; do
+    case "$docs_relative_file" in
+      *.md|*.mdx) markdown_relative_files+=("$docs_relative_file") ;;
+    esac
+  done
+
+  if (( ${#markdown_relative_files[@]} == 0 )); then
+    echo "No Markdown files to lint."
+  elif (( fix )); then
+    (cd "$DOCS_PROJECT_DIR" && npx markdownlint-cli --fix "${markdownlint_args[@]}" "${markdown_relative_files[@]}") || exit_code=1
+  else
+    (cd "$DOCS_PROJECT_DIR" && npx markdownlint-cli "${markdownlint_args[@]}" "${markdown_relative_files[@]}") || exit_code=1
+  fi
+
+  echo "=== Markdown/JSON/YAML: prettier ==="
+  if (( fix )); then
+    (cd "$DOCS_PROJECT_DIR" && npx prettier --write "${docs_relative_files[@]}" "${prettier_args[@]}") || exit_code=1
+  else
+    (cd "$DOCS_PROJECT_DIR" && npx prettier --check "${docs_relative_files[@]}" "${prettier_args[@]}") || exit_code=1
+  fi
+
+  return "$exit_code"
+}
+
 run_rust_format() {
   local git_scope="$1"
 
@@ -677,13 +771,14 @@ EOF
 
 lint_usage() {
   cat <<'EOF'
-Usage: style.sh lint [--fix] [--modified|--staged|--unstaged] [--rust] [--ts] [--python] [--go] [--shell] [--all]
+Usage: style.sh lint [--fix] [--modified|--staged|--unstaged] [--rust] [--ts] [--docs] [--python] [--go] [--shell] [--all]
 
 Environment overrides:
   PROJECT_ROOT       Explicit project root. Defaults to the git root for $PWD.
   RUST_PROJECT_DIR   Directory containing Cargo.toml. Defaults to PROJECT_ROOT.
   TS_PROJECT_DIR     Directory for package.json / tsconfig.json / biome runs.
                      Defaults to PROJECT_ROOT.
+  DOCS_PROJECT_DIR   Directory for markdownlint and prettier runs. Defaults to PROJECT_ROOT.
   PYTHON_PROJECT_DIR Directory for Python config and source files. Defaults to PROJECT_ROOT.
   GO_PROJECT_DIR     Directory for go.mod and Go source files. Defaults to PROJECT_ROOT.
 
@@ -694,6 +789,7 @@ Options:
   --unstaged  Limit file-based linting to unstaged working-tree changes + untracked files
   --rust      Rust only (clippy + rustfmt check)
   --ts        TypeScript only (biome + tsc when tsconfig exists)
+  --docs      Markdown / JSON / YAML only (markdownlint + prettier)
   --python    Python only (ruff + black --check)
   --go        Go only (golangci-lint)
   --shell     Shell scripts only (shellcheck)
@@ -915,6 +1011,7 @@ run_lint_command() {
   local git_scope=""
   local run_rust=0
   local run_ts=0
+  local run_docs=0
   local run_python=0
   local run_go=0
   local run_shell=0
@@ -928,18 +1025,20 @@ run_lint_command() {
       --unstaged) _set_git_scope_or_die git_scope unstaged lint_usage; shift ;;
       --rust) run_rust=1; shift ;;
       --ts) run_ts=1; shift ;;
+      --docs) run_docs=1; shift ;;
       --python) run_python=1; shift ;;
       --go) run_go=1; shift ;;
       --shell) run_shell=1; shift ;;
-      --all) run_rust=1; run_ts=1; run_python=1; run_go=1; run_shell=1; shift ;;
+      --all) run_rust=1; run_ts=1; run_docs=1; run_python=1; run_go=1; run_shell=1; shift ;;
       --help|-h) lint_usage; exit 0 ;;
       *) echo "Unknown arg for lint: $1" >&2; lint_usage >&2; exit 1 ;;
     esac
   done
 
-  if (( !run_rust && !run_ts && !run_python && !run_go && !run_shell )); then
+  if (( !run_rust && !run_ts && !run_docs && !run_python && !run_go && !run_shell )); then
     run_rust=1
     run_ts=1
+    run_docs=1
     run_python=1
     run_go=1
     run_shell=1
@@ -950,6 +1049,9 @@ run_lint_command() {
   fi
   if (( run_ts )); then
     run_ts_lint "$fix" "$git_scope" || exit_code=1
+  fi
+  if (( run_docs )); then
+    run_docs_lint "$fix" "$git_scope" || exit_code=1
   fi
   if (( run_python )); then
     run_python_lint "$fix" "$git_scope" || exit_code=1
