@@ -8,10 +8,11 @@ source "$(dirname "${BASH_SOURCE[0]}")/helpers.sh"
 STATE_IO="${YCI_SCRIPTS_DIR}/state-io.sh"
 
 _state_io_missing_diagnostic() {
+    # Fail fast: a missing state-io.sh means the tree is broken. Never skip.
     if [ ! -f "$STATE_IO" ]; then
-        printf 'DIAGNOSTIC: state-io.sh not found at %s\n' "$STATE_IO" >&2
-        printf '  (expected after B5.1/B3 merges)\n' >&2
-        return 1
+        printf 'FATAL: state-io.sh not found at %s\n' "$STATE_IO" >&2
+        printf '  this script is required; missing it means the tree is broken\n' >&2
+        exit 1
     fi
     return 0
 }
@@ -187,6 +188,7 @@ test_missing_state_get_active() {
     local out rc
     out="$(state_get_active "$sb/real" 2>"$sb/err")"; rc=$?
     assert_exit 0 "$rc" "missing_get_active: exit 0 (no file is ok)"
+    assert_eq "$out" "" "missing_get_active: stdout is empty (no file → no active)"
 }
 
 # ---------------------------------------------------------------------------
@@ -231,15 +233,31 @@ test_concurrent_writes() {
     local sb="$1"
     _state_io_missing_diagnostic || { _yci_test_report PASS "concurrent: skipped (absent)"; return 0; }
 
-    local i
+    local i pid
+    local -a pids=()
     for i in $(seq 1 5); do
         (
             # shellcheck source=/dev/null
             source "$STATE_IO"
             state_write_active "$sb/real" "writer-$i"
         ) &
+        pids+=("$!")
     done
-    wait
+
+    # Wait on each writer individually so a single failure is detected; bare
+    # `wait` only returns the last child's status and masks earlier failures.
+    local failed=0 writer_rc
+    for pid in "${pids[@]}"; do
+        if wait "$pid"; then
+            writer_rc=0
+        else
+            writer_rc=$?
+            printf '  writer pid=%s exited %d\n' "$pid" "$writer_rc" >&2
+            failed=1
+        fi
+    done
+
+    assert_eq "$failed" "0" "concurrent: all writers exited 0"
     assert_json_valid "$sb/real/state.json" "concurrent: state.json is valid JSON after concurrent writes"
 }
 
@@ -263,8 +281,9 @@ test_updated_at_set() {
 
 main() {
     if [ ! -f "$STATE_IO" ]; then
-        printf 'DIAGNOSTIC: state-io.sh not found at %s\n' "$STATE_IO" >&2
-        printf '  (expected after B3/B5 merges)\n' >&2
+        printf 'FATAL: state-io.sh not found at %s\n' "$STATE_IO" >&2
+        printf '  this script is required; missing it means the tree is broken\n' >&2
+        exit 1
     fi
 
     with_sandbox test_write_read_roundtrip
