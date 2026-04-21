@@ -69,8 +69,9 @@ claude-plugins/
 │   ├── .claude-plugin/
 │   │   └── plugin.json       # name: "yci"
 │   ├── CONTRIBUTING.md       # yci-specific policy (non-goals, adapter pattern)
-│   ├── hooks/                # Phase-1+: customer-guard, scope-gate, etc.
-│   ├── skills/               # yci:{skill} — Phase 0 ships only yci:hello
+│   ├── hooks/                # customer-guard (shipped); scope-gate, change-window-gate later
+│   ├── skills/               # yci:{skill} — customer-profile, customer-guard, blast-radius, hello
+│   │   └── _shared/          # customer-isolation, inventory-adapters (netbox stub), scripts
 │   ├── agents/               # Phase-1+ agents
 │   ├── commands/             # Phase-1+ slash commands
 │   └── docs/                 # profiles.md, profiles/_internal.yaml.example
