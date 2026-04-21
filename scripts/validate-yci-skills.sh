@@ -749,43 +749,6 @@ validate_compliance_adapters() {
     else
         mkdir -p "${tmpdir}/profiles"
         cp "$example_profile" "${tmpdir}/profiles/_internal.yaml"
-        # _internal.yaml.example omits header_template intentionally for prose clarity,
-        # and uses unquoted YAML-1.1 booleans (off/false) that PyYAML misreads.
-        # Patch at the text level to avoid a round-trip through PyYAML, which would
-        # corrupt those values.  Two edits: add header_template under deliverable, and
-        # quote scope_enforcement so PyYAML does not treat "off" as Python False.
-        python3 - "${tmpdir}/profiles/_internal.yaml" <<'PY'
-import sys, re
-path = sys.argv[1]
-with open(path) as fh:
-    lines = fh.readlines()
-in_deliverable = False
-patched = []
-inserted = False
-for line in lines:
-    # Quote bare 'off' in scope_enforcement to avoid PyYAML bool coercion.
-    line = re.sub(
-        r'^(\s*scope_enforcement:\s*)off(\s*(#.*)?)$',
-        r'\g<1>"off"\g<2>',
-        line
-    )
-    patched.append(line)
-    if re.match(r'^deliverable:', line):
-        in_deliverable = True
-    elif re.match(r'^[a-zA-Z]', line) and not re.match(r'^deliverable:', line):
-        in_deliverable = False
-    if in_deliverable and not inserted and re.match(r'^  handoff_format:', line):
-        patched.append('  header_template: ""\n')
-        inserted = True
-if not inserted:
-    # fallback: append under deliverable block
-    for i, line in enumerate(patched):
-        if re.match(r'^deliverable:', line):
-            patched.insert(i + 1, '  header_template: ""\n')
-            break
-with open(path, "w") as fh:
-    fh.writelines(patched)
-PY
 
         # D2. Load profile
         local profile_json
