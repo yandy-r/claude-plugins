@@ -507,7 +507,10 @@ validate_customer_isolation_lib() {
     done
 
     # 3. detect.sh sources cleanly and exports isolation_check_payload
-    if bash -c "source '${lib_root}/detect.sh' 2>/dev/null && declare -F isolation_check_payload > /dev/null"; then
+    #    (detect.sh resolves helpers from CLAUDE_PLUGIN_ROOT or YCI_ROOT)
+    local yci_plugin_root
+    yci_plugin_root="$(cd "${lib_root}/../../.." && pwd -P)"
+    if bash -c "export YCI_ROOT='${yci_plugin_root}'; source '${lib_root}/detect.sh' 2>/dev/null && declare -F isolation_check_payload > /dev/null"; then
         ok "detect.sh sources and exports isolation_check_payload"
     else
         fail "detect.sh: source failed OR isolation_check_payload not exported"
