@@ -306,7 +306,7 @@ PY
 
     # --- shellcheck ---
     printf '\n--- shellcheck (customer-profile) ---\n'
-    if resolve_shellcheck_bin; then
+    if SHELLCHECK_RESOLVE_OPTIONAL=1 resolve_shellcheck_bin; then
         local sc_files=()
         # collect skill scripts
         while IFS= read -r f; do sc_files+=("$f"); done \

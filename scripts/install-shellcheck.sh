@@ -1,7 +1,7 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # Download pinned shellcheck from GitHub releases into repo-local tools/ (gitignored).
 # Idempotent. Version is read from .tool-versions (shellcheck line).
-set -eu
+set -euo pipefail
 
 SCRIPT_DIR="$(dirname "$0")"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"

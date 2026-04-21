@@ -3,20 +3,25 @@
 # Call after PROJECT_ROOT or REPO_ROOT is set. Defines:
 #   resolve_shellcheck_bin  -> sets SHELLCHECK_BIN, returns 0 on success
 #
+# If .tool-versions is missing or has no shellcheck line, read_shellcheck_pinned_version
+# succeeds with no output; version comparison is skipped unless a pin is present.
+#
+# When SHELLCHECK_RESOLVE_OPTIONAL is non-empty and no shellcheck binary is found,
+# resolve_shellcheck_bin returns 1 without printing the "Missing required command" message
+# (for optional checks that print their own skip message).
+#
 # Preference order: <repo>/tools/shellcheck, $HOME/.local/bin/shellcheck, then PATH.
 
 read_shellcheck_pinned_version() {
   local root="$1"
   local f="${root}/.tool-versions"
   if [[ ! -f "$f" ]]; then
-    echo "shellcheck-resolve: missing ${f}" >&2
-    return 1
+    return 0
   fi
   local v
   v="$(grep -E '^shellcheck[[:space:]]' "$f" | head -n1 | awk '{print $2}')"
   if [[ -z "$v" ]]; then
-    echo "shellcheck-resolve: no shellcheck version in ${f}" >&2
-    return 1
+    return 0
   fi
   printf '%s\n' "$v"
 }
@@ -38,11 +43,11 @@ shellcheck_binary_version() {
 }
 
 resolve_shellcheck_bin() {
-  local root pinned want_ver chosen ver
+  local root want_ver chosen ver
   SHELLCHECK_BIN=""
 
   root="$(shellcheck_repo_root)" || return 1
-  want_ver="$(read_shellcheck_pinned_version "$root")" || return 1
+  want_ver="$(read_shellcheck_pinned_version "$root")"
 
   for chosen in "${root}/tools/shellcheck" "${HOME}/.local/bin/shellcheck"; do
     if [[ -n "$chosen" && -x "$chosen" ]]; then
@@ -56,12 +61,14 @@ resolve_shellcheck_bin() {
   fi
 
   if [[ -z "$SHELLCHECK_BIN" ]]; then
-    echo "Missing required command: shellcheck (install via scripts/install-shellcheck.sh)" >&2
+    if [[ -z "${SHELLCHECK_RESOLVE_OPTIONAL:-}" ]]; then
+      echo "Missing required command: shellcheck (install via scripts/install-shellcheck.sh)" >&2
+    fi
     return 1
   fi
 
   ver="$(shellcheck_binary_version "$SHELLCHECK_BIN")"
-  if [[ -n "$ver" && "$ver" != "$want_ver" ]]; then
+  if [[ -n "$want_ver" && -n "$ver" && "$ver" != "$want_ver" ]]; then
     echo "warn: using system shellcheck ${ver}; pinned version is ${want_ver} (install via scripts/install-shellcheck.sh)" >&2
   fi
 
