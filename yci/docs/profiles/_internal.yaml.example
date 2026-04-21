@@ -24,19 +24,18 @@ compliance:
 
 inventory:
   adapter: file            # simplest option; manual YAML/JSON inventory
-  path: ~/.config/yci/inventories/_internal/
+  # inventory.path omitted — falls back to $YCI_DATA_ROOT/inventories/_internal/
 
 approval:
   adapter: none            # no external approval system
 
-vaults:
-  path: ~/.config/yci/vaults/_internal/
+# vaults: block omitted — falls back to $YCI_DATA_ROOT/vaults/_internal/
 
 deliverable:
   format: [markdown]
   # header_template intentionally omitted — no branding for internal work.
   handoff_format: git-repo
-  path: ~/.config/yci/artifacts/_internal/
+  # deliverable.path omitted — falls back to $YCI_DATA_ROOT/artifacts/_internal/
 
 safety:
   default_posture: review            # neither dry-run nor apply — human reviews each change

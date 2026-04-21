@@ -61,7 +61,7 @@ and the most-recently-used history. It is machine-managed; do not edit by hand.
 
 ## Per-Customer Path Overrides
 
-The four profile fields `vaults.path`, `inventories.path`, `calendars.path`, and
+The four profile fields `vaults.path`, `inventory.path`, `calendars.path`, and
 `deliverable.path` each override the corresponding default subtree. This lets a
 customer mandate where data lands without changing the global root.
 

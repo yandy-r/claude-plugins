@@ -66,15 +66,20 @@ P2 reconsideration without a documented justification that overrides the PRD.
 
 ## Compliance-Adapter Pattern
 
-Compliance in `yci` is an adapter, not a mode. This is the pattern described in
-PRD §5.3, and it is load-bearing: it is what allows the same skill to produce
-HIPAA-shaped evidence for one customer and PCI-shaped evidence for another
-without any changes to the skill itself.
+Compliance in `yci` is an adapter, not a mode. This is the design contract
+described in PRD §5.3, and it is intended to be load-bearing: it is what will
+allow the same skill to produce HIPAA-shaped evidence for one customer and
+PCI-shaped evidence for another without any changes to the skill itself.
 
-### Directory Layout
+> **Phase 0 excludes adapter implementation.** The layout and requirements
+> described below are a design contract for Phase 1 and later phases, not a
+> Phase-0 deliverable. No adapter directories or schemas ship in Phase 0.
+> This section exists to lock the pattern early so future contributions conform.
 
-Adapters live under `yci/skills/_shared/compliance-adapters/`, one directory
-per supported regime:
+### Directory Layout (future phases)
+
+When adapters ship, they should live under
+`yci/skills/_shared/compliance-adapters/`, one directory per supported regime:
 
 ```
 yci/skills/_shared/compliance-adapters/
@@ -110,9 +115,10 @@ yci/skills/_shared/compliance-adapters/
     └── handoff-checklist.md
 ```
 
-### What Every Adapter Must Ship
+### What Every Adapter Should Ship (design contract)
 
-Each regime directory must contain at minimum:
+When implemented in a later phase, each regime directory is expected to contain
+at minimum:
 
 - `ADAPTER.md` — declares what the adapter promises: which evidence fields it
   requires, what redaction rules it applies, and any regime-specific invariants.
@@ -124,15 +130,15 @@ Each regime directory must contain at minimum:
 - `handoff-checklist.md` — a reviewer checklist confirming the deliverable
   meets the regime's expectations before it leaves the engagement.
 
-The `none` adapter is exempt from the evidence schema and redaction rules — its
-checklist is minimal by design.
+The `none` adapter is expected to be exempt from the evidence schema and
+redaction rules — its checklist is minimal by design.
 
-### How Skills Use Adapters
+### How Skills Should Use Adapters (design contract)
 
 A skill that emits a compliance-relevant artifact (evidence bundle, MOP,
-handoff pack) reads `compliance.regime` from the active customer profile and
-loads the matching adapter directory. Schema, redaction rules, and templates are
-all adapter-provided. The skill does not branch on regime names in its own code.
+handoff pack) should read `compliance.regime` from the active customer profile
+and load the matching adapter directory. Schema, redaction rules, and templates
+are adapter-provided. The skill should not branch on regime names in its own code.
 
 Correct:
 
@@ -192,7 +198,7 @@ moment an operator sets `$YCI_DATA_ROOT` or passes `--data-root`.
 ### Per-Customer Path Overrides
 
 The profile YAML supports per-customer overrides for any subtree under the data
-root. The fields `vaults.path`, `inventories.path`, `calendars.path`, and
+root. The fields `vaults.path`, `inventory.path`, `calendars.path`, and
 `deliverable.path` each accept any local path. This accommodates common
 consulting patterns:
 
