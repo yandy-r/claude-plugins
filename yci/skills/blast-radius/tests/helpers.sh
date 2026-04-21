@@ -103,15 +103,12 @@ assert_json_valid() {
 assert_json_eq() {
     # Deep-equal two JSON strings using python3.
     local got="$1" expected="$2" name="${3:-assert_json_eq}"
-    local result
-    result=$(python3 -c "
+    if python3 -c "
 import json, sys
 a = json.loads(sys.argv[1])
 b = json.loads(sys.argv[2])
 sys.exit(0 if a == b else 1)
-" "$got" "$expected" 2>&1)
-    local rc=$?
-    if [ "$rc" -eq 0 ]; then
+" "$got" "$expected" >/dev/null 2>&1; then
         _yci_test_report PASS "$name"
     else
         _yci_test_report FAIL "$name" "JSON objects not equal"
@@ -139,15 +136,12 @@ print(v if v is not None else '')
 assert_json_field_matches() {
     # Assert a JSON top-level field matches a regex pattern (python re.search).
     local json_str="$1" field="$2" pattern="$3" name="${4:-assert_json_field_matches}"
-    local result
-    result=$(python3 -c "
+    if python3 -c "
 import json, re, sys
 d = json.loads(sys.argv[1])
 v = str(d.get(sys.argv[2], ''))
 sys.exit(0 if re.search(sys.argv[3], v) else 1)
-" "$json_str" "$field" "$pattern" 2>&1)
-    local rc=$?
-    if [ "$rc" -eq 0 ]; then
+" "$json_str" "$field" "$pattern" >/dev/null 2>&1; then
         _yci_test_report PASS "$name"
     else
         _yci_test_report FAIL "$name" "field '$field' did not match pattern '$pattern'"
@@ -157,15 +151,12 @@ sys.exit(0 if re.search(sys.argv[3], v) else 1)
 assert_json_array_nonempty() {
     # Assert a JSON top-level array field is non-empty.
     local json_str="$1" field="$2" name="${3:-assert_json_array_nonempty}"
-    local result
-    result=$(python3 -c "
+    if python3 -c "
 import json, sys
 d = json.loads(sys.argv[1])
 arr = d.get(sys.argv[2], [])
 sys.exit(0 if isinstance(arr, list) and len(arr) > 0 else 1)
-" "$json_str" "$field" 2>&1)
-    local rc=$?
-    if [ "$rc" -eq 0 ]; then
+" "$json_str" "$field" >/dev/null 2>&1; then
         _yci_test_report PASS "$name"
     else
         _yci_test_report FAIL "$name" "field '$field' is empty or missing"
@@ -176,16 +167,13 @@ assert_json_contains_item() {
     # Assert a JSON top-level array field contains an item where key==value.
     # Usage: assert_json_contains_item <json_str> <array_field> <item_key> <item_value> <name>
     local json_str="$1" field="$2" key="$3" value="$4" name="${5:-assert_json_contains_item}"
-    local result
-    result=$(python3 -c "
+    if python3 -c "
 import json, sys
 d = json.loads(sys.argv[1])
 arr = d.get(sys.argv[2], [])
 found = any(str(item.get(sys.argv[3], '')) == sys.argv[4] for item in arr if isinstance(item, dict))
 sys.exit(0 if found else 1)
-" "$json_str" "$field" "$key" "$value" 2>&1)
-    local rc=$?
-    if [ "$rc" -eq 0 ]; then
+" "$json_str" "$field" "$key" "$value" >/dev/null 2>&1; then
         _yci_test_report PASS "$name"
     else
         _yci_test_report FAIL "$name" "array '$field' has no item where $key='$value'"
