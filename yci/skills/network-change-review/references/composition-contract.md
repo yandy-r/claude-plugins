@@ -140,7 +140,7 @@ in this order.
 | `yci:telemetry-sanitizer`                   | `pre-write-artifact.sh` on the rendered artifact (strict / internal per profile); optional `sanitize-output.sh` for other CLIs — **not** used on the raw `--change` file before parse in `review.sh` | `review.sh` (post-render pass); raw change is scanned in preflight instead of sanitized early                                           |
 | Compliance adapter                          | `_shared/scripts/load-compliance-adapter.sh --export --profile-json-path <path>` + filesystem reads of `evidence-template.md`, `evidence-schema.json`, `handoff-checklist.md` from `YCI_ADAPTER_DIR` | `review.sh` (step 5) and consumed by check-catalog builder (step 12), evidence-stub renderer (step 14), and artifact renderer (step 15) |
 | `yci:blast-radius`                          | Shell scripts: `blast-radius/scripts/reason.sh`, `blast-radius/scripts/render-markdown.sh`                                                                                                           | `review.sh` (after rollback derivation)                                                                                                 |
-| `ycc:plan` (Change Plan section)            | Agent tool with `subagent_type: "ycc:planner"` — prompt in, structured plan text out                                                                                                                 | SKILL.md prompt — NOT `review.sh`                                                                                                       |
+| `ycc:planner` (Change Plan section)         | Agent tool with `subagent_type: "ycc:planner"` — prompt in, structured plan text out                                                                                                                 | SKILL.md prompt — NOT `review.sh`                                                                                                       |
 | `yci:change-reviewer` (Diff Review section) | Agent tool with `subagent_type: "yci:change-reviewer"` — prompt in, findings text out using staged `profile.json` and inventory-root context                                                         | SKILL.md prompt — NOT `review.sh`                                                                                                       |
 
 ---
@@ -153,7 +153,7 @@ From the project `CLAUDE.md`:
 > the same helper, duplicate it (the duplication cost is low, the coupling cost
 > is high).
 
-This rule is why `ycc:plan` is invoked via the Agent tool (prompt in, text out)
+This rule is why `ycc:planner` is invoked via the Agent tool (prompt in, text out)
 rather than by sourcing any `ycc` helper scripts directly. `review.sh` is a `yci`
 artifact; it cannot and must not `source` or `bash` any file from the `ycc/`
 source tree. The only supported cross-plugin channel is the Agent tool, which

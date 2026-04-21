@@ -19,6 +19,7 @@ test_skill_delegates_to_yci_change_reviewer() {
     printf '\n--- delegation: skill delegates to yci reviewer ---\n'
 
     local skill_text
+    [ -f "${SKILL_MD}" ] || { echo "Error: required file ${SKILL_MD} not found" >&2; exit 1; }
     skill_text="$(cat "${SKILL_MD}")"
 
     assert_contains 'subagent_type: "yci:change-reviewer"' "${skill_text}" \
@@ -32,6 +33,7 @@ test_skill_passes_profile_context() {
     printf '\n--- delegation: skill passes active profile context ---\n'
 
     local skill_text
+    [ -f "${SKILL_MD}" ] || { echo "Error: required file ${SKILL_MD} not found" >&2; exit 1; }
     skill_text="$(cat "${SKILL_MD}")"
 
     assert_contains '<profile-json-path>' "${skill_text}" \
@@ -60,6 +62,7 @@ test_change_reviewer_contract_mentions_customer_guard() {
     printf '\n--- delegation: reviewer contract documents isolation ---\n'
 
     local agent_text
+    [ -f "${AGENT_MD}" ] || { echo "Error: required file ${AGENT_MD} not found" >&2; exit 1; }
     agent_text="$(cat "${AGENT_MD}")"
 
     assert_contains 'profile.json' "${agent_text}" \
@@ -79,6 +82,7 @@ test_review_sh_text_matches_delegation() {
     printf '\n--- delegation: review.sh help text matches reviewer path ---\n'
 
     local review_text
+    [ -f "${REVIEW_SH}" ] || { echo "Error: required file ${REVIEW_SH} not found" >&2; exit 1; }
     review_text="$(cat "${REVIEW_SH}")"
 
     assert_contains 'yci:change-reviewer' "${review_text}" \

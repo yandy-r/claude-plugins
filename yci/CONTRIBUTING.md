@@ -331,7 +331,7 @@ above — never relax redaction for normal customer engagements.
 `yci:network-change-review` is the P0.5 keystone skill (PRD §6.1). It composes
 `yci:customer-profile`, `yci:customer-guard` (via the automatic PreToolUse hook),
 `yci:telemetry-sanitizer`, the compliance adapter, `yci:blast-radius`, and — via
-the Agent tool — `ycc:plan` plus the delegated `yci:change-reviewer` into a
+the Agent tool — `ycc:planner` plus the delegated `yci:change-reviewer` into a
 single dual-branded deliverable. It is "keystone" because every downstream P0/P1 skill (`yci:mop`,
 `yci:evidence-bundle`, `yci:cab-prep`) either consumes its outputs or follows its
 composition pattern (PRD §5.6, PRD §6.1). Shipping a reliable
@@ -378,7 +378,7 @@ From the project `CLAUDE.md`:
 > the same helper, duplicate it (the duplication cost is low, the coupling cost
 > is high).
 
-`ycc:plan` is invoked via the Agent tool with `subagent_type: "ycc:planner"` —
+`ycc:planner` is invoked via the Agent tool with `subagent_type: "ycc:planner"` —
 structured prompt in, text out. The diff-review slice is delegated to
 `subagent_type: "yci:change-reviewer"` with a staged `profile.json` and inventory
 root so the reviewer stays inside the active customer boundary. `review.sh` is a

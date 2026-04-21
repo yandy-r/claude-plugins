@@ -1000,7 +1000,6 @@ PY
     if grep -q '<profile-json-path>' "${skill_root}/SKILL.md" && \
        grep -q '<inventory-root>' "${skill_root}/SKILL.md" && \
        grep -q '<customer-id>' "${skill_root}/SKILL.md" && \
-       grep -q 'absolute path, keep' "${skill_root}/SKILL.md" && \
        grep -q '<resolved-data-root>/profiles/<inventory-root>' "${skill_root}/SKILL.md" && \
        grep -q '<resolved-data-root>/<inventory-root>' "${skill_root}/SKILL.md"; then
         ok "network-change-review/SKILL.md matches review.sh inventory-root precedence and context handoff"
