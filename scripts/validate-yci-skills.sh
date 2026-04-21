@@ -5,6 +5,7 @@
 #   1. yci/.claude-plugin/plugin.json exists and parses as valid JSON.
 #   2. yci/skills/hello/SKILL.md exists with valid YAML frontmatter.
 #   3. yci/skills/customer-profile — full surface validation.
+#   4. yci/skills/_shared/telemetry-sanitizer — sanitizer + tests.
 #
 # Intentional: no -e flag; validator must aggregate failures.
 set -uo pipefail
@@ -456,6 +457,77 @@ if isinstance(hooks, str):
 # ---------------------------------------------------------------------------
 # customer-isolation library checks
 # ---------------------------------------------------------------------------
+validate_telemetry_sanitizer_lib() {
+    echo "--- telemetry-sanitizer library ---"
+
+    local lib_root="${REPO_ROOT}/yci/skills/_shared/telemetry-sanitizer"
+    local lib_scripts="${lib_root}/scripts"
+    local lib_tests="${lib_root}/tests"
+    local hipaa_rules="${REPO_ROOT}/yci/skills/_shared/compliance-adapters/hipaa/phi-redaction.rules"
+
+    for py in "${lib_scripts}/patterns.py" "${lib_scripts}/sanitize_text.py" "${lib_scripts}/load_adapter_rules.py"; do
+        if [ -f "$py" ]; then
+            if python3 -m py_compile "$py" 2>/dev/null; then
+                ok "$(basename "$py") compiles"
+            else
+                fail "$(basename "$py"): py_compile failed"
+            fi
+        else
+            fail "missing $py"
+        fi
+    done
+
+    for s in sanitize-output.sh pre-write-artifact.sh; do
+        local p="${lib_scripts}/${s}"
+        if ! [ -x "$p" ]; then
+            fail "telemetry script ${s}: not executable or missing"
+            continue
+        fi
+        if ! head -1 "$p" | grep -q '^#!/usr/bin/env bash'; then
+            fail "telemetry script ${s}: wrong shebang"
+            continue
+        fi
+        if head -20 "$p" | grep -qE '^[[:space:]]*set[[:space:]]+-euo[[:space:]]+pipefail[[:space:]]*$'; then
+            ok "telemetry script ${s}: executable, shebang, set -euo pipefail"
+        else
+            fail "telemetry script ${s}: missing set -euo pipefail in first 20 lines"
+        fi
+    done
+
+    if [ -s "$hipaa_rules" ]; then
+        ok "hipaa/phi-redaction.rules present"
+    else
+        fail "hipaa/phi-redaction.rules missing or empty"
+    fi
+
+    if [ -x "${lib_tests}/run-all.sh" ]; then
+        printf '\n--- telemetry-sanitizer unit tests ---\n'
+        if bash "${lib_tests}/run-all.sh"; then
+            ok "telemetry-sanitizer unit tests pass"
+        else
+            fail "telemetry-sanitizer unit tests failed"
+        fi
+    else
+        fail "telemetry-sanitizer tests/run-all.sh missing or not executable"
+    fi
+
+    printf '\n--- shellcheck (telemetry-sanitizer) ---\n'
+    if SHELLCHECK_RESOLVE_OPTIONAL=1 resolve_shellcheck_bin; then
+        local sc_files=()
+        while IFS= read -r f; do sc_files+=("$f"); done \
+            < <(ls "${lib_scripts}/sanitize-output.sh" "${lib_scripts}/pre-write-artifact.sh" 2>/dev/null)
+        while IFS= read -r f; do sc_files+=("$f"); done \
+            < <(ls "${lib_tests}/run-all.sh" "${lib_tests}/helpers.sh" "${lib_tests}/"test_*.sh 2>/dev/null)
+        if "$SHELLCHECK_BIN" --severity=warning "${sc_files[@]}"; then
+            ok "shellcheck clean on telemetry-sanitizer (${#sc_files[@]} files)"
+        else
+            fail "shellcheck reported warnings/errors (telemetry-sanitizer)"
+        fi
+    else
+        warn "shellcheck not installed — skipping"
+    fi
+}
+
 validate_customer_isolation_lib() {
     echo "--- customer-isolation library ---"
 
@@ -608,13 +680,22 @@ validate_compliance_adapters() {
             fail "adapter-schema.sh: source failed: ${source_out}"
         fi
 
-        # A4. YCI_ADAPTER_REQUIRED_FILES has at least 3 entries
+        # A4. YCI_ADAPTER_REQUIRED_FILES has at least 1 entry (ADAPTER.md)
         local req_count
         req_count="$(bash -c ". '${schema_lib}'; echo \"\${#YCI_ADAPTER_REQUIRED_FILES[@]}\"" 2>/dev/null)"
-        if [ "${req_count:-0}" -ge 3 ]; then
-            ok "adapter-schema.sh: YCI_ADAPTER_REQUIRED_FILES has ${req_count} entries (>=3)"
+        if [ "${req_count:-0}" -ge 1 ]; then
+            ok "adapter-schema.sh: YCI_ADAPTER_REQUIRED_FILES has ${req_count} entries (>=1)"
         else
-            fail "adapter-schema.sh: YCI_ADAPTER_REQUIRED_FILES has ${req_count:-0} entries (need >=3)"
+            fail "adapter-schema.sh: YCI_ADAPTER_REQUIRED_FILES has ${req_count:-0} entries (need >=1)"
+        fi
+
+        # A4b. YCI_ADAPTER_PHASE1_REGIMES has at least 1 entry
+        local phase1_count
+        phase1_count="$(bash -c ". '${schema_lib}'; echo \"\${#YCI_ADAPTER_PHASE1_REGIMES[@]}\"" 2>/dev/null)"
+        if [ "${phase1_count:-0}" -ge 1 ]; then
+            ok "adapter-schema.sh: YCI_ADAPTER_PHASE1_REGIMES has ${phase1_count} entries (>=1)"
+        else
+            fail "adapter-schema.sh: YCI_ADAPTER_PHASE1_REGIMES has ${phase1_count:-0} entries (need >=1)"
         fi
 
         # A5. YCI_ADAPTER_SCHEMA_EXEMPT has at least 1 entry
@@ -678,57 +759,112 @@ validate_compliance_adapters() {
     fi
 
     # ---- Check C: Adapter directory structure ----------------------------------
+    #
+    # Discovery-based: every directory under compliance-adapters/ is validated.
+    # This accommodates both Phase-1 baseline adapters (commercial, none) and
+    # pre-Phase-1 minimal adapters (hipaa) without hardcoding the regime list.
 
-    # Source adapter-schema.sh once to get helper functions and arrays.
-    # Use a subshell for checks that need the functions, not polluting this shell.
-    local regimes=(commercial none)
-    local regime
+    local adapter_dir regime is_exempt is_phase1
+    for adapter_dir in "${adapters_root}"/*/; do
+        [ -d "$adapter_dir" ] || continue
+        regime="$(basename "$adapter_dir")"
 
-    for regime in "${regimes[@]}"; do
-        local adapter_dir="${adapters_root}/${regime}"
-
-        # C1. Directory exists
-        if [ ! -d "$adapter_dir" ]; then
-            fail "compliance-adapters/${regime}/: directory missing"
-            continue
-        fi
         ok "compliance-adapters/${regime}/: directory present"
 
-        # C2. All expected files present and non-empty
-        local expected_files
-        expected_files="$(bash -c ". '${schema_lib}'; yci_adapter_expected_files '${regime}'" 2>/dev/null)"
-        local f
-        while IFS= read -r f; do
-            [ -z "$f" ] && continue
-            if [ -s "${adapter_dir}/${f}" ]; then
-                ok "compliance-adapters/${regime}/${f}: present and non-empty"
-            else
-                fail "compliance-adapters/${regime}/${f}: missing or empty"
-            fi
-        done <<< "$expected_files"
+        # C1. ADAPTER.md is the single hard requirement (all adapters ship it).
+        if [ -s "${adapter_dir}/ADAPTER.md" ]; then
+            ok "compliance-adapters/${regime}/ADAPTER.md: present and non-empty"
+        else
+            fail "compliance-adapters/${regime}/ADAPTER.md: missing or empty"
+        fi
 
-        # C3. evidence-schema.json: parse as JSON if not exempt; must be absent if exempt
-        local is_exempt
+        # C2. Classify the regime.
         if bash -c ". '${schema_lib}'; yci_adapter_is_schema_exempt '${regime}'" 2>/dev/null; then
             is_exempt=1
         else
             is_exempt=0
         fi
-
-        if [ "$is_exempt" -eq 0 ]; then
-            # Non-exempt: evidence-schema.json must exist and parse as valid JSON
-            if python3 -m json.tool "${adapter_dir}/evidence-schema.json" > /dev/null 2>&1; then
-                ok "compliance-adapters/${regime}/evidence-schema.json: valid JSON"
-            else
-                fail "compliance-adapters/${regime}/evidence-schema.json: missing or invalid JSON"
-            fi
+        if bash -c ". '${schema_lib}'; yci_adapter_is_phase1 '${regime}'" 2>/dev/null; then
+            is_phase1=1
         else
-            # Exempt: evidence-schema.json must NOT exist (absence is load-bearing)
+            is_phase1=0
+        fi
+
+        # C3. Phase-1 adapters additionally ship evidence-template.md + handoff-checklist.md.
+        if [ "$is_phase1" -eq 1 ]; then
+            local pf
+            for pf in evidence-template.md handoff-checklist.md; do
+                if [ -s "${adapter_dir}/${pf}" ]; then
+                    ok "compliance-adapters/${regime}/${pf}: present and non-empty (Phase-1 shape)"
+                else
+                    fail "compliance-adapters/${regime}/${pf}: missing or empty (Phase-1 regime '${regime}' requires this)"
+                fi
+            done
+        fi
+
+        # C4. evidence-schema.json:
+        #     - Exempt regimes: MUST NOT ship evidence-schema.json (absence is load-bearing).
+        #     - Non-exempt Phase-1 regimes: MUST ship it; must parse as valid JSON.
+        #     - Non-exempt non-Phase-1 regimes (e.g. hipaa today): if present, must parse as valid JSON.
+        if [ "$is_exempt" -eq 1 ]; then
             if [ ! -f "${adapter_dir}/evidence-schema.json" ]; then
                 ok "compliance-adapters/${regime}/: evidence-schema.json correctly absent (exempt regime)"
             else
                 fail "compliance-adapters/${regime}/evidence-schema.json: must NOT exist for exempt regime '${regime}'"
             fi
+        elif [ "$is_phase1" -eq 1 ]; then
+            if [ ! -f "${adapter_dir}/evidence-schema.json" ]; then
+                fail "compliance-adapters/${regime}/evidence-schema.json: missing (Phase-1 non-exempt regime '${regime}' requires it)"
+            elif python3 -m json.tool "${adapter_dir}/evidence-schema.json" > /dev/null 2>&1; then
+                ok "compliance-adapters/${regime}/evidence-schema.json: valid JSON"
+            else
+                fail "compliance-adapters/${regime}/evidence-schema.json: invalid JSON"
+            fi
+        else
+            if [ -f "${adapter_dir}/evidence-schema.json" ]; then
+                if python3 -m json.tool "${adapter_dir}/evidence-schema.json" > /dev/null 2>&1; then
+                    ok "compliance-adapters/${regime}/evidence-schema.json: valid JSON (optional for pre-Phase-1)"
+                else
+                    fail "compliance-adapters/${regime}/evidence-schema.json: invalid JSON"
+                fi
+            fi
+        fi
+
+        # C5. *-redaction.rules files: parse via load_adapter_rules.py to
+        #     confirm the NAME:/RE: format is well-formed and every regex compiles.
+        #     Non-exempt regimes MUST ship at least one such file.
+        local rule_files rule_count=0
+        rule_files="$(find "$adapter_dir" -maxdepth 1 -type f -name '*-redaction.rules' 2>/dev/null)"
+        if [ -n "$rule_files" ]; then
+            local rf
+            while IFS= read -r rf; do
+                [ -z "$rf" ] && continue
+                rule_count=$((rule_count + 1))
+                local rf_name
+                rf_name="$(basename "$rf")"
+                if REPO_ROOT="$REPO_ROOT" RULE_FILE="$rf" python3 - <<'PY' 2>/dev/null; then
+import os
+import sys
+from pathlib import Path
+sys.path.insert(0, os.path.join(os.environ["REPO_ROOT"], "yci/skills/_shared/telemetry-sanitizer/scripts"))
+from load_adapter_rules import parse_rules_file
+rules = parse_rules_file(Path(os.environ["RULE_FILE"]), default_name="unnamed")
+if not rules:
+    sys.exit(2)
+PY
+                    ok "compliance-adapters/${regime}/${rf_name}: parses cleanly via load_adapter_rules"
+                else
+                    fail "compliance-adapters/${regime}/${rf_name}: failed to parse (invalid NAME:/RE: format or empty)"
+                fi
+            done <<< "$rule_files"
+        fi
+
+        if [ "$is_exempt" -eq 0 ] && [ "$rule_count" -eq 0 ]; then
+            fail "compliance-adapters/${regime}/: non-exempt regime ships no *-redaction.rules file (expected at least one)"
+        elif [ "$is_exempt" -eq 1 ] && [ "$rule_count" -gt 0 ]; then
+            fail "compliance-adapters/${regime}/: schema-exempt regime ships ${rule_count} redaction-rules file(s); exempt regimes should have none"
+        elif [ "$rule_count" -eq 0 ]; then
+            ok "compliance-adapters/${regime}/: no redaction rules (correct for exempt regime)"
         fi
     done
 
@@ -804,6 +940,8 @@ main() {
     validate_customer_guard_hook
     echo
     validate_customer_isolation_lib
+    echo
+    validate_telemetry_sanitizer_lib
     echo
     validate_compliance_adapters
     echo

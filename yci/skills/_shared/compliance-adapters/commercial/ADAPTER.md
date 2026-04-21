@@ -51,10 +51,12 @@ without parsing the body.
 
 ## Redaction rules
 
-File: `redaction.rules`
+File: `generic-redaction.rules`
 
-Format: one rule per line, `<category>\t<pcre>` (literal tab separator).
-Comment headers group rules by class.
+Format: the `NAME:<rule-name>` / `RE:<python-regex>` paragraph format
+consumed by `yci/skills/_shared/telemetry-sanitizer/scripts/load_adapter_rules.py`.
+Discovery is glob-based (`*-redaction.rules`), so the filename prefix
+(`generic-`) describes the rule class within this adapter.
 
 Pattern classes applied by this adapter:
 
