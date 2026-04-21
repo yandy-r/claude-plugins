@@ -76,7 +76,7 @@ test_refuse_all_empty() {
     local out rc
     YCI_CUSTOMER="" out="$(_run_resolver "$sb/real" 2>"$sb/err")"; rc=$?
     # Redirect stderr through the sandbox file
-    "$RESOLVER" --data-root "$sb/real" >"$sb/out" 2>"$sb/err" || true
+    "$RESOLVER" --data-root "$sb/real" >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 1 "$rc" "refuse_all: exit 1"
     assert_contains "$(cat "$sb/err")" "no active customer" "refuse_all: refusal phrase"
@@ -94,7 +94,7 @@ test_walkup_stops_at_home() {
     local rc
     "$RESOLVER" --data-root "$sb/real" >"$sb/out" 2>"$sb/err"
     rc=$?
-    (cd "$sb/home/project" && "$RESOLVER" --data-root "$sb/real" >"$sb/out2" 2>"$sb/err2") || true
+    (cd "$sb/home/project" && "$RESOLVER" --data-root "$sb/real" >"$sb/out2" 2>"$sb/err2")
     rc=$?
     assert_exit 1 "$rc" "walkup_home: refused (did not ascend past HOME)"
     assert_contains "$(cat "$sb/err2")" "no active customer" "walkup_home: refusal message"
@@ -117,11 +117,12 @@ test_empty_env_ignored() {
 # ---------------------------------------------------------------------------
 test_whitespace_dotfile_fallthrough() {
     local sb="$1"
-    # CWD dotfile is whitespace-only; ancestor (cwd parent) has valid value
-    printf '   \n   \n' > "$sb/cwd/.yci-customer"
-    echo beta > "$sb/home/.yci-customer"
-    export HOME="$sb/home"
+    # Walk from $sb/cwd/sub: first visit $sb/cwd/sub/.yci-customer (whitespace
+    # → skip), then $sb/cwd/.yci-customer (valid → beta wins).
     mkdir -p "$sb/cwd/sub"
+    printf '   \n   \n' > "$sb/cwd/sub/.yci-customer"
+    echo beta > "$sb/cwd/.yci-customer"
+    export HOME="$sb/home"
     local out rc
     YCI_CUSTOMER="" out="$(cd "$sb/cwd/sub" && "$RESOLVER" --data-root "$sb/real" 2>"${sb}/stderr")"; rc=$?
     assert_exit 0 "$rc" "whitespace_dotfile: falls through to ancestor"
@@ -133,10 +134,10 @@ test_whitespace_dotfile_fallthrough() {
 # ---------------------------------------------------------------------------
 test_comment_dotfile_fallthrough() {
     local sb="$1"
-    printf '# comment only\n# another comment\n' > "$sb/cwd/.yci-customer"
-    echo beta > "$sb/home/.yci-customer"
-    export HOME="$sb/home"
     mkdir -p "$sb/cwd/sub"
+    printf '# comment only\n# another comment\n' > "$sb/cwd/sub/.yci-customer"
+    echo beta > "$sb/cwd/.yci-customer"
+    export HOME="$sb/home"
     local out rc
     YCI_CUSTOMER="" out="$(cd "$sb/cwd/sub" && "$RESOLVER" --data-root "$sb/real" 2>"${sb}/stderr")"; rc=$?
     assert_exit 0 "$rc" "comment_dotfile: falls through to ancestor"
@@ -149,7 +150,7 @@ test_comment_dotfile_fallthrough() {
 test_env_invalid_id_format() {
     local sb="$1"
     local rc
-    YCI_CUSTOMER="ACME" "$RESOLVER" --data-root "$sb/real" >"$sb/out" 2>"$sb/err" || true
+    YCI_CUSTOMER="ACME" "$RESOLVER" --data-root "$sb/real" >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 1 "$rc" "env_invalid: exit 1"
     assert_contains "$(cat "$sb/err")" "invalid customer id" "env_invalid: error phrase"
@@ -162,7 +163,7 @@ test_missing_state_json() {
     local sb="$1"
     # sb/real exists but no state.json inside
     local rc
-    YCI_CUSTOMER="" "$RESOLVER" --data-root "$sb/real" >"$sb/out" 2>"$sb/err" || true
+    YCI_CUSTOMER="" "$RESOLVER" --data-root "$sb/real" >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 1 "$rc" "missing_state: exit 1"
     assert_contains "$(cat "$sb/err")" "no active customer" "missing_state: refusal phrase"
@@ -175,7 +176,7 @@ test_state_json_no_active_field() {
     local sb="$1"
     echo '{}' > "$sb/real/state.json"
     local rc
-    YCI_CUSTOMER="" "$RESOLVER" --data-root "$sb/real" >"$sb/out" 2>"$sb/err" || true
+    YCI_CUSTOMER="" "$RESOLVER" --data-root "$sb/real" >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 1 "$rc" "state_no_active: exit 1"
     assert_contains "$(cat "$sb/err")" "no active customer" "state_no_active: refusal phrase"
@@ -188,7 +189,7 @@ test_state_json_active_null() {
     local sb="$1"
     echo '{"active":null}' > "$sb/real/state.json"
     local rc
-    YCI_CUSTOMER="" "$RESOLVER" --data-root "$sb/real" >"$sb/out" 2>"$sb/err" || true
+    YCI_CUSTOMER="" "$RESOLVER" --data-root "$sb/real" >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 1 "$rc" "state_null: exit 1"
     assert_contains "$(cat "$sb/err")" "no active customer" "state_null: refusal phrase"
@@ -225,7 +226,7 @@ test_whitespace_env_shows_empty_hint() {
     local sb="$1"
     # No dotfile, no state — so we see the full refusal with hint
     local rc
-    YCI_CUSTOMER="   " "$RESOLVER" --data-root "$sb/real" >"$sb/out" 2>"$sb/err" || true
+    YCI_CUSTOMER="   " "$RESOLVER" --data-root "$sb/real" >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 1 "$rc" "ws_env_hint: exit 1"
     assert_contains "$(cat "$sb/err")" "whitespace-only" "ws_env_hint: hint in stderr"
@@ -238,7 +239,7 @@ test_dotfile_invalid_id_format() {
     local sb="$1"
     echo "UPPERCASE_BAD" > "$sb/cwd/.yci-customer"
     local rc
-    YCI_CUSTOMER="" "$RESOLVER" --data-root "$sb/real" >"$sb/out" 2>"$sb/err" || true
+    YCI_CUSTOMER="" "$RESOLVER" --data-root "$sb/real" >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 1 "$rc" "dotfile_invalid: exit 1"
     assert_contains "$(cat "$sb/err")" "invalid customer id" "dotfile_invalid: format error phrase"

@@ -114,7 +114,7 @@ test_missing_file() {
     _loader_missing_diagnostic || { _yci_test_report PASS "missing_file: skipped (loader absent)"; return 0; }
     mkdir -p "$sb/real/profiles"
     local rc
-    "$LOADER" "$sb/real" nonexistent >"$sb/out" 2>"$sb/err" || true
+    "$LOADER" "$sb/real" nonexistent >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 1 "$rc" "missing_file: exit 1"
     assert_contains "$(cat "$sb/err")" "profile not found" "missing_file: error phrase"
@@ -129,7 +129,7 @@ test_malformed_yaml() {
     mkdir -p "$sb/real/profiles"
     printf 'customer:\n  id: broken\n  bad: [unclosed\n' > "$sb/real/profiles/broken.yaml"
     local rc
-    "$LOADER" "$sb/real" broken >"$sb/out" 2>"$sb/err" || true
+    "$LOADER" "$sb/real" broken >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 2 "$rc" "malformed_yaml: exit 2"
     assert_contains "$(cat "$sb/err")" "malformed YAML" "malformed_yaml: error phrase"
@@ -167,7 +167,7 @@ safety:
   scope_enforcement: off
 EOF
     local rc
-    "$LOADER" "$sb/real" no-customer >"$sb/out" 2>"$sb/err" || true
+    "$LOADER" "$sb/real" no-customer >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 2 "$rc" "missing_customer: exit 2"
     assert_contains "$(cat "$sb/err")" "missing required field" "missing_customer: error phrase"
@@ -207,7 +207,7 @@ safety:
   scope_enforcement: warn
 EOF
     local rc
-    "$LOADER" "$sb/real" no-sow >"$sb/out" 2>"$sb/err" || true
+    "$LOADER" "$sb/real" no-sow >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 2 "$rc" "missing_sow: exit 2"
     assert_contains "$(cat "$sb/err")" "missing required field" "missing_sow: error phrase"
@@ -248,7 +248,7 @@ safety:
   change_window_required: false
 EOF
     local rc
-    "$LOADER" "$sb/real" no-scope >"$sb/out" 2>"$sb/err" || true
+    "$LOADER" "$sb/real" no-scope >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 2 "$rc" "missing_scope_enforcement: exit 2"
     assert_contains "$(cat "$sb/err")" "missing required field" "missing_scope_enforcement: error phrase"
@@ -289,7 +289,7 @@ safety:
   scope_enforcement: warn
 EOF
     local rc
-    "$LOADER" "$sb/real" bad-regime >"$sb/out" 2>"$sb/err" || true
+    "$LOADER" "$sb/real" bad-regime >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 2 "$rc" "invalid_regime: exit 2"
     assert_contains "$(cat "$sb/err")" "invalid value" "invalid_regime: error phrase"
@@ -330,7 +330,7 @@ safety:
   scope_enforcement: warn
 EOF
     local rc
-    "$LOADER" "$sb/real" bad-type >"$sb/out" 2>"$sb/err" || true
+    "$LOADER" "$sb/real" bad-type >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 2 "$rc" "invalid_eng_type: exit 2"
     assert_contains "$(cat "$sb/err")" "invalid value" "invalid_eng_type: error phrase"
@@ -371,7 +371,7 @@ safety:
   scope_enforcement: warn
 EOF
     local rc
-    "$LOADER" "$sb/real" bad-posture >"$sb/out" 2>"$sb/err" || true
+    "$LOADER" "$sb/real" bad-posture >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 2 "$rc" "invalid_posture: exit 2"
     assert_contains "$(cat "$sb/err")" "invalid value" "invalid_posture: error phrase"
@@ -412,7 +412,7 @@ safety:
   scope_enforcement: maybe
 EOF
     local rc
-    "$LOADER" "$sb/real" bad-enforcement >"$sb/out" 2>"$sb/err" || true
+    "$LOADER" "$sb/real" bad-enforcement >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 2 "$rc" "invalid_enforcement: exit 2"
     assert_contains "$(cat "$sb/err")" "invalid value" "invalid_enforcement: error phrase"
@@ -453,7 +453,7 @@ safety:
   scope_enforcement: warn
 EOF
     local rc
-    "$LOADER" "$sb/real" bad-handoff >"$sb/out" 2>"$sb/err" || true
+    "$LOADER" "$sb/real" bad-handoff >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 2 "$rc" "invalid_handoff: exit 2"
     assert_contains "$(cat "$sb/err")" "invalid value" "invalid_handoff: error phrase"
@@ -505,7 +505,7 @@ EOF
 # All valid enum round-trips: compliance.regime values
 # ---------------------------------------------------------------------------
 _mk_profile() {
-    local sb="$1" id="$2" regime="$3" posture="$4" eng_type="$5" enforcement="$6" handoff="$7"
+    local sb="$1" id="$2" regime="$3" posture="$4" eng_type="$5" handoff="$6" enforcement="$7"
     mkdir -p "$sb/real/profiles"
     cat > "$sb/real/profiles/${id}.yaml" <<EOF
 customer:
@@ -528,11 +528,11 @@ approval:
 deliverable:
   format: [markdown]
   header_template: "Deliv"
-  handoff_format: ${handoff}
+  handoff_format: "${handoff}"
 safety:
-  default_posture: ${posture}
+  default_posture: "${posture}"
   change_window_required: false
-  scope_enforcement: ${enforcement}
+  scope_enforcement: "${enforcement}"
 EOF
 }
 

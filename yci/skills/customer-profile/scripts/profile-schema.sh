@@ -46,6 +46,9 @@ YCI_ENGAGEMENT_TYPES=(discovery design implementation ongoing)
 # Values for safety.scope_enforcement (schema.md "Scope enforcement values").
 YCI_SCOPE_ENFORCEMENT=(warn block off)
 
+# Values for deliverable.handoff_format (schema.md "deliverable" table).
+YCI_DELIVERABLE_HANDOFF_FORMATS=(git-repo zip confluence pdf-bundle)
+
 # Inventory/approval adapter types: schema.md enumerates these but the loader
 # validates adapter presence (non-empty string), not a closed enum, because
 # new adapters are added without schema changes. Uncomment if stricter

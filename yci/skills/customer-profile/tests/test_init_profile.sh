@@ -8,7 +8,7 @@
 #   - ${YCI_SCRIPTS_DIR}/init-profile.sh  (task 5.1)
 #
 # shellcheck disable=SC1091
-set -euo pipefail
+# set -euo pipefail (removed: tests need explicit exit-code capture)
 source "$(dirname "${BASH_SOURCE[0]}")/helpers.sh"
 
 # ---------------------------------------------------------------------------
@@ -36,7 +36,7 @@ test_init_creates_from_template() {
 test_init_refuses_overwrite() {
     local sb="$1"
     "${YCI_SCRIPTS_DIR}/init-profile.sh" "$sb/real" acme-test >/dev/null
-    "${YCI_SCRIPTS_DIR}/init-profile.sh" "$sb/real" acme-test 2>"$sb/err" || true
+    "${YCI_SCRIPTS_DIR}/init-profile.sh" "$sb/real" acme-test 2>"$sb/err"
     rc=$?
     assert_exit 1 "$rc" "init overwrite: exit 1"
     assert_contains "$(cat "$sb/err")" "already exists" "init overwrite: phrase"
@@ -49,7 +49,7 @@ test_init_refuses_overwrite() {
 test_init_force_overwrites() {
     local sb="$1"
     "${YCI_SCRIPTS_DIR}/init-profile.sh" "$sb/real" acme-test >/dev/null
-    "${YCI_SCRIPTS_DIR}/init-profile.sh" "$sb/real" acme-test --force || true
+    "${YCI_SCRIPTS_DIR}/init-profile.sh" "$sb/real" acme-test --force
     rc=$?
     assert_exit 0 "$rc" "init --force: exit 0"
 }
@@ -60,7 +60,7 @@ test_init_force_overwrites() {
 # ---------------------------------------------------------------------------
 test_init_rejects_uppercase() {
     local sb="$1"
-    "${YCI_SCRIPTS_DIR}/init-profile.sh" "$sb/real" ACME 2>"$sb/err" || true
+    "${YCI_SCRIPTS_DIR}/init-profile.sh" "$sb/real" ACME 2>"$sb/err"
     rc=$?
     assert_exit 1 "$rc" "init uppercase: exit 1"
     assert_contains "$(cat "$sb/err")" "invalid" "init uppercase: phrase"
@@ -72,7 +72,7 @@ test_init_rejects_uppercase() {
 # ---------------------------------------------------------------------------
 test_init_rejects_leading_hyphen() {
     local sb="$1"
-    "${YCI_SCRIPTS_DIR}/init-profile.sh" "$sb/real" -acme 2>"$sb/err" || true
+    "${YCI_SCRIPTS_DIR}/init-profile.sh" "$sb/real" -acme 2>"$sb/err"
     rc=$?
     assert_exit 1 "$rc" "init leading-hyphen: exit 1"
     assert_contains "$(cat "$sb/err")" "invalid" "init leading-hyphen: phrase"
@@ -84,12 +84,12 @@ test_init_rejects_leading_hyphen() {
 # ---------------------------------------------------------------------------
 test_init_rejects_reserved() {
     local sb="$1"
-    "${YCI_SCRIPTS_DIR}/init-profile.sh" "$sb/real" _internal 2>"$sb/err" || true
+    "${YCI_SCRIPTS_DIR}/init-profile.sh" "$sb/real" _internal 2>"$sb/err"
     rc=$?
     assert_exit 1 "$rc" "init reserved: exit 1 without --allow-reserved"
     assert_contains "$(cat "$sb/err")" "reserved" "init reserved: phrase"
     # with --allow-reserved it should succeed
-    "${YCI_SCRIPTS_DIR}/init-profile.sh" "$sb/real" _internal --allow-reserved || true
+    "${YCI_SCRIPTS_DIR}/init-profile.sh" "$sb/real" _internal --allow-reserved
     rc=$?
     assert_exit 0 "$rc" "init reserved: exit 0 with --allow-reserved"
 }
@@ -102,7 +102,7 @@ test_init_respects_data_root_flag() {
     local sb="$1"
     local alt="$sb/alternate-root"
     mkdir -p "$alt"
-    "${YCI_SCRIPTS_DIR}/init-profile.sh" "$alt" flag-test || true
+    "${YCI_SCRIPTS_DIR}/init-profile.sh" "$alt" flag-test
     rc=$?
     assert_exit 0 "$rc" "init alternate-root: exit 0"
     if [ -f "$alt/profiles/flag-test.yaml" ]; then

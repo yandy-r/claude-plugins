@@ -138,7 +138,7 @@ test_corrupt_json() {
     mkdir -p "$sb/real"
     printf '{ not valid json at all\n' > "$sb/real/state.json"
     local rc
-    state_get_active "$sb/real" >"$sb/out" 2>"$sb/err" || true
+    state_get_active "$sb/real" >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 2 "$rc" "corrupt_json: exit 2"
     assert_contains "$(cat "$sb/err")" "corrupt state file" "corrupt_json: error phrase"
@@ -155,7 +155,7 @@ test_corrupt_json_state_read() {
     mkdir -p "$sb/real"
     printf 'TRUNCATED GARBAGE' > "$sb/real/state.json"
     local rc
-    state_read "$sb/real" >"$sb/out" 2>"$sb/err" || true
+    state_read "$sb/real" >"$sb/out" 2>"$sb/err"
     rc=$?
     assert_exit 2 "$rc" "corrupt_read: exit 2"
     assert_contains "$(cat "$sb/err")" "corrupt state file" "corrupt_read: error phrase"
@@ -201,7 +201,7 @@ test_write_permission_denied() {
     mkdir -p "$sb/real"
     chmod 0500 "$sb/real"
     local rc
-    state_write_active "$sb/real" acme >"$sb/out" 2>"$sb/err" || true
+    state_write_active "$sb/real" acme >"$sb/out" 2>"$sb/err"
     rc=$?
     # restore before cleanup
     chmod 0700 "$sb/real"

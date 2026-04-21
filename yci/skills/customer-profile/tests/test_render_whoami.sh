@@ -7,7 +7,7 @@
 #   - ${YCI_SCRIPTS_DIR}/render-whoami.sh  (task 5.1)
 #
 # shellcheck disable=SC1091
-set -euo pipefail
+# set -euo pipefail (removed: tests need explicit exit-code capture)
 source "$(dirname "${BASH_SOURCE[0]}")/helpers.sh"
 
 FIXTURES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/fixtures" && pwd -P 2>/dev/null \
@@ -60,7 +60,7 @@ test_whoami_minimal_profile() {
 test_whoami_missing_profile() {
     local sb="$1"
     "${YCI_SCRIPTS_DIR}/render-whoami.sh" "$sb/real" nonexistent \
-        >/dev/null 2>"$sb/err" || true
+        >/dev/null 2>"$sb/err"
     rc=$?
     assert_exit 1 "$rc" "whoami missing: exit 1"
     assert_contains "$(cat "$sb/err")" "not found" "whoami missing: phrase"

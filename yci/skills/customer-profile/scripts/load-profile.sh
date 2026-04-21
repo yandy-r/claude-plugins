@@ -41,6 +41,7 @@ export YCI_COMPLIANCE_REGIMES_ENV="${YCI_COMPLIANCE_REGIMES[*]}"
 export YCI_SAFETY_POSTURES_ENV="${YCI_SAFETY_POSTURES[*]}"
 export YCI_ENGAGEMENT_TYPES_ENV="${YCI_ENGAGEMENT_TYPES[*]}"
 export YCI_SCOPE_ENFORCEMENT_ENV="${YCI_SCOPE_ENFORCEMENT[*]}"
+export YCI_HANDOFF_FORMATS_ENV="${YCI_DELIVERABLE_HANDOFF_FORMATS[*]}"
 
 python3 - "$profile_path" <<'PY'
 import json, os, sys
@@ -118,6 +119,7 @@ enums = {
     ("safety",     "default_posture"):  set(os.environ["YCI_SAFETY_POSTURES_ENV"].split()),
     ("engagement", "type"):             set(os.environ["YCI_ENGAGEMENT_TYPES_ENV"].split()),
     ("safety",     "scope_enforcement"): set(os.environ["YCI_SCOPE_ENFORCEMENT_ENV"].split()),
+    ("deliverable", "handoff_format"):   set(os.environ["YCI_HANDOFF_FORMATS_ENV"].split()),
 }
 for (sec, field), allowed in enums.items():
     val = data.get(sec, {}).get(field)
