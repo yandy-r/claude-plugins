@@ -24,7 +24,8 @@ test_env_wins() {
     echo beta > "$sb/cwd/.yci-customer"
     echo '{"active":"gamma"}' > "$sb/real/state.json"
     local out rc
-    YCI_CUSTOMER=acme out="$(_run_resolver "$sb/real")"; rc=$?
+    export YCI_CUSTOMER=acme
+    out="$(_run_resolver "$sb/real")"; rc=$?
     assert_exit 0 "$rc" "env_wins: exit 0"
     assert_eq "$out" "acme" "env_wins: output is acme"
 }
@@ -37,7 +38,7 @@ test_dotfile_at_cwd() {
     echo beta > "$sb/cwd/.yci-customer"
     echo '{"active":"gamma"}' > "$sb/real/state.json"
     local out rc
-    YCI_CUSTOMER="" out="$(_run_resolver "$sb/real")"; rc=$?
+    out="$(_run_resolver "$sb/real")"; rc=$?
     assert_exit 0 "$rc" "dotfile_cwd: exit 0"
     assert_eq "$out" "beta" "dotfile_cwd: output is beta"
 }
@@ -51,7 +52,7 @@ test_dotfile_ancestor() {
     mkdir -p "$sb/cwd/nested/deep"
     # Move to deep subdirectory; dotfile is two levels above (within home subtree)
     local out rc
-    YCI_CUSTOMER="" out="$(cd "$sb/cwd/nested/deep" && "$RESOLVER" --data-root "$sb/real" 2>"${sb}/stderr")"; rc=$?
+    out="$(cd "$sb/cwd/nested/deep" && "$RESOLVER" --data-root "$sb/real" 2>"${sb}/stderr")"; rc=$?
     assert_exit 0 "$rc" "dotfile_ancestor: exit 0"
     assert_eq "$out" "beta" "dotfile_ancestor: output is beta"
 }
@@ -63,7 +64,7 @@ test_mru_only() {
     local sb="$1"
     echo '{"active":"gamma","mru":["gamma"]}' > "$sb/real/state.json"
     local out rc
-    YCI_CUSTOMER="" out="$(_run_resolver "$sb/real")"; rc=$?
+    out="$(_run_resolver "$sb/real")"; rc=$?
     assert_exit 0 "$rc" "mru_only: exit 0"
     assert_eq "$out" "gamma" "mru_only: output is gamma"
 }
@@ -74,7 +75,7 @@ test_mru_only() {
 test_refuse_all_empty() {
     local sb="$1"
     local out rc
-    YCI_CUSTOMER="" out="$(_run_resolver "$sb/real" 2>"$sb/err")"; rc=$?
+    out="$(_run_resolver "$sb/real" 2>"$sb/err")"; rc=$?
     # Redirect stderr through the sandbox file
     "$RESOLVER" --data-root "$sb/real" >"$sb/out" 2>"$sb/err"
     rc=$?
@@ -107,7 +108,7 @@ test_empty_env_ignored() {
     local sb="$1"
     echo beta > "$sb/cwd/.yci-customer"
     local out rc
-    YCI_CUSTOMER="" out="$(_run_resolver "$sb/real")"; rc=$?
+    out="$(_run_resolver "$sb/real")"; rc=$?
     assert_exit 0 "$rc" "empty_env: exit 0"
     assert_eq "$out" "beta" "empty_env: falls through to dotfile"
 }
@@ -124,7 +125,7 @@ test_whitespace_dotfile_fallthrough() {
     echo beta > "$sb/cwd/.yci-customer"
     export HOME="$sb/home"
     local out rc
-    YCI_CUSTOMER="" out="$(cd "$sb/cwd/sub" && "$RESOLVER" --data-root "$sb/real" 2>"${sb}/stderr")"; rc=$?
+    out="$(cd "$sb/cwd/sub" && "$RESOLVER" --data-root "$sb/real" 2>"${sb}/stderr")"; rc=$?
     assert_exit 0 "$rc" "whitespace_dotfile: falls through to ancestor"
     assert_eq "$out" "beta" "whitespace_dotfile: ancestor value beta"
 }
@@ -139,7 +140,7 @@ test_comment_dotfile_fallthrough() {
     echo beta > "$sb/cwd/.yci-customer"
     export HOME="$sb/home"
     local out rc
-    YCI_CUSTOMER="" out="$(cd "$sb/cwd/sub" && "$RESOLVER" --data-root "$sb/real" 2>"${sb}/stderr")"; rc=$?
+    out="$(cd "$sb/cwd/sub" && "$RESOLVER" --data-root "$sb/real" 2>"${sb}/stderr")"; rc=$?
     assert_exit 0 "$rc" "comment_dotfile: falls through to ancestor"
     assert_eq "$out" "beta" "comment_dotfile: ancestor value beta"
 }
@@ -202,7 +203,8 @@ test_whitespace_only_env() {
     local sb="$1"
     echo beta > "$sb/cwd/.yci-customer"
     local out rc
-    YCI_CUSTOMER="   " out="$(_run_resolver "$sb/real")"; rc=$?
+    export YCI_CUSTOMER="   "
+    out="$(_run_resolver "$sb/real")"; rc=$?
     assert_exit 0 "$rc" "whitespace_env: exit 0"
     assert_eq "$out" "beta" "whitespace_env: falls through to dotfile beta"
 }
