@@ -84,8 +84,10 @@ reasoner uses targets as the entry points for BFS on the inventory.
   interface suffix is narrative-only.
 - `vlan` — matches devices with `vlans` field containing the vlan id
   (inventory side; the `file` adapter surfaces `devices[].vlans` as a list).
-- `arn` — AWS ARN. Reasoner parses the service-and-resource portion and
-  matches against `services/<id>.yaml` when `services[].arns` lists the ARN.
+- `arn` — AWS ARN. Reasoner performs a direct exact-match lookup against each
+  entry in `services[].arns`; if the target's id string appears verbatim in any
+  service's `arns` list, that service is treated as directly impacted. No
+  parsing of the ARN's service-and-resource components is performed.
 - `tenant` — match against `tenants/<id>.yaml`. Direct-tenant changes surface
   the tenant in `tenants[]` of the label and downstream-expand to its
   services.
@@ -94,11 +96,18 @@ reasoner uses targets as the entry points for BFS on the inventory.
 
 If a target's id is absent from the inventory the reasoner:
 
-1. Still passes the target through to the label (operators must see what they
-   asked about).
-2. Emits `coverage_gaps[]` entry with `kind: unknown-device` /
-   `kind: unknown-service` / etc. and a `detail` pointing at the id.
-3. Downgrades `confidence` to `low` per the [Confidence rule](./label-schema.md#confidence-rule).
+1. Emits a `coverage_gaps[]` entry with `kind: unknown-device` /
+   `kind: unknown-service` / `missing-tenant` and a `detail` string that
+   includes the target id.
+2. Downgrades `confidence` to `low` per the
+   [Confidence rule](./label-schema.md#confidence-rule) — `unknown-device`,
+   `unknown-service`, `orphan-edge`, and `missing-tenant` are structural gaps
+   that force low confidence.
+
+Note: the label schema has no `targets` field. Unknown targets are **not**
+echoed into `direct_devices[]`, `services[]`, or `tenants[]`; they surface
+only through `coverage_gaps[]`. Operators must consult the coverage-gap
+detail strings to see which requested targets were not resolved.
 
 ## Worked example
 

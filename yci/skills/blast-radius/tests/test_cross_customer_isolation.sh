@@ -21,19 +21,8 @@ export YCI_GENERATED_AT="2026-04-21T00:00:00Z"
 INV_W="$("$ADAPTER" "$INV_WIDGET")"
 INV_O="$("$ADAPTER" "$INV_OTHER")"
 
-FP_W="$(python3 -c '
-import hashlib, json, sys
-d = json.loads(sys.argv[1])
-subset = {k: d.get(k, []) for k in ("tenants", "services", "devices", "dependencies", "sites")}
-print("sha256:" + hashlib.sha256(json.dumps(subset, sort_keys=True, separators=(",", ":")).encode()).hexdigest())
-' "$INV_W")"
-
-FP_O="$(python3 -c '
-import hashlib, json, sys
-d = json.loads(sys.argv[1])
-subset = {k: d.get(k, []) for k in ("tenants", "services", "devices", "dependencies", "sites")}
-print("sha256:" + hashlib.sha256(json.dumps(subset, sort_keys=True, separators=(",", ":")).encode()).hexdigest())
-' "$INV_O")"
+FP_W="$(compute_inventory_fingerprint "$INV_W")"
+FP_O="$(compute_inventory_fingerprint "$INV_O")"
 
 if [ "$FP_W" != "$FP_O" ]; then
     _yci_test_report PASS "two customer inventories yield distinct fingerprints"

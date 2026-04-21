@@ -1,6 +1,6 @@
 {
   "adapter": "file",
-  "root": "/home/yandy/.claude-worktrees/claude-plugins-yci-blast-radius/yci/skills/blast-radius/tests/fixtures/inventory-widgetcorp",
+  "root": "<ROOT_DIR>",
   "tenants": [
     {
       "id": "platform",

@@ -50,10 +50,12 @@ unreadable, the skill exits 1 with `br-change-file-missing`.
 ### Optional overrides
 
 - `--adapter <name>` — forces a specific inventory adapter, overriding the
-  `inventory.adapter` value in the active customer profile. Known values: `file`,
-  `netbox`. `file` is fully implemented; all others exit 2 with
-  `br-adapter-not-implemented` and point to the stub in
-  `_shared/inventory-adapters/<name>/ADAPTER.md`.
+  `inventory.adapter` value in the active customer profile. Known values:
+  `file`, `netbox`, `nautobot`, `servicenow-cmdb`, `infoblox`. Only `file` is
+  fully implemented; `netbox`, `nautobot`, `servicenow-cmdb`, and `infoblox`
+  exit 2 with `br-adapter-not-implemented` and point to the stub in
+  `_shared/inventory-adapters/<name>/ADAPTER.md`. Any other value exits 2
+  with `br-unknown-adapter`.
 - `--data-root <path>` — overrides the data-root resolution chain (see Data Root
   section in `yci:customer-profile`). Passed directly to `resolve-data-root.sh`.
 - `--format json|markdown|both` — controls output format (default `json`). See
@@ -70,18 +72,28 @@ unreadable, the skill exits 1 with `br-change-file-missing`.
 
 The blast-radius label JSON is written to stdout, or to `--output` if provided.
 The label schema is fully documented in `references/label-schema.md` and
-`references/label-schema.json`. Key top-level fields:
+`references/label-schema.json`. Key top-level fields (names and enum values
+mirror `references/label-schema.json` verbatim):
 
 - `schema_version` — label schema version (integer, currently `1`)
 - `change_id` — echoed from the change-input
 - `customer` — active customer ID
+- `inventory_adapter` — adapter that produced the inventory
+  (`file` | `netbox` | `nautobot` | `servicenow-cmdb` | `infoblox` | `none`)
+- `inventory_source_fingerprint` — `sha256:<64-hex>` digest of the
+  inventory snapshot used for this reasoning pass
+- `generated_at` — RFC3339 / ISO-8601 UTC timestamp
 - `tenants` — list of tenant IDs affected
-- `services` — list of service identifiers affected
-- `devices` — list of device IDs directly targeted or transitively affected
-- `dependencies` — upstream dependencies of the targeted resources
-- `downstream_consumers` — resources that consume the targeted services
-- `rto_band` — estimated recovery-time objective band (`minutes`, `hours`, `days`)
-- `confidence` — reasoning confidence score (`high`, `medium`, `low`)
+- `services` — list of service objects (`id`, `criticality`, `rto_band`,
+  optional `owner_tenant`) affected
+- `direct_devices` — list of device objects (`id`, `role`, optional `site`)
+  directly targeted by the change
+- `dependencies` — edges walked during reasoning (`from`, `to`, `type`)
+- `downstream_consumers` — services and tenants consuming the targeted
+  resources (`id`, `kind`, `distance`)
+- `rto_band` — aggregate recovery-time objective band
+  (`lt-5m` | `5m-1h` | `1h-4h` | `gt-4h` | `unknown`)
+- `confidence` — reasoning confidence score (`high` | `medium` | `low`)
 - `coverage_gaps` — list of gap objects where inventory data was insufficient
 
 ### Format: `markdown`
@@ -100,8 +112,9 @@ Two artifact files are written to disk:
 
 Both paths are printed to stdout (one per line, prefixed `blast-radius: `).
 When `--output` is provided alongside `--format both`, it is treated as an error
-and the skill exits 1 with `br-format-invalid` (cannot specify a single output
-path for two files).
+and the skill exits 1 with `br-output-conflict` — a single `--output` path
+cannot receive both JSON and markdown outputs. Omit `--output` to use the
+default artifacts location.
 
 ## Workflow
 

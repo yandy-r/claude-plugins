@@ -181,6 +181,26 @@ sys.exit(0 if found else 1)
 }
 
 # ---------------------------------------------------------------------------
+# Inventory helpers
+# ---------------------------------------------------------------------------
+
+# Compute the canonical inventory_source_fingerprint for a normalized adapter
+# output (JSON string on stdin argument). Mirrors the fingerprint logic inside
+# reason.sh so tests can assert fingerprint identity/divergence without
+# invoking the reasoner.
+#
+# Usage: compute_inventory_fingerprint "$INVENTORY_JSON"
+# Stdout: sha256:<64-hex>
+compute_inventory_fingerprint() {
+    python3 -c '
+import hashlib, json, sys
+d = json.loads(sys.argv[1])
+subset = {k: d.get(k, []) for k in ("tenants", "services", "devices", "dependencies", "sites")}
+print("sha256:" + hashlib.sha256(json.dumps(subset, sort_keys=True, separators=(",", ":")).encode()).hexdigest())
+' "$1"
+}
+
+# ---------------------------------------------------------------------------
 # Summary — call at the end of every test_*.sh
 # ---------------------------------------------------------------------------
 

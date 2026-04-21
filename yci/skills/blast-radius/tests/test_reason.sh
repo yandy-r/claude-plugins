@@ -19,7 +19,15 @@ build_payload() {
     local inv_json
     inv_json="$("$ADAPTER" "$INV_WIDGET")"
     local change_json
-    change_json="$(python3 -c 'import sys,json,yaml; print(json.dumps(yaml.safe_load(open(sys.argv[1]))))' "${FIXTURES_DIR}/change-${change_name}.yaml")"
+    change_json="$(python3 -c '
+import sys, json
+try:
+    import yaml
+except ImportError:
+    sys.stderr.write("test_reason.sh: pyyaml required to load change-*.yaml fixtures — install pyyaml via pip or your distro package manager\n")
+    sys.exit(3)
+print(json.dumps(yaml.safe_load(open(sys.argv[1]))))
+' "${FIXTURES_DIR}/change-${change_name}.yaml")"
     python3 -c "
 import json, sys
 inv = json.loads(sys.argv[1])

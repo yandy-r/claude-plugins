@@ -44,6 +44,7 @@ are not repeated here. See
 - **Exit code**: 1
 - **Trigger**: `--change-file` flag was not provided when invoking the skill.
 - **Message**:
+
   ```
   yci: --change-file <path> is required
     provide a YAML or JSON change-input file; see references/change-input-schema.md
@@ -59,6 +60,7 @@ are not repeated here. See
 - **Trigger**: `--change-file <path>` was supplied but the file does not exist at
   the given path or is not readable by the current process.
 - **Message**:
+
   ```
   yci: change file not found or not readable: <path>
     check the path and file permissions
@@ -75,11 +77,13 @@ are not repeated here. See
   parsing. The parser is selected by file extension (`.json` → JSON parser;
   all others → YAML parser). The parse error is appended to the message.
 - **Message**:
+
   ```
   yci: change file is not valid YAML/JSON: <path>
     <parse-error>
   Fix the syntax and retry.
   ```
+
   `<parse-error>` is the verbatim first line of the parser exception message.
 
 ---
@@ -94,11 +98,14 @@ are not repeated here. See
   or `change_type` contains a value outside the allowed enum set defined in
   `references/change-input-schema.md`.
 - **Message** (missing field):
+
   ```
   yci: change file missing required field '<field>': <path>
     see references/change-input-schema.md for the required schema
   ```
+
 - **Message** (bad enum):
+
   ```
   yci: invalid change_type value '<value>': <path>
     allowed values: <allowed-list>
@@ -116,6 +123,7 @@ are not repeated here. See
   `profile.inventory.adapter`) is not in the known set
   (`file`, `netbox`, `nautobot`, `servicenow-cmdb`, `infoblox`).
 - **Message**:
+
   ```
   yci: unknown inventory adapter: '<adapter>'
     known adapters: file, netbox, nautobot, servicenow-cmdb, infoblox
@@ -133,6 +141,7 @@ are not repeated here. See
   (`netbox`, `nautobot`, `servicenow-cmdb`, `infoblox`). Only `file` is
   fully implemented. Points to the adapter stub for implementation guidance.
 - **Message**:
+
   ```
   yci: inventory adapter '<adapter>' is not yet implemented
     stub and interface contract: ${CLAUDE_PLUGIN_ROOT}/skills/_shared/inventory-adapters/<adapter>/ADAPTER.md
@@ -150,6 +159,7 @@ are not repeated here. See
   to a location outside `<data-root>/artifacts/<customer>/`. All output artifacts
   must land under the customer-scoped artifacts directory per PRD §5.1.
 - **Message**:
+
   ```
   yci: output path refused: <resolved-path>
     output must be under <data-root>/artifacts/<customer>/
@@ -165,9 +175,29 @@ are not repeated here. See
 - **Exit code**: 2
 - **Trigger**: `--format` was supplied with a value not in `{json, markdown, both}`.
 - **Message**:
+
   ```
   yci: invalid --format value: '<value>'
     allowed values: json, markdown, both
+  ```
+
+---
+
+### `br-output-conflict`
+
+- **ID**: `br-output-conflict`
+- **Producer**: skill orchestration
+- **Exit code**: 1
+- **Trigger**: `--output <path>` was supplied alongside `--format both`. A
+  single output path cannot receive two separate artifact files (one JSON
+  and one markdown). Either drop `--output` (letting the skill write to the
+  default `<data-root>/artifacts/<customer>/blast-radius/` location) or pick a
+  single format.
+- **Message**:
+
+  ```
+  yci: --output cannot be combined with --format both
+    br-output-conflict: pick a single format or omit --output to use the default artifacts location
   ```
 
 ---
@@ -181,12 +211,27 @@ are not repeated here. See
 - **ID**: `adapter-path-missing`
 - **Producer**: `scripts/adapter-file.sh`
 - **Exit code**: 1
-- **Trigger**: the inventory root path passed to the adapter does not exist or is
-  not a directory.
-- **Message**:
+- **Trigger**: the inventory root path passed to the adapter does not exist, is
+  not readable, or is not a directory.
+- **Message** (path does not exist):
+
   ```
   yci: inventory root not found: <path>
-    set inventory.path in the customer profile or create the directory
+    adapter-path-missing
+  ```
+
+- **Message** (path unreadable):
+
+  ```
+  yci: inventory root unreadable: <path>
+    adapter-path-missing: <os-error>
+  ```
+
+- **Message** (path exists but is not a directory):
+
+  ```
+  yci: inventory root is not a directory: <path>
+    adapter-path-missing
   ```
 
 ---
@@ -200,9 +245,10 @@ are not repeated here. See
   the root (symlink pointing outside the directory tree). The adapter rejects the
   entire inventory load to prevent path-escape attacks.
 - **Message**:
+
   ```
-  yci: inventory file escapes root — refusing to load: <file>
-    remove or correct the symlink at <file>
+  yci: path escapes inventory root: <resolved-path>
+    adapter-path-escape
   ```
 
 ---
@@ -212,14 +258,23 @@ are not repeated here. See
 - **ID**: `adapter-yaml-malformed`
 - **Producer**: `scripts/adapter-file.sh`
 - **Exit code**: 2
-- **Trigger**: a YAML file under the inventory root fails to parse. The file path
-  and the first line of the parse error are included.
-- **Message**:
+- **Trigger**: a YAML file under the inventory root fails to parse, or the
+  parsed value is not a YAML mapping (top-level dict) as required by the
+  file-adapter schema.
+- **Message** (YAML parse error):
+
   ```
-  yci: malformed YAML in inventory file: <file>
-    <parse-error>
-  Fix the YAML syntax and retry.
+  yci: malformed YAML in <path>
+    adapter-yaml-malformed: <parse-error>
   ```
+
+- **Message** (record is not a mapping):
+
+  ```
+  yci: record must be a YAML mapping: <path>
+    adapter-yaml-malformed
+  ```
+
   `<parse-error>` is the verbatim first line of the pyyaml exception message.
 
 ---
@@ -232,6 +287,7 @@ are not repeated here. See
 - **Trigger**: an inventory record is missing a field required by the file-adapter
   schema. Required fields are documented in `references/file-adapter-layout.md`.
 - **Message**:
+
   ```
   yci: inventory record missing required field '<field>': <file>
     see references/file-adapter-layout.md for required fields
@@ -248,6 +304,7 @@ are not repeated here. See
   for a field that has a fixed enumeration. Allowed values are defined in
   `references/file-adapter-layout.md`.
 - **Message**:
+
   ```
   yci: invalid enum value for '<field>': '<value>' in <file>
     allowed values: <allowed-list>
@@ -265,6 +322,7 @@ are not repeated here. See
   basename of the file (without extension). The adapter enforces this invariant
   to catch accidental copy-paste errors.
 - **Message**:
+
   ```
   yci: record id '<record-id>' does not match filename '<basename>': <file>
     rename the file or correct the id field to restore consistency
@@ -280,6 +338,7 @@ are not repeated here. See
 - **Trigger**: `python3 -c "import yaml"` exits non-zero — the `pyyaml` library
   is not installed in the active Python environment.
 - **Message**:
+
   ```
   yci: pyyaml not found — cannot parse inventory YAML
     pyyaml required — install via 'pip install pyyaml' or your distro's python3-yaml package
@@ -296,12 +355,27 @@ are not repeated here. See
 - **ID**: `reason-missing-stdin`
 - **Producer**: `scripts/reason.sh`
 - **Exit code**: 1
-- **Trigger**: stdin was empty or the content was not valid JSON when the reasoner
+- **Trigger**: stdin was a tty, empty, or contained non-JSON when the reasoner
   started. The reasoner expects a JSON object piped on stdin.
-- **Message**:
+- **Message** (tty — no stdin provided):
+
   ```
-  yci: reason.sh requires JSON on stdin — got empty or non-JSON input
-    pipe the payload object: {"inventory": ..., "change": ..., "customer": "..."}
+  usage: reason.sh < payload.json
+    reason-missing-stdin: no stdin provided
+  ```
+
+- **Message** (empty stdin):
+
+  ```
+  yci: reason.sh stdin empty
+    reason-missing-stdin
+  ```
+
+- **Message** (non-JSON stdin):
+
+  ```
+  yci: reason.sh stdin is not valid JSON
+    reason-missing-stdin: <json-parse-error>
   ```
 
 ---
@@ -311,12 +385,29 @@ are not repeated here. See
 - **ID**: `reason-missing-required`
 - **Producer**: `scripts/reason.sh`
 - **Exit code**: 1
-- **Trigger**: the JSON payload on stdin was valid but missing one or more of the
-  required top-level keys: `inventory`, `change`, `customer`.
-- **Message**:
+- **Trigger**: the JSON payload on stdin was valid but missing a required
+  top-level key (`inventory`, `change`, `customer`), had the wrong shape
+  (inventory/change not objects, customer not a string), or contained an
+  invalid customer id.
+- **Message** (missing key):
+
   ```
-  yci: reason.sh payload missing required key: '<key>'
-    required keys: inventory, change, customer
+  yci: reason.sh payload missing required key '<key>'
+    reason-missing-required
+  ```
+
+- **Message** (bad shape):
+
+  ```
+  yci: reason.sh payload shape invalid (inventory/change must be objects, customer must be string)
+    reason-missing-required
+  ```
+
+- **Message** (invalid customer id):
+
+  ```
+  yci: invalid customer id '<customer>'
+    reason-missing-required
   ```
 
 ---
@@ -330,12 +421,27 @@ are not repeated here. See
 - **ID**: `render-missing-stdin`
 - **Producer**: `scripts/render-markdown.sh`
 - **Exit code**: 1
-- **Trigger**: stdin was empty or the content was not valid JSON when the renderer
+- **Trigger**: stdin was a tty, empty, or contained non-JSON when the renderer
   started. The renderer expects the blast-radius label JSON piped on stdin.
-- **Message**:
+- **Message** (tty — no stdin provided):
+
   ```
-  yci: render-markdown.sh requires label JSON on stdin — got empty or non-JSON input
-    pipe the output of reason.sh directly into render-markdown.sh
+  usage: render-markdown.sh < label.json
+    render-missing-stdin
+  ```
+
+- **Message** (empty stdin):
+
+  ```
+  yci: render-markdown.sh stdin empty
+    render-missing-stdin
+  ```
+
+- **Message** (non-JSON stdin):
+
+  ```
+  yci: render-markdown.sh stdin is not valid JSON
+    render-missing-stdin: <json-parse-error>
   ```
 
 ---
@@ -349,10 +455,10 @@ are not repeated here. See
   renderer only supports label schema version 1; future versions will require an
   updated renderer.
 - **Message**:
+
   ```
-  yci: unsupported label schema_version: <version>
-    render-markdown.sh supports schema_version 1 only
-    upgrade the render-markdown.sh script to handle the new schema version
+  yci: unsupported label schema version: <version> (expected 1)
+    render-unsupported-version
   ```
 
 ---
