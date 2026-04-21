@@ -97,12 +97,12 @@ test_push_mru_dedupe() {
     state_push_mru "$sb/real" beta
     state_push_mru "$sb/real" gamma
     state_push_mru "$sb/real" beta
-    # beta should appear exactly once (moved to front)
-    local mru_json
-    mru_json="$(python3 -c "import json; d=json.load(open('$sb/real/state.json')); print(d['mru'])")"
-    local count
+    # beta should appear exactly once and be at the front after the second push
+    local front count
+    front="$(python3 -c "import json; d=json.load(open('$sb/real/state.json')); print(d['mru'][0])")"
     count="$(python3 -c "import json; d=json.load(open('$sb/real/state.json')); print(d['mru'].count('beta'))")"
-    assert_eq "$count" "1" "push_mru_dedupe: beta appears exactly once"
+    assert_eq "$count" "1"    "push_mru_dedupe: beta appears exactly once"
+    assert_eq "$front" "beta" "push_mru_dedupe: beta moved to front"
     # active still unchanged
     local active
     active="$(state_get_active "$sb/real")"

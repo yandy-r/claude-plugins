@@ -214,7 +214,8 @@ test_multiline_dotfile_first_wins() {
     local sb="$1"
     printf '# comment\nreal-id\nother-id\n' > "$sb/cwd/.yci-customer"
     local out rc
-    YCI_CUSTOMER="" out="$(_run_resolver "$sb/real")"; rc=$?
+    # YCI_CUSTOMER is already exported empty by with_sandbox; no prefix needed.
+    out="$(_run_resolver "$sb/real")"; rc=$?
     assert_exit 0 "$rc" "multiline_dotfile: exit 0"
     assert_eq "$out" "real-id" "multiline_dotfile: first non-comment line wins"
 }

@@ -8,6 +8,12 @@
 #   - yci/skills/customer-profile/references/schema.md
 #   - docs/prps/prds/yci.prd.md §5.2
 
+# shellcheck disable=SC2034
+# All YCI_* arrays below are sourced by downstream scripts (load-profile.sh,
+# init-profile.sh, tests/) which read them via `${YCI_*[@]}` or export them
+# to the environment. shellcheck can't see cross-file usage, so suppress
+# SC2034 for the whole file.
+
 # Top-level keys --------------------------------------------------------------
 
 # Must appear in every valid profile.
