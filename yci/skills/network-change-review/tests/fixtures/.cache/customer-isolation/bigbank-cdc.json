@@ -1,0 +1,19 @@
+{
+  "customer": "bigbank-cdc",
+  "artifact_roots": [],
+  "tokens": {
+    "ipv4": [],
+    "ipv6": [],
+    "hostname": [],
+    "asn": [],
+    "sow-ref": [],
+    "credential-ref": [],
+    "customer-id": [
+      "2025-07",
+      "bbk-network-review-2025",
+      "bigbank-cdc"
+    ]
+  },
+  "generated_at": "2026-04-21T17:51:51Z",
+  "source_mtime_max": 1776791847.2297013
+}
