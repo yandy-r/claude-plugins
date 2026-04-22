@@ -77,6 +77,7 @@ yci_load_compliance_adapter() {
                 [ -z "${2:-}" ] && { printf 'yci: --export-file requires a value\n' >&2; return 1; }
                 export_file_path="$2"; shift 2 ;;
             --export-file=*)
+                [ -z "${1#*=}" ] && { printf 'yci: --export-file requires a value\n' >&2; return 1; }
                 export_file_path="${1#*=}"; shift ;;
             --profile-json-path)
                 [ -z "${2:-}" ] && { printf 'yci: --profile-json-path requires a value\n' >&2; return 1; }

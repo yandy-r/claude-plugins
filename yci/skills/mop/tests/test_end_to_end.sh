@@ -41,4 +41,22 @@ assert_contains "reviewed-input-plan-json" "$terraform_rendered" "terraform pack
 assert_contains "pre-change-tfstate" "$terraform_rendered" "terraform safe pre-state filename"
 assert_contains "regenerated-plan-json" "$terraform_rendered" "terraform regenerated filename"
 assert_file_exists "${terraform_dir}/reviewed-input-plan-json" "terraform packaged input exists"
+
+python3 - "${TMP_ROOT}/profiles/widget-corp.yaml" <<'PYEOF'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+text = path.read_text()
+text = text.replace("header_template: widget-corp-header.md", "header_template: ../outside.md")
+path.write_text(text)
+PYEOF
+printf 'outside\n' > "${TMP_ROOT}/outside.md"
+
+set +e
+invalid_output="$(bash "$GENERATE" --data-root "$TMP_ROOT" --customer widget-corp "${CHANGES_DIR}/iosxe.cli" 2>&1)"
+invalid_rc=$?
+set -e
+assert_exit_code 2 "$invalid_rc" "generate-mop rejects header template traversal"
+assert_contains "deliverable.header_template must be a simple filename under profiles/" "$invalid_output" "generate-mop emits traversal error"
 summary

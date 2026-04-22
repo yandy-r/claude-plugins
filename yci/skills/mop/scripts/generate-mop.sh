@@ -122,18 +122,24 @@ print(p.get("deliverable", {}).get("header_template", ""))
 PYEOF
 )"
 if [[ -n "$header_template_raw" ]] && [[ "$header_template_raw" == */* || "$header_template_raw" == *.md ]]; then
-  template_basename="$(basename "$header_template_raw")"
-  source_path="${data_root}/profiles/${header_template_raw}"
-  if [[ -f "$source_path" ]]; then
-    cp "$source_path" "${workdir}/${template_basename}"
-    python3 - "${workdir}/profile.json" "$template_basename" <<'PYEOF'
+  if [[ "$header_template_raw" == */* || "$header_template_raw" == *\\* || "$header_template_raw" == *".."* ]]; then
+    err "mop-change-malformed" "Profile deliverable.header_template must be a simple filename under profiles/: ${header_template_raw}" 2
+  fi
+  profiles_root="$(cd "${data_root}/profiles" && pwd -P)" \
+    || err "mop-change-malformed" "Profiles directory not found: ${data_root}/profiles" 2
+  template_basename="$header_template_raw"
+  source_path="${profiles_root}/${template_basename}"
+  if [[ ! -f "$source_path" ]]; then
+    err "mop-change-malformed" "Header template not found under profiles/: ${header_template_raw}" 2
+  fi
+  cp "$source_path" "${workdir}/${template_basename}"
+  python3 - "${workdir}/profile.json" "$template_basename" <<'PYEOF'
 import json, sys
 path, basename = sys.argv[1], sys.argv[2]
 data = json.load(open(path))
 data.setdefault("deliverable", {})["header_template"] = basename
 json.dump(data, open(path, "w"), indent=2)
 PYEOF
-  fi
 fi
 
 profile_formats="$(python3 - "${workdir}/profile.json" <<'PYEOF'

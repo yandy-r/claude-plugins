@@ -70,4 +70,53 @@ assert_file_exists "$output_path" "rendered file exists"
 assert_contains "## Method of Procedure" "$rendered" "template heading"
 assert_contains "Abort unless a human operator explicitly promotes the posture" "$rendered" "abort criteria derived"
 assert_contains "Rollback confidence" "$rendered" "rollback callout rendered"
+assert_contains "low-confidence rollback path" "$rendered" "low-confidence abort text rendered"
+
+medium_output_path="${TMP_BASE}/mop-medium.md"
+(
+  cd "$TMP_BASE" || exit
+  bash "$RENDER" \
+    --profile "${TMP_BASE}/profile.json" \
+    --change-json "${TMP_BASE}/change.json" \
+    --compliance-regime commercial \
+    --blast-radius-markdown "${TMP_BASE}/blast-radius.md" \
+    --rollback "${TMP_BASE}/rollback.txt" \
+    --rollback-confidence medium \
+    --catalog "${TMP_BASE}/catalog.json" \
+    --output "$medium_output_path"
+)
+medium_rendered="$(cat "$medium_output_path")"
+assert_contains "Rollback confidence:** medium" "$medium_rendered" "medium rollback callout rendered"
+assert_contains "medium-confidence rollback path" "$medium_rendered" "medium-confidence abort text rendered"
+
+python3 - "${TMP_BASE}/profile.json" <<'PYEOF'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, encoding="utf-8") as fh:
+    data = json.load(fh)
+data["deliverable"]["header_template"] = "../outside.md"
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump(data, fh)
+PYEOF
+printf 'outside\n' > "${TMP_BASE}/outside.md"
+
+set +e
+invalid_output="$(
+  bash "$RENDER" \
+    --profile "${TMP_BASE}/profile.json" \
+    --change-json "${TMP_BASE}/change.json" \
+    --compliance-regime commercial \
+    --blast-radius-markdown "${TMP_BASE}/blast-radius.md" \
+    --rollback "${TMP_BASE}/rollback.txt" \
+    --rollback-confidence low \
+    --catalog "${TMP_BASE}/catalog.json" \
+    --output "${TMP_BASE}/should-not-render.md" \
+    2>&1
+)"
+invalid_rc=$?
+set -e
+assert_exit_code 6 "$invalid_rc" "path traversal header template rejected"
+assert_contains "mop-branding-template-missing" "$invalid_output" "path traversal emits template missing error"
 summary

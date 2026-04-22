@@ -123,12 +123,16 @@ consultant_brand = consultant_brand.replace("{{yci_commit}}", yci_commit)
 header_template = profile.get("deliverable", {}).get("header_template", "")
 profile_dir = os.path.dirname(os.environ["MOP_PROFILE_PATH"])
 if "/" in header_template or header_template.endswith(".md"):
-    if os.path.isabs(header_template):
-        resolved_header = header_template
-    elif os.path.isfile(os.path.join(profile_dir, header_template)):
-        resolved_header = os.path.join(profile_dir, header_template)
-    else:
-        resolved_header = header_template
+    invalid_header_template = (
+        os.path.isabs(header_template)
+        or os.path.sep in header_template
+        or (os.path.altsep is not None and os.path.altsep in header_template)
+        or ".." in header_template
+    )
+    if invalid_header_template:
+        sys.stderr.write(f"[mop-branding-template-missing] Customer branding template not found: {header_template}\n")
+        sys.exit(6)
+    resolved_header = os.path.join(profile_dir, header_template)
     if not os.path.isfile(resolved_header):
         sys.stderr.write(f"[mop-branding-template-missing] Customer branding template not found: {header_template}\n")
         sys.exit(6)
@@ -183,13 +187,16 @@ else:
     sys.stderr.write("[mop-abort-criteria-failed] Missing or invalid safety.scope_enforcement in profile\n")
     sys.exit(6)
 
-if os.environ["MOP_ROLLBACK_CONFIDENCE"] in {"low", "medium"}:
-    abort_lines.append("- Abort before apply until a human operator accepts the low-confidence rollback path.")
+conf = os.environ["MOP_ROLLBACK_CONFIDENCE"]
+if conf in {"low", "medium"}:
+    abort_lines.append(
+        f"- Abort before apply until a human operator accepts the {conf}-confidence rollback path."
+    )
 
 rollback_callout = ""
-if os.environ["MOP_ROLLBACK_CONFIDENCE"] in {"low", "medium"}:
+if conf in {"low", "medium"}:
     rollback_callout = (
-        f"> **Rollback confidence:** {os.environ['MOP_ROLLBACK_CONFIDENCE']}\n"
+        f"> **Rollback confidence:** {conf}\n"
         ">\n"
         "> Manual review is required before applying this change.\n"
     )
