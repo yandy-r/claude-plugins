@@ -1048,6 +1048,82 @@ PY
 }
 
 # ---------------------------------------------------------------------------
+# evidence-bundle skill checks
+# ---------------------------------------------------------------------------
+validate_evidence_bundle_skill() {
+    echo "--- evidence-bundle skill ---"
+
+    local skill_root="${REPO_ROOT}/yci/skills/evidence-bundle"
+    local tests_dir="${skill_root}/tests"
+
+    if [ ! -d "${skill_root}" ]; then
+        fail "yci/skills/evidence-bundle/ directory missing"
+        return
+    fi
+    ok "yci/skills/evidence-bundle/ present"
+
+    if [ -f "${skill_root}/SKILL.md" ]; then
+        ok "evidence-bundle/SKILL.md present"
+    else
+        fail "evidence-bundle/SKILL.md missing"
+    fi
+
+    for ref in input-schema.md bundle-layout.md error-messages.md; do
+        if [ -s "${skill_root}/references/${ref}" ]; then
+            ok "reference ${ref} present and non-empty"
+        else
+            fail "reference ${ref} missing or empty"
+        fi
+    done
+
+    local s
+    for s in assemble-bundle.sh sign-bundle.sh validate-bundle.py render-bundle.py; do
+        local p="${skill_root}/scripts/${s}"
+        if [ -x "$p" ]; then
+            ok "script ${s} present and executable"
+        else
+            fail "script ${s}: missing or not executable"
+        fi
+    done
+
+    if [ -x "${tests_dir}/run-all.sh" ]; then
+        ok "tests/run-all.sh present and executable"
+    else
+        fail "tests/run-all.sh missing or not executable"
+    fi
+
+    for t in helpers.sh test_validate_bundle.sh test_sign_bundle.sh test_end_to_end.sh; do
+        if [ -s "${tests_dir}/${t}" ]; then
+            ok "test file ${t} present"
+        else
+            fail "test file ${t}: missing"
+        fi
+    done
+
+    for fx_dir in bin manifests profiles stubs; do
+        if [ -d "${tests_dir}/fixtures/${fx_dir}" ]; then
+            ok "tests/fixtures/${fx_dir}/ present"
+        else
+            fail "tests/fixtures/${fx_dir}/ missing"
+        fi
+    done
+
+    printf '\n--- evidence-bundle test harness ---\n'
+    if bash "${tests_dir}/run-all.sh"; then
+        ok "evidence-bundle test harness passed"
+    else
+        fail "evidence-bundle test harness: one or more tests failed"
+    fi
+
+    local evidence_cmd="${REPO_ROOT}/yci/commands/evidence.md"
+    if [ -f "${evidence_cmd}" ] && grep -q 'yci:evidence-bundle' "${evidence_cmd}"; then
+        ok "commands/evidence.md references yci:evidence-bundle"
+    else
+        fail "commands/evidence.md missing or does not reference yci:evidence-bundle"
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # compliance-adapters checks
 # ---------------------------------------------------------------------------
 validate_compliance_adapters() {
@@ -1353,6 +1429,8 @@ main() {
     validate_blast_radius_skill
     echo
     validate_network_change_review_skill
+    echo
+    validate_evidence_bundle_skill
     echo
     validate_telemetry_sanitizer_lib
     echo
