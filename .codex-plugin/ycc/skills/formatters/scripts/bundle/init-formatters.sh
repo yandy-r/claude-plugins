@@ -78,6 +78,10 @@ SCRIPT_DIR="$(resolve_script_dir)"
 readonly SCRIPT_DIR
 readonly TEMPLATE_DIR="${SCRIPT_DIR}/templates"
 readonly GO_TOOLS_SCRIPT="${SCRIPT_DIR}/go-tools.sh"
+readonly BIOME_VERSION="2.3.11"
+readonly TYPESCRIPT_VERSION="^5.6.3"
+readonly PRETTIER_VERSION="^3.3.3"
+readonly MARKDOWNLINT_CLI_VERSION="^0.42.0"
 
 if [[ ! -d "${TEMPLATE_DIR}" ]]; then
   error "Template directory not found: ${TEMPLATE_DIR}"
@@ -371,6 +375,65 @@ generate_go_config() {
   fi
 }
 
+write_ts_package_json() {
+  local dest="${TARGET_DIR}/package.json"
+  local action="create"
+
+  if [[ -e "${dest}" ]]; then
+    action="overwrite"
+  fi
+
+  local docs_dev_dependencies=''
+  if [[ "${INIT_MD}" == true || "${INIT_PRETTIER}" == true ]]; then
+    docs_dev_dependencies=$(cat <<EOF
+    "markdownlint-cli": "${MARKDOWNLINT_CLI_VERSION}",
+    "prettier": "${PRETTIER_VERSION}",
+EOF
+)
+  fi
+
+  local rendered
+  rendered=$(cat <<EOF
+{
+  "name": "project",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "./scripts/style.sh lint",
+    "lint:fix": "./scripts/style.sh lint --fix",
+    "lint:modified": "./scripts/style.sh lint --modified",
+    "format": "./scripts/style.sh format",
+    "format:modified": "./scripts/style.sh format --modified"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "${BIOME_VERSION}",
+${docs_dev_dependencies}    "typescript": "${TYPESCRIPT_VERSION}"
+  }
+}
+EOF
+)
+
+  if [[ "${DRY_RUN}" == true ]]; then
+    info "[dry-run] Would ${action}: ${dest}"
+    if [[ "${action}" == "overwrite" ]]; then
+      ((overwritten++)) || true
+    else
+      ((created++)) || true
+    fi
+    return
+  fi
+
+  printf '%s\n' "${rendered}" > "${dest}"
+  if [[ "${action}" == "overwrite" ]]; then
+    success "Overwrote: ${dest}"
+    ((overwritten++)) || true
+  else
+    success "Created: ${dest}"
+    ((created++)) || true
+  fi
+}
+
 init_python_config() {
   local dest="${TARGET_DIR}/pyproject.toml"
 
@@ -390,12 +453,12 @@ init_ts_config() {
 
   if [[ -e "${TARGET_DIR}/package.json" ]]; then
     warn "Refusing to overwrite existing package.json: ${TARGET_DIR}/package.json"
-    warn "Merge the TypeScript tooling scripts and devDependencies from scripts/templates/package.json manually."
+    warn "Merge the TypeScript style scripts and required devDependencies manually."
     ((skipped++)) || true
     return
   fi
 
-  copy_template "package.json" "package.json"
+  write_ts_package_json
 }
 
 info "Target directory: ${TARGET_DIR}"

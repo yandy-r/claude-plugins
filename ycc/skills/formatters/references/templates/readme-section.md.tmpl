@@ -81,13 +81,13 @@ just format-unstaged
 - **Go**: `gofmt` + `goimports` + `golangci-lint` (config: `.golangci.yml`). Runs `golangci-lint run ./...`.
 {{/IF_GO}}
 {{#IF_TS}}
-- **TypeScript / JavaScript**: `@biomejs/biome` for lint + format + import sort. Runs `biome ci .` in CI. `tsc --noEmit` runs when `tsconfig*.json` is present.
+- **TypeScript / JavaScript**: `@biomejs/biome` for lint + format + import sort on JS/TS/CSS/JSON/JSONC. Runs `biome ci` in CI. `tsc --noEmit` runs when `tsconfig*.json` is present.
 {{/IF_TS}}
 {{#IF_PYTHON}}
 - **Python**: `ruff` (lint + import sort) + `black` (format). Config: `[tool.ruff]` and `[tool.black]` in `pyproject.toml`.
 {{/IF_PYTHON}}
 {{#IF_DOCS}}
-- **Docs / JSON / YAML**: `markdownlint` + `prettier` (`.markdownlint.json`, `.prettierrc`).
+- **Docs**: `markdownlint` + `prettier` (`.markdownlint.json`, `.prettierrc`) for Markdown/YAML. In docs-only repos, Prettier also owns JSON/JSONC.
 {{/IF_DOCS}}
 {{#IF_SHELL}}
 - **Shell**: `shellcheck --severity=warning` on `*.sh`.

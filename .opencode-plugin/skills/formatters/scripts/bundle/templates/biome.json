@@ -1,41 +1,57 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
-    "useIgnoreFile": true
+    "useIgnoreFile": false
   },
   "files": {
     "ignoreUnknown": true,
-    "ignore": [
-      "node_modules",
-      "target",
-      "build",
-      "dist",
-      "out",
-      "coverage",
-      "vendor",
-      ".venv",
-      "venv",
-      "env",
-      "__pycache__",
-      ".mypy_cache",
-      ".pytest_cache",
-      ".ruff_cache",
-      ".next",
-      ".nuxt",
-      ".cache",
-      ".terraform",
-      ".cursor-plugin",
-      ".codex-plugin",
-      ".opencode-plugin"
+    "includes": [
+      "**",
+      "!!node_modules",
+      "!!target",
+      "!!build",
+      "!!dist",
+      "!!out",
+      "!!coverage",
+      "!!vendor",
+      "!!.venv",
+      "!!venv",
+      "!!env",
+      "!!__pycache__",
+      "!!.mypy_cache",
+      "!!.pytest_cache",
+      "!!.ruff_cache",
+      "!!.next",
+      "!!.nuxt",
+      "!!.cache",
+      "!!.terraform",
+      "!!package-lock.json",
+      "!!yarn.lock",
+      "!!pnpm-lock.yaml",
+      "!!bun.lockb",
+      "!!.cursor-plugin",
+      "!!.codex-plugin",
+      "!!.opencode-plugin",
+      "!!scripts/templates/biome.json",
+      "!!scripts/templates/markdownlint.json",
+      "!!scripts/templates/prettierrc.json",
+      "!!scripts/templates/tsconfig.json"
     ]
   },
   "formatter": {
     "enabled": true,
+    "formatWithErrors": false,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 100
+    "lineEnding": "lf",
+    "lineWidth": 100,
+    "attributePosition": "auto",
+    "bracketSameLine": false,
+    "bracketSpacing": true,
+    "expand": "auto",
+    "useEditorconfig": true
   },
   "linter": {
     "enabled": true,
@@ -45,16 +61,21 @@
   },
   "javascript": {
     "formatter": {
+      "jsxQuoteStyle": "double",
+      "quoteProperties": "asNeeded",
       "quoteStyle": "double",
       "trailingCommas": "all",
       "semicolons": "always",
-      "arrowParentheses": "always"
+      "arrowParentheses": "always",
+      "bracketSameLine": false,
+      "attributePosition": "auto",
+      "bracketSpacing": true
     }
   },
-  "json": {
+  "html": {
     "formatter": {
-      "enabled": true,
-      "indentWidth": 2
+      "indentScriptAndStyle": false,
+      "selfCloseVoidElements": "always"
     }
   }
 }

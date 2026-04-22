@@ -24,7 +24,7 @@ Per-language tool selection, rationale, and deviation guidance. The skill instal
 
 ## TypeScript / JavaScript — `biome` + `tsc`
 
-- **Formatter + linter:** `@biomejs/biome format --write` and `@biomejs/biome check --fix` against `biome.json`. In CI, use `@biomejs/biome ci .`.
+- **Formatter + linter:** `@biomejs/biome format --write` and `@biomejs/biome check --fix` against `biome.json`. In CI, use `@biomejs/biome ci` on JS/TS/CSS/JSON/JSONC sources.
 - **Type checker:** `tsc --noEmit` against `tsconfig.json` (runs when any `tsconfig*.json` is present).
 - **Rationale:** Biome is a single Rust-based tool that replaces Prettier + ESLint + several common plugins. It is ~100× faster on medium repos, has zero plugin resolution overhead, and ships sensible defaults. A single dependency replaces ~15 `eslint-*` plugins.
 - **When to deviate:**
@@ -46,8 +46,8 @@ Per-language tool selection, rationale, and deviation guidance. The skill instal
 ## Docs — `markdownlint` + `prettier`
 
 - **Markdown linter:** `markdownlint` (CommonMark + `.markdownlint.json` rules, default rule set MD001–MD059).
-- **Formatter:** `prettier --write` for Markdown, JSON, JSONC, YAML.
-- **Rationale:** `markdownlint` catches Markdown-specific structural issues (heading ordering, list indent, line-length exceptions). `prettier` normalizes whitespace, quote style, and wrap width across JSON/YAML/Markdown uniformly.
+- **Formatter:** `prettier --write` for Markdown and YAML by default. In docs-only repos, it also owns JSON/JSONC.
+- **Rationale:** `markdownlint` catches Markdown-specific structural issues (heading ordering, list indent, line-length exceptions). Prettier remains the lightweight docs formatter, while TS/JS repos delegate JSON/JSONC to Biome so the tools never fight over the same files.
 - **When to deviate:** MDX-heavy repos should add `mdx` to `prettier` plugins. Docs sites using Vale or custom writing-style linters can layer them on top.
 
 ---

@@ -104,9 +104,12 @@ flags = {
     "IF_SHELL":  profile.get("detect_shell")  == "true",
 }
 
+docs_prettier_glob = "**/*.{md,mdx,yaml,yml}" if flags["IF_TS"] else "**/*.{md,mdx,json,jsonc,yaml,yml}"
+
 pat = re.compile(r"\{\{#(\w+)\}\}(.*?)\{\{/\1\}\}", re.DOTALL)
 out = pat.sub(lambda m: m.group(2) if flags.get(m.group(1), False) else "", tpl)
 out = out.replace("{{DEFAULT_BRANCH}}", default_branch)
+out = out.replace("{{DOCS_PRETTIER_GLOB}}", docs_prettier_glob)
 out = re.sub(r"\n{3,}", "\n\n", out)
 print(out, end="")
 PYEOF

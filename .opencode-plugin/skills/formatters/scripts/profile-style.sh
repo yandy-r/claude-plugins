@@ -66,8 +66,7 @@ if file_exists "go.mod" || any_file_with_suffix ".go"; then
 fi
 
 detect_ts=false
-if file_exists "package.json" \
-   || compgen -G "${project_root}/tsconfig*.json" >/dev/null \
+if compgen -G "${project_root}/tsconfig*.json" >/dev/null \
    || file_exists "biome.json" || file_exists "biome.jsonc" \
    || any_file_with_suffix ".ts" ".tsx" ".mts" ".cts" ".js" ".jsx" ".mjs" ".cjs"; then
     detect_ts=true
@@ -80,10 +79,12 @@ if file_exists "pyproject.toml" || file_exists "requirements.txt" || file_exists
 fi
 
 detect_docs=false
-if file_exists "package.json" \
-   || file_exists ".prettierrc" || file_exists ".prettierrc.json" \
+if file_exists ".prettierrc" || file_exists ".prettierrc.json" \
    || file_exists ".prettierrc.yml" || file_exists ".prettierrc.yaml" \
-   || any_file_with_suffix ".md" ".mdx" ".json" ".jsonc" ".yaml" ".yml"; then
+   || file_exists ".markdownlint.json" || file_exists ".markdownlint.jsonc" \
+   || file_exists ".markdownlint.yml" || file_exists ".markdownlint.yaml" \
+   || any_file_with_suffix ".md" ".mdx" ".yaml" ".yml" \
+   || { [[ "$detect_ts" == "false" ]] && any_file_with_suffix ".json" ".jsonc"; }; then
     detect_docs=true
 fi
 

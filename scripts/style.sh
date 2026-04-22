@@ -34,6 +34,7 @@ BUNDLE_MANAGED_FILES=(
   "init-formatters.sh"
   "install-shellcheck.sh"
   "go-tools.sh"
+  "lib/excludes.sh"
   "lib/modified-files.sh"
   "lib/shellcheck-resolve.sh"
   "lib/shellcheck-version.sh"
@@ -46,7 +47,6 @@ BUNDLE_MANAGED_FILES=(
   "templates/clippy.toml"
   "templates/biome.json"
   "templates/tsconfig.json"
-  "templates/package.json"
 )
 
 print_skip() {
@@ -146,12 +146,16 @@ directory_has_suffixes() {
 detect_docs_project() {
   local target_dir="${1:-$DOCS_PROJECT_DIR}"
 
-  [[ -f "$target_dir/package.json" ]] ||
+  [[ -f "$target_dir/.markdownlint.json" ]] ||
+    [[ -f "$target_dir/.markdownlint.jsonc" ]] ||
+    [[ -f "$target_dir/.markdownlint.yaml" ]] ||
+    [[ -f "$target_dir/.markdownlint.yml" ]] ||
     [[ -f "$target_dir/.prettierrc" ]] ||
     [[ -f "$target_dir/.prettierrc.json" ]] ||
     [[ -f "$target_dir/.prettierrc.yml" ]] ||
     [[ -f "$target_dir/.prettierrc.yaml" ]] ||
-    directory_has_suffixes "$target_dir" ".md" ".mdx" ".json" ".jsonc" ".yaml" ".yml"
+    directory_has_suffixes "$target_dir" ".md" ".mdx" ".yaml" ".yml" ||
+    (docs_track_uses_json_files "$target_dir" && directory_has_suffixes "$target_dir" ".json" ".jsonc")
 }
 
 detect_python_project() {
@@ -179,8 +183,7 @@ detect_rust_project() {
 detect_ts_project() {
   local target_dir="${1:-$TS_PROJECT_DIR}"
 
-  [[ -f "$target_dir/package.json" ]] ||
-    compgen -G "$target_dir/tsconfig*.json" >/dev/null ||
+  compgen -G "$target_dir/tsconfig*.json" >/dev/null ||
     [[ -f "$target_dir/biome.json" ]] ||
     [[ -f "$target_dir/biome.jsonc" ]] ||
     directory_has_suffixes "$target_dir" ".ts" ".tsx" ".mts" ".cts" ".js" ".jsx" ".mjs" ".cjs"
@@ -193,10 +196,39 @@ detect_go_project() {
     directory_has_suffixes "$target_dir" ".go"
 }
 
+docs_track_uses_json_files() {
+  local target_dir="${1:-$DOCS_PROJECT_DIR}"
+
+  ! detect_ts_project "$target_dir"
+}
+
+docs_track_label() {
+  local target_dir="${1:-$DOCS_PROJECT_DIR}"
+
+  if docs_track_uses_json_files "$target_dir"; then
+    printf 'Docs/JSON/YAML\n'
+  else
+    printf 'Docs\n'
+  fi
+}
+
+docs_owned_suffixes() {
+  local target_dir="${1:-$DOCS_PROJECT_DIR}"
+
+  printf '%s\n' ".md" ".mdx" ".yaml" ".yml"
+  if docs_track_uses_json_files "$target_dir"; then
+    printf '%s\n' ".json" ".jsonc"
+  fi
+}
+
 detect_shell_project() {
   local target_dir="${1:-$PROJECT_ROOT}"
 
   directory_has_suffixes "$target_dir" ".sh"
+}
+
+ts_owned_suffixes() {
+  printf '%s\n' ".ts" ".tsx" ".js" ".jsx" ".mjs" ".cjs" ".mts" ".cts" ".css" ".json" ".jsonc"
 }
 
 run_rust_lint() {
@@ -279,12 +311,13 @@ run_ts_lint() {
 
   local ts_prefix
   ts_prefix="$(path_prefix_for "$TS_PROJECT_DIR")"
+  local -a ts_suffixes=()
+  mapfile -t ts_suffixes < <(ts_owned_suffixes)
 
   if [[ -n "$git_scope" ]]; then
     local -a ts_biome_files=()
     local -a ts_typecheck_files=()
-    mapfile -t ts_biome_files < <(list_modified_repo_paths "$git_scope" "$ts_prefix" \
-      ".ts" ".tsx" ".js" ".jsx" ".mjs" ".cjs" ".mts" ".cts" ".css")
+    mapfile -t ts_biome_files < <(list_modified_repo_paths "$git_scope" "$ts_prefix" "${ts_suffixes[@]}")
     mapfile -t ts_typecheck_files < <(list_modified_repo_paths "$git_scope" "$ts_prefix" \
       ".ts" ".tsx" ".mts" ".cts")
 
@@ -292,7 +325,7 @@ run_ts_lint() {
       echo "=== TypeScript ==="
       echo "No $(scope_noun "$git_scope") frontend source files."
     else
-      echo "=== TypeScript: biome ==="
+      echo "=== TypeScript/JavaScript: biome ==="
       local -a ts_relative_biome_files=()
       mapfile -t ts_relative_biome_files < <(relativize_paths "$TS_PROJECT_DIR" "${ts_biome_files[@]}")
 
@@ -315,8 +348,17 @@ run_ts_lint() {
     return "$exit_code"
   fi
 
-  echo "=== TypeScript: biome ==="
-  (cd "$TS_PROJECT_DIR" && npx @biomejs/biome ci .) || exit_code=1
+  local -a ts_biome_files=()
+  mapfile -t ts_biome_files < <(list_repo_paths "$ts_prefix" "${ts_suffixes[@]}")
+  if (( ${#ts_biome_files[@]} == 0 )); then
+    echo "=== TypeScript/JavaScript ==="
+    echo "No frontend source or JSON files found."
+  else
+    echo "=== TypeScript/JavaScript: biome ==="
+    local -a ts_relative_biome_files=()
+    mapfile -t ts_relative_biome_files < <(relativize_paths "$TS_PROJECT_DIR" "${ts_biome_files[@]}")
+    (cd "$TS_PROJECT_DIR" && npx @biomejs/biome ci "${ts_relative_biome_files[@]}") || exit_code=1
+  fi
 
   if compgen -G "$TS_PROJECT_DIR/tsconfig*.json" >/dev/null; then
     echo "=== TypeScript: tsc ==="
@@ -453,9 +495,11 @@ run_docs_lint() {
   local fix="$1"
   local git_scope="$2"
   local exit_code=0
+  local docs_label
+  docs_label="$(docs_track_label "$DOCS_PROJECT_DIR")"
 
   if ! detect_docs_project; then
-    print_skip "Markdown/JSON/YAML" "no package.json, prettier config, or docs files found in ${DOCS_PROJECT_DIR}"
+    print_skip "$docs_label" "no docs-owned files or docs config found in ${DOCS_PROJECT_DIR}"
     return 0
   fi
 
@@ -465,20 +509,22 @@ run_docs_lint() {
 
   local docs_prefix
   docs_prefix="$(path_prefix_for "$DOCS_PROJECT_DIR")"
+  local -a docs_suffixes=()
+  mapfile -t docs_suffixes < <(docs_owned_suffixes "$DOCS_PROJECT_DIR")
 
   local -a docs_files=()
   if [[ -n "$git_scope" ]]; then
-    mapfile -t docs_files < <(list_modified_repo_paths "$git_scope" "$docs_prefix" ".md" ".mdx" ".json" ".jsonc" ".yaml" ".yml")
+    mapfile -t docs_files < <(list_modified_repo_paths "$git_scope" "$docs_prefix" "${docs_suffixes[@]}")
     if (( ${#docs_files[@]} == 0 )); then
-      echo "=== Markdown/JSON/YAML ==="
-      echo "No $(scope_noun "$git_scope") Markdown, JSON, or YAML files."
+      echo "=== ${docs_label} ==="
+      echo "No $(scope_noun "$git_scope") docs files."
       return 0
     fi
   else
-    mapfile -t docs_files < <(list_repo_paths "$docs_prefix" ".md" ".mdx" ".json" ".jsonc" ".yaml" ".yml")
+    mapfile -t docs_files < <(list_repo_paths "$docs_prefix" "${docs_suffixes[@]}")
     if (( ${#docs_files[@]} == 0 )); then
-      echo "=== Markdown/JSON/YAML ==="
-      echo "No Markdown, JSON, or YAML files found."
+      echo "=== ${docs_label} ==="
+      echo "No docs files found."
       return 0
     fi
   fi
@@ -533,7 +579,7 @@ run_docs_lint() {
     (cd "$DOCS_PROJECT_DIR" && npx markdownlint-cli "${markdownlint_args[@]}" "${markdown_relative_files[@]}") || exit_code=1
   fi
 
-  echo "=== Markdown/JSON/YAML: prettier ==="
+  echo "=== Docs: prettier ==="
   if (( fix )); then
     (cd "$DOCS_PROJECT_DIR" && npx prettier --write "${docs_relative_files[@]}" "${prettier_args[@]}") || exit_code=1
   else
@@ -593,11 +639,12 @@ run_ts_format() {
 
   local ts_prefix
   ts_prefix="$(path_prefix_for "$TS_PROJECT_DIR")"
+  local -a ts_suffixes=()
+  mapfile -t ts_suffixes < <(ts_owned_suffixes)
 
   if [[ -n "$git_scope" ]]; then
     local -a ts_files=()
-    mapfile -t ts_files < <(list_modified_repo_paths "$git_scope" "$ts_prefix" \
-      ".ts" ".tsx" ".js" ".jsx" ".mjs" ".cjs" ".mts" ".cts" ".css")
+    mapfile -t ts_files < <(list_modified_repo_paths "$git_scope" "$ts_prefix" "${ts_suffixes[@]}")
 
     if (( ${#ts_files[@]} == 0 )); then
       echo "=== TypeScript/JavaScript ==="
@@ -613,16 +660,28 @@ run_ts_format() {
     return 0
   fi
 
+  local -a ts_files=()
+  mapfile -t ts_files < <(list_repo_paths "$ts_prefix" "${ts_suffixes[@]}")
+  if (( ${#ts_files[@]} == 0 )); then
+    echo "=== TypeScript/JavaScript ==="
+    echo "No frontend source or JSON files found."
+    return 0
+  fi
+
   echo "=== TypeScript/JavaScript: biome ==="
-  (cd "$TS_PROJECT_DIR" && npx @biomejs/biome format --write .)
-  (cd "$TS_PROJECT_DIR" && npx @biomejs/biome check --fix .)
+  local -a ts_relative_files=()
+  mapfile -t ts_relative_files < <(relativize_paths "$TS_PROJECT_DIR" "${ts_files[@]}")
+  (cd "$TS_PROJECT_DIR" && npx @biomejs/biome format --write "${ts_relative_files[@]}")
+  (cd "$TS_PROJECT_DIR" && npx @biomejs/biome check --fix "${ts_relative_files[@]}")
 }
 
 run_docs_format() {
   local git_scope="$1"
+  local docs_label
+  docs_label="$(docs_track_label "$DOCS_PROJECT_DIR")"
 
   if ! detect_docs_project; then
-    print_skip "Markdown/JSON/YAML" "no package.json, prettier config, or docs files found in ${DOCS_PROJECT_DIR}"
+    print_skip "$docs_label" "no docs-owned files or docs config found in ${DOCS_PROJECT_DIR}"
     return 0
   fi
 
@@ -632,6 +691,8 @@ run_docs_format() {
 
   local docs_prefix
   docs_prefix="$(path_prefix_for "$DOCS_PROJECT_DIR")"
+  local -a docs_suffixes=()
+  mapfile -t docs_suffixes < <(docs_owned_suffixes "$DOCS_PROJECT_DIR")
 
   local -a prettier_args=()
   if [[ -f "$DOCS_PROJECT_DIR/.prettierignore" ]]; then
@@ -643,22 +704,22 @@ run_docs_format() {
 
   local -a docs_files=()
   if [[ -n "$git_scope" ]]; then
-    mapfile -t docs_files < <(list_modified_repo_paths "$git_scope" "$docs_prefix" ".md" ".mdx" ".json" ".jsonc" ".yaml" ".yml")
+    mapfile -t docs_files < <(list_modified_repo_paths "$git_scope" "$docs_prefix" "${docs_suffixes[@]}")
     if (( ${#docs_files[@]} == 0 )); then
-      echo "=== Markdown/JSON/YAML ==="
-      echo "No $(scope_noun "$git_scope") Markdown, JSON, or YAML files."
+      echo "=== ${docs_label} ==="
+      echo "No $(scope_noun "$git_scope") docs files."
       return 0
     fi
   else
-    mapfile -t docs_files < <(list_repo_paths "$docs_prefix" ".md" ".mdx" ".json" ".jsonc" ".yaml" ".yml")
+    mapfile -t docs_files < <(list_repo_paths "$docs_prefix" "${docs_suffixes[@]}")
     if (( ${#docs_files[@]} == 0 )); then
-      echo "=== Markdown/JSON/YAML ==="
-      echo "No Markdown, JSON, or YAML files found."
+      echo "=== ${docs_label} ==="
+      echo "No docs files found."
       return 0
     fi
   fi
 
-  echo "=== Markdown/JSON/YAML: prettier ==="
+  echo "=== Docs: prettier ==="
   local -a docs_relative_files=()
   mapfile -t docs_relative_files < <(relativize_paths "$DOCS_PROJECT_DIR" "${docs_files[@]}")
   (cd "$DOCS_PROJECT_DIR" && npx prettier --write "${docs_relative_files[@]}" "${prettier_args[@]}")
@@ -796,8 +857,8 @@ Options:
   --staged    Limit file-based linting to files staged in the git index
   --unstaged  Limit file-based linting to unstaged working-tree changes + untracked files
   --rust      Rust only (clippy + rustfmt check)
-  --ts        TypeScript only (biome + tsc when tsconfig exists)
-  --docs      Markdown / JSON / YAML only (markdownlint + prettier)
+  --ts        TypeScript / JavaScript / JSON only (biome + tsc when tsconfig exists)
+  --docs      Docs only (Markdown/YAML; JSON/JSONC when no TS/JS track is detected)
   --python    Python only (ruff + black --check)
   --go        Go only (golangci-lint)
   --shell     Shell scripts only (shellcheck)
@@ -824,8 +885,8 @@ Options:
   --staged    Limit file-based formatting to files staged in the git index
   --unstaged  Limit file-based formatting to unstaged working-tree changes + untracked files
   --rust      Rust only (rustfmt)
-  --ts        TypeScript / JavaScript only (biome)
-  --docs      Markdown / JSON / YAML only (prettier)
+  --ts        TypeScript / JavaScript / JSON only (biome)
+  --docs      Docs only (Markdown/YAML; JSON/JSONC when no TS/JS track is detected)
   --python    Python only (black)
   --go        Go only (gofmt + goimports)
   --all       All supported formatters (default)

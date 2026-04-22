@@ -21,7 +21,7 @@ Detailed reference for every flag accepted by `ycc:formatters`. See `SKILL.md` f
 | `--target=<dir>`   | `$PWD`      | 1 (override)     | configs + scripts land in `<dir>`                                   | `ycc:formatters --target=~/projects/app` |
 | `--profile=<lang>` | auto-detect | 1 (override)     | (forces stack flags)                                                | `ycc:formatters --profile=rust`          |
 | `--rust`           | auto        | 4 (enable)       | `rustfmt.toml`, `clippy.toml`                                       | `ycc:formatters --rust`                  |
-| `--ts`             | auto        | 4 (enable)       | `biome.json`, `tsconfig.json`, `package.json` (scaffold only)       | `ycc:formatters --ts`                    |
+| `--ts`             | auto        | 4 (enable)       | `biome.json`, `tsconfig.json`, `package.json` (TS scaffold only)    | `ycc:formatters --ts`                    |
 | `--python`         | auto        | 4 (enable)       | `pyproject.toml` (scaffold only; refuses to overwrite)              | `ycc:formatters --python`                |
 | `--go`             | auto        | 4 (enable)       | `.golangci.yml`                                                     | `ycc:formatters --go`                    |
 | `--docs`           | auto        | 4 (enable)       | `.markdownlint.json`, `.prettierrc`, `.prettierignore`              | `ycc:formatters --docs`                  |
@@ -154,6 +154,8 @@ Enable one or more specific stacks explicitly. When any per-stack flag is passed
 ycc:formatters --rust --go
 ycc:formatters --ts --docs
 ```
+
+When `--ts` and `--docs` are both enabled, Biome owns JS/TS/CSS/JSON/JSONC and Prettier is limited to Markdown/YAML so the formatters do not overlap.
 
 ### `--all`
 

@@ -10,9 +10,9 @@ How `profile-style.sh` decides which language tracks and configs apply to a targ
 | ------ | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
 | Rust   | `Cargo.toml` exists **OR** any `*.rs` file exists                                                                        | Workspace and crate repos both pass                |
 | Go     | `go.mod` exists **OR** any `*.go` file exists                                                                            |                                                    |
-| TS/JS  | `package.json` exists **OR** any `tsconfig*.json` **OR** `biome.json(c)` **OR** `*.ts/.tsx/.js/.jsx/.mjs/.cjs/.mts/.cts` | Covers Node, Deno, Bun, browser, and edge runtimes |
+| TS/JS  | any `tsconfig*.json` **OR** `biome.json(c)` **OR** `*.ts/.tsx/.js/.jsx/.mjs/.cjs/.mts/.cts`                               | Covers Node, Deno, Bun, browser, and edge runtimes |
 | Python | `pyproject.toml` **OR** `requirements.txt` **OR** `setup.py` **OR** any `*.py/*.pyi`                                     |                                                    |
-| Docs   | `package.json` **OR** any `.prettierrc(.json/.yml/.yaml)` **OR** any `*.md/.mdx/.json/.jsonc/.yaml/.yml`                 | Prettier runs independently of the TS track        |
+| Docs   | any `.markdownlint*` or `.prettierrc*` exists **OR** any `*.md/.mdx/.yaml/.yml` **OR** `*.json/.jsonc` when TS/JS is not detected | Docs track yields JSON/JSONC to Biome in TS/JS repos |
 | Shell  | any `*.sh` file                                                                                                          | Always attempted when shellcheck is on the PATH    |
 
 `directory_has_suffixes` is used for the suffix-based checks; `.git/` is excluded.

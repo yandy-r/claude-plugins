@@ -81,5 +81,5 @@ jobs:
         with:
           node-version: lts/*
       - run: npx --yes markdownlint-cli "**/*.md" --ignore-path .markdownlintignore
-      - run: npx --yes prettier --check "**/*.{md,mdx,json,jsonc,yaml,yml}"
+      - run: npx --yes prettier --check "{{DOCS_PRETTIER_GLOB}}" --ignore-path .prettierignore
 {{/IF_DOCS}}

@@ -91,7 +91,7 @@ Bundle install:    scripts/style.sh, scripts/format.sh, scripts/lint.sh, scripts
                    scripts/templates/*  (managed bundle files)
 Tool configs:      rustfmt.toml, clippy.toml, .golangci.yml, biome.json, tsconfig.json, package.json*,
                    pyproject.toml*, .markdownlint.json, .markdownlintignore, .prettierrc, .prettierignore
-                   (* refuses to overwrite existing)
+                   (* stack-aware scaffold / refuses to overwrite existing)
 Aliases:           (skipped if --no-aliases)  package.json / Makefile / justfile
 Docs:              (skipped if --no-docs)     README.md / CONTRIBUTING.md / AGENTS.md / AGENTS.md
 CI workflows:      (only if --ci)             .github/workflows/lint.yml

@@ -12,7 +12,7 @@ Invoke the **formatters** skill to:
 
 - Profile the target — detect Rust / Go / TS / Python / Docs / Shell stacks and existing configs.
 - Install the bundle — copy `scripts/style.sh`, `format.sh`, `lint.sh`, `init-formatters.sh`, `install-shellcheck.sh`, `go-tools.sh`, `lib/*`, and `templates/*` into the target's `scripts/` directory, and ensure `/tools/shellcheck` is ignored in `.gitignore`.
-- Drop per-language configs — `rustfmt.toml`, `clippy.toml`, `.golangci.yml`, `biome.json`, `tsconfig.json`, `pyproject.toml` (Ruff + Black), `.markdownlint.json`, `.prettierrc`, etc. Refuses to overwrite user-authored configs unless `--force`.
+- Drop per-language configs — `rustfmt.toml`, `clippy.toml`, `.golangci.yml`, `biome.json`, `tsconfig.json`, stack-aware TS `package.json` scaffolding, `pyproject.toml` (Ruff + Black), `.markdownlint.json`, `.prettierrc`, etc. Refuses to overwrite user-authored configs unless `--force`.
 - Inject runnable aliases — `package.json` scripts when Node is present; otherwise Makefile or justfile (Node never forced).
 - Update docs — append a `## Linting & Formatting` section to `README.md` (or `CONTRIBUTING.md` / `AGENTS.md` / `AGENTS.md` in that precedence).
 - (Optional) Emit `.github/workflows/lint.yml` with `--ci`.
