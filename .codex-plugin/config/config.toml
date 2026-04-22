@@ -5,6 +5,7 @@ model_context_window = 1000000
 model_auto_compact_token_limit = 900000
 plan_mode_reasoning_effort = "xhigh"
 approvals_reviewer = "user"
+service_tier = "fast"
 
 [projects."/Users/yandy/.config/dotfiles"]
 trust_level = "trusted"
@@ -55,6 +56,9 @@ trust_level = "trusted"
 trust_level = "trusted"
 
 [projects."/home/yandy/Projects/github.com/itcn/business-plan"]
+trust_level = "trusted"
+
+[projects."/home/yandy/Projects/github.com/yandy-r/claude-infra-plugins"]
 trust_level = "trusted"
 
 [sandbox_workspace_write]
