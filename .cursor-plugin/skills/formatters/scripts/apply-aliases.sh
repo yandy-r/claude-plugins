@@ -107,7 +107,11 @@ apply_package_json() {
     local existing
     existing="$(jq -r '.scripts // {} | to_entries[]? | .key' "$pkg" 2>/dev/null || true)"
 
-    local template_keys=(lint lint:fix lint:modified format format:modified)
+    local template_keys=(
+        lint lint:modified lint:staged lint:unstaged
+        lint:fix lint:fix:modified
+        format format:modified format:staged format:unstaged
+    )
     local conflicts=()
     for key in "${template_keys[@]}"; do
         if printf '%s\n' "$existing" | grep -Fxq "$key"; then

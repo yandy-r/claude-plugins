@@ -153,11 +153,13 @@ Unless suppressed, run each applier. Each writes to a distinct file so they can 
 
    Pass `--no-autofix` when `NO_AUTOFIX=true` to install only the check workflow. The autofix workflow runs on same-repo PRs to the default branch (`origin/HEAD`, falling back to `main`), applies `./scripts/style.sh format` + `lint --fix`, and pushes fixes back as `github-actions[bot]`; fork PRs are skipped because `GITHUB_TOKEN` cannot push to them.
 
-4. **Hooks** (only when `HOOKS=true`):
+4. **Hooks** (run when `HOOKS=true`, OR when the target already has a `lefthook.yml` / `.husky/pre-commit` — i.e., `has_lefthook=true` or `has_husky=true` in the profile):
 
    ```
    ~/.config/opencode/skills/formatters/scripts/apply-hooks.sh --target "$TARGET" --profile-file "$PROFILE_FILE" [--force]
    ```
+
+   The auto-trigger keeps managed `style-lint` / `style-format` commands in sync on every `--sync` re-run without forcing first-time hook installation on users who never asked for it. `apply-hooks.sh` is idempotent: when managed commands are already present, it logs a no-op; otherwise it merges them in (lefthook) or skips if a non-empty `.husky/pre-commit` exists without `--force` (husky).
 
 If any applier exits non-zero, report the failure and continue with the remaining ones — do not let a single applier abort the whole run.
 

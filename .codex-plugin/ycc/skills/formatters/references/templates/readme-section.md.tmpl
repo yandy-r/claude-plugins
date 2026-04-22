@@ -11,10 +11,14 @@ If you cloned this repo fresh and `scripts/style.sh` is missing (it ships manage
 ```bash
 ./scripts/style.sh lint                  # full lint pass (all detected languages)
 ./scripts/style.sh lint --fix            # auto-fix what is auto-fixable
-./scripts/style.sh lint --modified       # only files changed vs git HEAD
-./scripts/style.sh lint --modified --fix # fast pre-push loop
+./scripts/style.sh lint --modified       # staged + unstaged + untracked
+./scripts/style.sh lint --staged         # only files staged in the git index
+./scripts/style.sh lint --unstaged       # only unstaged + untracked changes
+./scripts/style.sh lint --fix --modified # fast pre-push loop
 ./scripts/style.sh format                # format everything
-./scripts/style.sh format --modified     # format only modified files
+./scripts/style.sh format --modified     # format modified files
+./scripts/style.sh format --staged       # format only staged files
+./scripts/style.sh format --unstaged     # format only unstaged + untracked
 ```
 
 {{#IF_PACKAGE_JSON}}
@@ -22,10 +26,15 @@ If you cloned this repo fresh and `scripts/style.sh` is missing (it ships manage
 
 ```bash
 {{PACKAGE_MANAGER}} run lint
-{{PACKAGE_MANAGER}} run lint:fix
 {{PACKAGE_MANAGER}} run lint:modified
+{{PACKAGE_MANAGER}} run lint:staged
+{{PACKAGE_MANAGER}} run lint:unstaged
+{{PACKAGE_MANAGER}} run lint:fix
+{{PACKAGE_MANAGER}} run lint:fix:modified
 {{PACKAGE_MANAGER}} run format
 {{PACKAGE_MANAGER}} run format:modified
+{{PACKAGE_MANAGER}} run format:staged
+{{PACKAGE_MANAGER}} run format:unstaged
 ```
 {{/IF_PACKAGE_JSON}}
 
@@ -34,10 +43,15 @@ If you cloned this repo fresh and `scripts/style.sh` is missing (it ships manage
 
 ```bash
 make lint
-make lint-fix
 make lint-modified
+make lint-staged
+make lint-unstaged
+make lint-fix
+make lint-fix-modified
 make format
 make format-modified
+make format-staged
+make format-unstaged
 ```
 {{/IF_MAKEFILE}}
 
@@ -46,8 +60,15 @@ make format-modified
 
 ```bash
 just lint
+just lint-modified
+just lint-staged
+just lint-unstaged
 just lint-fix
+just lint-fix-modified
 just format
+just format-modified
+just format-staged
+just format-unstaged
 ```
 {{/IF_JUSTFILE}}
 
