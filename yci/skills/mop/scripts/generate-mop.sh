@@ -356,24 +356,39 @@ print(p.get("deliverable", {}).get("path", ""))
 PYEOF
 )"
 
+# shellcheck source=/dev/null
+source "${PLUGIN_ROOT}/skills/_shared/customer-isolation/scripts/path-match.sh"
+data_root_canon="$(path_canonicalize "$data_root")"
+[[ -n "$data_root_canon" ]] || err "mop-change-malformed" "Cannot canonicalize data root: ${data_root}" 2
+
 if [[ -n "$output_dir_flag" ]]; then
-  output_dir="$output_dir_flag"
+  output_dir="$(path_canonicalize "$output_dir_flag")"
+  [[ -n "$output_dir" ]] || err "mop-change-malformed" "Cannot canonicalize --output-dir: ${output_dir_flag}" 2
 elif [[ -n "$deliverable_base" ]]; then
   if [[ "$deliverable_base" = /* ]]; then
-    output_dir="${deliverable_base}/mop/${change_id}-${timestamp}"
+    candidate="${deliverable_base}/mop/${change_id}-${timestamp}"
   else
-    output_dir="${data_root}/${deliverable_base}/mop/${change_id}-${timestamp}"
+    candidate="${data_root_canon}/${deliverable_base}/mop/${change_id}-${timestamp}"
   fi
+  output_dir="$(path_canonicalize "$candidate")"
+  [[ -n "$output_dir" ]] || err "mop-change-malformed" "Cannot canonicalize MOP output path (deliverable.path)." 2
+  path_is_under "$output_dir" "$data_root" || err "mop-change-malformed" "MOP output directory escapes data root (deliverable.path): ${output_dir}" 2
 else
-  output_dir="${data_root}/artifacts/${customer}/mop/${change_id}-${timestamp}"
+  candidate="${data_root_canon}/artifacts/${customer}/mop/${change_id}-${timestamp}"
+  output_dir="$(path_canonicalize "$candidate")"
+  [[ -n "$output_dir" ]] || err "mop-change-malformed" "Cannot canonicalize MOP output path." 2
+  path_is_under "$output_dir" "$data_root" || err "mop-change-malformed" "MOP output directory escapes data root: ${output_dir}" 2
 fi
 
 mkdir -p "$output_dir"
-final_artifact="${output_dir}/mop.md"
-cp "${workdir}/mop-sanitized.md" "$final_artifact"
+cp "${workdir}/mop-sanitized.md" "${output_dir}/mop.md"
 cp "$change_path" "${output_dir}/${packaged_input_name}"
 for support_file in change.json rollback.txt blast-radius-label.json catalog.json; do
   cp "${workdir}/${support_file}" "${output_dir}/${support_file}"
 done
+
+final_artifact="$(path_canonicalize "${output_dir}/mop.md")"
+[[ -n "$final_artifact" ]] || err "mop-change-malformed" "Cannot canonicalize final artifact path." 2
+[[ -f "$final_artifact" ]] || err "mop-change-malformed" "Final artifact missing after write: ${output_dir}/mop.md" 2
 
 printf '%s\n' "$final_artifact"
