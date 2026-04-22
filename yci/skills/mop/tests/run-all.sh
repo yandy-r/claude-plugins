@@ -5,6 +5,10 @@ set -euo pipefail
 
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 HELPERS="${TESTS_DIR}/helpers.sh"
+if [[ ! -f "$HELPERS" || ! -r "$HELPERS" ]]; then
+    printf 'run-all.sh: missing or unreadable helpers: %s\n' "$HELPERS" >&2
+    exit 1
+fi
 # shellcheck source=/dev/null
 source "$HELPERS"
 
@@ -23,6 +27,11 @@ if [ "${#FILTER[@]}" -eq 0 ]; then
     mapfile -t test_files < <(find "$TESTS_DIR" -maxdepth 1 -type f -name 'test_*.sh' -printf '%f\n' | sort)
 else
     test_files=("${FILTER[@]}")
+fi
+
+if [ "${#test_files[@]}" -eq 0 ]; then
+    printf 'run-all.sh: no tests selected or discovered in %s\n' "$TESTS_DIR" >&2
+    exit 1
 fi
 
 pass=0

@@ -1,12 +1,28 @@
 #!/usr/bin/env bash
-set -uo pipefail
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+HELPERS="${SCRIPT_DIR}/helpers.sh"
+if [[ ! -f "$HELPERS" || ! -r "$HELPERS" ]]; then
+    printf 'test_adapter_override.sh: missing or unreadable helpers: %s\n' "$HELPERS" >&2
+    exit 1
+fi
 # shellcheck source=/dev/null
-source "${SCRIPT_DIR}/helpers.sh"
+source "$HELPERS"
 
 RENDER="${SKILL_ROOT}/scripts/render-artifact.sh"
-TMP_BASE="$(mktemp -d -t yci-mop-adapter-XXXX)"
+if [[ ! -f "$RENDER" || ! -r "$RENDER" || ! -x "$RENDER" ]]; then
+    printf 'test_adapter_override.sh: render script missing or not executable: %s\n' "$RENDER" >&2
+    exit 1
+fi
+TMP_BASE="$(mktemp -d -t yci-mop-adapter-XXXX)" || {
+    printf 'test_adapter_override.sh: failed to create temp dir\n' >&2
+    exit 1
+}
+if [[ -z "$TMP_BASE" ]]; then
+    printf 'test_adapter_override.sh: mktemp returned an empty path\n' >&2
+    exit 1
+fi
 trap 'rm -rf "${TMP_BASE}"' EXIT
 
 cat > "${TMP_BASE}/profile.json" <<'EOF'

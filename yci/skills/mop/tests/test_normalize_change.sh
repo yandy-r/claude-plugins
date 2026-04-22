@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -uo pipefail
+# Exit on error so normalization failures stop the test deterministically.
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 # shellcheck source=/dev/null

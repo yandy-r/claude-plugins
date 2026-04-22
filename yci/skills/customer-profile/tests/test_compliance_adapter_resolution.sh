@@ -8,7 +8,8 @@
 # shellcheck disable=SC1091
 set -uo pipefail  # no -e: tests handle their own failures to report all cases
 
-source "$(dirname "${BASH_SOURCE[0]}")/helpers.sh"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
+source "${SCRIPT_DIR}/helpers.sh"
 
 LOADER="${YCI_SCRIPTS_DIR}/load-profile.sh"
 ADAPTER_LOADER="${YCI_SHARED_DIR}/load-compliance-adapter.sh"
@@ -16,7 +17,7 @@ ADAPTER_LOADER="${YCI_SHARED_DIR}/load-compliance-adapter.sh"
 # Resolve the yci plugin root (parent of skills/) from helpers' known path.
 # YCI_SHARED_DIR = <yci>/skills/_shared/scripts — walk up three levels.
 _YCI_ROOT="$(cd "${YCI_SHARED_DIR}/../../.." && pwd -P)"
-_FIXTURES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/fixtures" && pwd -P)"
+_FIXTURES_DIR="${SCRIPT_DIR}/fixtures"
 _INTERNAL_YAML="${_YCI_ROOT}/docs/profiles/_internal.yaml.example"
 _COMMERCIAL_FIXTURE="${_FIXTURES_DIR}/commercial-example.yaml"
 

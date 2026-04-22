@@ -55,6 +55,7 @@ done
 [[ -f "$rollback_path" ]] || err "mop-render-failed" "Rollback file not found: ${rollback_path}" 6
 [[ -f "$catalog_path" ]] || err "mop-render-failed" "Catalog JSON not found: ${catalog_path}" 6
 [[ -n "$output_path" ]] || err "mop-render-failed" "Missing required flag: --output" 6
+[[ -n "${compliance_regime//[[:space:]]/}" ]] || err "mop-render-failed" "Missing required flag: --compliance-regime" 6
 
 case "$rollback_confidence" in
   high|medium|low) ;;
@@ -86,9 +87,12 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 
-profile = json.load(open(os.environ["MOP_PROFILE_PATH"]))
-change = json.load(open(os.environ["MOP_CHANGE_JSON_PATH"]))
-catalog = json.load(open(os.environ["MOP_CATALOG_PATH"]))
+with open(os.environ["MOP_PROFILE_PATH"], encoding="utf-8") as profile_file:
+    profile = json.load(profile_file)
+with open(os.environ["MOP_CHANGE_JSON_PATH"], encoding="utf-8") as change_file:
+    change = json.load(change_file)
+with open(os.environ["MOP_CATALOG_PATH"], encoding="utf-8") as catalog_file:
+    catalog = json.load(catalog_file)
 
 tpl_full = open(os.environ["MOP_TEMPLATE_PATH"], encoding="utf-8").read()
 template_start = re.search(r'(?m)^## Template\s*$', tpl_full)

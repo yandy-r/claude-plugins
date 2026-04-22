@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -uo pipefail
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 # shellcheck source=/dev/null
@@ -57,6 +57,7 @@ output_path="${TMP_BASE}/mop.md"
   bash "$RENDER" \
     --profile "${TMP_BASE}/profile.json" \
     --change-json "${TMP_BASE}/change.json" \
+    --compliance-regime commercial \
     --blast-radius-markdown "${TMP_BASE}/blast-radius.md" \
     --rollback "${TMP_BASE}/rollback.txt" \
     --rollback-confidence low \

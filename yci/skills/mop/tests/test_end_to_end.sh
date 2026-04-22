@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-set -uo pipefail
+# Exit on error so setup and generated-artifact failures stop the test immediately.
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 # shellcheck source=/dev/null
@@ -29,7 +30,8 @@ assert_file_exists "$artifact_path" "end-to-end artifact exists"
 rendered="$(cat "$artifact_path")"
 assert_contains "## Method of Procedure" "$rendered" "end-to-end heading"
 assert_contains "Raise MTU on dc1-edge-01 uplink" "$rendered" "end-to-end summary"
-assert_contains "no mtu 9000" "$rendered" "end-to-end rollback"
+assert_contains "MANUAL-ROLLBACK-REQUIRED" "$rendered" "end-to-end rollback markers"
+assert_contains "Rollback confidence" "$rendered" "end-to-end low-confidence callout"
 
 terraform_artifact="$(bash "$GENERATE" --data-root "$TMP_ROOT" --customer widget-corp "${CHANGES_DIR}/terraform-plan.json")"
 assert_file_exists "$terraform_artifact" "terraform artifact exists"

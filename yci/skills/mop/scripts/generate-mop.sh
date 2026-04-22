@@ -87,12 +87,25 @@ fi
 export YCI_DATA_ROOT_RESOLVED="$data_root"
 
 step 4 "Resolving active customer"
+customer_err="${workdir}/resolve-customer.err"
 if [[ -n "$customer_flag" ]]; then
   customer="$(YCI_CUSTOMER="$customer_flag" bash "${PLUGIN_ROOT}/skills/customer-profile/scripts/resolve-customer.sh" \
-    --data-root "$data_root" 2>/dev/null)" || err "mop-change-malformed" "Invalid or unresolved customer override." 2
+    --data-root "$data_root" 2>"$customer_err")" || {
+      customer_detail="$(< "$customer_err")"
+      if [[ -n "$customer_detail" ]]; then
+        err "mop-change-malformed" "Invalid or unresolved customer override: ${customer_detail}" 2
+      fi
+      err "mop-change-malformed" "Invalid or unresolved customer override." 2
+    }
 else
   customer="$(bash "${PLUGIN_ROOT}/skills/customer-profile/scripts/resolve-customer.sh" \
-    --data-root "$data_root" 2>/dev/null)" || err "mop-change-malformed" "No active customer. Run /yci:switch <customer> first." 2
+    --data-root "$data_root" 2>"$customer_err")" || {
+      customer_detail="$(< "$customer_err")"
+      if [[ -n "$customer_detail" ]]; then
+        err "mop-change-malformed" "No active customer. Run /yci:switch <customer> first. ${customer_detail}" 2
+      fi
+      err "mop-change-malformed" "No active customer. Run /yci:switch <customer> first." 2
+    }
 fi
 export YCI_ACTIVE_CUSTOMER="$customer"
 
@@ -142,13 +155,17 @@ if [[ ",${profile_formats}," != *",markdown,"* ]]; then
 fi
 
 if [[ -n "$adapter_flag" ]]; then
-  adapter_args=("--export" "--regime" "$adapter_flag")
+  adapter_args=("--regime" "$adapter_flag")
 else
-  adapter_args=("--export" "--profile-json-path" "${workdir}/profile.json")
+  adapter_args=("--profile-json-path" "${workdir}/profile.json")
 fi
-adapter_exports="$(bash "${PLUGIN_ROOT}/skills/_shared/scripts/load-compliance-adapter.sh" \
-  "${adapter_args[@]}" 2>&1)" || err "mop-change-malformed" "Failed to resolve compliance adapter: ${adapter_exports}" 2
-eval "$adapter_exports"
+adapter_env="${workdir}/adapter.env"
+bash "${PLUGIN_ROOT}/skills/_shared/scripts/load-compliance-adapter.sh" \
+  --export-file "$adapter_env" \
+  "${adapter_args[@]}" 2>"${workdir}/adapter.err" \
+  || err "mop-change-malformed" "Failed to resolve compliance adapter: $(< "${workdir}/adapter.err")" 2
+# shellcheck source=/dev/null
+source "$adapter_env"
 export YCI_ADAPTER_DIR YCI_ADAPTER_REGIME YCI_ADAPTER_HAS_SCHEMA
 export YCI_ACTIVE_REGIME="${YCI_ADAPTER_REGIME:-}"
 
@@ -174,10 +191,10 @@ bash "${PLUGIN_ROOT}/skills/mop/scripts/normalize-change.sh" \
 step 9 "Deriving rollback plan"
 rollback_confidence="high"
 set +e
-cat "${workdir}/change.json" \
-  | bash "${PLUGIN_ROOT}/skills/_shared/scripts/derive-change-rollback.sh" \
-      --output "${workdir}/rollback.txt" \
-      2>"${workdir}/rollback.err"
+bash "${PLUGIN_ROOT}/skills/_shared/scripts/derive-change-rollback.sh" \
+  --output "${workdir}/rollback.txt" \
+  < "${workdir}/change.json" \
+  2>"${workdir}/rollback.err"
 rc=$?
 set -e
 if [[ $rc -ne 0 ]]; then

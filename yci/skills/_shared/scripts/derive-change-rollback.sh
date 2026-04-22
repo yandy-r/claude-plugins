@@ -96,7 +96,17 @@ import json
 import os
 import sys
 
-data = json.loads(os.environ["_NCR_STDIN"])
+try:
+    data = json.loads(os.environ["_NCR_STDIN"])
+except json.JSONDecodeError as exc:
+    sys.stderr.write(f"[ncr-diff-unsupported-shape] Invalid JSON envelope: {exc}\n")
+    print("")
+    sys.exit(3)
+except Exception as exc:
+    sys.stderr.write(f"[ncr-diff-unsupported-shape] Failed to read JSON envelope: {exc}\n")
+    print("")
+    sys.exit(3)
+
 val = data.get(sys.argv[1], "")
 if isinstance(val, (dict, list)):
     print(json.dumps(val))
@@ -328,8 +338,11 @@ lines = [
     "   terraform state pull > pre-change-tfstate",
     "",
     "2. Preferred rollback path for this workflow:",
-    "   terraform state push -force pre-change-tfstate",
+    "   Restore the pre-change state snapshot using your backend's versioning or recovery mechanism.",
+    "   Revert configuration to a known-good revision or saved plan, then re-run plan/apply from that state.",
     "   terraform plan -refresh-only",
+    "",
+    "   `terraform state push` is only for manual state recovery or migration and should be used with extreme caution.",
     "",
 ]
 
@@ -353,7 +366,7 @@ if resource_changes:
                 lines.append(f"  - `terraform import '{address}' '{before_id}'`")
             else:
                 lines.append("  - Manual restore required: deleted resource has no prior id in the plan JSON.")
-        elif "update" in actions or "replace" in actions:
+        elif "update" in actions or ("delete" in actions and "create" in actions):
             lines.append("  - Use the state snapshot rollback path above; resource updates are restored from pre-change state.")
         else:
             lines.append("  - Manual review required for this action set.")
@@ -381,8 +394,31 @@ raw = data.get("raw", "")
 metadata = data.get("metadata") or {}
 vendor = (metadata.get("vendor") or "").strip().lower()
 
-def iosxe_inverse(text: str) -> str:
+def iosxe_inverse(text: str):
+    safe_negatable_exact = {
+        "shutdown",
+        "logging event link-status",
+        "spanning-tree portfast",
+        "spanning-tree bpduguard enable",
+        "switchport",
+        "ip redirects",
+        "ipv6 redirects",
+    }
+    safe_negatable_prefixes = (
+        "service-policy input ",
+        "service-policy output ",
+        "ip access-group ",
+        "ipv6 traffic-filter ",
+    )
+
+    def is_safe_negatable(cmd: str) -> bool:
+        return cmd in safe_negatable_exact or cmd.startswith(safe_negatable_prefixes)
+
+    def manual_inverse(indent: str, cmd: str) -> str:
+        return indent + f"! MANUAL-ROLLBACK-REQUIRED: restore the prior value for `{cmd}`"
+
     out = []
+    manual_required = False
     for line in text.splitlines():
         stripped = line.strip()
         if not stripped:
@@ -398,10 +434,18 @@ def iosxe_inverse(text: str) -> str:
         elif cmd in {"exit", "end"}:
             out.append(indent + cmd)
         elif cmd.startswith("no "):
-            out.append(indent + cmd[3:])
-        else:
+            positive_cmd = cmd[3:].strip()
+            if is_safe_negatable(positive_cmd):
+                out.append(indent + positive_cmd)
+            else:
+                manual_required = True
+                out.append(manual_inverse(indent, positive_cmd))
+        elif is_safe_negatable(cmd):
             out.append(indent + "no " + cmd)
-    return "\n".join(out)
+        else:
+            manual_required = True
+            out.append(manual_inverse(indent, cmd))
+    return "\n".join(out), manual_required
 
 def panos_inverse(text: str) -> str:
     out = []
@@ -419,7 +463,14 @@ def panos_inverse(text: str) -> str:
     return "\n".join(out)
 
 if vendor == "iosxe":
-    print(iosxe_inverse(raw))
+    rendered, manual_required = iosxe_inverse(raw)
+    if manual_required:
+        sys.stderr.write(
+            "[ncr-rollback-ambiguous] Rollback confidence: low. IOS XE payload "
+            "contains non-invertible setters; restore the prior values for the "
+            "marked commands.\n"
+        )
+    print(rendered)
 elif vendor == "panos":
     print(panos_inverse(raw))
 else:
