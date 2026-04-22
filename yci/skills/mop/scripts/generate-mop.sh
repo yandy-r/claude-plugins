@@ -219,6 +219,9 @@ print(p.get("inventory", {}).get("root", ""))
 PYEOF
 )"
 if [[ -n "$inventory_root_rel" ]]; then
+  if [[ "$inventory_root_rel" == *".."* ]] || [[ "$inventory_root_rel" == *\\* ]]; then
+    err "mop-change-malformed" "Profile inventory.root must not contain path traversal: ${inventory_root_rel}" 2
+  fi
   profiles_dir="${data_root}/profiles"
   if [[ "${inventory_root_rel}" = /* ]]; then
     export YCI_INVENTORY_ROOT="$inventory_root_rel"
@@ -250,10 +253,10 @@ json.dump(payload, open(out_path, "w"), indent=2)
 PYEOF
 
 step 11 "Running blast-radius reasoner"
-cat "${workdir}/blast-radius-payload.json" \
-  | bash "${PLUGIN_ROOT}/skills/blast-radius/scripts/reason.sh" \
-      > "${workdir}/blast-radius-label.json" \
-      2>"${workdir}/reason.err" || err "mop-change-malformed" "Blast-radius reasoner failed: $(< "${workdir}/reason.err")" 5
+bash "${PLUGIN_ROOT}/skills/blast-radius/scripts/reason.sh" \
+  < "${workdir}/blast-radius-payload.json" \
+  > "${workdir}/blast-radius-label.json" \
+  2>"${workdir}/reason.err" || err "mop-change-malformed" "Blast-radius reasoner failed: $(< "${workdir}/reason.err")" 5
 
 step 12 "Rendering blast-radius markdown"
 cat "${workdir}/blast-radius-label.json" \
@@ -314,12 +317,35 @@ if [[ "$decision_value" == "deny" ]]; then
 fi
 
 step 17 "Writing artifact to disk"
-change_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("change_id","unknown"))' "${workdir}/change.json")"
+change_id="$(python3 - "${workdir}/change.json" <<'PYEOF'
+import json, re, sys
+doc = json.load(open(sys.argv[1]))
+raw = doc.get("change_id", "unknown")
+if raw is None:
+    raw = "unknown"
+token = re.sub(r"[^A-Za-z0-9._-]+", "", str(raw))
+if not token:
+    token = "unknown"
+print(token)
+PYEOF
+)"
 packaged_input_name="$(python3 - "${workdir}/change.json" <<'PYEOF'
-import json, sys
+import json, os, re, sys
+
+DEFAULT = "reviewed-input"
 doc = json.load(open(sys.argv[1]))
 meta = doc.get("metadata") or {}
-print(meta.get("artifact_input_filename", "reviewed-input"))
+raw = meta.get("artifact_input_filename", DEFAULT)
+if raw is None or str(raw).strip() == "":
+    print(DEFAULT)
+elif ".." in str(raw) or str(raw).startswith("/"):
+    print(DEFAULT)
+else:
+    base = os.path.basename(str(raw).replace("\\", "/"))
+    if not base or not re.fullmatch(r"[A-Za-z0-9._-]+", base):
+        print(DEFAULT)
+    else:
+        print(base)
 PYEOF
 )"
 timestamp="$(date -u +%Y%m%d-%H%M%S)"
