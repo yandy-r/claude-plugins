@@ -33,6 +33,7 @@ BUNDLE_MANAGED_FILES=(
   "lint.sh"
   "init-formatters.sh"
   "go-tools.sh"
+  "lib/excludes.sh"
   "lib/modified-files.sh"
   "lib/shellcheck-resolve.sh"
   "templates/markdownlint.json"
