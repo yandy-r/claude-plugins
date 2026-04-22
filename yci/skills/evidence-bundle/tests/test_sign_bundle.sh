@@ -43,6 +43,7 @@ EOF
     rc=$?
     assert_exit 0 "${rc}" "sign_bundle: ssh exits 0"
     assert_file_exists "${sb}/artifact.md.sig" "sign_bundle: ssh signature exists"
+    assert_file_exists "${sb}/signature.json" "sign_bundle: ssh metadata exists"
 }
 
 test_minisign_path

@@ -31,6 +31,9 @@ assert_not_contains "$out" "12345678-1234-1234-1234-123456789abc" "azure_guid_re
 assert_not_contains "$out" "app.acme-corp.example.com" "customer_slug_host_redacted"
 assert_not_contains "$out" "123-45-6789" "ssn_redacted_via_hipaa_adapter"
 assert_not_contains "$out" "123456789" "mrn_digits_redacted"
+assert_not_contains "$out" "Patient Name: mary-jane o'connor jr" "patient_name_lowercase_redacted"
+assert_not_contains "$out" "Patient Name: JOHN Q. PUBLIC III" "patient_name_caps_initial_suffix_redacted"
+assert_not_contains "$out" "Patient Name: Ana-Maria O'Brien" "patient_name_hyphen_apostrophe_redacted"
 
 # IPv6 compressed form from corpus
 assert_not_contains "$out" "2001:db8::1" "ipv6_redacted"

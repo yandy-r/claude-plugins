@@ -3,6 +3,10 @@ set -euo pipefail
 
 TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 HELPERS="${TESTS_DIR}/helpers.sh"
+if [[ ! -r "${HELPERS}" ]]; then
+    printf 'run-all.sh: missing or unreadable helpers.sh at %s\n' "${HELPERS}" >&2
+    exit 1
+fi
 source "${HELPERS}"
 
 VERBOSE=0

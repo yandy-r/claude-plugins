@@ -156,7 +156,9 @@ yci_load_compliance_adapter() {
     fi
 
     if yci_adapter_requires_redaction_rules "$regime"; then
-        if ! find "${adapter_dir}" -maxdepth 1 -type f -name '*-redaction.rules' | grep -q .; then
+        local first_rule=""
+        IFS= read -r first_rule < <(find "${adapter_dir}" -maxdepth 1 -type f -name '*-redaction.rules' -print -quit)
+        if [ -z "${first_rule}" ]; then
             printf 'yci: adapter at %s is incomplete: missing *-redaction.rules\n' "$adapter_dir" >&2
             return 4
         fi

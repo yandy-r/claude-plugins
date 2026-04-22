@@ -79,12 +79,6 @@ fi
 eval "$("${PLUGIN_ROOT}/skills/_shared/scripts/load-compliance-adapter.sh" "${adapter_export_args[@]}")" || \
     err "eb-adapter-invalid" "Could not resolve compliance adapter" 4
 
-if [[ -n "${adapter_override}" ]]; then
-    YCI_ADAPTER_REGIME="${adapter_override}"
-    YCI_ADAPTER_DIR="$("${PLUGIN_ROOT}/skills/_shared/scripts/load-compliance-adapter.sh" --regime "${adapter_override}")" || \
-        err "eb-adapter-invalid" "Could not resolve override adapter ${adapter_override}" 4
-fi
-
 workdir="$(mktemp -d)"
 bundle_json="${workdir}/bundle.json"
 manifest_json="${workdir}/manifest.json"
@@ -180,19 +174,30 @@ bundle_path.write_text(json.dumps(bundle, indent=2, sort_keys=True), encoding="u
 manifest_json_path.write_text(json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8")
 PY
 
-schema_path=""
+schema_args=()
 template_path="${YCI_ADAPTER_DIR}/evidence-template.md"
 if [[ -f "${YCI_ADAPTER_DIR}/evidence-schema.json" ]]; then
-    schema_path="${YCI_ADAPTER_DIR}/evidence-schema.json"
+    schema_args=(--schema "${YCI_ADAPTER_DIR}/evidence-schema.json")
 fi
 
 python3 "${SCRIPT_DIR}/validate-bundle.py" \
     --bundle-json "${bundle_json}" \
-    --schema "${schema_path}" || err "eb-validation-failed" "Bundle validation failed" 5
+    "${schema_args[@]}" || err "eb-validation-failed" "Bundle validation failed" 5
 
-change_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["change_id"])' "${bundle_json}")"
-timestamp_slug="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["timestamp_utc"].replace(":","").replace("-","").replace("T","-").replace("Z",""))' "${bundle_json}")"
-customer_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["customer_id"])' "${bundle_json}")"
+mapfile -t bundle_meta < <(
+    python3 - "${bundle_json}" <<'PY'
+import json
+import sys
+payload = json.load(open(sys.argv[1], encoding="utf-8"))
+timestamp = payload["timestamp_utc"].replace(":", "").replace("-", "").replace("T", "-").replace("Z", "")
+print(payload["change_id"])
+print(timestamp)
+print(payload["customer_id"])
+PY
+)
+change_id="${bundle_meta[0]:-}"
+timestamp_slug="${bundle_meta[1]:-}"
+customer_id="${bundle_meta[2]:-}"
 
 if [[ -z "${output_dir}" ]]; then
     output_dir="${resolved_data_root}/artifacts/${customer_id}/evidence-bundle/${change_id}-${timestamp_slug}"

@@ -5,7 +5,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/helpers.sh"
 VALIDATOR="${SCRIPTS_DIR}/validate-bundle.py"
 
 test_valid_bundle() {
-    local sb
+    local sb rc
     sb="$(mktemp -d)"
     trap 'rm -rf "${sb}"' RETURN
 
@@ -28,8 +28,11 @@ test_valid_bundle() {
 }
 EOF
 
+    set +e
     python3 "${VALIDATOR}" --bundle-json "${sb}/bundle.json"
-    assert_exit 0 "$?" "validate_bundle: valid bundle exits 0"
+    rc=$?
+    set -e
+    assert_exit 0 "$rc" "validate_bundle: valid bundle exits 0"
 }
 
 test_invalid_bundle() {

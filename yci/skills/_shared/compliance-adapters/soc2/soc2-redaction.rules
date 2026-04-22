@@ -4,4 +4,4 @@ NAME:internal_ticket
 RE:\b(?:INC|CHG|REQ)-\d{5,}\b
 
 NAME:internal_hostname
-RE:\b[a-z0-9.-]+\.(?:corp|internal|intranet)\b
+RE:(?i)\b[a-z0-9][a-z0-9\-]*\.(?:corp|internal|intranet)\b

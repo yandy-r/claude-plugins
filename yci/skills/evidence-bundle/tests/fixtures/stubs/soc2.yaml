@@ -1,4 +1,4 @@
-schema_version: commercial/1
+schema_version: soc2/1
 change_id: soc2-001
 change_summary: SOC2 change summary
 customer_id: test

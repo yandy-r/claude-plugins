@@ -2,4 +2,8 @@
 set -euo pipefail
 
 cat >/dev/null
-printf 'fake-ssh-signature\n'
+cat <<'EOF'
+-----BEGIN SSH SIGNATURE-----
+U1NIU0lHTkFUVVJFLURFVEVSTUlOSVNUSUMtRklYVFVSRQ==
+-----END SSH SIGNATURE-----
+EOF

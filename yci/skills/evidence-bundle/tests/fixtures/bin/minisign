@@ -11,4 +11,15 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+if [[ -z "${sig_path}" ]]; then
+    printf 'minisign fixture: missing required -x signature path\n' >&2
+    exit 1
+fi
+
+if [[ -z "${artifact}" ]]; then
+    printf 'minisign fixture: missing required -m artifact path\n' >&2
+    exit 1
+fi
+
 printf 'fake-minisign signature for %s\n' "${artifact}" > "${sig_path}"
+exit 0

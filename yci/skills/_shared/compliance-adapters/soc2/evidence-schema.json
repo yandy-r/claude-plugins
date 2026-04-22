@@ -39,7 +39,43 @@
       "items": { "type": "string" },
       "minItems": 1
     },
-    "operator_identity": { "type": "string" }
+    "operator_identity": { "type": "string" },
+    "customer_id": { "type": "string" },
+    "engagement_id": { "type": "string" },
+    "tenant_scope": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "tenant_scope_summary": { "type": "string" },
+    "approvals": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "git_commit_range": { "type": "string" },
+    "diff_path": { "type": "string" },
+    "diff_excerpt": { "type": "string" },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "executed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "compliance_regime": { "type": "string" },
+    "signature_method": { "type": "string" },
+    "signature_key_ref": { "type": "string" },
+    "signature_identity": { "type": "string" },
+    "signature_pubkey": { "type": "string" },
+    "schema_version": { "type": "string" },
+    "yci_commit": { "type": "string" },
+    "rollback_plan_path": { "type": "string" },
+    "blast_radius_label": { "type": "string" },
+    "rollback_confidence": { "type": "string" },
+    "extensions": {
+      "type": "object",
+      "additionalProperties": true
+    }
   },
-  "additionalProperties": true
+  "additionalProperties": false
 }

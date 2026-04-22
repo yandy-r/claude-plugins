@@ -1083,6 +1083,19 @@ validate_evidence_bundle_skill() {
             ok "script ${s} present and executable"
         else
             fail "script ${s}: missing or not executable"
+            continue
+        fi
+
+        if [[ "${s}" == *.sh ]]; then
+            if ! head -1 "$p" | grep -q '^#!/usr/bin/env bash'; then
+                fail "script ${s}: wrong shebang (expected #!/usr/bin/env bash)"
+                continue
+            fi
+            if grep -q 'set -euo pipefail' "$p"; then
+                ok "script ${s}: correct shebang and set -euo pipefail"
+            else
+                fail "script ${s}: missing 'set -euo pipefail'"
+            fi
         fi
     done
 

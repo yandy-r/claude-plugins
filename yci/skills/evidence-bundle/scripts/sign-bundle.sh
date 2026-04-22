@@ -27,10 +27,21 @@ done
 [[ -n "${artifact}" && -n "${signing_json}" && -n "${output}" && -n "${metadata}" ]] || usage
 [[ -f "${artifact}" && -f "${signing_json}" ]] || usage
 
-method="$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])) or {}).get("method",""))' "${signing_json}")"
-key_ref="$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])) or {}).get("key_ref",""))' "${signing_json}")"
-identity="$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])) or {}).get("identity",""))' "${signing_json}")"
-pubkey="$(python3 -c 'import json,sys; print((json.load(open(sys.argv[1])) or {}).get("pubkey",""))' "${signing_json}")"
+mapfile -t signing_fields < <(
+    python3 - "${signing_json}" <<'PY'
+import json
+import sys
+payload = json.load(open(sys.argv[1], encoding="utf-8")) or {}
+print(payload.get("method", ""))
+print(payload.get("key_ref", ""))
+print(payload.get("identity", ""))
+print(payload.get("pubkey", ""))
+PY
+)
+method="${signing_fields[0]:-}"
+key_ref="${signing_fields[1]:-}"
+identity="${signing_fields[2]:-}"
+pubkey="${signing_fields[3]:-}"
 
 if [[ -z "${method}" || -z "${key_ref}" ]]; then
     printf '[eb-signing-unavailable] Missing compliance.signing method or key_ref\n' >&2

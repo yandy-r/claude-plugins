@@ -6,7 +6,7 @@
 
 ## Intent
 
-This adapter implements SOC 2 oriented evidence bundles for cloud-native
+This adapter implements SOC-2-oriented evidence bundles for cloud-native
 commercial customers. It adds CC-series control mapping metadata while keeping
 the baseline bundle shape compatible with the shared evidence pipeline.
 

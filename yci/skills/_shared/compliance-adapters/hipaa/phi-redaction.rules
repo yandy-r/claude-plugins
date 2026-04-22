@@ -11,4 +11,4 @@ NAME:dob
 RE:\b(?:DOB|Date of Birth)\s*[:#]?\s*\d{4}-\d{2}-\d{2}\b
 
 NAME:patient_name
-RE:\bPatient\s*Name\s*[:#]?\s*[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b
+RE:(?iu)\bPatient\s*Name\s*[:#]?\s*(?:[^\W\d_](?:[^\W\d_]|['’-]){0,31}\.?)(?:\s+(?:[^\W\d_](?:[^\W\d_]|['’-]){0,31}\.?)){0,3}(?:\s+(?:jr|sr|ii|iii|iv)\.?)?\b

@@ -74,10 +74,18 @@ sample_pan='primary account number 4111 1111 1111 1111'
 _preflight_sanitize_text "$prof"
 out_pci="$(printf '%s' "$sample_pan" | python3 "${YCI_TELEMETRY_SCRIPTS_DIR}/sanitize_text.py" \
   --profile-json "$prof" \
-  --yci-root "$YCI_PLUGIN_ROOT" \
+  --yci-root "$CLAUDE_PLUGIN_ROOT" \
   --regime pci \
   --mode strict)"
 assert_not_contains "$out_pci" "4111 1111 1111 1111" "pan_redacted_with_pci_adapter"
+sample_non_pan='tracking number 4111 1111 1111 1112'
+_preflight_sanitize_text "$prof"
+out_non_pan="$(printf '%s' "$sample_non_pan" | python3 "${YCI_TELEMETRY_SCRIPTS_DIR}/sanitize_text.py" \
+  --profile-json "$prof" \
+  --yci-root "$CLAUDE_PLUGIN_ROOT" \
+  --regime pci \
+  --mode strict)"
+assert_contains "$out_non_pan" "4111 1111 1111 1112" "non_luhn_pan_preserved"
 
 # internal mode: generic FQDN heuristic skipped — example.com should survive
 sample='see https://example.com/path for docs'
