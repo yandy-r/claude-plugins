@@ -1,4 +1,0 @@
-id: other-service
-criticality: tier-3
-rto_band: 1h-4h
-owner_tenant: other-tenant

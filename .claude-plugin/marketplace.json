@@ -18,15 +18,6 @@
         "name": "yandy-r"
       },
       "source": "./ycc"
-    },
-    {
-      "name": "yci",
-      "description": "Yandy's Claude Infrastructure toolkit — consulting / systems-integration workflows (Phase 0 scaffolding).",
-      "version": "0.1.0",
-      "author": {
-        "name": "yandy-r"
-      },
-      "source": "./yci"
     }
   ]
 }

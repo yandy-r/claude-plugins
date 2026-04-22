@@ -1,5 +1,0 @@
---- a/config
-+++ b/config
-@@
--allow patient-data
-+allow patient-data with logging

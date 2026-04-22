@@ -1,4 +1,0 @@
-id: orders-api
-criticality: tier-1
-rto_band: 5m-1h
-owner_tenant: retail-ops

@@ -2,53 +2,43 @@
 
 ## Overview
 
-This repository ships multiple Claude Code plugins from a single marketplace at
-`.claude-plugin/marketplace.json`. Each plugin has its own source tree, its own
-`plugin.json` manifest, and its own runtime namespace. Currently:
+This repository ships the `ycc` Claude Code plugin from a single marketplace at
+`.claude-plugin/marketplace.json`. `ycc` — Yandy's Claude Code bundle — covers
+dev-focused workflows: planning, implementation, git, research, docs, and
+orchestration. Source lives under `ycc/`; reached as `ycc:{skill}`,
+`/ycc:{command}`, and `subagent_type: "ycc:{agent}"`.
 
-- **`ycc`** — Yandy's Claude Code bundle. Dev-focused workflows (planning,
-  implementation, git, research, docs, orchestration). Source under `ycc/`;
-  reached as `ycc:{skill}`, `/ycc:{command}`, `subagent_type: "ycc:{agent}"`.
-- **`yci`** — Yandy's Claude Infrastructure toolkit. Consulting / systems-integration
-  workflows (customer profiles, compliance adapters, change-window enforcement,
-  deliverable packaging). Source under `yci/`; reached as `yci:{skill}`,
-  `/yci:{command}`, `subagent_type: "yci:{agent}"`. PRD: `docs/prps/prds/yci.prd.md`.
-
-Plugin namespaces are fixed. Adding a new top-level plugin requires a PRD-approved
-decision that justifies the split (see `CONTRIBUTING.md` → Scope & Guardrails).
-New functionality in an existing plugin stays inside that plugin's source tree.
-
-The `ycc/` source tree also generates native compatibility bundles for Cursor,
-Codex, and opencode:
+The `ycc/` source tree is the single source of truth; it generates native
+compatibility bundles for Cursor, Codex, and opencode:
 
 - Cursor bundle: `.cursor-plugin/`
 - Codex bundle: `.codex-plugin/ycc/`
 - Codex custom agents: `.codex-plugin/agents/`
 - opencode bundle: `.opencode-plugin/` (skills, agents, commands, AGENTS.md, opencode.json)
 
-`yci/` has no cross-target generator wiring in Phase 0 — the fleet remains
-ycc-scoped until yci has enough skill surface to justify parameterization
-(planned for Phase 1a). `scripts/sync.sh` emits a Phase-0 breadcrumb for yci.
-
 > Pre-2.0 versions shipped 9 separate `ycc` sub-plugins. 2.0.0 collapsed them into
 > one `ycc` bundle so every ycc skill is reachable via the same `ycc:` namespace
-> prefix. See `docs/plans/` for the consolidation plan. `yci` is a deliberately
-> separate sibling plugin introduced in 2026-04; it is NOT a regression toward the
-> pre-2.0 multi-plugin pattern — see the PRD §1 for the rationale (the consulting
-> workflow has a different threat model, compliance surface, and data-isolation
-> requirement than the dev workflow, and folding it in would degrade both).
+> prefix. See `docs/plans/` for the consolidation plan.
+>
+> **2026-04 split**: the consulting/SI toolkit previously shipped here as `yci`
+> was extracted into its own sibling repo
+> [`yandy-r/claude-infra-plugins`](https://github.com/yandy-r/claude-infra-plugins).
+> That plugin's customer-guard PreToolUse hook was fail-closing on every tool call
+> in this (dev-only) workspace, which is wrong for a ycc development repo and
+> correct for a customer-engagement repo. Two repos, two threat models — one
+> hook posture each.
 
 ## Repository Layout
 
 ```
 claude-plugins/
 ├── .claude-plugin/
-│   └── marketplace.json      # ycc + yci entries
-├── .codex-plugin/            # Codex bundle (ycc only in Phase 0)
+│   └── marketplace.json      # single plugin entry (ycc)
+├── .codex-plugin/            # Codex bundle
 │   ├── agents/               # generated Codex custom agents
 │   └── ycc/                  # generated Codex plugin root
-├── .cursor-plugin/           # Cursor bundle (ycc only in Phase 0)
-├── .opencode-plugin/         # opencode bundle (ycc only in Phase 0)
+├── .cursor-plugin/           # Cursor bundle
+├── .opencode-plugin/         # opencode bundle
 │   ├── skills/               # → ~/.config/opencode/skills/
 │   ├── agents/               # → ~/.config/opencode/agents/
 │   ├── commands/             # → ~/.config/opencode/commands/
@@ -65,33 +55,22 @@ claude-plugins/
 │           ├── SKILL.md      # skill prompt (required)
 │           ├── references/   # templates, examples, reference docs
 │           └── scripts/      # validation and helper scripts
-├── yci/                      # yci plugin source (consulting / SI workflows)
-│   ├── .claude-plugin/
-│   │   └── plugin.json       # name: "yci"
-│   ├── CONTRIBUTING.md       # yci-specific policy (non-goals, adapter pattern)
-│   ├── hooks/                # customer-guard (shipped); scope-gate, change-window-gate later
-│   ├── skills/               # yci:{skill} — customer-profile, customer-guard, blast-radius, hello
-│   │   └── _shared/          # customer-isolation, inventory-adapters (netbox stub), scripts
-│   ├── agents/               # Phase-1+ agents
-│   ├── commands/             # Phase-1+ slash commands
-│   └── docs/                 # profiles.md, profiles/_internal.yaml.example
 └── docs/
     ├── plans/                # implementation plans
-    └── prps/prds/            # product requirements documents (incl. yci.prd.md)
+    └── prps/                 # product requirements documents, specs, reports, reviews
 ```
 
 ## Plugin Development Conventions
 
 ### Naming
 
-- Plugin namespaces (`ycc:`, `yci:`) are stable and must NOT change. The marketplace
-  currently ships two plugins; adding a third requires a PRD-approved namespace.
-- Skills: `kebab-case` directory under `<plugin>/skills/`. The directory name becomes
-  the skill identifier within the plugin's namespace (e.g., `ycc/skills/git-workflow/`
-  → `ycc:git-workflow`; `yci/skills/hello/` → `yci:hello`).
-- Commands: `kebab-case.md` under `<plugin>/commands/`. The basename becomes the slash
+- The plugin namespace `ycc:` is stable and must NOT change.
+- Skills: `kebab-case` directory under `ycc/skills/`. The directory name becomes
+  the skill identifier within the `ycc:` namespace (e.g., `ycc/skills/git-workflow/`
+  → `ycc:git-workflow`).
+- Commands: `kebab-case.md` under `ycc/commands/`. The basename becomes the slash
   command (e.g., `ycc/commands/clean.md` → `/ycc:clean`).
-- Agents: `kebab-case.md` under `<plugin>/agents/`. The basename becomes the agent
+- Agents: `kebab-case.md` under `ycc/agents/`. The basename becomes the agent
   identifier (e.g., `ycc/agents/codebase-advisor.md` → `subagent_type: "ycc:codebase-advisor"`).
 - Scripts: `kebab-case.sh` with bash shebang.
 
@@ -106,14 +85,11 @@ All scripts must:
 - Write output to stdout, errors to stderr
 
 When a script needs to reference its own plugin path, use `${CLAUDE_PLUGIN_ROOT}` —
-this resolves to the invoking plugin's source directory at runtime (`ycc/` for ycc
-skills, `yci/` for yci skills). Paths inside skills follow the form
-`${CLAUDE_PLUGIN_ROOT}/skills/{skill-name}/...`.
+this resolves to the plugin's source directory at runtime (`ycc/`). Paths inside
+skills follow the form `${CLAUDE_PLUGIN_ROOT}/skills/{skill-name}/...`.
 
 Codex-generated skills are not source-edited directly. The Codex generator rewrites
-those paths to the managed install location `~/.codex/plugins/<plugin>/...`
-(currently `~/.codex/plugins/ycc/...` — yci is not yet wired into the Codex
-generator as of Phase 0).
+those paths to the managed install location `~/.codex/plugins/ycc/...`.
 
 ### Skills
 
@@ -125,35 +101,19 @@ Each skill directory contains:
 
 ### Cross-skill helpers
 
-Shared helpers (used by more than one skill within a plugin) live under
-`<plugin>/skills/_shared/scripts/`. Skills source them via
-`${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/{name}.sh`. Cross-plugin helper
-sharing is NOT supported — if `ycc` and `yci` both need the same helper, duplicate
-it (the duplication cost is low, the coupling cost is high).
+Shared helpers (used by more than one skill) live under `ycc/skills/_shared/scripts/`.
+Skills source them via `${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/{name}.sh`.
 
 ### Registration
 
-The marketplace registry at `.claude-plugin/marketplace.json` contains one entry
-per plugin. As of 2026-04, that is two entries — `ycc` and `yci`:
-
-```json
-{
-  "plugins": [
-    { "name": "ycc", "source": "./ycc", "version": "<managed by /ycc:bundle-release>" },
-    { "name": "yci", "source": "./yci", "version": "<managed alongside yci>" }
-  ]
-}
-```
-
-**Adding a new plugin entry requires PRD approval.** New functionality in an
-existing plugin goes into that plugin's source tree as a new skill, command, or
-agent — not into a fresh marketplace entry. The bar for a new top-level plugin
-is a scope that cannot coexist with the existing plugins without harming them
-(cross-contamination, descriptor pollution, fragility-cliff proximity). The yci
-PRD (`docs/prps/prds/yci.prd.md`) is the reference example of the level of
-rigor expected — problem statement, audience, threat model, non-goals, phased
-rollout, success criteria. See `CONTRIBUTING.md` → Scope & Guardrails for the
-full decision gate.
+The marketplace registry at `.claude-plugin/marketplace.json` contains a single
+entry: `ycc`. Adding a second plugin to this repo is NOT on the roadmap — the
+2026-04 split of `yci` into
+[`yandy-r/claude-infra-plugins`](https://github.com/yandy-r/claude-infra-plugins)
+is the reference precedent: when scope cannot coexist with ycc without harming
+it (cross-contamination, descriptor pollution, fragility-cliff proximity),
+split into a sibling repo rather than accumulate plugins here. See
+`CONTRIBUTING.md` → Scope & Guardrails for the full decision gate.
 
 ## Generated Compatibility Targets
 
@@ -161,12 +121,6 @@ full decision gate.
 - `ycc/agents/` is the source of truth for Cursor, Codex, and opencode agent generation.
 - `ycc/commands/` is the source of truth for opencode command generation (Cursor does not
   natively consume `.md` commands; Codex has no slash-command layer).
-- `yci/skills/`, `yci/agents/`, and `yci/commands/` are Claude-native only in Phase 0.
-  The generator fleet (`scripts/generate_codex_common.py`, `scripts/generate_cursor_skills.py`,
-  `scripts/generate_opencode_common.py`) hardcodes `ycc` as source and destination.
-  Parameterizing for yci is Phase 1a work — deferred until yci has enough skill
-  surface to justify it. `scripts/sync.sh` iterates `PLUGINS=(ycc yci)` but emits
-  a Phase-0 breadcrumb for yci instead of invoking generators.
 - Do not hand-edit generated files under `.cursor-plugin/`, `.codex-plugin/`, or
   `.opencode-plugin/` unless you are first changing the generator.
 - Codex does not support this repo's custom slash-command layer as installable artifacts.
@@ -179,30 +133,27 @@ full decision gate.
 
 ## Testing Changes
 
-After modifying anything under a plugin source tree (`ycc/` or `yci/`):
+After modifying anything under `ycc/`:
 
 1. Validate JSON with `python3 -m json.tool`:
    - `python3 -m json.tool .claude-plugin/marketplace.json`
    - `python3 -m json.tool ycc/.claude-plugin/plugin.json`
-   - `python3 -m json.tool yci/.claude-plugin/plugin.json`
 2. Verify all `${CLAUDE_PLUGIN_ROOT}` paths resolve (no broken references).
 3. Confirm shell scripts remain executable:
-   `find ycc/skills yci/skills -name "*.sh" -not -executable` (should output nothing).
-4. Test the skill or command in a live Claude Code session via its plugin prefix
-   (`ycc:` or `yci:`).
+   `find ycc/skills -name "*.sh" -not -executable` (should output nothing).
+4. Test the skill or command in a live Claude Code session via its `ycc:` prefix.
 
 If you changed `ycc/skills/`, `ycc/agents/`, or `ycc/commands/`, also regenerate and
-validate the compatibility bundles (Cursor / Codex / opencode — ycc only in Phase 0).
-Changes under `yci/` are validated by `./scripts/validate.sh` but do not yet emit
-cross-target bundles. The recommended pair is the unified entrypoints:
+validate the compatibility bundles (Cursor / Codex / opencode). The recommended pair
+is the unified entrypoints:
 
 ```bash
-./scripts/sync.sh         # iterate PLUGINS; regenerate ycc bundles; breadcrumb for yci
-./scripts/validate.sh     # iterate PLUGINS; run every validator (this is what CI runs)
+./scripts/sync.sh         # regenerate every compatibility bundle
+./scripts/validate.sh     # run every validator (this is what CI runs)
 ```
 
 Both accept `--only <targets>` with comma-separated values (`inventory, cursor, codex,
-opencode, json, yci`). The individual generator / validator scripts are still available
+opencode, json`). The individual generator / validator scripts are still available
 for targeted iteration:
 
 1. Codex:
@@ -262,7 +213,7 @@ for targeted iteration:
 ### Languages
 
 - **Python** (`scripts/generate_*.py`): PEP 8 throughout; type hints required on all public API signatures; prefer `ruff` for linting and `mypy --strict` for type checking.
-- **Shell** (`scripts/*.sh`, `ycc/skills/*/scripts/*.sh`, `yci/skills/*/scripts/*.sh`): `#!/usr/bin/env bash` + `set -euo pipefail`; validation guards on required inputs; stdout for results, stderr for errors; exit 0 on success, 1 on error.
+- **Shell** (`scripts/*.sh`, `ycc/skills/*/scripts/*.sh`): `#!/usr/bin/env bash` + `set -euo pipefail`; validation guards on required inputs; stdout for results, stderr for errors; exit 0 on success, 1 on error.
 
 ## Git & Conventional Commits
 
@@ -318,12 +269,12 @@ The Claude Code harness defaults to creating worktrees inside the current repo a
 
 ## Stack Overview
 
-| Layer            | Technology                   | Notes                                             |
-| ---------------- | ---------------------------- | ------------------------------------------------- |
-| Primary language | **mixed** (Shell + Markdown) | Plugin source under `ycc/` and `yci/`             |
-| Generators       | Python 3                     | `scripts/generate_*.py` emit Cursor/Codex bundles |
-| Helper scripts   | Bash                         | `scripts/lint.sh`, `scripts/format.sh`            |
-| Package manager  | npm                          | Drives lint/format only — no test or build target |
+| Layer            | Technology                   | Notes                                                      |
+| ---------------- | ---------------------------- | ---------------------------------------------------------- |
+| Primary language | **mixed** (Shell + Markdown) | Plugin source under `ycc/`                                 |
+| Generators       | Python 3                     | `scripts/generate_*.py` emit Cursor/Codex/opencode bundles |
+| Helper scripts   | Bash                         | `scripts/lint.sh`, `scripts/format.sh`                     |
+| Package manager  | npm                          | Drives lint/format only — no test or build target          |
 
 ## Commands
 
@@ -343,4 +294,4 @@ npm run format:modified   # only modified files
 
 New projects should bootstrap this same lint/format environment via `/ycc:formatters` (or `/ycc:init --formatters`), which installs the `scripts/style.sh` bundle, tool configs, aliases, and docs into the target repo.
 
-Testing and validation are defined in `## Testing Changes` above — JSON validation plus the Codex/Cursor generate-and-validate pipelines are the real verification loop for this repository.
+Testing and validation are defined in `## Testing Changes` above — JSON validation plus the Codex/Cursor/opencode generate-and-validate pipelines are the real verification loop for this repository.

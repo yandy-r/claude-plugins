@@ -56,15 +56,15 @@ default and creates worktrees under `<repo>/.claude/worktrees/` (the path the po
 
 ## Repository Model
 
-This repo ships multiple Claude Code plugins from a single marketplace. Currently two:
+This repo ships the `ycc` Claude Code plugin — dev-focused workflows under `ycc/`,
+cross-generated to Cursor, Codex, and opencode. New functionality goes into `ycc/`
+as a new skill, command, or agent. **New top-level plugins in this repo require
+PRD approval** — see Scope & Guardrails below for the decision gate.
 
-- **`ycc`** — dev-focused workflows under `ycc/`; cross-generated to Cursor, Codex, opencode.
-- **`yci`** — consulting / systems-integration workflows under `yci/`; Claude-native only
-  in Phase 0 (cross-target generation deferred to Phase 1a).
-
-New functionality in an existing plugin goes into that plugin's source tree as a new
-skill, command, or agent. **New top-level plugins require PRD approval** — see
-Scope & Guardrails below for the decision gate.
+> **Related**: the consulting / systems-integration toolkit (`yci`) lives in the
+> sibling repo [`yandy-r/claude-infra-plugins`](https://github.com/yandy-r/claude-infra-plugins).
+> That split (2026-04) is the reference precedent for when scope belongs in a
+> separate repo rather than accumulated here.
 
 ## Scope & Guardrails
 
@@ -76,11 +76,14 @@ or agent.
   coverage; the current bottleneck is maintenance integrity (drift, inventory accuracy,
   generator sync), not missing subjects. Breadth additions without evidence are rejected.
 - **Do not create a new top-level plugin without an approved PRD.** The marketplace
-  currently ships `ycc` and `yci`. Adding a third plugin requires a PRD at
+  currently ships only `ycc`. Adding a second plugin requires a PRD at
   `docs/prps/prds/<name>.prd.md` that answers: problem statement, audience and threat
   model, non-goals, phased rollout, success criteria, and the "why this can't live inside
-  an existing plugin" argument. The yci PRD (`docs/prps/prds/yci.prd.md`) is the
-  reference example. An unjustified new `marketplace.json` entry is rejected by policy.
+  `ycc` or a sibling repo" argument. The `yci` → `claude-infra-plugins` split is the
+  reference precedent: when scope cannot coexist with `ycc` without harming it
+  (cross-contamination, descriptor pollution, fragility-cliff proximity), prefer a
+  sibling repo over a second plugin here. An unjustified new `marketplace.json` entry
+  is rejected by policy.
 - **Do not market hooks as uniform across targets.** Claude, Cursor, Codex, and opencode each
   have different hook support and maturity. Any hook-related addition must ship with a
   per-target support matrix.
@@ -95,10 +98,12 @@ answer points elsewhere, revise the proposal before writing code.
 
 - Could this extend an existing skill (a new phase, flag, or reference file) instead of
   becoming a new one?
-- Does this belong in one of the existing plugins (`ycc` or `yci`)? If yes, add it under
-  that plugin's source tree.
-- Would this require a NEW top-level plugin and a new `marketplace.json` entry? If yes,
-  stop and open a PRD first. Without PRD approval the entry is rejected by policy.
+- Does this belong in `ycc`? If yes, add it under `ycc/skills/`, `ycc/commands/`, or `ycc/agents/`.
+- Does this belong in a sibling repo (e.g., consulting/SI scope → `claude-infra-plugins`)?
+  If yes, PR it there.
+- Would this require a NEW top-level plugin and a new `marketplace.json` entry in this
+  repo? If yes, stop and open a PRD first. Without PRD approval the entry is rejected
+  by policy.
 - Has a higher-priority meta-skill or drift fix been scheduled first?
 - For hook-related work: does the proposal include a per-target support matrix?
 
@@ -108,16 +113,15 @@ misplacement, agents without consumers, etc.) that complement this policy.
 
 ## Structure Requirements
 
-- Claude source plugin manifests: `<plugin>/.claude-plugin/plugin.json` (currently `ycc/` and `yci/`)
-- Claude marketplace: `.claude-plugin/marketplace.json` (one entry per plugin)
-- Codex generated plugin root: `.codex-plugin/ycc/` (ycc only in Phase 0)
-- Codex generated custom agents: `.codex-plugin/agents/` (ycc only in Phase 0)
-- Cursor generated bundle: `.cursor-plugin/` (ycc only in Phase 0)
-- opencode generated bundle: `.opencode-plugin/` (skills, agents, commands, AGENTS.md, opencode.json — ycc only in Phase 0)
-- Skills go in `<plugin>/skills/<skill-name>/SKILL.md`
+- Claude source plugin manifest: `ycc/.claude-plugin/plugin.json`
+- Claude marketplace: `.claude-plugin/marketplace.json` (single entry)
+- Codex generated plugin root: `.codex-plugin/ycc/`
+- Codex generated custom agents: `.codex-plugin/agents/`
+- Cursor generated bundle: `.cursor-plugin/`
+- opencode generated bundle: `.opencode-plugin/` (skills, agents, commands, AGENTS.md, opencode.json)
+- Skills go in `ycc/skills/<skill-name>/SKILL.md`
 - Scripts must be executable (`chmod +x`) and use `set -euo pipefail`
-- Reference templates go in `<plugin>/skills/<skill-name>/references/`
-- yci-specific policy (non-goals, compliance-adapter pattern, customer-data rule) lives in `yci/CONTRIBUTING.md`
+- Reference templates go in `ycc/skills/<skill-name>/references/`
 
 ## Naming Conventions
 
@@ -165,17 +169,15 @@ matrix.
 ## Regeneration
 
 After changing `ycc/skills/`, `ycc/agents/`, or `ycc/commands/`, regenerate and validate
-compatibility artifacts. After changing `yci/skills/`, `yci/agents/`, or `yci/commands/`,
-the unified validator still runs, but no cross-target bundles are emitted in Phase 0.
-The recommended path is the unified pair either way:
+the compatibility bundles:
 
 ```bash
-./scripts/sync.sh         # iterate PLUGINS; regenerate ycc bundles; breadcrumb for yci
-./scripts/validate.sh     # iterate PLUGINS; run every validator (this is what CI runs)
+./scripts/sync.sh         # regenerate every Cursor / Codex / opencode bundle
+./scripts/validate.sh     # run every validator (this is what CI runs)
 ```
 
 Both accept `--only <targets>` with comma-separated values (`inventory, cursor, codex,
-opencode, json, yci`). The individual generator/validator scripts are still available if you
+opencode, json`). The individual generator/validator scripts are still available if you
 need to target a single surface:
 
 ```bash
