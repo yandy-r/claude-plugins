@@ -1,9 +1,9 @@
 # shellcheck shell=bash
-# Resolve which shellcheck binary to run and warn when it differs from .tool-versions.
+# Resolve which shellcheck binary to run and warn when it differs from the pinned helper.
 # Call after PROJECT_ROOT or REPO_ROOT is set. Defines:
 #   resolve_shellcheck_bin  -> sets SHELLCHECK_BIN, returns 0 on success
 #
-# If .tool-versions is missing or has no shellcheck line, read_shellcheck_pinned_version
+# If scripts/lib/shellcheck-version.sh is missing, read_shellcheck_pinned_version
 # succeeds with no output; version comparison is skipped unless a pin is present.
 #
 # When SHELLCHECK_RESOLVE_OPTIONAL is non-empty and no shellcheck binary is found,
@@ -14,12 +14,17 @@
 
 read_shellcheck_pinned_version() {
   local root="$1"
-  local f="${root}/.tool-versions"
-  if [[ ! -f "$f" ]]; then
+  local helper="${root}/scripts/lib/shellcheck-version.sh"
+  if [[ ! -f "$helper" ]]; then
     return 0
   fi
   local v
-  v="$(grep -E '^shellcheck[[:space:]]' "$f" | head -n1 | awk '{print $2}')"
+  # shellcheck disable=SC1090
+  source "$helper"
+  if ! declare -F shellcheck_pinned_version >/dev/null 2>&1; then
+    return 0
+  fi
+  v="$(shellcheck_pinned_version)"
   if [[ -z "$v" ]]; then
     return 0
   fi

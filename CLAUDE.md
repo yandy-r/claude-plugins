@@ -279,7 +279,7 @@ The Claude Code harness defaults to creating worktrees inside the current repo a
 ## Commands
 
 ```bash
-# One-time: install pinned shellcheck (matches .tool-versions; same binary as CI)
+# One-time: install pinned shellcheck (matches scripts/lib/shellcheck-version.sh; same binary as CI)
 ./scripts/install-shellcheck.sh
 
 # Lint (Python + Shell)

@@ -56,7 +56,7 @@ jobs:
 
 {{#IF_SHELL}}
       - name: Install shellcheck
-        run: sudo apt-get update && sudo apt-get install -y shellcheck
+        run: ./scripts/install-shellcheck.sh
 {{/IF_SHELL}}
 
 {{#IF_DOCS}}

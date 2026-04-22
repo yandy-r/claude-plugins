@@ -32,10 +32,12 @@ BUNDLE_MANAGED_FILES=(
   "format.sh"
   "lint.sh"
   "init-formatters.sh"
+  "install-shellcheck.sh"
   "go-tools.sh"
   "lib/excludes.sh"
   "lib/modified-files.sh"
   "lib/shellcheck-resolve.sh"
+  "lib/shellcheck-version.sh"
   "templates/markdownlint.json"
   "templates/markdownlintignore"
   "templates/prettierrc.json"
@@ -190,6 +192,12 @@ detect_go_project() {
 
   [[ -f "$target_dir/go.mod" ]] ||
     directory_has_suffixes "$target_dir" ".go"
+}
+
+detect_shell_project() {
+  local target_dir="${1:-$PROJECT_ROOT}"
+
+  directory_has_suffixes "$target_dir" ".sh"
 }
 
 run_rust_lint() {
@@ -829,7 +837,7 @@ EOF
 
 init_usage() {
   cat <<'EOF'
-Usage: style.sh init [--copy|--sync] [--docs] [--rust] [--ts|--ts-node] [--python] [--go] [--all] [--target DIR] [--force] [--yes] [--dry-run] [DIR]
+Usage: style.sh init [--copy|--sync] [--docs] [--rust] [--ts|--ts-node] [--python] [--go] [--shell] [--all] [--target DIR] [--force] [--yes] [--dry-run] [DIR]
 
 Initialize formatter/linter config files for the current project root or a target directory.
 
@@ -840,7 +848,8 @@ Options:
   --ts-node          Alias for --ts
   --python           Initialize Python Ruff + Black config via pyproject.toml
   --go               Initialize .golangci.yml config
-  --all              Initialize docs, Rust, TS, Python, and Go config files
+  --shell            Initialize shell tooling support (.gitignore for /tools/shellcheck)
+  --all              Initialize docs, Rust, TS, Python, Go, and shell tooling support
   --copy             Copy the managed style bundle into DIR/scripts/ before initializing configs
   --sync             Copy the managed style bundle and prune stale previously-managed files
   -t, --target <dir> Target directory
@@ -1128,6 +1137,7 @@ run_init_command() {
   local init_ts=0
   local init_python=0
   local init_go=0
+  local init_shell=0
   local copy_bundle=0
   local sync_bundle=0
   local force=0
@@ -1143,9 +1153,10 @@ run_init_command() {
       --ts|--ts-node) init_ts=1; shift ;;
       --python) init_python=1; shift ;;
       --go) init_go=1; shift ;;
+      --shell) init_shell=1; shift ;;
       --copy) copy_bundle=1; shift ;;
       --sync) sync_bundle=1; shift ;;
-      --all) init_docs=1; init_rust=1; init_ts=1; init_python=1; init_go=1; shift ;;
+      --all) init_docs=1; init_rust=1; init_ts=1; init_python=1; init_go=1; init_shell=1; shift ;;
       -t|--target)
         if [[ $# -lt 2 ]]; then
           echo "Missing value for $1" >&2
@@ -1196,7 +1207,7 @@ run_init_command() {
     exit 1
   }
 
-  if (( !init_docs && !init_rust && !init_ts && !init_python && !init_go )); then
+  if (( !init_docs && !init_rust && !init_ts && !init_python && !init_go && !init_shell )); then
     if detect_docs_project "$resolved_target"; then
       init_docs=1
     fi
@@ -1212,9 +1223,12 @@ run_init_command() {
     if detect_go_project "$resolved_target"; then
       init_go=1
     fi
+    if detect_shell_project "$resolved_target"; then
+      init_shell=1
+    fi
   fi
 
-  if (( !init_docs && !init_rust && !init_ts && !init_python && !init_go )); then
+  if (( !init_docs && !init_rust && !init_ts && !init_python && !init_go && !init_shell )); then
     print_info "No supported config families detected. Defaulting to docs initialization."
     init_docs=1
   fi
@@ -1238,6 +1252,9 @@ run_init_command() {
   fi
   if (( init_go )); then
     init_args+=(--go)
+  fi
+  if (( init_shell )); then
+    init_args+=(--shell)
   fi
   if (( force )); then
     init_args+=(--force)

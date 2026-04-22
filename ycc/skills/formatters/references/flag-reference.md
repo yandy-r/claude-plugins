@@ -25,7 +25,7 @@ Detailed reference for every flag accepted by `ycc:formatters`. See `SKILL.md` f
 | `--python`         | auto        | 4 (enable)       | `pyproject.toml` (scaffold only; refuses to overwrite)              | `ycc:formatters --python`                |
 | `--go`             | auto        | 4 (enable)       | `.golangci.yml`                                                     | `ycc:formatters --go`                    |
 | `--docs`           | auto        | 4 (enable)       | `.markdownlint.json`, `.prettierrc`, `.prettierignore`              | `ycc:formatters --docs`                  |
-| `--shell`          | auto        | 4 (enable)       | (bundled scripts; no separate config emitted)                       | `ycc:formatters --shell`                 |
+| `--shell`          | auto        | 4 (enable)       | `.gitignore` entry for `/tools/shellcheck` + bundled shell tooling  | `ycc:formatters --shell`                 |
 | `--all`            | off         | 4 (enable all)   | every stack regardless of detection                                 | `ycc:formatters --all`                   |
 
 ### Flag precedence

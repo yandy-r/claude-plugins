@@ -8,6 +8,7 @@
 # - TypeScript/Node: biome.json, tsconfig.json, package.json
 # - Python: pyproject.toml with Ruff + Black config
 # - Go: .golangci.yml via go-tools.sh --generate
+# - Shellcheck installer support: .gitignore entry for /tools/shellcheck
 
 set -euo pipefail
 
@@ -47,7 +48,8 @@ Options:
   --ts-node            Alias for --ts
   --python             Initialize Python Ruff + Black config via pyproject.toml
   --go                 Initialize .golangci.yml via go-tools.sh --generate
-  --all                Initialize docs, Rust, TS, Python, and Go config files
+  --shell              Initialize shell tooling support (.gitignore for /tools/shellcheck)
+  --all                Initialize docs, Rust, TS, Python, Go, and shell tooling support
   -t, --target <dir>   Target directory (default: current directory)
   --force              Overwrite existing files without prompt
   -y, --yes            Non-interactive mode (skip overwrite prompts, keep existing files)
@@ -89,6 +91,7 @@ INIT_RUST=false
 INIT_TS=false
 INIT_PYTHON=false
 INIT_GO=false
+INIT_SHELL=false
 FORCE=false
 DRY_RUN=false
 ASSUME_YES=false
@@ -127,6 +130,10 @@ while [[ $# -gt 0 ]]; do
       INIT_GO=true
       shift
       ;;
+    --shell)
+      INIT_SHELL=true
+      shift
+      ;;
     --all)
       INIT_DOCS=true
       INIT_MD=true
@@ -135,6 +142,7 @@ while [[ $# -gt 0 ]]; do
       INIT_TS=true
       INIT_PYTHON=true
       INIT_GO=true
+      INIT_SHELL=true
       shift
       ;;
     -t|--target)
@@ -186,7 +194,7 @@ if [[ "${INIT_DOCS}" == true ]]; then
   INIT_PRETTIER=true
 fi
 
-if [[ "${INIT_MD}" == false && "${INIT_PRETTIER}" == false && "${INIT_RUST}" == false && "${INIT_TS}" == false && "${INIT_PYTHON}" == false && "${INIT_GO}" == false ]]; then
+if [[ "${INIT_MD}" == false && "${INIT_PRETTIER}" == false && "${INIT_RUST}" == false && "${INIT_TS}" == false && "${INIT_PYTHON}" == false && "${INIT_GO}" == false && "${INIT_SHELL}" == false ]]; then
   info "No formatter selection provided. Defaulting to --all."
   INIT_DOCS=true
   INIT_MD=true
@@ -195,6 +203,7 @@ if [[ "${INIT_MD}" == false && "${INIT_PRETTIER}" == false && "${INIT_RUST}" == 
   INIT_TS=true
   INIT_PYTHON=true
   INIT_GO=true
+  INIT_SHELL=true
 fi
 
 if [[ ! -d "${TARGET_DIR}" ]]; then
@@ -273,6 +282,65 @@ copy_template() {
   fi
 }
 
+ensure_gitignore_entry() {
+  local entry="$1"
+  local dest="${TARGET_DIR}/.gitignore"
+
+  if [[ -f "${dest}" ]] && grep -Fqx "${entry}" "${dest}"; then
+    info "Keeping existing ignore rule in ${dest}: ${entry}"
+    ((skipped++)) || true
+    return
+  fi
+
+  if [[ -f "${dest}" ]]; then
+    if [[ "${DRY_RUN}" == true ]]; then
+      if [[ "${FORCE}" == true ]]; then
+        info "[dry-run] Would append ignore rule to ${dest}: ${entry}"
+        ((overwritten++)) || true
+      elif [[ "${ASSUME_YES}" == true ]]; then
+        info "[dry-run] Would keep existing file: ${dest}"
+        ((skipped++)) || true
+      else
+        info "[dry-run] Would prompt to append ignore rule to ${dest}: ${entry}"
+      fi
+      return
+    fi
+
+    if [[ "${FORCE}" != true ]]; then
+      if [[ "${ASSUME_YES}" == true ]]; then
+        warn "Exists, keeping current file: ${dest}"
+        ((skipped++)) || true
+        return
+      fi
+
+      read -r -p "Append ignore rule ${entry} to existing file ${dest}? [y/N] " response
+      if [[ ! "${response}" =~ ^[Yy]$ ]]; then
+        info "Keeping existing file: ${dest}"
+        ((skipped++)) || true
+        return
+      fi
+    fi
+
+    if [[ -s "${dest}" && "$(tail -c 1 "${dest}" 2>/dev/null || true)" != $'\n' ]]; then
+      printf '\n' >> "${dest}"
+    fi
+    printf '%s\n' "${entry}" >> "${dest}"
+    success "Updated: ${dest} (${entry})"
+    ((overwritten++)) || true
+    return
+  fi
+
+  if [[ "${DRY_RUN}" == true ]]; then
+    info "[dry-run] Would create ${dest} with ignore rule: ${entry}"
+    ((created++)) || true
+    return
+  fi
+
+  printf '%s\n' "${entry}" > "${dest}"
+  success "Created: ${dest}"
+  ((created++)) || true
+}
+
 generate_go_config() {
   local dest="${TARGET_DIR}/.golangci.yml"
   local action="create"
@@ -338,6 +406,7 @@ info "Selected initializers:"
 [[ "${INIT_TS}" == true ]] && info "  - ts"
 [[ "${INIT_PYTHON}" == true ]] && info "  - python"
 [[ "${INIT_GO}" == true ]] && info "  - go"
+[[ "${INIT_SHELL}" == true ]] && info "  - shell"
 [[ "${DRY_RUN}" == true ]] && warn "Dry run mode enabled; no files will be written"
 
 if [[ "${INIT_MD}" == true ]]; then
@@ -365,6 +434,10 @@ fi
 
 if [[ "${INIT_GO}" == true ]]; then
   generate_go_config
+fi
+
+if [[ "${INIT_SHELL}" == true ]]; then
+  ensure_gitignore_entry "/tools/shellcheck"
 fi
 
 echo

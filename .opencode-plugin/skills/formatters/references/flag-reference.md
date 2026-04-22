@@ -25,7 +25,7 @@ Detailed reference for every flag accepted by `formatters`. See `SKILL.md` for l
 | `--python`         | auto        | 4 (enable)       | `pyproject.toml` (scaffold only; refuses to overwrite)              | `formatters --python`                |
 | `--go`             | auto        | 4 (enable)       | `.golangci.yml`                                                     | `formatters --go`                    |
 | `--docs`           | auto        | 4 (enable)       | `.markdownlint.json`, `.prettierrc`, `.prettierignore`              | `formatters --docs`                  |
-| `--shell`          | auto        | 4 (enable)       | (bundled scripts; no separate config emitted)                       | `formatters --shell`                 |
+| `--shell`          | auto        | 4 (enable)       | `.gitignore` entry for `/tools/shellcheck` + bundled shell tooling  | `formatters --shell`                 |
 | `--all`            | off         | 4 (enable all)   | every stack regardless of detection                                 | `formatters --all`                   |
 
 ### Flag precedence

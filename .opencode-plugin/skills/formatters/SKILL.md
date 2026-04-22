@@ -87,7 +87,8 @@ Target:            <TARGET>
 Mode:              --sync  |  --copy
 Stacks:            rust, ts, python, go, docs, shell
 Bundle install:    scripts/style.sh, scripts/format.sh, scripts/lint.sh, scripts/init-formatters.sh,
-                   scripts/go-tools.sh, scripts/lib/modified-files.sh, scripts/templates/*  (14 files)
+                   scripts/install-shellcheck.sh, scripts/go-tools.sh, scripts/lib/*,
+                   scripts/templates/*  (managed bundle files)
 Tool configs:      rustfmt.toml, clippy.toml, .golangci.yml, biome.json, tsconfig.json, package.json*,
                    pyproject.toml*, .markdownlint.json, .markdownlintignore, .prettierrc, .prettierignore
                    (* refuses to overwrite existing)
@@ -118,7 +119,7 @@ Build `init_args`:
 
 - Mode flag: `--sync` or `--copy` per Phase 1.
 - `--target "$TARGET"`.
-- Per-stack flags: for each enabled stack, append `--rust|--ts|--python|--go|--docs` as appropriate (shell has no per-stack init target — it is handled by the bundle itself).
+- Per-stack flags: for each enabled stack, append `--rust|--ts|--python|--go|--docs|--shell` as appropriate.
 - Overwrite policy: `--force` if `FORCE=true`, `--yes` if `YES=true`, `--dry-run` never (dry-run is handled in Phase 3).
 
 Run:

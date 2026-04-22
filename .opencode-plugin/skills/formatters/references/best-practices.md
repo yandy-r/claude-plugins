@@ -64,7 +64,7 @@ Per-language tool selection, rationale, and deviation guidance. The skill instal
 ## Guiding Principles
 
 1. **Prefer Rust-based tools for performance.** `biome`, `ruff`, `shfmt` are all orders of magnitude faster than their predecessors and pay back their install cost within the first lint run.
-2. **Pin configs, not tool versions.** Use `.tool-versions` / `mise.toml` / `rust-toolchain.toml` / `go.mod`'s `toolchain` directive for version pinning. The skill does not manage tool-version pinning.
+2. **Pin configs, not tool versions by default.** Use `mise.toml` / `rust-toolchain.toml` / `go.mod`'s `toolchain` directive for most version pinning. The formatter bundle manages a tooling-specific `shellcheck` pin so local runs and generated CI stay aligned.
 3. **Single source of truth per language.** One formatter per stack. Adding a second (e.g., both `prettier` and `biome` on `.ts` files) guarantees a fight.
 4. **Always gate `-D warnings` / `--strict` behind CI, not local dev.** Local lint should be fast and forgiving; CI should be strict.
 5. **Idempotence over cleverness.** The skill prefers `--sync` (prune stale, install fresh) over cascading merge heuristics. Tool configs should be reproducible, not negotiated.
