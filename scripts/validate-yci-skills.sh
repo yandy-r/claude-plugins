@@ -1064,6 +1064,36 @@ validate_evidence_bundle_skill() {
 
     if [ -f "${skill_root}/SKILL.md" ]; then
         ok "evidence-bundle/SKILL.md present"
+        if python3 - "${skill_root}/SKILL.md" <<'PY'; then
+import re
+import sys
+
+try:
+    import yaml
+except ImportError as exc:
+    sys.stderr.write(f"evidence-bundle/SKILL.md: yaml support unavailable: {exc}\n")
+    sys.exit(1)
+
+text = open(sys.argv[1], encoding="utf-8").read()
+m = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
+if not m:
+    sys.stderr.write("evidence-bundle/SKILL.md: missing YAML frontmatter\n")
+    sys.exit(1)
+
+fm = yaml.safe_load(m.group(1))
+if not isinstance(fm, dict):
+    sys.stderr.write("evidence-bundle/SKILL.md: frontmatter is not a mapping\n")
+    sys.exit(1)
+
+for key in ("name", "description", "allowed-tools"):
+    if key not in fm or not fm[key]:
+        sys.stderr.write(f"evidence-bundle/SKILL.md: missing or empty {key!r}\n")
+        sys.exit(1)
+PY
+            ok "evidence-bundle/SKILL.md frontmatter valid"
+        else
+            fail "evidence-bundle/SKILL.md frontmatter invalid"
+        fi
     else
         fail "evidence-bundle/SKILL.md missing"
     fi
@@ -1091,7 +1121,7 @@ validate_evidence_bundle_skill() {
                 fail "script ${s}: wrong shebang (expected #!/usr/bin/env bash)"
                 continue
             fi
-            if grep -q 'set -euo pipefail' "$p"; then
+            if head -20 "$p" | grep -qE '^[[:space:]]*set[[:space:]]+-euo[[:space:]]+pipefail[[:space:]]*$'; then
                 ok "script ${s}: correct shebang and set -euo pipefail"
             else
                 fail "script ${s}: missing 'set -euo pipefail'"
@@ -1120,6 +1150,22 @@ validate_evidence_bundle_skill() {
             fail "tests/fixtures/${fx_dir}/ missing"
         fi
     done
+
+    printf '\n--- shellcheck (evidence-bundle) ---\n'
+    if SHELLCHECK_RESOLVE_OPTIONAL=1 resolve_shellcheck_bin; then
+        local sc_files=()
+        while IFS= read -r f; do sc_files+=("$f"); done \
+            < <(find "${skill_root}/scripts" -maxdepth 1 -type f -name '*.sh' | sort)
+        if [ "${#sc_files[@]}" -eq 0 ]; then
+            warn "shellcheck: no evidence-bundle shell scripts found"
+        elif "$SHELLCHECK_BIN" --severity=warning "${sc_files[@]}"; then
+            ok "shellcheck clean on evidence-bundle (${#sc_files[@]} files)"
+        else
+            fail "shellcheck reported warnings/errors (evidence-bundle)"
+        fi
+    else
+        warn "shellcheck not installed — skipping"
+    fi
 
     printf '\n--- evidence-bundle test harness ---\n'
     if bash "${tests_dir}/run-all.sh"; then

@@ -189,15 +189,33 @@ mapfile -t bundle_meta < <(
 import json
 import sys
 payload = json.load(open(sys.argv[1], encoding="utf-8"))
-timestamp = payload["timestamp_utc"].replace(":", "").replace("-", "").replace("T", "-").replace("Z", "")
+timestamp = payload.get(
+    "timestamp_utc",
+    payload.get("timestamp", payload.get("created_at", "")),
+)
+timestamp_text = str(timestamp) if timestamp is not None else ""
+timestamp_slug = ""
+if timestamp_text:
+    timestamp_slug = (
+        timestamp_text.replace(":", "")
+        .replace("-", "")
+        .replace("T", "-")
+        .replace("Z", "")
+    )
 print(payload["change_id"])
-print(timestamp)
+print(timestamp_slug)
 print(payload["customer_id"])
 PY
 )
 change_id="${bundle_meta[0]:-}"
 timestamp_slug="${bundle_meta[1]:-}"
 customer_id="${bundle_meta[2]:-}"
+
+if [[ -z "${change_id}" || -z "${customer_id}" ]]; then
+    printf '[eb-validation-failed] Missing bundle metadata for output path (change_id=%s customer_id=%s timestamp_slug=%s)\n' \
+        "${change_id:-}" "${customer_id:-}" "${timestamp_slug:-}" >&2
+    exit 5
+fi
 
 if [[ -z "${output_dir}" ]]; then
     output_dir="${resolved_data_root}/artifacts/${customer_id}/evidence-bundle/${change_id}-${timestamp_slug}"
