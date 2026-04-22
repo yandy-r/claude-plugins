@@ -7,9 +7,13 @@ description: 'Code review — local uncommitted changes or a GitHub PR (pass PR 
   agent team with shared the todo tracker and per-reviewer task tracking. Worktree
   mode is on by default in PR mode — pass --no-worktree to opt out. Pass --keep-draft
   to skip automatic draft→ready promotion. Pass --keep-worktree to skip worktree removal
-  after the review is posted. Usage: [--approve | --request-changes] [--parallel |
-  --team] [--no-worktree] [--keep-draft] [--keep-worktree] [pr-number | pr-url | blank
-  for local review]'
+  after the review is posted. Pass --quick for a lightweight on-the-fly review of
+  uncommitted changes (no worktree, no validation commands, no gh publish; writes
+  a minimal artifact to docs/prps/reviews/quick-{timestamp}-review.md and ends with
+  a Next steps hint for /review-fix). Compatible with --parallel and --team; mutually
+  exclusive with a PR argument, --approve, and --request-changes. Usage: [--quick]
+  [--approve | --request-changes] [--parallel | --team] [--no-worktree] [--keep-draft]
+  [--keep-worktree] [pr-number | pr-url | blank for local review]'
 ---
 
 # Code Review Command
@@ -22,6 +26,8 @@ Run a code review in either local or PR mode.
 - **PR mode** (arg is PR number, URL, or branch): fetches the PR, reads full files at the head revision, runs validation for the detected stack, writes an artifact to `docs/prps/reviews/pr-{N}-review.md`, and posts the review.
 
 **Flags**:
+
+- `--quick` — Fast on-the-fly review of uncommitted changes. Skips worktree setup, toolchain validation (typecheck/lint/test/build), and GitHub publish. Writes a minimal artifact to `docs/prps/reviews/quick-{timestamp}-review.md` (consumable by `/review-fix`) and ends with a `Next steps:` block recommending `/review-fix` (single-pass) or `/review-fix --parallel` (fan-out) based on finding volume. Compatible with `--parallel` and `--team`; mutually exclusive with a PR argument, `--approve`, and `--request-changes`.
 
 - `--approve` — Force the final decision to APPROVE (still reports all findings)
 - `--request-changes` — Force the final decision to REQUEST CHANGES
@@ -45,9 +51,11 @@ Run a code review in either local or PR mode.
 `--parallel` and `--team` are **mutually exclusive** — pick one.
 
 ```
-Usage: /code-review [pr-number | pr-url | blank] [--approve | --request-changes] [--parallel | --team] [--no-worktree] [--keep-draft] [--keep-worktree]
+Usage: /code-review [pr-number | pr-url | blank] [--quick] [--approve | --request-changes] [--parallel | --team] [--no-worktree] [--keep-draft] [--keep-worktree]
 
 Examples:
+  /code-review --quick                          # fast on-the-fly review, no worktree/validation/publish
+  /code-review --quick --parallel               # fast review with 3 parallel reviewer sub-agents
   /code-review                                  # local uncommitted review
   /code-review --parallel                       # local review, 3 parallel sub-agent reviewers
   /code-review --team                           # local review, 3-reviewer agent team (Claude Code only)

@@ -1,6 +1,6 @@
 ---
-description: Code review — local uncommitted changes or a GitHub PR (pass PR number/URL for PR mode). Runs security + quality checks, executes validation commands, writes an artifact, and posts the review. Pass --parallel to fan out the review phase across 3 specialized reviewer agents (correctness, security, quality) and merge findings. Pass --team (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList and per-reviewer task tracking. Worktree mode is on by default in PR mode — pass --no-worktree to opt out. Pass --keep-draft to skip automatic draft→ready promotion. Pass --keep-worktree to skip worktree removal after the review is posted.
-argument-hint: '[--approve | --request-changes] [--parallel | --team] [--no-worktree] [--keep-draft] [--keep-worktree] [pr-number | pr-url | blank for local review]'
+description: Code review — local uncommitted changes or a GitHub PR (pass PR number/URL for PR mode). Runs security + quality checks, executes validation commands, writes an artifact, and posts the review. Pass --parallel to fan out the review phase across 3 specialized reviewer agents (correctness, security, quality) and merge findings. Pass --team (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList and per-reviewer task tracking. Worktree mode is on by default in PR mode — pass --no-worktree to opt out. Pass --keep-draft to skip automatic draft→ready promotion. Pass --keep-worktree to skip worktree removal after the review is posted. Pass --quick for a lightweight on-the-fly review of uncommitted changes (no worktree, no validation commands, no gh publish; writes a minimal artifact to docs/prps/reviews/quick-{timestamp}-review.md and ends with a Next steps hint for /ycc:review-fix). Compatible with --parallel and --team; mutually exclusive with a PR argument, --approve, and --request-changes.
+argument-hint: '[--quick] [--approve | --request-changes] [--parallel | --team] [--no-worktree] [--keep-draft] [--keep-worktree] [pr-number | pr-url | blank for local review]'
 allowed-tools:
   - Read
   - Grep
@@ -45,6 +45,8 @@ Run a code review in either local or PR mode.
 
 **Flags**:
 
+- `--quick` — Fast on-the-fly review of uncommitted changes. Skips worktree setup, toolchain validation (typecheck/lint/test/build), and GitHub publish. Writes a minimal artifact to `docs/prps/reviews/quick-{timestamp}-review.md` (consumable by `/ycc:review-fix`) and ends with a `Next steps:` block recommending `/ycc:review-fix` (single-pass) or `/ycc:review-fix --parallel` (fan-out) based on finding volume. Compatible with `--parallel` and `--team`; mutually exclusive with a PR argument, `--approve`, and `--request-changes`.
+
 - `--approve` — Force the final decision to APPROVE (still reports all findings)
 - `--request-changes` — Force the final decision to REQUEST CHANGES
 - `--parallel` — Fan out the REVIEW phase across 3 standalone `ycc:code-reviewer` sub-agents dispatched in parallel:
@@ -67,9 +69,11 @@ Run a code review in either local or PR mode.
 `--parallel` and `--team` are **mutually exclusive** — pick one.
 
 ```
-Usage: /ycc:code-review [pr-number | pr-url | blank] [--approve | --request-changes] [--parallel | --team] [--no-worktree] [--keep-draft] [--keep-worktree]
+Usage: /ycc:code-review [pr-number | pr-url | blank] [--quick] [--approve | --request-changes] [--parallel | --team] [--no-worktree] [--keep-draft] [--keep-worktree]
 
 Examples:
+  /ycc:code-review --quick                          # fast on-the-fly review, no worktree/validation/publish
+  /ycc:code-review --quick --parallel               # fast review with 3 parallel reviewer sub-agents
   /ycc:code-review                                  # local uncommitted review
   /ycc:code-review --parallel                       # local review, 3 parallel sub-agent reviewers
   /ycc:code-review --team                           # local review, 3-reviewer agent team (Claude Code only)

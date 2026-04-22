@@ -47,23 +47,28 @@ allowed-tools:
 
 Before selecting mode, extract flags from `$ARGUMENTS`:
 
-| Flag                | Effect                                                                                                                                                                                                                                                                                                                      |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                                                                                                                                                                                                                     |
-| `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                                                                                                                                                                                                          |
-| `--parallel`        | Fan out the REVIEW phase across 3 **standalone** `ycc:code-reviewer` sub-agents (correctness, security, quality) dispatched in parallel and merge findings. Works in Claude Code, Cursor, and Codex.                                                                                                                        |
-| `--team`            | (Claude Code only) Fan out the REVIEW phase across the same 3 `ycc:code-reviewer` reviewers, but dispatched as an **agent team** with up-front `TaskCreate`, shared `TaskList` observability, inter-reviewer coordination via `SendMessage`, and coordinated shutdown before merge. Heavier dispatch, richer communication. |
-| `--worktree`        | (legacy / now default; safe to omit) Check out the PR head branch into an isolated worktree at `~/.claude-worktrees/<repo>-pr-<N>/`. Worktree mode is on by default in PR mode; pass `--no-worktree` to opt out.                                                                                                            |
-| `--no-worktree`     | Opt out of worktree isolation in PR mode. Skip worktree creation, artifact commit+push, and cleanup. Files are read directly from the main checkout.                                                                                                                                                                        |
-| `--keep-draft`      | Skip the automatic draft→ready promotion in PR mode. Default: PR is promoted to Ready for Review before posting the review.                                                                                                                                                                                                 |
-| `--keep-worktree`   | Skip removal of the PR worktree after the review is posted. The artifact is still committed and pushed to the PR branch. Default: worktree is removed via `git worktree remove <path>` after a clean review post.                                                                                                           |
+| Flag                | Effect                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                                                                                                                                                                                                                                                                                                                                                                     |
+| `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `--parallel`        | Fan out the REVIEW phase across 3 **standalone** `ycc:code-reviewer` sub-agents (correctness, security, quality) dispatched in parallel and merge findings. Works in Claude Code, Cursor, and Codex.                                                                                                                                                                                                                                                                        |
+| `--team`            | (Claude Code only) Fan out the REVIEW phase across the same 3 `ycc:code-reviewer` reviewers, but dispatched as an **agent team** with up-front `TaskCreate`, shared `TaskList` observability, inter-reviewer coordination via `SendMessage`, and coordinated shutdown before merge. Heavier dispatch, richer communication.                                                                                                                                                 |
+| `--worktree`        | (legacy / now default; safe to omit) Check out the PR head branch into an isolated worktree at `~/.claude-worktrees/<repo>-pr-<N>/`. Worktree mode is on by default in PR mode; pass `--no-worktree` to opt out.                                                                                                                                                                                                                                                            |
+| `--no-worktree`     | Opt out of worktree isolation in PR mode. Skip worktree creation, artifact commit+push, and cleanup. Files are read directly from the main checkout.                                                                                                                                                                                                                                                                                                                        |
+| `--keep-draft`      | Skip the automatic draft→ready promotion in PR mode. Default: PR is promoted to Ready for Review before posting the review.                                                                                                                                                                                                                                                                                                                                                 |
+| `--keep-worktree`   | Skip removal of the PR worktree after the review is posted. The artifact is still committed and pushed to the PR branch. Default: worktree is removed via `git worktree remove <path>` after a clean review post.                                                                                                                                                                                                                                                           |
+| `--quick`           | Fast on-the-fly review of uncommitted changes. Skips worktree setup, toolchain validation (typecheck/lint/test/build), and GitHub publish. Writes a minimal artifact to `docs/prps/reviews/quick-{timestamp}-review.md` and ends with a `Next steps:` block recommending `/ycc:review-fix` (single-pass) or `/ycc:review-fix --parallel` (fan-out). Compatible with `--parallel` and `--team`. Mutually exclusive with a PR argument, `--approve`, and `--request-changes`. |
 
-Strip these from `$ARGUMENTS` and set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `NO_WORKTREE_MODE=true|false`, `KEEP_DRAFT=true|false`, and `KEEP_WORKTREE=true|false`. Compute `WORKTREE_MODE=true` unless `--no-worktree` is present (default-on in PR mode; ignored for local mode as before). The remaining text is the mode selector (PR number/URL or blank for local).
+Strip these from `$ARGUMENTS` and set `QUICK_MODE=true|false`, `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `NO_WORKTREE_MODE=true|false`, `KEEP_DRAFT=true|false`, and `KEEP_WORKTREE=true|false`. Compute `WORKTREE_MODE=true` unless `--no-worktree` is present (default-on in PR mode; ignored for local mode as before). The remaining text is the mode selector (PR number/URL or blank for local).
 
 **Validation**:
 
 - `--parallel` and `--team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --team are mutually exclusive. Pick one.`
 - If `--team` is set during a bundle invocation (Cursor/Codex), abort with: `--team is not supported in bundle invocations; use --parallel instead.`
+- `--quick` with a PR number/URL is **not allowed**. If both are passed → abort with: `--quick only reviews uncommitted local changes; remove the PR argument or drop --quick.`
+- `--quick` with `--approve` or `--request-changes` is **not allowed**. Quick mode does not publish a GitHub review, so these flags have no meaning. Abort with: `--approve / --request-changes have no meaning in quick mode (no GitHub review is posted). Drop the flag or use PR mode.`
+- `--quick` with `--no-worktree`, `--keep-draft`, or `--keep-worktree` is accepted as a **no-op** (quick mode never creates a worktree or touches GitHub). Emit a note: `<flag> has no effect in quick mode.`
+- `--quick` with `--parallel` or `--team` is **allowed**. Quick mode honors the 3-reviewer fan-out for its REVIEW phase. `--team` still requires Claude Code (same compatibility gate as today).
 
 **Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools — `TeamCreate`, `SendMessage`, etc.). Use `--parallel` instead.
 
@@ -136,11 +141,9 @@ Proceed to Mode Selection.
 
 ## Mode Selection
 
-If `$ARGUMENTS` contains a PR number, PR URL, or `--pr`:
-→ Jump to **PR Review Mode** below.
-
-Otherwise:
-→ Use **Local Review Mode**.
+- If `QUICK_MODE=true` → **Quick Review Mode** below. (Validation in Phase 0 already rejected any combination that would be ambiguous, so we know the user wants an uncommitted-diff-only pass.)
+- If a PR number/URL was provided → **PR Review Mode** below.
+- Otherwise → **Local Review Mode** below.
 
 ---
 
@@ -360,6 +363,60 @@ Next steps:
 
 Block commit if CRITICAL or HIGH issues found.
 Never approve code with security vulnerabilities.
+
+---
+
+## Quick Review Mode
+
+> Triggered by `--quick`. Lightweight review of uncommitted changes — no worktree, no toolchain validation, no GitHub publish. Just findings plus a `Next steps:` block offering `/ycc:review-fix`. Writes a minimal artifact to `docs/prps/reviews/quick-{YYYYMMDD-HHMMSS}-review.md` so `/ycc:review-fix` can consume it unchanged.
+
+### Phase 1 — GATHER
+
+Identical to Local Review Mode Phase 1 (line 151 above). Compute changed files with:
+
+```bash
+git diff --name-only HEAD
+```
+
+If the diff is empty, print `Nothing to review.` and exit. Do NOT write an artifact.
+
+### Phase 2 — REVIEW
+
+Delegate to **Local Review Mode Phase 2** (starting at line 159 above). The same 7-category checklist, severity rubric, Path A (single-pass) / Path B (`--parallel` → 3 standalone sub-agent reviewers) / Path C (`--team` → coordinated agent team) all apply unchanged.
+
+- If `--parallel` → Path B fan-out.
+- If `--team` → Path C (Claude Code only; compatibility gate already enforced in Phase 0).
+- Otherwise → Path A.
+
+When using Path C in quick mode, use team name `qrev-local-<YYYYMMDD-HHMMSS>` (matching the artifact timestamp). Lifecycle is identical to Local Mode Path C: TeamCreate → TaskCreate × 3 → Agent × 3 in one message → monitor via TaskList → merge → SendMessage shutdown → TeamDelete.
+
+### Phase 3 — REPORT
+
+Assign sequential finding IDs (F001, F002, …) with `Status: Open` on every finding. Write the artifact to `docs/prps/reviews/quick-{YYYYMMDD-HHMMSS}-review.md`. The artifact uses the **Review Artifact Format** (defined at the bottom of this skill) with two omissions:
+
+- **No** `## Validation Results` section — quick mode does not run toolchain validation.
+- **No** `## Worktree Setup` section — quick mode never creates a worktree.
+
+All other sections (Header, Summary, Findings with full ID/Status/Category/Suggested fix, Files Reviewed) are identical to Local Mode's output. `/ycc:review-fix` parses the result unchanged.
+
+Then print a `Next steps:` block to stdout:
+
+```
+Quick review written to: docs/prps/reviews/quick-YYYYMMDD-HHMMSS-review.md
+Findings: [C] {critical_count}  [H] {high_count}  [M] {medium_count}  [L] {low_count}
+
+Next steps:
+  /ycc:review-fix docs/prps/reviews/quick-YYYYMMDD-HHMMSS-review.md              # apply fixes {recommended_single if 1-2 Open findings}
+  /ycc:review-fix docs/prps/reviews/quick-YYYYMMDD-HHMMSS-review.md --parallel   # fan out fixes {recommended_parallel if 3+ Open across 2+ files}
+```
+
+**Recommendation heuristic** (annotate ONE of the two commands with `# ← recommended`):
+
+- 0 Open findings → print `No findings. No follow-up needed.` and skip the two `/ycc:review-fix` command lines.
+- 1–2 Open findings → recommend the single-pass form.
+- 3+ Open findings spanning 2+ files → recommend the `--parallel` form.
+
+Quick mode has **NO** Phase 4/5/6/7/8 — no VALIDATE, DECIDE, PUBLISH, or OUTPUT phases. If you need toolchain validation or a GitHub review posted, re-run without `--quick`.
 
 ---
 
@@ -816,6 +873,7 @@ Both Local Review Mode and PR Review Mode write an artifact using this exact for
 | ----- | ----------------------------------------------------- |
 | Local | `docs/prps/reviews/local-{YYYYMMDD-HHMMSS}-review.md` |
 | PR    | `docs/prps/reviews/pr-{NUMBER}-review.md`             |
+| Quick | `docs/prps/reviews/quick-{YYYYMMDD-HHMMSS}-review.md` |
 
 ### Template
 
@@ -887,6 +945,8 @@ Both Local Review Mode and PR Review Mode write an artifact using this exact for
 - `file2.ts` (Added)
 - `file3.ts` (Deleted)
 ```
+
+> **Quick mode variant**: Quick reviews omit `## Validation Results` (no toolchain runs) and `## Worktree Setup` (no worktree is ever created). All other sections — Header, Summary, Findings (with full `[F###]`, `Status:`, `Category:`, `Suggested fix:` fields per finding), Files Reviewed — are identical to the standard template. This keeps the file parseable by `/ycc:review-fix` without special-casing.
 
 ### Finding ID rules
 
