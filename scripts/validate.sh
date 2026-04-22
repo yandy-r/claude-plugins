@@ -12,8 +12,8 @@
 #   - inventory  validates ycc skill↔command pairing and the shared inventory
 #   - json       validates .claude-plugin/marketplace.json (once) plus each
 #                plugin's .claude-plugin/plugin.json
-#   - yci        validates yci plugin surface (Phase 0: plugin.json + hello skill)
-# Plugins: ycc (full validators), yci (Phase 0 — validate-yci-skills.sh only)
+#   - yci        validates the full yci plugin surface via validate-yci-skills.sh
+# Plugins: ycc (full validators), yci (Claude-native surface validated by validate-yci-skills.sh)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -123,14 +123,15 @@ run_ycc_target() {
 }
 
 # Run a single validator for the yci plugin.
-# Phase 1a: add new yci cross-target validators here (one case per target).
+# Future yci cross-target validators can be added here if the bundle grows
+# beyond the current Claude-native surface.
 run_yci_target() {
     case "$1" in
         yci)
-            echo "== validate: yci skills (Phase 0) =="
+            echo "== validate: yci skills =="
             "${REPO_ROOT}/scripts/validate-yci-skills.sh" || fail "validate-yci-skills.sh"
             ;;
-        # Phase 1a breadcrumb: cursor|codex|opencode|inventory cases go here.
+        # Future breadcrumb: cursor|codex|opencode|inventory cases go here.
     esac
 }
 
