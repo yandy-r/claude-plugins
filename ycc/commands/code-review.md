@@ -1,11 +1,12 @@
 ---
-description: Code review — local uncommitted changes or a GitHub PR (pass PR number/URL for PR mode). Runs security + quality checks, executes validation commands, writes an artifact, and posts the review. Pass --parallel to fan out the review phase across 3 specialized reviewer agents (correctness, security, quality) and merge findings. Pass --team (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList and per-reviewer task tracking. Worktree mode is on by default in PR mode — pass --no-worktree to opt out. Pass --keep-draft to skip automatic draft→ready promotion. Pass --keep-worktree to skip worktree removal after the review is posted. Pass --quick for a lightweight on-the-fly review of uncommitted changes (no worktree, no validation commands, no gh publish; writes a minimal artifact to docs/prps/reviews/quick-{timestamp}-review.md and ends with a Next steps hint for /ycc:review-fix). Compatible with --parallel and --team; mutually exclusive with a PR argument, --approve, and --request-changes.
+description: Code review — local uncommitted changes or a GitHub PR (pass PR number/URL for PR mode). Runs security + quality checks, executes validation commands, writes an artifact, and posts the review. Pass --parallel to fan out the review phase across 3 specialized reviewer agents (correctness, security, quality) and merge findings. Pass --team (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList and per-reviewer task tracking. Worktree mode is on by default in PR mode — pass --no-worktree to opt out. Pass --keep-draft to skip automatic draft→ready promotion. Pass --keep-worktree to skip worktree removal after the review is posted. Pass --quick as a thin alias for /ycc:quick-review — interactive inline review (no file written unless confirmed), prompts for Apply fixes / Save to file / Discard. Compatible with --parallel and --team; mutually exclusive with a PR argument, --approve, and --request-changes. For direct access to --yes, --save, and --severity, invoke /ycc:quick-review instead.
 argument-hint: '[--quick] [--approve | --request-changes] [--parallel | --team] [--no-worktree] [--keep-draft] [--keep-worktree] [pr-number | pr-url | blank for local review]'
 allowed-tools:
   - Read
   - Grep
   - Glob
   - Write
+  - Skill
   - Agent
   - TeamCreate
   - TeamDelete
@@ -45,7 +46,7 @@ Run a code review in either local or PR mode.
 
 **Flags**:
 
-- `--quick` — Fast on-the-fly review of uncommitted changes. Skips worktree setup, toolchain validation (typecheck/lint/test/build), and GitHub publish. Writes a minimal artifact to `docs/prps/reviews/quick-{timestamp}-review.md` (consumable by `/ycc:review-fix`) and ends with a `Next steps:` block recommending `/ycc:review-fix` (single-pass) or `/ycc:review-fix --parallel` (fan-out) based on finding volume. Compatible with `--parallel` and `--team`; mutually exclusive with a PR argument, `--approve`, and `--request-changes`.
+- `--quick` — **Alias for `/ycc:quick-review`.** Interactive inline review of uncommitted changes — prints findings and prompts **Apply fixes** / **Save to file** / **Discard**. No artifact is written unless you confirm. On "Apply fixes", hands off to `/ycc:review-fix` automatically. Compatible with `--parallel` and `--team`; mutually exclusive with a PR argument, `--approve`, and `--request-changes`. For direct access to `--yes`, `--save`, and `--severity`, invoke `/ycc:quick-review` instead.
 
 - `--approve` — Force the final decision to APPROVE (still reports all findings)
 - `--request-changes` — Force the final decision to REQUEST CHANGES

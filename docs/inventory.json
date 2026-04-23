@@ -22,7 +22,7 @@
     },
     {
       "name": "code-review",
-      "description": "Dual-mode code review \u2014 local uncommitted changes OR a GitHub pull request. Both modes now write a machine-parseable review artifact (Local \u2192 docs/prps/reviews/local-{timestamp}-review.md, PR \u2192 docs/prps/reviews/pr-{N}-review.md) with sequential finding IDs (F001, F002, ...) and Status fields (Open/Fixed/Failed) so /ycc:review-fix can consume and update them in place. Local mode runs a full security + quality pass on the diff. PR mode fetches the PR, reads each changed file in full, builds context from CLAUDE.md and PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build) for detected stacks, assigns severity, and posts the review to GitHub via gh. Pass `--parallel` to fan out the REVIEW phase across 3 standalone ycc:code-reviewer sub-agents (correctness, security, quality) and merge findings. Pass `--team` (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList, per-reviewer task tracking, and inter-reviewer communication via SendMessage. `--parallel` and `--team` are mutually exclusive. Worktree mode is on by default in PR mode \u2014 pass `--no-worktree` to opt out. Pass `--keep-draft` to skip automatic draft\u2192ready promotion. Pass `--keep-worktree` to skip worktree removal after the review is posted. Use when the user asks to \"review code\", \"review PR\", \"check uncommitted changes\", \"review pr N\", \"parallel review\", \"team review\", or says \"/code-review\". Adapted from PRPs-agentic-eng by Wirasm."
+      "description": "Dual-mode code review \u2014 local uncommitted changes OR a GitHub pull request. Both modes write a machine-parseable review artifact (Local \u2192 docs/prps/reviews/local-{timestamp}-review.md, PR \u2192 docs/prps/reviews/pr-{N}-review.md) with sequential finding IDs (F001, F002, ...) and Status fields (Open/Fixed/Failed) so /ycc:review-fix can consume and update them in place. Local mode runs a full security + quality pass on the diff. PR mode fetches the PR, reads each changed file in full, builds context from CLAUDE.md and PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build) for detected stacks, assigns severity, and posts the review to GitHub via gh. For fast, inline, interactive reviews of short uncommitted changes (no file written unless confirmed), use `/ycc:quick-review` directly \u2014 `--quick` here is kept as a thin alias that delegates. Pass `--parallel` to fan out the REVIEW phase across 3 standalone ycc:code-reviewer sub-agents (correctness, security, quality) and merge findings. Pass `--team` (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList, per-reviewer task tracking, and inter-reviewer communication via SendMessage. `--parallel` and `--team` are mutually exclusive. Worktree mode is on by default in PR mode \u2014 pass `--no-worktree` to opt out. Pass `--keep-draft` to skip automatic draft\u2192ready promotion. Pass `--keep-worktree` to skip worktree removal after the review is posted. Use when the user asks to \"review code\", \"review PR\", \"check uncommitted changes\", \"review pr N\", \"parallel review\", \"team review\", or says \"/code-review\". Adapted from PRPs-agentic-eng by Wirasm."
     },
     {
       "name": "compatibility-audit",
@@ -133,6 +133,10 @@
       "description": "Python testing patterns using pytest \u2014 TDD methodology, fixtures (function/module/session scopes), parametrization, markers, mocking with unittest.mock, async tests with pytest-asyncio, tmp_path, conftest.py organization, and coverage targets. Use when the user is writing Python tests, adding test coverage to Python code, asks about pytest, @pytest.fixture, @pytest.mark.parametrize, @patch / Mock / MagicMock / autospec, pytest-asyncio, conftest.py, tmp_path / tmpdir, pytest --cov, or wants TDD guidance for a Python project."
     },
     {
+      "name": "quick-review",
+      "description": "Fast interactive review of uncommitted changes. Prints findings inline (no file written by default), then asks Apply fixes / Save to file / Discard. Writing only happens on confirmation. Hands off to /ycc:review-fix on \"Apply fixes\". Designed for short, low-friction code changes where opening a full /ycc:code-review artifact is overkill. Pass `--parallel` to fan out across 3 standalone ycc:code-reviewer sub-agents (correctness, security, quality). Pass `--team` (Claude Code only) for the same fan-out as a coordinated agent team. `--parallel` and `--team` are mutually exclusive. Pass `--yes` to auto-confirm (Apply fixes) or `--save` to auto-confirm (Save to file) for scripted use. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to forward the minimum severity threshold to /ycc:review-fix (default HIGH). Use when the user asks to \"quick review\", \"fast review\", \"review what I have\", \"on-the-fly review\", or says \"/quick-review\". `/ycc:code-review --quick` delegates here."
+    },
+    {
       "name": "releaser",
       "description": "This skill should be used when the user asks to \"prepare a release\", \"cut a release\", \"tag a release\", \"create a GitHub release\", \"draft release notes\", \"set up release CI\", \"add a release workflow\", or \"audit release pipeline\" for any project. Detects language/toolchain, drafts a changelog, plans platform/arch artifacts, optionally generates or audits GitHub Actions release CI, and emits the exact commands the user runs to tag and publish. Never auto-commits, pushes, or publishes. Generic external-project counterpart to `ycc:bundle-release` (which is scoped to this repo's ycc bundle)."
     },
@@ -200,7 +204,7 @@
     },
     {
       "name": "code-review",
-      "description": "Code review \u2014 local uncommitted changes or a GitHub PR (pass PR number/URL for PR mode). Runs security + quality checks, executes validation commands, writes an artifact, and posts the review. Pass --parallel to fan out the review phase across 3 specialized reviewer agents (correctness, security, quality) and merge findings. Pass --team (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList and per-reviewer task tracking. Worktree mode is on by default in PR mode \u2014 pass --no-worktree to opt out. Pass --keep-draft to skip automatic draft\u2192ready promotion. Pass --keep-worktree to skip worktree removal after the review is posted. Pass --quick for a lightweight on-the-fly review of uncommitted changes (no worktree, no validation commands, no gh publish; writes a minimal artifact to docs/prps/reviews/quick-{timestamp}-review.md and ends with a Next steps hint for /ycc:review-fix). Compatible with --parallel and --team; mutually exclusive with a PR argument, --approve, and --request-changes."
+      "description": "Code review \u2014 local uncommitted changes or a GitHub PR (pass PR number/URL for PR mode). Runs security + quality checks, executes validation commands, writes an artifact, and posts the review. Pass --parallel to fan out the review phase across 3 specialized reviewer agents (correctness, security, quality) and merge findings. Pass --team (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList and per-reviewer task tracking. Worktree mode is on by default in PR mode \u2014 pass --no-worktree to opt out. Pass --keep-draft to skip automatic draft\u2192ready promotion. Pass --keep-worktree to skip worktree removal after the review is posted. Pass --quick as a thin alias for /ycc:quick-review \u2014 interactive inline review (no file written unless confirmed), prompts for Apply fixes / Save to file / Discard. Compatible with --parallel and --team; mutually exclusive with a PR argument, --approve, and --request-changes. For direct access to --yes, --save, and --severity, invoke /ycc:quick-review instead."
     },
     {
       "name": "compatibility-audit",
@@ -305,6 +309,10 @@
     {
       "name": "python-testing",
       "description": "Python testing patterns using pytest \u2014 TDD methodology, fixtures (function/module/session scopes), parametrization, markers, mocking with unittest.mock, async tests with pytest-asyncio, tmp_path, conftest.py organization, and coverage targets. Use when the user is writing Python tests, adding test coverage to Python code, asks about pytest, @pytest.fixture, @pytest.mark.parametrize, @patch / Mock / MagicMock / autospec, pytest-asyncio, conftest.py, tmp_path / tmpdir, pytest --cov, or wants TDD guidance for a Python project."
+    },
+    {
+      "name": "quick-review",
+      "description": "Fast interactive review of uncommitted changes \u2014 findings print inline; Apply fixes / Save to file / Discard on confirmation. Writes nothing by default. Hands off to /ycc:review-fix on \"Apply fixes\". Pass --parallel or --team for 3-reviewer fan-out. Pass --yes or --save to skip the prompt (scripted use). Pass --severity <CRITICAL|HIGH|MEDIUM|LOW> to forward the minimum-severity threshold to /ycc:review-fix (default HIGH)."
     },
     {
       "name": "releaser",
@@ -562,8 +570,8 @@
     }
   ],
   "counts": {
-    "skills": 44,
-    "commands": 43,
+    "skills": 45,
+    "commands": 44,
     "agents": 52
   },
   "parity": {
