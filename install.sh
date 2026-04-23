@@ -66,9 +66,41 @@ link_rules_file() {
     link_file "$src" "$dest"
 }
 
+# copy_settings_file <src> <dest>
+# Copy <src> to <dest> so per-machine edits don't propagate back into the repo.
+# - Errors if <src> is missing.
+# - Refuses to replace a directory at <dest>.
+# - If <dest> is a symlink, warns and replaces it with a real copy (no --force
+#   needed — symlinks are considered agent-owned upgrade artifacts).
+# - If <dest> is a regular file, refuses unless FORCE=1 (protects user edits).
+# - Uses 'cp -p' to preserve the source's exec bit (matters for
+#   statusline-command.sh and friends).
+copy_settings_file() {
+    local src="$1"
+    local dest="$2"
+    [[ -e "$src" ]] || { err "settings source not found: $src"; exit 1; }
+    if [[ -d "$dest" && ! -L "$dest" ]]; then
+        err "refusing to replace directory with file: $dest"
+        exit 1
+    fi
+    mkdir -p "$(dirname "$dest")"
+    if [[ -L "$dest" ]]; then
+        local link_target
+        link_target="$(readlink "$dest")"
+        warn "replacing symlink with copy: $dest -> $link_target"
+        rm "$dest"
+    elif [[ -f "$dest" && "${FORCE:-0}" != "1" ]]; then
+        err "refusing to overwrite real file: $dest"
+        err "  re-run with --force to overwrite local edits with the repo version."
+        exit 1
+    fi
+    cp -p "$src" "$dest"
+    info "copied $src -> $dest"
+}
+
 usage() {
     cat <<EOF
-Usage: $(basename "$0") --target <target> [--mode <mode>] [--settings] [--mcp] [--hooks] [--force] [--only <steps>]
+Usage: $(basename "$0") --target <target> [--mode <mode>] [--settings] [--rules] [--mcp] [--hooks] [--force] [--only <steps>]
 
 Sync plugin assets to an IDE configuration directory.
 
@@ -93,99 +125,145 @@ Options:
                                 (they have no remote-source concept).
                                 With --target all + --mode repo, cursor and
                                 opencode are skipped with a warning.
-  --settings          Additive: also run the target's 'settings' step.
-                      Mode-agnostic — symlinks local source files regardless
-                      of --mode.
+  --settings          Additive: COPY per-machine config files so local edits
+                      (model, reasoning effort, statusline tweaks, MCP tokens,
+                      marketplace entries written by the CLI, trusted-project
+                      lists, ...) don't back-propagate into the repo. Refuses
+                      to overwrite an existing real file without --force;
+                      replaces symlinks in place with an info warning (so
+                      upgrading from the old symlink flow is a no-op).
+                      Mode-agnostic. Scope per target:
+                        claude   — settings.json, statusline-command.sh
+                        codex    — config.toml
+                        opencode — opencode.json
+                        cursor   — (no config; use --rules for CLAUDE.md/AGENTS.md)
+  --rules             Additive: SYMLINK rules files so edits flow across
+                      systems (this is the old --settings behavior for rules).
+                      Refuses to replace a real rules file without --force;
+                      replaces existing symlinks idempotently. Mode-agnostic.
+                      Scope per target:
+                        claude   — CLAUDE.md, AGENTS.md at ~/.claude/
+                        cursor   — CLAUDE.md, AGENTS.md at ~/.cursor/
+                        codex    — default.rules, CLAUDE.md, AGENTS.md at ~/.codex/
+                        opencode — AGENTS.md at ~/.config/opencode/
   --mcp               Additive: also run the target's 'mcp' step. Mode-agnostic.
   --hooks             Additive: also run the target's 'hooks' step.
                       Currently supported by the claude target only; silently
                       ignored by targets without hook support. Mode-agnostic.
-  --force             Replace a real (non-symlink) rules file (CLAUDE.md /
-                      AGENTS.md) at the destination. Without --force, the
-                      rules linker refuses to overwrite user-authored files.
+  --force             Replace a real (non-symlink) file at the destination.
+                        --settings: overwrite local edits in an existing
+                                    config file with the repo copy.
+                        --rules:    replace a user-authored CLAUDE.md /
+                                    AGENTS.md with the repo symlink.
   --only <steps>      Exclusive: run only the comma-separated steps
-                      (e.g. --only settings, --only mcp,settings).
-                      Overrides defaults and --settings/--mcp/--hooks.
+                      (e.g. --only settings, --only rules,settings).
+                      Overrides defaults and --settings/--rules/--mcp/--hooks.
   --help              Show this help message
 
 Semantics:
   Default (no --only):
     - Run the target's 'base' step (if any).
-    - Additionally run 'settings' / 'mcp' / 'hooks' if their flag is passed.
+    - Additionally run 'settings' / 'rules' / 'mcp' / 'hooks' if their flag is
+      passed.
   With --only <steps>:
     - Run exactly the listed steps. Nothing else.
 
+  Transport semantics:
+    - --settings (copy)   dest absent: cp; dest is a symlink: warn + rm + cp;
+                          dest is a real file: error unless --force.
+    - --rules    (symlink) idempotent link; refuses to replace a real file
+                          without --force.
+
 Target steps:
-  claude    base | settings | mcp | hooks
+  claude    base | settings | rules | mcp | hooks
             base:     invoke 'claude plugin marketplace add <repo> --scope user'
                       + 'claude plugin install ycc@ycc --scope user'. Breaks
                       ~/.claude/settings.json symlink (if any) first so the CLI
                       write doesn't pollute the committed source file. Edits
                       in ycc/ apply on /reload-plugins.
-            settings: symlink ycc/settings/{settings.json,statusline-command.sh}
-                      AND ycc/settings/rules/{CLAUDE.md,AGENTS.md} into ~/.claude/.
-                      Refuses to replace a non-symlink settings.json without
-                      --force (to protect a local marketplace entry registered
-                      by the base step).
+            settings: COPY ycc/settings/{settings.json,statusline-command.sh}
+                      into ~/.claude/. Per-machine edits (model, effortLevel,
+                      marketplace entries, ...) no longer back-propagate into
+                      the repo. Refuses to overwrite an existing real file
+                      (e.g., one that already contains the CLI-written
+                      marketplace entry) without --force.
+            rules:    symlink ycc/settings/rules/{CLAUDE.md,AGENTS.md} into
+                      ~/.claude/.
             mcp:      merge mcp-configs/mcp.json mcpServers into ~/.claude.json.
             hooks:    symlink ycc/settings/hooks/ into ~/.claude/hooks/, enabling
                       the WorktreeCreate hook (redirects harness-managed
                       worktrees to ~/.claude-worktrees/).
-  cursor    base | mcp | settings
+  cursor    base | mcp | rules
             base:     generate + validate + format + rsync bundle to ~/.cursor/.
             mcp:      symlink mcp-configs/mcp.json → ~/.cursor/mcp.json.
-            settings: symlink ycc/settings/rules/{CLAUDE.md,AGENTS.md} into
+            rules:    symlink ycc/settings/rules/{CLAUDE.md,AGENTS.md} into
                       ~/.cursor/ (top level — NOT inside ~/.cursor/rules/, which
                       is rsynced with --delete during 'base').
-  codex     base | settings
+                      (cursor has no 'settings' step — no per-machine config
+                      file to copy.)
+  codex     base | settings | rules
             base:     generate + validate + format + sync custom agents, then
                       register the repo's .codex-plugin/ycc/ as a local
                       marketplace source in ~/.agents/plugins/marketplace.json.
                       Edits are live after regeneration — no install-time rsync
                       of the plugin tree. Rerun ./scripts/sync.sh --only codex
                       to refresh the bundle.
-            settings: symlink .codex-plugin/config/{config.toml,default.rules}
-                      AND ycc/settings/rules/{CLAUDE.md,AGENTS.md} into ~/.codex/.
-  opencode  base | settings
+            settings: COPY .codex-plugin/config/config.toml into ~/.codex/.
+                      Per-machine edits (model, reasoning effort, trusted
+                      projects, MCP bearer tokens, ...) no longer back-
+                      propagate into the repo.
+            rules:    symlink .codex-plugin/config/default.rules AND
+                      ycc/settings/rules/{CLAUDE.md,AGENTS.md} into ~/.codex/.
+  opencode  base | settings | rules
             base:     generate + validate + format + rsync skills/agents/commands
                       into ~/.config/opencode/.
-            settings: symlink .opencode-plugin/{opencode.json,AGENTS.md} into
-                      ~/.config/opencode/ (opencode's AGENTS.md is generator-
-                      produced from ycc/settings/rules/CLAUDE.md — the same
-                      user-global ruleset as every other target). opencode
+            settings: COPY .opencode-plugin/opencode.json into
+                      ~/.config/opencode/. Per-machine edits (model, provider
+                      tokens, MCP blocks) no longer back-propagate. opencode
                       reads MCP from opencode.json, so enable MCP via
                       --settings — there is no separate mcp step.
+            rules:    symlink .opencode-plugin/AGENTS.md into
+                      ~/.config/opencode/ (generator-produced from
+                      ycc/settings/rules/CLAUDE.md — the same user-global
+                      ruleset as every other target).
   all       Run claude then cursor then codex then opencode; step flags propagate.
 
 Examples:
-  $(basename "$0") --target claude                       # base only (register local marketplace)
-  $(basename "$0") --target claude --only base           # same, exclusive
-  $(basename "$0") --target claude --settings --mcp      # base + settings + mcp
+  $(basename "$0") --target claude                         # base only (register local marketplace)
+  $(basename "$0") --target claude --only base             # same, exclusive
+  $(basename "$0") --target claude --settings --rules      # base + copy settings + link rules
+  $(basename "$0") --target claude --settings --rules --mcp
+  $(basename "$0") --target claude --only settings         # copy settings only
+  $(basename "$0") --target claude --only rules            # link rules only
   $(basename "$0") --target claude --only mcp
-  $(basename "$0") --target claude --hooks                # base + WorktreeCreate hook
-  $(basename "$0") --target claude --settings --mcp --hooks
-  $(basename "$0") --target claude --only hooks           # hooks only
-  $(basename "$0") --target cursor                       # base only
-  $(basename "$0") --target cursor --mcp                 # base + mcp
-  $(basename "$0") --target cursor --settings            # base + rules symlinks
-  $(basename "$0") --target cursor --only settings       # rules only
-  $(basename "$0") --target codex --settings             # base + settings
-  $(basename "$0") --target codex --only settings        # settings only
-  $(basename "$0") --target opencode                     # base only
-  $(basename "$0") --target opencode --settings          # base + symlink config + rules
-  $(basename "$0") --target all --settings --mcp
-  $(basename "$0") --target all --settings --force       # install rules everywhere,
-                                                         # overwriting user files
+  $(basename "$0") --target claude --settings --force      # overwrite local settings.json with repo copy
+  $(basename "$0") --target claude --hooks                 # base + WorktreeCreate hook
+  $(basename "$0") --target claude --only hooks            # hooks only
+  $(basename "$0") --target cursor                         # base only
+  $(basename "$0") --target cursor --mcp                   # base + mcp
+  $(basename "$0") --target cursor --rules                 # base + rules symlinks
+  $(basename "$0") --target cursor --only rules            # rules only
+  $(basename "$0") --target codex --settings --rules       # base + copy config + link rules
+  $(basename "$0") --target codex --only settings          # copy config.toml only
+  $(basename "$0") --target codex --only rules             # link default.rules + CLAUDE.md + AGENTS.md
+  $(basename "$0") --target opencode                       # base only
+  $(basename "$0") --target opencode --settings --rules    # base + copy opencode.json + link AGENTS.md
+  $(basename "$0") --target all --settings --rules --mcp
+  $(basename "$0") --target all --rules --force            # force-replace user-authored rules files
+
+  # Upgrading from the symlink-based --settings (<= pre-split): the first run of
+  # --settings detects the existing symlink at each destination and replaces it
+  # with a copy (emits an info/warn line per file). No --force needed.
 
   # Repo mode (track the upstream github repo instead of the local checkout):
-  $(basename "$0") --target claude --mode repo            # register yandy-r/claude-plugins
-                                                          # as a github marketplace source
-  $(basename "$0") --target codex  --mode repo            # write the codex marketplace.json
-                                                          # with {source: github, repo: ...,
-                                                          # ref: main}; skip symlink/rsync
-  $(basename "$0") --target all    --mode repo            # claude + codex in repo mode;
-                                                          # cursor/opencode are skipped
-  $(basename "$0") --target claude --mode repo --settings # repo-mode marketplace + symlinks
+  $(basename "$0") --target claude --mode repo             # register yandy-r/claude-plugins
+                                                           # as a github marketplace source
+  $(basename "$0") --target codex  --mode repo             # write the codex marketplace.json
+                                                           # with {source: github, repo: ...,
+                                                           # ref: main}; skip symlink/rsync
+  $(basename "$0") --target all    --mode repo             # claude + codex in repo mode;
+                                                           # cursor/opencode are skipped
+  $(basename "$0") --target claude --mode repo --settings --rules
 EOF
 }
 
@@ -436,6 +514,7 @@ step_enabled() {
     case "$step" in
         base)     return 0 ;;
         settings) [[ "${SETTINGS:-0}" == "1" ]] ;;
+        rules)    [[ "${RULES:-0}" == "1" ]] ;;
         mcp)      [[ "${MCP:-0}" == "1" ]] ;;
         hooks)    [[ "${HOOKS:-0}" == "1" ]] ;;
         *)        return 1 ;;
@@ -468,7 +547,7 @@ validate_only_steps() {
 # Claude target (settings + mcp; no base)
 # ---------------------------------------------------------------------------
 sync_claude_target() {
-    validate_only_steps "claude" "base,settings,mcp,hooks"
+    validate_only_steps "claude" "base,settings,rules,mcp,hooks"
 
     local ran=0
     local base_ran=0
@@ -483,23 +562,20 @@ sync_claude_target() {
         base_ran=1
     fi
     if step_enabled settings; then
-        printf '\n%sClaude: link settings + statusline + rules%s\n' "${BOLD}" "${NC}"
-        # If settings.json is a real file (not symlink) and NOT --force, it may
-        # contain user additions from the 'base' step (local marketplace entry,
-        # enabledPlugins). Replacing it with a symlink would wipe those. Refuse
-        # without --force, consistent with link_rules_file for CLAUDE.md/AGENTS.md.
-        local claude_settings_dest="${HOME}/.claude/settings.json"
-        if [[ -f "${claude_settings_dest}" && ! -L "${claude_settings_dest}" && "${FORCE:-0}" != "1" ]]; then
-            err "refusing to replace real file with symlink: ${claude_settings_dest}"
-            err "  this file likely contains a local marketplace entry registered by 'claude plugin marketplace add'."
-            err "  re-run with --force to overwrite it (you will lose local marketplace entries),"
-            err "  or skip --settings when iterating locally."
-            exit 1
-        fi
-        link_file       "${SCRIPT_DIR}/ycc/settings/settings.json"         "${HOME}/.claude/settings.json"
-        link_file       "${SCRIPT_DIR}/ycc/settings/statusline-command.sh" "${HOME}/.claude/statusline-command.sh"
-        link_rules_file "${SCRIPT_DIR}/ycc/settings/rules/CLAUDE.md"       "${HOME}/.claude/CLAUDE.md"
-        link_rules_file "${SCRIPT_DIR}/ycc/settings/rules/AGENTS.md"       "${HOME}/.claude/AGENTS.md"
+        printf '\n%sClaude: copy settings + statusline%s\n' "${BOLD}" "${NC}"
+        # Copy (not symlink) so per-machine edits (model, effortLevel, MCP
+        # toggles, CLI-added marketplace entries) don't back-propagate into
+        # ycc/settings/settings.json. copy_settings_file refuses to overwrite
+        # a real file without --force, preserving any marketplace entry written
+        # by the 'base' step.
+        copy_settings_file "${SCRIPT_DIR}/ycc/settings/settings.json"         "${HOME}/.claude/settings.json"
+        copy_settings_file "${SCRIPT_DIR}/ycc/settings/statusline-command.sh" "${HOME}/.claude/statusline-command.sh"
+        ran=1
+    fi
+    if step_enabled rules; then
+        printf '\n%sClaude: link rules (CLAUDE.md + AGENTS.md)%s\n' "${BOLD}" "${NC}"
+        link_rules_file "${SCRIPT_DIR}/ycc/settings/rules/CLAUDE.md" "${HOME}/.claude/CLAUDE.md"
+        link_rules_file "${SCRIPT_DIR}/ycc/settings/rules/AGENTS.md" "${HOME}/.claude/AGENTS.md"
         ran=1
     fi
     if step_enabled mcp; then
@@ -517,20 +593,20 @@ sync_claude_target() {
         ran=1
     fi
     if [[ $ran -eq 0 ]]; then
-        warn "Claude target ran no steps (pass --settings, --mcp, --hooks, or --only ...)"
+        warn "Claude target ran no steps (pass --settings, --rules, --mcp, --hooks, or --only ...)"
     fi
     printf '\n%sClaude sync complete.%s\n' "${BOLD}" "${NC}"
     if [[ $base_ran -eq 1 ]]; then
         if [[ "${MODE:-local}" == "repo" ]]; then
             warn "Run /reload-plugins or start a new Claude Code session. The 'ycc' marketplace in ~/.claude/settings.json now tracks the github source yandy-r/claude-plugins."
             warn "Updates: rerun 'claude plugin install ycc@ycc --scope user' (or use the in-Claude /plugins UI) to pull the latest published commit."
-            warn "Heads up: ~/.claude/settings.json was the ycc/settings/settings.json symlink; it's now a REAL file so the CLI write didn't pollute the committed source. Re-running '--settings' would need --force to re-establish the symlink (which would wipe the github marketplace entry)."
+            warn "Heads up: ~/.claude/settings.json now contains the CLI-written marketplace entry. Re-running '--settings' without --force is blocked; with --force it overwrites the file with the repo version (wiping the marketplace entry), so re-run '--only base' afterwards to re-register."
         else
             local claude_repo_root_msg
             claude_repo_root_msg="$(realpath "${SCRIPT_DIR}")"
             warn "Run /reload-plugins or start a new Claude Code session. The 'ycc' marketplace in ~/.claude/settings.json now points at ${claude_repo_root_msg} (directory source)."
             warn "Edits in ycc/ apply on plugin reload. No rsync, no cache clear."
-            warn "Heads up: ~/.claude/settings.json was the ycc/settings/settings.json symlink; it's now a REAL file so the CLI write didn't pollute the committed source. Re-running '--settings' would need --force to re-establish the symlink (which would wipe the local marketplace entry)."
+            warn "Heads up: ~/.claude/settings.json now contains the CLI-written marketplace entry. Re-running '--settings' without --force is blocked; with --force it overwrites the file with the repo version (wiping the marketplace entry), so re-run '--only base' afterwards to re-register."
             warn "If you move or rename this repo, rerun ./install.sh --target claude --only base."
         fi
     fi
@@ -651,7 +727,7 @@ PY
 # Cursor sync (base + optional MCP + optional settings/rules)
 # ---------------------------------------------------------------------------
 sync_cursor_target() {
-    validate_only_steps "cursor" "base,mcp,settings"
+    validate_only_steps "cursor" "base,mcp,rules"
 
     if [[ "${MODE:-local}" == "repo" ]]; then
         err "--mode repo is not supported by the cursor target"
@@ -668,12 +744,12 @@ sync_cursor_target() {
 
     mkdir -p "${cursor_dir}"
 
-    local do_base=0 do_mcp=0 do_settings=0
+    local do_base=0 do_mcp=0 do_rules=0
     step_enabled base && do_base=1
     step_enabled mcp && do_mcp=1
-    step_enabled settings && do_settings=1
+    step_enabled rules && do_rules=1
 
-    if [[ $do_base -eq 0 && $do_mcp -eq 0 && $do_settings -eq 0 ]]; then
+    if [[ $do_base -eq 0 && $do_mcp -eq 0 && $do_rules -eq 0 ]]; then
         warn "Cursor target ran no steps"
         printf '\n%sCursor sync complete.%s\n' "${BOLD}" "${NC}"
         return 0
@@ -682,7 +758,7 @@ sync_cursor_target() {
     local total=0
     [[ $do_base -eq 1 ]] && total=$((total + 4))
     [[ $do_mcp -eq 1 ]] && total=$((total + 1))
-    [[ $do_settings -eq 1 ]] && total=$((total + 1))
+    [[ $do_rules -eq 1 ]] && total=$((total + 1))
     local step=0
 
     if [[ $do_base -eq 1 ]]; then
@@ -760,7 +836,7 @@ sync_cursor_target() {
         sync_cursor_mcp_json
     fi
 
-    if [[ $do_settings -eq 1 ]]; then
+    if [[ $do_rules -eq 1 ]]; then
         step=$((step + 1))
         printf '\n%s[%d/%d] Link Cursor rules (CLAUDE.md + AGENTS.md)%s\n' "${BOLD}" "$step" "$total" "${NC}"
         # NOTE: linked at the ~/.cursor/ top level, NOT inside ~/.cursor/rules/.
@@ -777,17 +853,18 @@ sync_cursor_target() {
 # Codex sync (base: plugin + agents + marketplace; settings: config link)
 # ---------------------------------------------------------------------------
 sync_codex_target() {
-    validate_only_steps "codex" "base,settings"
+    validate_only_steps "codex" "base,settings,rules"
 
     local codex_plugin_dest="${HOME}/.codex/plugins/ycc"
     local codex_agents_dest="${HOME}/.codex/agents"
     local scripts_dir="${SCRIPT_DIR}/scripts"
 
-    local do_base=0 do_settings=0
+    local do_base=0 do_settings=0 do_rules=0
     step_enabled base && do_base=1
     step_enabled settings && do_settings=1
+    step_enabled rules && do_rules=1
 
-    if [[ $do_base -eq 0 && $do_settings -eq 0 ]]; then
+    if [[ $do_base -eq 0 && $do_settings -eq 0 && $do_rules -eq 0 ]]; then
         warn "Codex target ran no steps"
         printf '\n%sCodex sync complete.%s\n' "${BOLD}" "${NC}"
         return 0
@@ -812,6 +889,7 @@ sync_codex_target() {
         fi
     fi
     [[ $do_settings -eq 1 ]] && total=$((total + 1))
+    [[ $do_rules -eq 1 ]] && total=$((total + 1))
     local step=0
 
     if [[ $do_base -eq 1 && "${MODE:-local}" == "repo" ]]; then
@@ -904,8 +982,16 @@ sync_codex_target() {
 
     if [[ $do_settings -eq 1 ]]; then
         step=$((step + 1))
-        printf '\n%s[%d/%d] Link Codex config files + rules%s\n' "${BOLD}" "$step" "$total" "${NC}"
-        link_file       "${SCRIPT_DIR}/.codex-plugin/config/config.toml"   "${HOME}/.codex/config.toml"
+        printf '\n%s[%d/%d] Copy Codex config (config.toml)%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        # Copy (not symlink) so per-machine edits (model, reasoning effort,
+        # trusted-project entries, MCP tokens, ...) don't back-propagate into
+        # .codex-plugin/config/config.toml.
+        copy_settings_file "${SCRIPT_DIR}/.codex-plugin/config/config.toml" "${HOME}/.codex/config.toml"
+    fi
+
+    if [[ $do_rules -eq 1 ]]; then
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Link Codex rules (default.rules + CLAUDE.md + AGENTS.md)%s\n' "${BOLD}" "$step" "$total" "${NC}"
         link_file       "${SCRIPT_DIR}/.codex-plugin/config/default.rules" "${HOME}/.codex/rules/default.rules"
         link_rules_file "${SCRIPT_DIR}/ycc/settings/rules/CLAUDE.md"       "${HOME}/.codex/CLAUDE.md"
         link_rules_file "${SCRIPT_DIR}/ycc/settings/rules/AGENTS.md"       "${HOME}/.codex/AGENTS.md"
@@ -931,7 +1017,7 @@ sync_codex_target() {
 # opencode sync (base: skills + agents + commands; settings: config + rules)
 # ---------------------------------------------------------------------------
 sync_opencode_target() {
-    validate_only_steps "opencode" "base,settings"
+    validate_only_steps "opencode" "base,settings,rules"
 
     if [[ "${MODE:-local}" == "repo" ]]; then
         err "--mode repo is not supported by the opencode target"
@@ -943,11 +1029,12 @@ sync_opencode_target() {
     local opencode_dir="${HOME}/.config/opencode"
     local scripts_dir="${SCRIPT_DIR}/scripts"
 
-    local do_base=0 do_settings=0
+    local do_base=0 do_settings=0 do_rules=0
     step_enabled base && do_base=1
     step_enabled settings && do_settings=1
+    step_enabled rules && do_rules=1
 
-    if [[ $do_base -eq 0 && $do_settings -eq 0 ]]; then
+    if [[ $do_base -eq 0 && $do_settings -eq 0 && $do_rules -eq 0 ]]; then
         warn "opencode target ran no steps"
         printf '\n%sopencode sync complete.%s\n' "${BOLD}" "${NC}"
         return 0
@@ -959,6 +1046,7 @@ sync_opencode_target() {
     local total=0
     [[ $do_base -eq 1 ]] && total=$((total + 4))
     [[ $do_settings -eq 1 ]] && total=$((total + 1))
+    [[ $do_rules -eq 1 ]] && total=$((total + 1))
     local step=0
 
     if [[ $do_base -eq 1 ]]; then
@@ -1045,16 +1133,24 @@ sync_opencode_target() {
 
     if [[ $do_settings -eq 1 ]]; then
         step=$((step + 1))
-        printf '\n%s[%d/%d] Link opencode config and rules%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        printf '\n%s[%d/%d] Copy opencode config (opencode.json)%s\n' "${BOLD}" "$step" "$total" "${NC}"
         mkdir -p "${opencode_dir}"
-        link_file "${OPENCODE_PLUGIN_DIR}/opencode.json" "${opencode_dir}/opencode.json"
+        # Copy (not symlink) so per-machine edits (model, provider tokens, MCP
+        # blocks) don't back-propagate into .opencode-plugin/opencode.json.
+        copy_settings_file "${OPENCODE_PLUGIN_DIR}/opencode.json" "${opencode_dir}/opencode.json"
+    fi
+
+    if [[ $do_rules -eq 1 ]]; then
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Link opencode rules (AGENTS.md)%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        mkdir -p "${opencode_dir}"
         # opencode's AGENTS.md is generator-produced from
         # ycc/settings/rules/CLAUDE.md (the same user-global ruleset the other
         # targets symlink directly). See scripts/generate_opencode_plugin.py
         # for the text transforms applied during generation. We link to the
         # bundle's AGENTS.md — not directly to ycc/settings/rules/ — so the
         # transformed copy is what lands in ~/.config/opencode/.
-        link_file "${OPENCODE_PLUGIN_DIR}/AGENTS.md"    "${opencode_dir}/AGENTS.md"
+        link_file "${OPENCODE_PLUGIN_DIR}/AGENTS.md" "${opencode_dir}/AGENTS.md"
     fi
 
     printf '\n%sopencode sync complete.%s\n' "${BOLD}" "${NC}"
@@ -1087,6 +1183,7 @@ TARGET=""
 MODE="local"
 MCP=0
 SETTINGS=0
+RULES=0
 HOOKS=0
 FORCE=0
 ONLY_STEPS=()
@@ -1124,6 +1221,10 @@ while [[ $# -gt 0 ]]; do
             SETTINGS=1
             shift
             ;;
+        --rules)
+            RULES=1
+            shift
+            ;;
         --hooks)
             HOOKS=1
             shift
@@ -1153,6 +1254,9 @@ fi
 if [[ ${#ONLY_STEPS[@]} -gt 0 ]]; then
     if [[ "${SETTINGS}" == "1" ]]; then
         warn "--settings is ignored when --only is used"
+    fi
+    if [[ "${RULES}" == "1" ]]; then
+        warn "--rules is ignored when --only is used"
     fi
     if [[ "${MCP}" == "1" ]]; then
         warn "--mcp is ignored when --only is used"
