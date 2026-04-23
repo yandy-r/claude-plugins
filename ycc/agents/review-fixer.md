@@ -72,6 +72,24 @@ PROJECT TYPE-CHECK COMMAND: cargo check
 
 In Shape B, process findings in the order given (descending line number) so earlier edits do not shift line numbers of later findings.
 
+`SOURCE REVIEW FILE` can also be:
+
+```
+SOURCE REVIEW FILE: (quick-fix ephemeral handoff)
+```
+
+When this value is present, the finding came from `/ycc:quick-fix` and no review
+artifact exists. Do not expect a markdown file to parse or update.
+
+`PROJECT TYPE-CHECK COMMAND` can also be:
+
+```
+PROJECT TYPE-CHECK COMMAND: SKIP (no supported project validation command detected)
+```
+
+When this explicit `SKIP (...)` value is present, do not run validation. Report
+`TYPE-CHECK: Skipped (<reason>)` in the success or failure block.
+
 ## Fix Process
 
 ### 1. Read Context
@@ -91,12 +109,17 @@ In Shape B, process findings in the order given (descending line number) so earl
 
 Validate `PROJECT TYPE-CHECK COMMAND` against this allowlist before execution. Reject any command that does not exactly match one of the accepted patterns:
 
-| Stack      | Typical command                             |
-| ---------- | ------------------------------------------- |
-| TypeScript | `pnpm typecheck` / `npx tsc --noEmit`       |
-| Rust       | `cargo check`                               |
-| Go         | `go vet ./...`                              |
-| Python     | `python -m mypy <file>` or project-specific |
+| Stack      | Typical command                                          |
+| ---------- | -------------------------------------------------------- |
+| TypeScript | `pnpm typecheck` / `yarn typecheck` / `npx tsc --noEmit` |
+| JavaScript | `bun test`                                               |
+| Rust       | `cargo check`                                            |
+| Go         | `go vet ./...`                                           |
+| Python     | `pytest` / `python -m mypy <file>` or project-specific   |
+
+If `PROJECT TYPE-CHECK COMMAND` starts with the exact token `SKIP (` and ends
+with `)`, skip validation and include the reason in the report. Do not treat any
+other non-allowlisted value as safe.
 
 Execute the validated command via a safe program+args API (for example, `spawn` or `execFile`), never via shell-string interpolation. If file scoping is used, pass the filename as a separate argument token.
 
@@ -157,7 +180,7 @@ RECOMMENDATION: <what the user should do — fix manually, re-review, update the
 4. **Read before edit**: Never edit a file you haven't read the surrounding context of.
 5. **Line numbers drift**: When processing a same-file group, always go descending so earlier edits don't invalidate later line numbers.
 6. **Security first**: Never expose or log secrets. Never disable existing security checks to "make the type-check pass".
-7. **Do not mutate the review file**: The `/ycc:review-fix` skill updates the `Status` line in the source review artifact. You do NOT touch the review file itself.
+7. **Do not mutate the review file**: The `/ycc:review-fix` skill updates the `Status` line in the source review artifact. `/ycc:quick-fix` has no artifact at all. You do NOT touch review files in either case.
 8. **Do not commit**: You do not run `git add`, `git commit`, or any git state-changing command. The user or `/ycc:git-workflow` handles that.
 
 ## Example Responses

@@ -1,28 +1,29 @@
 ---
 name: quick-review
 description: Fast interactive review of uncommitted changes. Prints findings inline
-  (no file written by default), then asks Apply fixes / Save to file / Discard. Writing
-  only happens on confirmation. Hands off to $review-fix on "Apply fixes". Designed
-  for short, low-friction code changes where opening a full $code-review artifact
-  is overkill. Pass `--parallel` to fan out across 3 standalone code-reviewer sub-agents
-  (correctness, security, quality). Pass `--team` (Codex runtime only; not available
-  in bundle invocations) for the same fan-out as a coordinated agent team. `--parallel`
-  and `--team` are mutually exclusive. Pass `--yes` to auto-confirm (Apply fixes)
-  or `--save` to auto-confirm (Save to file) for scripted use. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>`
-  to forward the minimum severity threshold to $review-fix (default HIGH). Use when
-  the user asks to "quick review", "fast review", "review what I have", "on-the-fly
-  review", or says "/quick-review". `$code-review --quick` delegates here.
+  and writes nothing by default. On "Apply fixes", hands findings directly to $quick-fix
+  without creating a review artifact. "Save to file" writes a docs/prps/reviews artifact
+  and stops. "Write file and apply fixes" explicitly writes the artifact and hands
+  off to $review-fix. Designed for short, low-friction code changes where opening
+  a full $code-review artifact is overkill. Pass `--parallel` to fan out review across
+  3 standalone code-reviewer sub-agents. Pass `--team` (Codex runtime only; not available
+  in bundle invocations) for the same fan-out as a coordinated agent team. Pass `--yes`
+  to auto-confirm direct Apply fixes, `--save` to save only, or `--write-and-apply`
+  to use the artifact-backed apply path. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>`
+  to set the minimum fix threshold. Use when the user asks to "quick review", "fast
+  review", "review what I have", "on-the-fly review", or says "/quick-review".
 ---
 
 # Quick Review
 
-Interactive low-friction review of uncommitted changes. Output is **inline**;
-a review artifact is only written on confirmation.
+Interactive low-friction review of uncommitted changes. Output is **inline**.
+The default fix path is artifact-free.
 
 **Input**: `$ARGUMENTS`
 
-**Core rule**: You will **NOT** write a review artifact until the user
-explicitly selects "Apply fixes" or "Save to file". "Discard" writes nothing.
+**Core rule**: "Apply fixes" MUST NOT write a review artifact. It hands the
+inline findings directly to `$quick-fix`. Only "Save to file" and
+"Write file and apply fixes" write `docs/prps/reviews/quick-*.md`.
 
 ---
 
@@ -34,14 +35,15 @@ Extract flags from `$ARGUMENTS`:
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--parallel`         | Fan out REVIEW across 3 standalone `code-reviewer` sub-agents (correctness, security, quality) and merge findings. Works in Claude Code, Cursor, and Codex bundles.                                   |
 | `--team`             | (Codex runtime only; not available in bundle invocations) Same 3-reviewer fan-out as a coordinated agent team with `create an agent group`, shared `the task tracker`, per-reviewer `record the task`, and coordinated shutdown. Heavier dispatch, richer communication. |
-| `--yes`              | Skip the confirmation prompt in Phase 4 and behave as "Apply fixes". Mutually exclusive with `--save`.                                                                                                    |
-| `--save`             | Skip the confirmation prompt in Phase 4 and behave as "Save to file" (write artifact, print Next steps, exit). Mutually exclusive with `--yes`.                                                           |
-| `--severity <level>` | Forwarded to `$review-fix` during hand-off. Valid: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH`. Ignored on "Save to file" / "Discard".                                                       |
+| `--yes`              | Skip the confirmation prompt and behave as "Apply fixes" through `$quick-fix`. Mutually exclusive with `--save` and `--write-and-apply`.                                                              |
+| `--save`             | Skip the confirmation prompt and behave as "Save to file" (write artifact, print Next steps, exit). Mutually exclusive with `--yes` and `--write-and-apply`.                                              |
+| `--write-and-apply`  | Skip the confirmation prompt, write the review artifact, then hand off to `$review-fix`. Mutually exclusive with `--yes` and `--save`.                                                                |
+| `--severity <level>` | Forwarded to `$quick-fix` or `$review-fix` during hand-off. Valid: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH`. Ignored on "Save to file" / "Discard".                                   |
 | `--no-worktree`      | Accepted as a **no-op**. Quick mode never creates a worktree. Emit a note: `--no-worktree has no effect in quick mode.`                                                                                   |
 
 Strip these from `$ARGUMENTS` and set `PARALLEL_MODE`, `AGENT_TEAM_MODE`,
-`AUTO_YES`, `AUTO_SAVE`, and `MIN_SEVERITY` (default `HIGH`). The remaining
-text MUST be empty; if not, abort with:
+`AUTO_YES`, `AUTO_SAVE`, `AUTO_WRITE_AND_APPLY`, and `MIN_SEVERITY` (default
+`HIGH`). The remaining text MUST be empty; if not, abort with:
 
 ```
 Error: $quick-review takes no positional argument (only flags).
@@ -49,10 +51,10 @@ Error: $quick-review takes no positional argument (only flags).
 
 **Validation**:
 
-- `--parallel` and `--team` mutually exclusive → abort with: `--parallel and --team are mutually exclusive. Pick one.`
-- `--yes` and `--save` mutually exclusive → abort with: `--yes and --save are mutually exclusive. Pick one.`
-- `--team` in a Cursor/Codex bundle (no `create an agent group` tool) → abort with: `--team is not supported in bundle invocations; use --parallel instead.`
-- `--severity` value not one of `CRITICAL|HIGH|MEDIUM|LOW` → abort with: `Invalid --severity value. Use CRITICAL, HIGH, MEDIUM, or LOW.`
+- `--parallel` and `--team` mutually exclusive -> abort with: `--parallel and --team are mutually exclusive. Pick one.`
+- More than one of `--yes`, `--save`, `--write-and-apply` present -> abort with: `--yes, --save, and --write-and-apply are mutually exclusive. Pick one.`
+- `--team` in a Cursor/Codex bundle (no `create an agent group` tool) -> abort with: `--team is not supported in bundle invocations; use --parallel instead.`
+- `--severity` value not one of `CRITICAL|HIGH|MEDIUM|LOW` -> abort with: `Invalid --severity value. Use CRITICAL, HIGH, MEDIUM, or LOW.`
 
 ---
 
@@ -79,7 +81,7 @@ The shape of this phase depends on `PARALLEL_MODE` and `AGENT_TEAM_MODE`:
 | `PARALLEL_MODE`   | **Path B** — 3 parallel sub-agent reviewers |
 | `AGENT_TEAM_MODE` | **Path C** — 3-reviewer agent team          |
 
-Findings from all paths stay **in memory** — do not write to disk yet.
+Findings from all paths stay **in memory**. Do not write to disk here.
 
 ### Path A — Single-Pass Review (default)
 
@@ -123,8 +125,8 @@ Roster and category split identical to Path B.
 #### C.1 Build the team name
 
 Team name: `qrev-local-<YYYYMMDD-HHMMSS>`. Generate the timestamp once at the
-start of Phase 2 and reuse it if the user later selects "Save to file" or
-"Apply fixes" (for artifact filename consistency).
+start of Phase 2 and reuse it if the user later selects an artifact-writing
+path.
 
 #### C.2 Create the team
 
@@ -144,7 +146,7 @@ record the task: subject="security-reviewer: security review of uncommitted chan
 record the task: subject="quality-reviewer: best-practices review of uncommitted changes",   description="<full reviewer prompt>"
 ```
 
-If any `record the task` fails → `close the agent group`, abort.
+If any `record the task` fails -> `close the agent group`, abort.
 
 #### C.4 Spawn the 3 reviewers
 
@@ -159,8 +161,8 @@ complete before returning.
 
 Use `the task tracker` until all 3 tasks are `completed`. Failure policy:
 
-- All 3 error → `close the agent group`, abort with a clear error.
-- 1 or 2 error → record "partial review — {role} did not complete" and proceed
+- All 3 error -> `close the agent group`, abort with a clear error.
+- 1 or 2 error -> record "partial review — {role} did not complete" and proceed
   with the remaining findings. Note the gap when printing inline.
 
 #### C.6 Shutdown and cleanup
@@ -182,10 +184,15 @@ Apply the reference's Merge Procedure and pass the combined findings to Phase 3.
 
 ## Phase 3 — REPORT (inline)
 
-Assign sequential finding IDs (`F001`, `F002`, …) ordered by severity
+Assign sequential finding IDs (`F001`, `F002`, ...) ordered by severity
 (CRITICAL first) then by file path. Every finding gets `Status: Open`.
 
-Compute the finding counts by severity: `C`, `H`, `M`, `L`.
+Compute:
+
+- `critical_count`, `high_count`, `medium_count`, `low_count`
+- `total_findings`
+- `finding_file_count` (unique files with findings)
+- `large_review = total_findings >= 5 || finding_file_count >= 3`
 
 **Print** the review to stdout in the Review Artifact Format, **without**
 writing a file. The printed block looks like:
@@ -201,7 +208,7 @@ writing a file. The printed block looks like:
 
 ## Summary
 
-<1–2 sentence overall assessment>
+<1-2 sentence overall assessment>
 
 ## Findings
 
@@ -240,67 +247,117 @@ writing a file. The printed block looks like:
 `## Worktree Setup` section (quick mode never creates a worktree) and no
 `## Validation Results` section (quick mode does not run toolchain checks).
 
-After the artifact block, print a one-line summary:
+After the artifact block, print:
 
 ```
 Findings: [C] {critical_count}  [H] {high_count}  [M] {medium_count}  [L] {low_count}
 ```
 
+If `large_review=true`, also print:
+
+```
+Large quick review: {total_findings} findings across {finding_file_count} files.
+You can still apply fixes directly, or write an artifact before applying fixes for an audit trail.
+```
+
 If the count is zero across all severities, skip Phase 4 entirely. Print
 `No findings. Nothing to do.` and exit.
 
-Otherwise continue to Phase 4.
+Keep the exact printed review block in memory as `INLINE_REVIEW_PAYLOAD` for
+`$quick-fix` or artifact writing.
 
 ---
 
 ## Phase 4 — DECIDE (confirmation)
 
-If `AUTO_YES=true` → skip this phase, proceed directly to Phase 5 as if the
+If `AUTO_YES=true` -> skip this phase, proceed directly to Phase 5 as if the
 user selected "Apply fixes".
 
-If `AUTO_SAVE=true` → skip this phase, proceed directly to Phase 5 as if the
+If `AUTO_SAVE=true` -> skip this phase, proceed directly to Phase 5 as if the
 user selected "Save to file".
 
-Otherwise, ask the user with `ask the user`:
+If `AUTO_WRITE_AND_APPLY=true` -> skip this phase, proceed directly to Phase 5
+as if the user selected "Write file and apply fixes".
+
+Otherwise, ask the user with `ask the user`.
+
+For normal reviews (`large_review=false`):
 
 ```
 question: "What should I do with this review?"
 header:   "Review action"
 options:
   - label: "Apply fixes"
-    description: "Write the review artifact to docs/prps/reviews/ and hand off to $review-fix (recommended)"
+    description: "Hand findings directly to $quick-fix. No review file is written. (recommended)"
   - label: "Save to file"
-    description: "Write the review artifact to docs/prps/reviews/ and stop — you can run $review-fix later"
+    description: "Write docs/prps/reviews/quick-<timestamp>-review.md and stop."
   - label: "Discard"
     description: "Write nothing, exit"
 ```
 
-Mark "Apply fixes" with `(Recommended)` in its label when
-`critical_count + high_count > 0`; otherwise leave it unmarked.
+For large reviews (`large_review=true`):
+
+```
+question: "This is a larger quick review. What should I do?"
+header:   "Review action"
+options:
+  - label: "Apply fixes"
+    description: "Hand findings directly to $quick-fix. No review file is written."
+  - label: "Write file and apply fixes"
+    description: "Write docs/prps/reviews/quick-<timestamp>-review.md, then use $review-fix for an audit trail. (recommended)"
+  - label: "Save to file"
+    description: "Write docs/prps/reviews/quick-<timestamp>-review.md and stop."
+  - label: "Discard"
+    description: "Write nothing, exit"
+```
+
+Mark "Apply fixes" with `(Recommended)` when `large_review=false` and
+`critical_count + high_count > 0`. Mark "Write file and apply fixes" with
+`(Recommended)` when `large_review=true`.
 
 **Text-mode fallback** (if `ask the user` is unavailable — Cursor/Codex
-bundles without that tool): print the three choices explicitly and WAIT for
+bundles without that tool): print the available choices explicitly and WAIT for
 the user's next message. Parse their reply case-insensitively:
 
-- `yes` / `apply` / `apply fixes` / `fix` → "Apply fixes"
-- `save` / `save to file` / `write` / `file` → "Save to file"
-- `no` / `discard` / `cancel` / `skip` → "Discard"
-- Anything else → re-prompt once, then default to `Discard` if still ambiguous.
+- `yes` / `apply` / `apply fixes` / `fix` -> "Apply fixes"
+- `write and apply` / `write file and apply fixes` / `file and fix` / `artifact and fix` -> "Write file and apply fixes"
+- `save` / `save to file` / `write` / `file` -> "Save to file"
+- `no` / `discard` / `cancel` / `skip` -> "Discard"
+- Anything else -> re-prompt once, then default to `Discard` if still ambiguous.
 
 ---
 
 ## Phase 5 — HAND-OFF
 
-Branch on the user's selection (or the auto-confirm flag).
+Branch on the user's selection (or auto-confirm flag).
 
 ### Selection: "Discard"
 
 Print `Discarded. No artifact written.` and exit. Do NOT write any file.
 
+### Selection: "Apply fixes"
+
+Invoke the `quick-fix` skill inline via the `Skill` tool. Do NOT write an
+artifact first.
+
+- `skill`: `"quick-fix"`
+- `args`: `"[--parallel] [--severity <level>] <INLINE_REVIEW_PAYLOAD>"`
+
+Forward `--parallel` if `PARALLEL_MODE=true`. Forward `--severity <level>` when
+`MIN_SEVERITY != HIGH` (HIGH is the default on quick-fix).
+
+After the Skill call returns, print:
+
+```
+Fixes complete. No review artifact was written.
+```
+
+Exit.
+
 ### Selection: "Save to file"
 
-Write the artifact to disk using the Phase 3 content plus the canonical
-header block:
+Write the artifact to disk using the Phase 3 content plus the canonical header
+block:
 
 ```bash
 mkdir -p docs/prps/reviews
@@ -312,7 +369,7 @@ Write the same artifact content that was printed in Phase 3, but set
 `**Decision**: COMMENT` in the header (since a review was produced but no
 GitHub decision is being posted).
 
-Print the Next steps block to stdout:
+Print:
 
 ```
 Quick review written to: docs/prps/reviews/quick-<TIMESTAMP>-review.md
@@ -323,28 +380,27 @@ Next steps:
   $review-fix docs/prps/reviews/quick-<TIMESTAMP>-review.md --parallel   # fan out fixes {recommended_parallel if 3+ Open across 2+ files}
 ```
 
-Annotate ONE of the two commands with `# ← recommended`:
+Annotate ONE command with `# <- recommended`:
 
-- 1–2 Open findings → recommend the single-pass form.
-- 3+ Open findings spanning 2+ files → recommend the `--parallel` form.
+- 1-2 Open findings -> recommend the single-pass form.
+- 3+ Open findings spanning 2+ files -> recommend the `--parallel` form.
 - Otherwise default to the single-pass form.
 
 Exit.
 
-### Selection: "Apply fixes"
+### Selection: "Write file and apply fixes"
 
-Step 1 — write the artifact to disk (same as "Save to file" above) so
-`$review-fix` can parse and update it in place.
+Step 1 — write the artifact to disk exactly as in "Save to file".
 
 Step 2 — invoke the `review-fix` skill inline via the `Skill` tool:
 
 - `skill`: `"review-fix"`
-- `args`: `"<REVIEW_FILE> [--parallel] [--severity <level>]"` — always pass the
-  explicit review path. Forward `--parallel` if `PARALLEL_MODE=true`. Forward
-  `--severity <level>` when `MIN_SEVERITY != HIGH` (HIGH is the default on
-  review-fix so omitting it produces the same behavior).
+- `args`: `"<REVIEW_FILE> [--parallel] [--severity <level>]"`
 
-Step 3 — after the Skill call returns, print a one-line confirmation:
+Forward `--parallel` if `PARALLEL_MODE=true`. Forward `--severity <level>` when
+`MIN_SEVERITY != HIGH`.
+
+Step 3 — after the Skill call returns, print:
 
 ```
 Fixes complete. Review artifact updated in place: docs/prps/reviews/quick-<TIMESTAMP>-review.md
@@ -352,21 +408,22 @@ Fixes complete. Review artifact updated in place: docs/prps/reviews/quick-<TIMES
 
 Step 4 — exit.
 
-**Note**: `--team` from quick-review is NOT forwarded to `$review-fix`
-automatically. The review-phase fan-out is about finding issues quickly;
-the fix phase has its own decision. If the user wants team-mode fixes they
-can re-run `$review-fix <path> --team` themselves.
+**Note**: `--team` from quick-review is NOT forwarded to either fix workflow
+automatically. The review-phase fan-out is about finding issues quickly; the
+fix phase has its own execution decision.
 
 ---
 
 ## Important Notes
 
-- **No artifact until confirmation**: "Discard" MUST write nothing. "Save to
-  file" and "Apply fixes" both write once, to the same canonical path.
+- **Apply fixes is artifact-free**: direct apply MUST route to `$quick-fix`
+  without writing `docs/prps/reviews/quick-*.md`.
+- **Large reviews are advisory**: `5+` findings or `3+` finding files adds a
+  "Write file and apply fixes" choice. It does not force artifact creation.
+- **Explicit artifact-backed apply**: only `--write-and-apply` or the matching
+  prompt choice writes the artifact and invokes `$review-fix`.
 - **Idempotent filename**: the `quick-{YYYYMMDD-HHMMSS}-review.md` pattern
-  produces a new file per invocation — no overwrites.
-- **Parity with `$code-review`**: the artifact format and finding schema
-  are identical, so `$review-fix` consumes it unchanged.
+  produces a new file per artifact-writing invocation — no overwrites.
 - **Not a replacement for `$code-review`**: if you need toolchain
   validation (typecheck/lint/test/build), a `## Validation Results` block,
   worktree isolation, or a GitHub review posted, use `$code-review`
@@ -377,5 +434,6 @@ can re-run `$review-fix <path> --team` themselves.
 ## Integration with ycc
 
 - `$code-review --quick` delegates to this skill.
-- `$review-fix` consumes the written artifact.
+- `$quick-fix` consumes inline findings for artifact-free fixing.
+- `$review-fix` consumes written artifacts only.
 - `$prp-commit` or `$git-workflow` can commit the fixes afterward.

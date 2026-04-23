@@ -133,8 +133,12 @@
       "description": "Python testing patterns using pytest \u2014 TDD methodology, fixtures (function/module/session scopes), parametrization, markers, mocking with unittest.mock, async tests with pytest-asyncio, tmp_path, conftest.py organization, and coverage targets. Use when the user is writing Python tests, adding test coverage to Python code, asks about pytest, @pytest.fixture, @pytest.mark.parametrize, @patch / Mock / MagicMock / autospec, pytest-asyncio, conftest.py, tmp_path / tmpdir, pytest --cov, or wants TDD guidance for a Python project."
     },
     {
+      "name": "quick-fix",
+      "description": "Apply fixes directly from an inline /ycc:quick-review findings block without creating a review artifact. Use when quick-review hands off \"Apply fixes\", when the user asks to \"quick fix\" review findings, or when pasted Quick Review findings should be fixed without the docs/prps/reviews artifact workflow. Filters by severity, groups same-file findings, dispatches ycc:review-fixer agents, and reports fixed/failed results inline. This is the ephemeral counterpart to /ycc:review-fix, which remains artifact-driven."
+    },
+    {
       "name": "quick-review",
-      "description": "Fast interactive review of uncommitted changes. Prints findings inline (no file written by default), then asks Apply fixes / Save to file / Discard. Writing only happens on confirmation. Hands off to /ycc:review-fix on \"Apply fixes\". Designed for short, low-friction code changes where opening a full /ycc:code-review artifact is overkill. Pass `--parallel` to fan out across 3 standalone ycc:code-reviewer sub-agents (correctness, security, quality). Pass `--team` (Claude Code only) for the same fan-out as a coordinated agent team. `--parallel` and `--team` are mutually exclusive. Pass `--yes` to auto-confirm (Apply fixes) or `--save` to auto-confirm (Save to file) for scripted use. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to forward the minimum severity threshold to /ycc:review-fix (default HIGH). Use when the user asks to \"quick review\", \"fast review\", \"review what I have\", \"on-the-fly review\", or says \"/quick-review\". `/ycc:code-review --quick` delegates here."
+      "description": "Fast interactive review of uncommitted changes. Prints findings inline and writes nothing by default. On \"Apply fixes\", hands findings directly to /ycc:quick-fix without creating a review artifact. \"Save to file\" writes a docs/prps/reviews artifact and stops. \"Write file and apply fixes\" explicitly writes the artifact and hands off to /ycc:review-fix. Designed for short, low-friction code changes where opening a full /ycc:code-review artifact is overkill. Pass `--parallel` to fan out review across 3 standalone ycc:code-reviewer sub-agents. Pass `--team` (Claude Code only) for the same fan-out as a coordinated agent team. Pass `--yes` to auto-confirm direct Apply fixes, `--save` to save only, or `--write-and-apply` to use the artifact-backed apply path. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to set the minimum fix threshold. Use when the user asks to \"quick review\", \"fast review\", \"review what I have\", \"on-the-fly review\", or says \"/quick-review\". `/ycc:code-review --quick` delegates here."
     },
     {
       "name": "releaser",
@@ -311,8 +315,12 @@
       "description": "Python testing patterns using pytest \u2014 TDD methodology, fixtures (function/module/session scopes), parametrization, markers, mocking with unittest.mock, async tests with pytest-asyncio, tmp_path, conftest.py organization, and coverage targets. Use when the user is writing Python tests, adding test coverage to Python code, asks about pytest, @pytest.fixture, @pytest.mark.parametrize, @patch / Mock / MagicMock / autospec, pytest-asyncio, conftest.py, tmp_path / tmpdir, pytest --cov, or wants TDD guidance for a Python project."
     },
     {
+      "name": "quick-fix",
+      "description": "Apply fixes from an inline /ycc:quick-review findings block without creating a review artifact. Use directly with pasted Quick Review findings, or indirectly from /ycc:quick-review \"Apply fixes\"."
+    },
+    {
       "name": "quick-review",
-      "description": "Fast interactive review of uncommitted changes \u2014 findings print inline; Apply fixes / Save to file / Discard on confirmation. Writes nothing by default. Hands off to /ycc:review-fix on \"Apply fixes\". Pass --parallel or --team for 3-reviewer fan-out. Pass --yes or --save to skip the prompt (scripted use). Pass --severity <CRITICAL|HIGH|MEDIUM|LOW> to forward the minimum-severity threshold to /ycc:review-fix (default HIGH)."
+      "description": "Fast interactive review of uncommitted changes. Findings print inline and writes nothing by default. Apply fixes hands findings directly to /ycc:quick-fix. Save to file writes an artifact and stops. Write file and apply fixes uses /ycc:review-fix. Pass --parallel or --team for 3-reviewer fan-out; --yes, --save, or --write-and-apply for scripted choices."
     },
     {
       "name": "releaser",
@@ -570,8 +578,8 @@
     }
   ],
   "counts": {
-    "skills": 45,
-    "commands": 44,
+    "skills": 46,
+    "commands": 45,
     "agents": 52
   },
   "parity": {
