@@ -72,7 +72,10 @@ link_rules_file() {
 # - Refuses to replace a directory at <dest>.
 # - If <dest> is a symlink, warns and replaces it with a real copy (no --force
 #   needed — symlinks are considered agent-owned upgrade artifacts).
-# - If <dest> is a regular file, refuses unless FORCE=1 (protects user edits).
+# - If <dest> is a regular file whose content is byte-identical to <src>, the
+#   copy is a no-op (idempotent re-run; no --force needed).
+# - If <dest> is a regular file whose content differs from <src>, refuses
+#   unless FORCE=1 (protects user edits).
 # - Uses 'cp -p' to preserve the source's exec bit (matters for
 #   statusline-command.sh and friends).
 copy_settings_file() {
@@ -89,10 +92,16 @@ copy_settings_file() {
         link_target="$(readlink "$dest")"
         warn "replacing symlink with copy: $dest -> $link_target"
         rm "$dest"
-    elif [[ -f "$dest" && "${FORCE:-0}" != "1" ]]; then
-        err "refusing to overwrite real file: $dest"
-        err "  re-run with --force to overwrite local edits with the repo version."
-        exit 1
+    elif [[ -f "$dest" ]]; then
+        if cmp -s "$src" "$dest"; then
+            info "copy up-to-date: $dest"
+            return 0
+        fi
+        if [[ "${FORCE:-0}" != "1" ]]; then
+            err "refusing to overwrite real file with differing content: $dest"
+            err "  local edits differ from repo; re-run with --force to overwrite."
+            exit 1
+        fi
     fi
     cp -p "$src" "$dest"
     info "copied $src -> $dest"
@@ -568,7 +577,19 @@ sync_claude_target() {
         # ycc/settings/settings.json. copy_settings_file refuses to overwrite
         # a real file without --force, preserving any marketplace entry written
         # by the 'base' step.
-        copy_settings_file "${SCRIPT_DIR}/ycc/settings/settings.json"         "${HOME}/.claude/settings.json"
+        #
+        # If 'base' ran in this same invocation, ~/.claude/settings.json was
+        # just written by the claude CLI (marketplace entry + enabledPlugins).
+        # Copying the repo version over it would wipe that entry. Skip the
+        # copy here — 'base' already materialized fresh content from the repo
+        # as its starting point, so the file is up-to-date. If the user
+        # explicitly wants to refresh from the repo, they can run
+        # '--only settings --force' followed by '--only base' to re-register.
+        if [[ $base_ran -eq 1 ]]; then
+            info "skip: ${HOME}/.claude/settings.json (base just wrote the marketplace entry; re-copying would wipe it)"
+        else
+            copy_settings_file "${SCRIPT_DIR}/ycc/settings/settings.json" "${HOME}/.claude/settings.json"
+        fi
         copy_settings_file "${SCRIPT_DIR}/ycc/settings/statusline-command.sh" "${HOME}/.claude/statusline-command.sh"
         ran=1
     fi
