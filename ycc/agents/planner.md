@@ -65,14 +65,9 @@ Use this exact structure for your output:
 
 [2-3 sentence summary]
 
-## Worktree Setup
-
-_(optional — present only in worktree mode; omit entirely for non-worktree plans)_
+## Worktree Setup _(optional — present only in worktree mode; omit entirely for non-worktree plans)_
 
 - **Parent**: `~/.claude-worktrees/<repo>-<feature>/` (branch: `feat/<feature>`)
-- **Children** (per parallel task; merged back at end of each batch):
-  - Task 1.1 → `~/.claude-worktrees/<repo>-<feature>-1-1/` (branch: `feat/<feature>-1-1`)
-  - Task 1.2 → `~/.claude-worktrees/<repo>-<feature>-1-2/` (branch: `feat/<feature>-1-2`)
 
 ## Requirements
 
@@ -93,7 +88,6 @@ _(optional — present only in worktree mode; omit entirely for non-worktree pla
    - Why: Reason for this step
    - Dependencies: None / Requires step X
    - Risk: Low / Medium / High
-   - **Worktree**: `~/.claude-worktrees/<repo>-<feature>-<task-id>/` (branch: `feat/<feature>-<task-id>`) _(optional — present only in worktree mode, parallel tasks only)_
 
 2. **[Step Name]** (File: `path/to/file.ts`)
    ...
@@ -129,13 +123,16 @@ When the dispatching skill's prompt contains `WORKTREE MODE:`, emit these additi
 elements in your plan:
 
 1. A top-level `## Worktree Setup` block after the summary and before the first batch
-   or phase. Structure per `ycc/skills/_shared/references/worktree-strategy.md` §2.
-2. A `**Worktree**:` line on every parallel task (tasks inside a batch with more than
-   one parallel sibling). Format:
-   `- **Worktree**: ~/.claude-worktrees/<repo>-<feature>-<task-id>/   (branch: feat/<feature>-<task-id>)`
-3. Hyphenate `.` in task IDs: `1.1` → `1-1`.
-4. Sequential tasks (single-task batches or sequential chains) carry **no** worktree
-   annotation — they run directly in the parent worktree.
+   or phase. Structure per `ycc/skills/_shared/references/worktree-strategy.md` §1–§2.
+   Emit only the single `**Parent**:` line — all tasks (parallel and sequential) share
+   this one feature worktree path. Do **not** add a `**Children**:` list and do **not**
+   add per-task `**Worktree**:` annotations.
+
+   ```markdown
+   ## Worktree Setup
+
+   - **Parent**: ~/.claude-worktrees/<repo>-<feature>/ (branch: feat/<feature>)
+   ```
 
 The calling skill provides `<repo>` and `<feature-slug>` in its prompt. If not provided,
 derive:
@@ -144,8 +141,8 @@ derive:
 - `<feature-slug>` = sanitized plan subject (lowercase, alphanumeric + hyphens,
   truncated to 20 chars).
 
-Cross-reference `ycc/skills/_shared/references/worktree-strategy.md` in your plan's
-preamble when worktree mode is active.
+Cross-reference `ycc/skills/_shared/references/worktree-strategy.md` §1–§2 in your
+plan's preamble when worktree mode is active.
 
 ---
 
