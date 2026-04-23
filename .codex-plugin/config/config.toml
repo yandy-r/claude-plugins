@@ -154,3 +154,9 @@ approval_mode = "approve"
 
 [plugins."vercel-plugin@plugins-cli"]
 enabled = true
+
+[plugins."build-web-apps@openai-curated"]
+enabled = true
+
+[plugins."figma@openai-curated"]
+enabled = true
