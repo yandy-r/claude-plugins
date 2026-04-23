@@ -1,21 +1,17 @@
 # Sample: PR Review Artifact With `## Worktree Setup`
 
 This is a reference fixture showing the artifact shape emitted by
-`$code-review --worktree <N>`. Downstream `$review-fix --worktree`
-consumes the `## Worktree Setup` section to create one child worktree per
-severity that has at least one Open finding.
+`$code-review --worktree <N>`. Downstream `$review-fix` runs all
+fixers inside this one parent worktree.
 
 Rules for the `## Worktree Setup` block:
 
 - Only emitted when `WORKTREE_ACTIVE=true` (PR mode with `--worktree`).
 - Placed between `**Decision**:` and `## Summary`.
-- Only lists severity levels that have at least one Open finding. An absent
-  severity row means that severity has no eligible findings — `$review-fix`
-  will not create a child worktree for it.
-- Parent branch is the PR head branch (checked out via
-  `setup-worktree.sh parent … --base-ref <pr-head>`), not `feat/pr-<N>`.
-- Child branches use the `feat/pr-<N>-<severity>` convention and are created
-  by `$review-fix` at batch time, not by `$code-review`.
+- Parent branch is the PR head branch, checked out via
+  `setup-worktree.sh parent … --base-ref <pr-head>`.
+- `$review-fix` runs every severity batch inside this parent worktree.
+  No per-severity child worktrees are created.
 
 ---
 
@@ -30,10 +26,6 @@ Rules for the `## Worktree Setup` block:
 ## Worktree Setup
 
 - **Parent**: ~/.claude-worktrees/myrepo-pr-42/ (branch: feat/add-widget-rendering)
-- **Children** (per severity; created by $review-fix --worktree):
-  - CRITICAL → ~/.claude-worktrees/myrepo-pr-42-critical/ (branch: feat/pr-42-critical)
-  - HIGH → ~/.claude-worktrees/myrepo-pr-42-high/ (branch: feat/pr-42-high)
-  - MEDIUM → ~/.claude-worktrees/myrepo-pr-42-medium/ (branch: feat/pr-42-medium)
 
 ## Summary
 

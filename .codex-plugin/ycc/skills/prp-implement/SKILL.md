@@ -194,7 +194,7 @@ WT_PARENT_PATH=$(bash "~/.codex/plugins/ycc/shared/scripts/setup-worktree.sh" \
 
 This creates `~/.claude-worktrees/${WT_REPO_NAME}-${WT_FEATURE_SLUG}/` on branch `feat/${WT_FEATURE_SLUG}`, branching from the current HEAD. The call is idempotent — if the parent already exists on the expected branch it echoes the path and exits 0.
 
-All subsequent git operations in Phase 3 (validation, between-batch checks) should be run from the parent worktree path, not from the main repo root. Child worktrees are created just-in-time per batch in Phase 3.
+All subsequent git operations in Phase 3 (validation, between-batch checks) should be run from the parent worktree path, not from the main repo root.
 
 ### Sync Remote
 

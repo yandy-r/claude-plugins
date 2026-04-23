@@ -39,8 +39,8 @@ Extract flags from `$ARGUMENTS` before treating the remainder as the input:
 | `--team`             | (Codex runtime only; not available in bundle invocations) Same per-batch fixer fan-out as `--parallel`, but dispatched as an **agent team**: `create an agent group` once, `record the task` for all eligible findings up front (flat graph — batches are orchestrator-controlled, not task-graph-controlled), per-batch spawn + shutdown via `send follow-up instructions`. Aborts if no eligible findings exist. |
 | `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).                                                                                                                                                                                                                                      |
 | `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files. When combined with `--team`, also print the team name and per-batch teammate roster.                                                                                                                                                                          |
-| `--worktree`         | (legacy / now default; safe to omit) Create one git worktree per severity level and apply each severity's fixes inside its own child worktree. Worktree mode is on by default; auto-detected from the `## Worktree Setup` section in the artifact. This flag is accepted as a no-op.                                                        |
-| `--no-worktree`      | Opt out of worktree isolation. Skip child-worktree creation, per-severity fan-out, and merge-back. All fixes are applied directly in the current working tree. Use this when running against a non-worktree checkout and no `## Worktree Setup` section exists.                                                                             |
+| `--worktree`         | (legacy / now default; safe to omit) Run all fixers inside the feature worktree created by `$code-review`. Worktree mode is on by default; auto-detected from the `## Worktree Setup` section in the artifact. This flag is accepted as a no-op.                                                                                          |
+| `--no-worktree`      | Opt out of worktree isolation. Skip parent-worktree setup; all fixes are applied directly in the current working tree. Use this when running against a non-worktree checkout and no `## Worktree Setup` section exists.                                                                                                                     |
 
 Strip these flags from `$ARGUMENTS` and set `PARALLEL_MODE`, `AGENT_TEAM_MODE`, `MIN_SEVERITY`, `DRY_RUN`, and `WORKTREE_MODE=true` unless `--no-worktree` is present. The remaining text is the input selector.
 
@@ -165,8 +165,6 @@ Parse the block into structured variables:
 
 - `PARENT_PATH` from `- **Parent**: <path> (branch: <branch>)` → capture `<path>` and `<branch>`
 - `PARENT_BRANCH` from the same line
-- `CHILDREN_MAP[<SEVERITY>] = { path: <child-path>, branch: <child-branch> }` for each
-  `- <SEVERITY> → <child-path> (branch: <child-branch>)` line
 
 Set `WORKTREE_ACTIVE=true` regardless of the `--worktree` flag (auto-detect: the artifact's declaration wins).
 
@@ -205,16 +203,7 @@ Deduce paths from the artifact filename:
   Error: --worktree cannot be force-applied to a local review artifact that was produced without worktree isolation. Re-run $code-review --worktree to regenerate.
   ```
 
-Set `WORKTREE_ACTIVE=true` and populate `CHILDREN_MAP` by convention:
-
-- For each severity S that has at least one Open finding above `MIN_SEVERITY`:
-
-  ```
-  CHILDREN_MAP[S] = {
-    path: ~/.claude-worktrees/<repo>-<slug>-<severity-lowercase>/,
-    branch: feat/<slug>-<severity-lowercase>
-  }
-  ```
+Set `WORKTREE_ACTIVE=true`. All batches will run inside `$PARENT_PATH`.
 
 ---
 
@@ -315,32 +304,27 @@ When `WORKTREE_ACTIVE=true`, override the default same-file batching with severi
 - **Batch N = all eligible findings at one severity level.**
 - Batch order: CRITICAL (Batch 1) → HIGH (Batch 2) → MEDIUM (Batch 3) → LOW (Batch 4), stopping at `MIN_SEVERITY`. Severities with no eligible findings are skipped.
 - Within a severity batch, preserve the existing same-file grouping (findings in the same file stay together, sorted by line DESCENDING). Different files within the batch can still parallelize under Path B/C.
-- Each severity batch is bound to its own child worktree (`CHILDREN_MAP[<SEVERITY>].path`).
-
 Example plan summary when `WORKTREE_ACTIVE=true`:
 
 ```
 Worktree-mode plan (4 severity batches, 7 findings, 5 files):
 
 Batch 1 — CRITICAL (2 fixes, 2 files)
-  Worktree: ~/.claude-worktrees/myrepo-pr-42-critical/ (branch: feat/pr-42-critical)
   - F001 (src/auth.ts:42)
   - F002 (src/api.ts:17)
 
 Batch 2 — HIGH (3 fixes, 2 files)
-  Worktree: ~/.claude-worktrees/myrepo-pr-42-high/ (branch: feat/pr-42-high)
   - F003 (src/db/query.ts:112)
   - F004 (src/db/query.ts:87)     ← same file as F003, descending line order
   - F005 (src/utils/format.ts:9)
 
 Batch 3 — MEDIUM (1 fix, 1 file)
-  Worktree: ~/.claude-worktrees/myrepo-pr-42-medium/ (branch: feat/pr-42-medium)
   - F006 (src/logging.ts:45)
 
 (LOW batch skipped — 0 eligible findings or below MIN_SEVERITY)
 ```
 
-When `--dry-run` is combined with `--worktree`, print this summary and exit.
+When `--dry-run` is combined with `--worktree`, print this summary and exit. All batches would run inside the parent worktree at `$PARENT_PATH`.
 
 ### Dry-run gate
 
@@ -369,62 +353,42 @@ Branch based on `PARALLEL_MODE` and `AGENT_TEAM_MODE`:
 
 ### Worktree-mode lifecycle (`WORKTREE_ACTIVE=true`)
 
-When worktree mode is active, wrap each severity batch with the 5-step lifecycle from `ycc/skills/_shared/references/worktree-strategy.md`. The pattern is identical for Paths A, B, and C; only the agent dispatch mechanism inside Step 2 differs.
+When worktree mode is active, every batch — regardless of Path A / B / C — runs
+inside the single feature worktree from
+`ycc/skills/_shared/references/worktree-strategy.md` §1. There are no per-severity
+child worktrees and no fan-in merge.
 
-**Before Batch 1** (one-time setup):
-
-If `CHILDREN_MAP` was auto-detected from the artifact, `PARENT_PATH` was already ensured in Phase 1 LOAD — nothing more to do here. If `WORKTREE_MODE=true` was forced and `PARENT_PATH` was auto-deduced, ensure it exists by calling:
+**One-time parent setup** (only when `WORKTREE_MODE=true` was forced and
+`$PARENT_PATH` needs creation; skip if already ensured by `$code-review`):
 
 ```bash
-bash "~/.codex/plugins/ycc/shared/scripts/setup-worktree.sh" \
-  parent "${REPO}" "${SLUG}" --base-ref "${PARENT_BRANCH}"
+PARENT_PATH=$(bash "~/.codex/plugins/ycc/shared/scripts/setup-worktree.sh" \
+  parent "${REPO}" "${SLUG}" --base-ref "${PARENT_BRANCH}")
+WORKTREE_ACTIVE=true
 ```
 
-**Per severity batch** (Steps 1–5):
+**Per-batch steps** (repeat for each severity batch in order):
 
-1. **Create child worktree**:
+1. **Dispatch** review-fixer agents with `Working directory: $PARENT_PATH` appended to
+   their prompt, plus the coordination note: "Other agents in this batch are working
+   in the same directory — do not run destructive git commands (reset, clean, checkout)."
+   On Codex, also pass `isolation: "worktree"`.
 
-   ```bash
-   CHILD_PATH=$(
-     bash "~/.codex/plugins/ycc/shared/scripts/setup-worktree.sh" \
-       child "${REPO}" "${SLUG}" "<severity-lowercase>"
-   )
-   ```
-
-   (Severity labels `critical`/`high`/`medium`/`low` serve as task-id analogs. They are shell-safe and unique per batch.)
-
-2. **Dispatch review-fixer agents** (Path-specific — see each path below). All agents receive:
-   - `Working directory: <CHILD_PATH>` appended to their prompt, so Read/Write/Edit/Bash inside the agent target the child worktree.
-   - On Codex, prefer `Agent(isolation: "worktree")` with the pre-created child path (the `WorktreeCreate` hook redirects correctly).
-   - On Cursor / Codex / opencode: Bash-only dispatch with `Working directory:` in the prompt.
-
-3. **Validate** inside `CHILD_PATH`:
+2. **Validate** inside `$PARENT_PATH` after the batch completes:
 
    ```bash
-   ( cd "$CHILD_PATH" && $TYPECHECK_CMD )
-   ( cd "$CHILD_PATH" && $TEST_CMD )
+   ( cd "$PARENT_PATH" && $TYPECHECK_CMD ) && ( cd "$PARENT_PATH" && $TEST_CMD )
    ```
 
-   Fail-stop recovery (`ask the user`) unchanged.
+3. **Advance** to the next severity batch. No merge step. No child worktree removal.
 
-4. **Fan-in merge**:
-
-   ```bash
-   bash "~/.codex/plugins/ycc/shared/scripts/merge-children.sh" \
-     "${REPO}" "${SLUG}" "<severity-lowercase>"
-   ```
-
-   On exit code 1: surface the `CONFLICT:` line to the user, STOP the pipeline, do NOT advance to the next severity batch.
-
-5. **Inter-batch shutdown** (Path C `--team` only): `send follow-up instructions(shutdown)` to all batch teammates BEFORE invoking `merge-children.sh`. Matches the existing team dispatch contract.
-
-**Status updates**: The review artifact lives on the PR branch (committed by `$code-review`). When working in a worktree of that branch, the artifact is at `<worktree>/docs/prps/reviews/pr-<N>-review.md`. Use `Edit` on the in-worktree path to update Status fields; these edits are committed and pushed alongside each fix-batch commit so the artifact's state stays consistent with the branch. The review-fixer agents edit source files inside their child worktree; the review-fix orchestrator edits the review artifact at its resolved path (worktree or main, whichever was found during input resolution).
-
-**Note**: Status updates (Open → Fixed) edit the artifact in the worktree; these edits are committed + pushed alongside the fix commit, so the artifact's state stays consistent with the branch.
+**Status updates**: Edit the `Status:` field in the review artifact file in place
+(Open → Fixed / Failed) after each agent completes its finding. The artifact lives
+in the active worktree at `$PARENT_PATH/docs/prps/reviews/pr-<N>-review.md`.
 
 ### Path A — Sequential Execution (default)
 
-- When `WORKTREE_ACTIVE=true`: before each severity batch, execute Step 1 (create child worktree). Dispatch the review-fixer agent with `Working directory: <CHILD_PATH>` for every finding in this severity. After all findings in the batch are processed, execute Steps 3 (validate) and 4 (merge) for this severity before moving to the next.
+- When `WORKTREE_ACTIVE=true`: every review-fixer dispatch in this path appends `Working directory: ${PARENT_PATH}` to the agent prompt (and `isolation: "worktree"` on Codex). After each severity batch, run the between-batch validation inside `${PARENT_PATH}` before advancing to the next severity.
 
 Process batches in order. Within each batch, process findings (or same-file groups) one at a time.
 
@@ -446,7 +410,7 @@ For each finding or group:
 
 ### Path B — Parallel Sub-Agent Execution (`PARALLEL_MODE=true`)
 
-- When `WORKTREE_ACTIVE=true`: batches are severity-keyed (one child worktree per severity). Within a single severity batch, all same-file groups still parallelize inside that ONE child worktree — dispatch each parallel review-fixer with `Working directory: <CHILD_PATH>`. After the batch, validate → merge → advance.
+- When `WORKTREE_ACTIVE=true`: batches are still severity-ordered. Dispatch every parallel review-fixer with `Working directory: ${PARENT_PATH}` (and `isolation: "worktree"` on Codex). Between-batch validation runs once in `${PARENT_PATH}` before advancing to the next severity. No fan-in merge.
 
 Process batches sequentially; within each batch, dispatch all review-fixer agents as standalone sub-agents in parallel.
 
@@ -489,7 +453,7 @@ If a `review-fixer` agent returns `STATUS: Failed`:
 
 ### Path C — Agent Team Execution (`AGENT_TEAM_MODE=true`, Codex runtime only; not available in bundle invocations)
 
-- When `WORKTREE_ACTIVE=true`: batches are severity-keyed. Dispatch teammates with `Working directory: <CHILD_PATH>` + `isolation: "worktree"` (Codex). Before each merge-children call, `send follow-up instructions(shutdown)` to all batch teammates. Then merge → advance to the next severity.
+- When `WORKTREE_ACTIVE=true`: batches are still severity-ordered. Dispatch teammates with `Working directory: ${PARENT_PATH}` + `isolation: "worktree"` (Codex). Before advancing to the next severity batch, send `send follow-up instructions(shutdown)` to all current batch teammates, then run between-batch validation inside `${PARENT_PATH}`. No fan-in merge.
 
 > **MANDATORY — AGENT TEAMS REQUIRED**
 >

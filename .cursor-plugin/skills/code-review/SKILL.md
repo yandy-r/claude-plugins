@@ -615,7 +615,6 @@ Use the **Review Artifact Format** defined at the bottom of this skill. The arti
 
 - Write the artifact to `$(git rev-parse --show-toplevel)/docs/prps/reviews/pr-<N>-review.md`. When `WORKTREE_ACTIVE=true` this resolves to the worktree top-level (e.g., `~/.claude-worktrees/<repo>-pr-<N>/docs/prps/reviews/pr-<N>-review.md`); when `--no-worktree` is in effect, it resolves to the main repo. The artifact intentionally lives **with the PR branch** so it travels with the review history.
 - **Note**: the artifact will be committed to the PR branch (see commit step below). If you do not want the review record on the PR branch, add `docs/prps/reviews/` to `.gitignore` — the skill detects this and skips the commit.
-- Emit only severity rows in `## Worktree Setup` whose severity has at least one Open finding in the artifact. Omit rows for empty severities.
 
 #### Artifact Commit + Push
 
@@ -781,15 +780,9 @@ Both Local Review Mode and PR Review Mode write an artifact using this exact for
 
 ## Worktree Setup
 
-<!-- Only emitted when the review was run with --worktree and WORKTREE_ACTIVE=true.
-     Lists only severity levels that have at least one Open finding. -->
+<!-- Only emitted when WORKTREE_ACTIVE=true. Lists only the feature worktree; fixers run inside this path. -->
 
 - **Parent**: ~/.claude-worktrees/<repo>-pr-<N>/ (branch: <pr-head-branch>)
-- **Children** (per severity; created by /review-fix --worktree):
-  - CRITICAL → ~/.claude-worktrees/<repo>-pr-<N>-critical/ (branch: feat/pr-<N>-critical)
-  - HIGH → ~/.claude-worktrees/<repo>-pr-<N>-high/ (branch: feat/pr-<N>-high)
-  - MEDIUM → ~/.claude-worktrees/<repo>-pr-<N>-medium/ (branch: feat/pr-<N>-medium)
-  - LOW → ~/.claude-worktrees/<repo>-pr-<N>-low/ (branch: feat/pr-<N>-low)
 
 ## Summary
 
