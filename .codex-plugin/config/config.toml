@@ -1,6 +1,6 @@
 personality = "pragmatic"
-model = "gpt-5.4"
-model_reasoning_effort = "high"
+model = "gpt-5.3-codex-spark"
+model_reasoning_effort = "xhigh"
 model_context_window = 1000000
 model_auto_compact_token_limit = 900000
 plan_mode_reasoning_effort = "xhigh"
@@ -115,6 +115,12 @@ approval_mode = "approve"
 approval_mode = "approve"
 
 [mcp_servers.playwright.tools.browser_click]
+approval_mode = "approve"
+
+[mcp_servers.playwright.tools.browser_resize]
+approval_mode = "approve"
+
+[mcp_servers.playwright.tools.browser_press_key]
 approval_mode = "approve"
 
 [notice.model_migrations]
