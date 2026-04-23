@@ -201,11 +201,10 @@ if [[ $TASK_COUNT -gt 0 ]]; then
     warning "No tasks have MIRROR fields"
   fi
 
-  # Optional: --no-worktree plans omit this annotation. Worktree mode is now
-  # default-on, but plans generated with --no-worktree skip the annotation.
+  # Optional. Single worktree: per-task **Worktree** is not required; count is informational.
   WORKTREE_FIELD_COUNT=$(grep -c '\*\*Worktree\*\*:' <<< "$CONTENT" || true)
   if [[ $WORKTREE_FIELD_COUNT -gt 0 ]]; then
-    success "Worktree annotations present ($WORKTREE_FIELD_COUNT task(s) — optional field)"
+    success "Per-task **Worktree** field(s) present: $WORKTREE_FIELD_COUNT (optional / legacy)"
   fi
 
   # Self-containment heuristic: tasks with all 4 core fields

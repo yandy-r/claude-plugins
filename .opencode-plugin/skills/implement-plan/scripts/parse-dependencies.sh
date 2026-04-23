@@ -6,13 +6,16 @@
 #   TASK_ID|TASK_TITLE|DEPENDENCIES|WORKTREE_PATH
 #
 # The WORKTREE_PATH field is populated when the task block contains a
-# "- **Worktree**:" line (parallel tasks annotated by a worktree-aware planner).
-# Sequential tasks and plans produced without --worktree output an empty fourth
-# field, preserving full back-compatibility with callers that only read the first
-# three fields.
+# "- **Worktree**:" line (optional). Legacy per-task paths may still appear; the
+# single worktree contract does not require per-task lines — the fourth field may
+# be empty for all tasks when the plan only has `## Worktree Setup` with **Parent**.
+# Sequential tasks and plans produced without per-task worktree output have an
+# empty fourth field, preserving back-compatibility with callers that only read
+# the first three fields.
 #
 # Additionally, two header lines are emitted BEFORE the task rows when a
-# "## Worktree Setup" section is detected in the plan:
+# "## Worktree Setup" section is detected in the plan (only **Parent** is required
+# for the single-worktree contract; a **Children** list is not required):
 #   WT_PARENT_PATH=<path>
 #   WT_FEATURE_SLUG=<slug>
 #
@@ -30,12 +33,19 @@
 #   T1|Add validation|T0|
 #   2.1|Setup routes|1.1,1.2|
 #
-# Examples (with annotations):
+# Examples (with legacy per-task worktree lines):
 #   WT_PARENT_PATH=~/.claude-worktrees/myrepo-my-feature/
-#   WT_FEATURE_SLUG=my-feature
+#   WT_FEATURE_SLUG=myrepo-my-feature
 #   1.1|Create user model|none|~/.claude-worktrees/myrepo-my-feature-1-1/
 #   1.2|Add validation|none|~/.claude-worktrees/myrepo-my-feature-1-2/
 #   2.1|Setup routes|1.1,1.2|
+#
+# Examples (single worktree / ## Worktree Setup + **Parent** only; per-task
+#   **Worktree** lines omitted; fourth field empty for each task):
+#   WT_PARENT_PATH=~/.claude-worktrees/myrepo-my-feature/
+#   WT_FEATURE_SLUG=myrepo-my-feature
+#   1.1|Create user model|none|
+#   1.2|Add validation|none|
 #
 # Supports monorepo configurations via .plans-config file.
 # See resolve-plans-dir.sh for configuration options.

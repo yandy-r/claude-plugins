@@ -3,15 +3,25 @@
 Used by `ycc:plan`, `ycc:prp-plan`, `ycc:parallel-plan`, `ycc:plan-workflow`,
 `ycc:prp-implement`, `ycc:orchestrate`, and `ycc:implement-plan` for default
 worktree isolation. Also used by `ycc:code-review` and `ycc:review-fix` — with
-two twists: code-review checks out an existing PR head branch into the parent
-(see `--base-ref` below) instead of branching from HEAD, and review-fix keys its
-children by severity label (`critical`, `high`, `medium`, `low`) instead of by
-parallel task ID. This file documents the parent/child worktree model, naming
-scheme, plan annotation format, per-target dispatch matrix, fan-in merge
-protocol, conflict policy, and cleanup convention. Individual skills own their
-own flag plumbing and per-phase invocations; only the shared mechanism lives
-here. See [agent-team-dispatch.md](./agent-team-dispatch.md) for the
-complementary team lifecycle and how worktrees pair with teammate dispatch.
+one twist: `code-review` in PR mode checks out an **existing** PR head branch
+(see `--base-ref` below) instead of creating a new `feat/<feature>` branch from
+`HEAD`.
+
+This file documents the **single feature worktree** contract: naming scheme,
+plan annotation format, per-target dispatch matrix, and cleanup. There is
+**one** worktree per feature / issue / task-level run — not one child worktree
+per parallel task, and not per-severity fan-out. Individual skills own flag
+plumbing and per-phase behavior; the shared **invariant** lives here.
+
+**Migration note (GitHub #79 / #80):** Older skills and plan artifacts may still
+describe a parent/child model, `**Children**` lists, per-task `**Worktree**:`,
+or `merge-children.sh` fan-in. That model is **deprecated** for the shared
+contract. `setup-worktree.sh child` and `merge-children.sh` are **compatibility
+shims** (see shared scripts) until all executors are updated. New planners and
+executors should follow **only** the single-worktree contract below.
+
+See [agent-team-dispatch.md](./agent-team-dispatch.md) for the team lifecycle
+and how a single worktree pairs with parallel teammate dispatch.
 
 ---
 
@@ -42,13 +52,11 @@ fallback is now **on** (was off). `--no-worktree` overrides both the plan
 annotations and the default.
 
 **Artifact location for `code-review`** — In PR mode the review artifact is
-now written _into the active worktree_ at
+written _into the active worktree_ at
 `<worktree>/docs/prps/reviews/pr-<N>-review.md`, then committed and pushed to
-the PR's head branch. This is a deliberate change from the previous policy
-(artifact written to main repo, kept off the branch). See
-[code-review/SKILL.md](../../code-review/SKILL.md) for the full lifecycle
-(draft→ready promotion, artifact commit+push, post-review worktree removal,
-opt-outs `--keep-draft` and `--keep-worktree`).
+the PR's head branch. See [code-review/SKILL.md](../../code-review/SKILL.md) for
+the full lifecycle (draft→ready promotion, artifact commit+push, post-review
+worktree removal, opt-outs `--keep-draft` and `--keep-worktree`).
 
 `ycc:review-fix` follows: it discovers the artifact in the active worktree's
 `docs/prps/reviews/` first, then falls back to the main repo for in-flight
@@ -56,28 +64,33 @@ artifacts written under the previous contract.
 
 ---
 
-## 1. Parent / Child Model
+## 1. Single feature worktree
 
-Every worktree-enabled run uses at most two levels of worktrees.
+Every worktree-enabled run uses **exactly one** git worktree for isolated work
+(unless the user opts out with `--no-worktree`).
 
-### Parent worktree
+### Feature worktree
 
-| Property   | Value                                                  |
-| ---------- | ------------------------------------------------------ |
-| Path       | `~/.claude-worktrees/<repo>-<feature>/`                |
-| Branch     | `feat/<feature>` (default) or `<base-ref>` (see below) |
-| Created    | Once, before Batch 1 (via `setup-worktree.sh parent`)  |
-| Lifetime   | Survives to end of run; used for the final PR          |
-| Removed by | User (never auto-removed by the skill)                 |
+| Property   | Value                                                                 |
+| ---------- | --------------------------------------------------------------------- |
+| Path       | `~/.claude-worktrees/<repo>-<feature>/`                               |
+| Branch     | `feat/<feature>` (default) or `<base-ref>` (see below)                |
+| Created    | Once, before the first batch or task (via `setup-worktree.sh parent`) |
+| Lifetime   | Survives to end of run; used for the final PR                         |
+| Removed by | User (never auto-removed by the skill)                                |
 
-The parent branch accumulates all work. After each parallel batch validates, child
-branches are merged back here before the next batch begins.
+All tasks — parallel and sequential — share this **one** worktree. Parallel
+sub-agents or teammates do **not** get separate worktree paths; they use the
+same path with coordination rules in their prompt (`Working directory: <path>`)
+so concurrent writers do not corrupt the tree (e.g. file-level batching, no
+two agents on the same file, or serial execution for conflicting edits — see
+per-skill rules).
 
 #### Checking out an existing branch (`--base-ref`)
 
-By default the parent worktree is placed on a new `feat/<feature>` branch created
-from `HEAD`. Skills that need to isolate an **existing** branch (e.g.,
-`ycc:code-review --worktree <N>` checking out a PR head) pass `--base-ref`:
+By default the feature worktree is placed on a new `feat/<feature>` branch
+created from `HEAD`. Skills that need to isolate an **existing** branch (e.g.,
+`ycc:code-review` checking out a PR head) pass `--base-ref`:
 
 ```bash
 # Default — new branch from HEAD
@@ -98,171 +111,65 @@ When `--base-ref` is supplied:
   main repo. Switch away from `<branch>` in the main repo first, or pick a
   different base ref.
 
-All fan-in merge behavior (children branch from the parent branch) is unchanged —
-children merge into `<branch>` instead of `feat/<feature-slug>`.
-
-### Child worktrees (parallel tasks only)
-
-| Property   | Value                                                           |
-| ---------- | --------------------------------------------------------------- |
-| Path       | `~/.claude-worktrees/<repo>-<feature>-<task-id>/`               |
-| Branch     | `feat/<feature>-<task-id>`                                      |
-| Created    | Just-in-time before each parallel batch (one per parallel task) |
-| Lifetime   | Ephemeral — removed after the batch validates and merges back   |
-| Removed by | `merge-children.sh` (automatic fan-in, post-validation)         |
-
-One child worktree is created per parallel task in a batch. Children always branch
-from `feat/<feature>` (the parent branch) at the time of creation, so each task
-starts from a consistent shared baseline.
-
-### Sequential tasks
-
-Sequential tasks do **not** get child worktrees. They run directly in the parent
-worktree at `~/.claude-worktrees/<repo>-<feature>/`. No child setup or merge-back
-is needed for sequential tasks.
-
-### Task ID convention
-
-Task IDs use hyphens in worktree paths and branch names. The `.` separator used in
-plan files (e.g., `1.1`, `2.3`) is replaced with `-` because `.` is ambiguous in
-filesystem paths and git refs.
-
-| Plan task ID | Worktree path suffix | Branch name suffix |
-| ------------ | -------------------- | ------------------ |
-| `1.1`        | `-1-1/`              | `-1-1`             |
-| `2.3`        | `-2-3/`              | `-2-3`             |
-| `10.4`       | `-10-4/`             | `-10-4`            |
-
 ---
 
-## 2. Plan Annotation Format
+## 2. Plan annotation format
 
-Planners that support `--worktree` emit two kinds of annotation into the plan
-artifact. Implementors parse these annotations automatically — no flag is required
-when a plan already contains them.
+Planners that support worktree output emit a top-level `## Worktree Setup`
+section. Implementors use it to resolve the single path and feature slug. No
+per-task or per-parallel child paths are **required** by the new contract.
 
 ### Top-level `## Worktree Setup` section
 
-Placed at the top of the plan, after frontmatter and before the first batch or step:
+Placed at the top of the plan, after frontmatter and before the first batch or step.
+
+**Current contract (single worktree only):**
 
 ```markdown
 ## Worktree Setup
 
 - **Parent**: ~/.claude-worktrees/<repo>-<feature>/ (branch: feat/<feature>)
-- **Children** (per parallel task; merged back at end of each batch):
-  - Task 1.1 → ~/.claude-worktrees/<repo>-<feature>-1-1/ (branch: feat/<feature>-1-1)
-  - Task 1.2 → ~/.claude-worktrees/<repo>-<feature>-1-2/ (branch: feat/<feature>-1-2)
 ```
 
-### Per-parallel-task inline annotation
+The `**Parent**:` line names the one feature worktree path. Do **not** add a
+`**Children**:` list in new plans; parallel work happens **inside** this path.
 
-Placed on its own line inside the task block, immediately after the task header:
+### Legacy fields (back-compat, not part of the new contract)
 
-```markdown
-- **Worktree**: ~/.claude-worktrees/<repo>-<feature>-<task-id>/ (branch: feat/<feature>-<task-id>)
-```
+Older plans may still include:
 
-### Sequential tasks
+- A `**Children**:` bullet list (per parallel task)
+- A per-task line: `- **Worktree**: <path> ...` inside a task block
 
-Sequential tasks carry **no** worktree annotation. Their absence of a
-`**Worktree**:` line is the signal that the task runs in the parent worktree.
+Parsers that support legacy plans may read these for migration or display, but
+the shared **default** is: **one** worktree, no fan-in merge, no
+`setup-worktree.sh child` in the new workflow path.
 
-### Severity-keyed children (`ycc:review-fix` variant)
+### Review / PR review artifacts
 
-`ycc:code-review --worktree` and `ycc:review-fix --worktree` use the same
-`## Worktree Setup` section, but children are labelled by **severity** instead of
-by task ID. Each severity label (`critical`, `high`, `medium`, `low`) functions
-as the `<task-id>` arg to `setup-worktree.sh child` and `merge-children.sh` —
-they are shell-safe, unique, and already lowercase.
+For `code-review` + `review-fix`, the `## Worktree Setup` block should list
+only the feature worktree (same `**Parent**:` form). The PR head branch is
+expressed via `--base-ref` when creating that worktree — not by spawning extra
+per-severity worktrees. Legacy artifacts that listed severity-keyed “children”
+are deprecated; prefer a single `**Parent**:` only.
 
-Example (emitted by `/ycc:code-review --worktree 42`, consumed by
-`/ycc:review-fix --worktree 42`):
+### Sequential vs parallel tasks
 
-```markdown
-## Worktree Setup
-
-- **Parent**: ~/.claude-worktrees/myrepo-pr-42/ (branch: feature-x)
-- **Children** (per severity; created by /ycc:review-fix --worktree):
-  - CRITICAL → ~/.claude-worktrees/myrepo-pr-42-critical/ (branch: feat/pr-42-critical)
-  - HIGH → ~/.claude-worktrees/myrepo-pr-42-high/ (branch: feat/pr-42-high)
-```
-
-Only severity levels that have Open findings are emitted. The parent branch is
-the PR's head branch (via `--base-ref`), not `feat/pr-<N>`.
+With the single worktree model, all tasks run against the same path. Planners
+need not emit per-task `**Worktree**:` lines for new work.
 
 ---
 
-## 3. Lifecycle (per parallel batch)
+## 3. Lifecycle (high level)
 
-The following 5-step loop runs once per parallel batch. Parent setup is one-time,
-executed before Batch 1.
-
-**One-time setup (before Batch 1)**
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-setup-worktree.sh parent <repo> <feature-slug>
-```
-
-**Per-batch loop**
-
-### Step 1 — Create child worktrees (before spawn)
-
-For each parallel task in the batch, call:
-
-```bash
-setup-worktree.sh child <repo> <feature-slug> <task-id>
-```
-
-Children must exist before agents are spawned. The calling skill creates all
-children in a single message's tool calls — no race conditions because child paths
-are task-ID-scoped and the orchestrator serializes creation.
-
-### Step 2 — Spawn agents
-
-Each parallel agent receives its child worktree path as context:
-
-- **Claude Code**: prefer `Agent(isolation: "worktree")` with the pre-created child
-  path; the `WorktreeCreate` hook redirects the path to `~/.claude-worktrees/`.
-  Fall back to Bash-created child + `Working directory: <path>` in the agent prompt
-  if the hook is not registered.
-- **Codex / opencode**: always Bash-created child + `Working directory: <path>`
-  embedded in the agent prompt. No tool-level isolation is available.
-- **Cursor**: emit `git worktree add` commands as part of the plan output for the
-  user to run manually. Do not auto-create.
-
-The agent must treat the `Working directory:` path as its repo root for every
-Read / Write / Edit / Bash call.
-
-### Step 3 — Validate batch outputs
-
-Run whatever between-batch validation the skill requires (tests, lint, validators).
-Do not proceed to Step 4 until all tasks in the batch are confirmed complete and
-valid.
-
-### Step 4 — Fan-in merge (after validation)
-
-```bash
-merge-children.sh <repo> <feature-slug> <task-id-1>,<task-id-2>,...
-```
-
-For each child: merges `feat/<feature>-<task-id>` into the parent branch with
-`git merge --no-ff`, removes the child worktree, and deletes the child branch.
-All children in the batch are processed before the next batch begins.
-
-### Step 5 — Conflict handling
-
-If `merge-children.sh` encounters a conflict during any child merge, it:
-
-1. Runs `git merge --abort` to leave the parent branch clean.
-2. Prints `CONFLICT: <task-id> at <path>` to stderr.
-3. Exits with code 1.
-
-The calling skill must **pause**, surface the conflict message to the user, and
-**wait for manual resolution** (`git merge --abort` or manual resolve + commit in
-the parent worktree) before starting the next batch. Never silently skip a failed
-child or continue to the next batch with a dirty parent branch.
+1. **Once:** `setup-worktree.sh parent <repo> <feature-slug>` (optional `--base-ref` for existing branches).
+2. **Per batch / task:** run work in the feature worktree; dispatch parallel agents
+   with `Working directory: <feature-worktree-path>` (or equivalent target-specific isolation) — **all share the same path**.
+3. **No** `setup-worktree.sh child` and **no** `merge-children.sh` in the new contract.
+   (Legacy calls may still exist in older skill text; shims are non-destructive — see script headers.)
+4. **Validate** between batches as the skill requires.
+5. On **merge conflicts** or validation failure, handle in the feature worktree
+   per skill policy (pause, user resolve, etc.).
 
 ---
 
@@ -275,59 +182,28 @@ child or continue to the next batch with a dirty parent branch.
 | opencode    | Bash `git worktree add` via prompt                     | same                    |
 | Cursor      | Docs-only (emit commands; no auto-create)              | User runs manually      |
 
+Parallel teammates all target the **same** feature worktree path in prompts.
 See [target-capability-matrix.md](./target-capability-matrix.md) for the full
-per-target feature table, including the `worktree` row.
+per-target table.
 
 ---
 
-## 5. Conflict Policy
+## 5. End-of-Run Cleanup
 
-`merge-children.sh` aborts on first conflict. It does not attempt to auto-resolve
-or skip any child — partial fan-in leaves the parent in an inconsistent state.
+The feature worktree remains at `~/.claude-worktrees/<repo>-<feature>/` after the
+run completes. Skills do not auto-remove it.
 
-**Abort protocol**:
+`list-worktrees.sh` can report the path, branch, and manual cleanup:
 
-1. `git merge --abort` — restores the parent branch to pre-merge HEAD.
-2. Emit `CONFLICT: <task-id> at <path>` to stderr (one line per conflicting child).
-3. Exit 1.
-
-**Skill responsibility after abort**:
-
-- Show the user the `CONFLICT:` line(s).
-- Display the conflicting file(s) from the child branch for manual review.
-- Wait for the user to either:
-  - Resolve the conflict manually in the parent worktree and run
-    `merge-children.sh` again for the remaining children, or
-  - Abandon the batch and decide how to proceed.
-- Never advance to the next batch until the fan-in is clean.
+```bash
+git worktree remove ~/.claude-worktrees/<repo>-<feature>/
+# If you created feat/<feature> and it is fully merged:
+git branch -d feat/<feature>
+```
 
 ---
 
-## 6. End-of-Run Cleanup
-
-The parent worktree survives at `~/.claude-worktrees/<repo>-<feature>/` after the
-run completes. Skills never auto-remove it.
-
-The end-of-run report (produced by `list-worktrees.sh`) includes:
-
-- The surviving parent worktree path and its branch.
-- The `git worktree remove` command for manual cleanup:
-
-  ```bash
-  git worktree remove ~/.claude-worktrees/<repo>-<feature>/
-  git branch -d feat/<feature>
-  ```
-
-- A hint to push the parent branch and open a PR before removing the worktree.
-
-All child worktrees and child branches should be gone by end of run (removed by
-`merge-children.sh` after each batch). If any children remain (e.g., the run was
-aborted mid-batch), `list-worktrees.sh` lists them with their own
-`git worktree remove` commands.
-
----
-
-## 7. Claude Code `WorktreeCreate` Hook Integration
+## 6. Claude Code `WorktreeCreate` Hook Integration
 
 When a skill dispatches an agent with `Agent(isolation: "worktree")`, the Claude
 Code harness would normally create the worktree inside the repo at

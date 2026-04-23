@@ -98,11 +98,11 @@ else
   echo "✓ Tasks defined ($TASK_COUNT tasks)"
 fi
 
-# Optional: --no-worktree plans omit this annotation. Worktree mode is now
-# default-on, but plans generated with --no-worktree skip the annotation.
+# Optional: --no-worktree plans omit this. Single-worktree contract: **Parent** only
+# is valid; per-task **Worktree** lines are optional (legacy only).
 if grep -q "^## Worktree Setup" "$PLAN_FILE"; then
   WORKTREE_TASK_COUNT=$(grep -c "^\- \*\*Worktree\*\*:" "$PLAN_FILE" 2>/dev/null || true)
-  echo "✓ Worktree annotations present (## Worktree Setup + ${WORKTREE_TASK_COUNT} per-task Worktree field(s))"
+  echo "✓ Worktree section present (## Worktree Setup; ${WORKTREE_TASK_COUNT} optional per-task **Worktree** line(s), if any)"
 fi
 
 echo ""

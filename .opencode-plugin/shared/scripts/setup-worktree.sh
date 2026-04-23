@@ -1,34 +1,28 @@
 #!/usr/bin/env bash
-# setup-worktree.sh — create a parent or child git worktree for a feature run.
+# setup-worktree.sh — create a feature git worktree for a ycc run (single-worktree
+# contract, GitHub #80).
 #
 # Usage:
 #   setup-worktree.sh parent <repo-name> <feature-slug> [--base-ref <branch>]
-#   setup-worktree.sh child  <repo-name> <feature-slug> <task-id>
+#   setup-worktree.sh child  <repo-name> <feature-slug> <task-id>   [DEPRECATED]
 #
 # Modes:
-#   parent  Creates ~/.claude-worktrees/<repo>-<feature>/.
-#           Default base ref: HEAD of the current branch (wherever the caller
-#           stands); the worktree is placed on a new branch feat/<feature>.
+#   parent  Creates ~/.claude-worktrees/<repo>-<feature>/.  This is the only
+#           supported worktree-creation path for the shared contract.
 #
-#           With --base-ref <branch>: checks out the existing <branch> directly
-#           into the worktree — no new branch is created. Useful for reviewing
-#           or fixing an existing PR branch in isolation. If <branch> does not
-#           resolve locally, the script attempts
-#           `git fetch origin <branch>:<branch>` once and retries.
+#           Default base ref: HEAD of the current branch; new branch feat/<feature>.
+#           With --base-ref: checks out the existing branch (e.g. PR head). If the
+#           branch is missing locally, runs git fetch from origin once.
 #
-#   child   Creates ~/.claude-worktrees/<repo>-<feature>-<task-id>/ on branch
-#           feat/<feature>-<task-id>. Base ref is the parent branch feat/<feature>,
-#           which must already exist.
+#   child   DEPRECATED. Does not create a separate per-task worktree. Prints a
+#           warning to stderr and echoes the *feature* worktree path (same as
+#           parent) if it already exists; otherwise instructs the caller to run
+#           `parent` first. Non-destructive — no new git worktrees for “children”.
 #
-# Task-id normalisation: dots are replaced with hyphens (e.g. "1.1" → "1-1").
-#
-# Idempotency: if the target path already exists the script checks whether the
-# registered worktree is on the expected branch (feat/<feature> by default, or
-# <branch> when --base-ref is supplied). If yes it echoes the path and exits 0.
-# If no it prints an error to stderr and exits 1.
+# Idempotency (parent): if the path exists and is on the expected branch, echo path.
 #
 # Exit codes:
-#   0  success (path echoed to stdout)
+#   0  success (path echoed to stdout; child deprecation may print to stderr)
 #   1  error (message on stderr)
 
 set -euo pipefail
@@ -41,29 +35,20 @@ usage() {
   cat >&2 <<'EOF'
 Usage:
   setup-worktree.sh parent <repo-name> <feature-slug> [--base-ref <branch>]
-  setup-worktree.sh child  <repo-name> <feature-slug> <task-id>
+  setup-worktree.sh child  <repo-name> <feature-slug> <task-id>   (deprecated)
 
 Arguments:
   repo-name         Short name of the repository (e.g. "claude-plugins")
   feature-slug      Kebab-case feature identifier (e.g. "add-widget")
-  task-id           Parallel-task identifier; dots are normalised to hyphens
-                    (e.g. "1.1" → "1-1")
+  task-id           (child only, ignored for path) legacy parallel-task id
   --base-ref <b>    (parent only) Check out the existing branch <b> into the
                     worktree instead of creating a new feat/<feature> branch.
-                    The branch will be fetched from origin if it does not
-                    resolve locally.
 
-Worktree locations:
-  parent  ~/.claude-worktrees/<repo>-<feature>/
-  child   ~/.claude-worktrees/<repo>-<feature>-<task-id>/
+Worktree (single contract):
+  feature  ~/.claude-worktrees/<repo>-<feature>/
 
-Branches:
-  parent  feat/<feature>          (branched from HEAD; default)
-  parent  <base-ref>              (checked out directly; with --base-ref)
-  child   feat/<feature>-<task-id> (branched from feat/<feature>)
-
-The script is idempotent: if the worktree already exists and is on the
-expected branch it simply echoes the path and exits 0.
+'child' mode is deprecated: it echoes the feature worktree path if present; it does
+not create separate child worktrees. See worktree-strategy.md.
 EOF
 }
 
@@ -92,7 +77,7 @@ _worktree_branch() {
 }
 
 # ---------------------------------------------------------------------------
-# Mode: parent
+# Mode: parent (feature worktree)
 # ---------------------------------------------------------------------------
 
 setup_parent() {
@@ -109,9 +94,6 @@ setup_parent() {
   local worktrees_dir="${HOME}/.claude-worktrees"
   local parent_path="${worktrees_dir}/${repo_name}-${feature_slug}"
 
-  # Branch the worktree will sit on:
-  #   - default:       feat/<feature-slug>   (created from HEAD with -B)
-  #   - --base-ref b:  b                     (checked out directly)
   local branch
   if [[ -n "$base_ref" ]]; then
     branch="$base_ref"
@@ -119,15 +101,12 @@ setup_parent() {
     branch="feat/${feature_slug}"
   fi
 
-  # Ensure the worktrees directory exists.
   mkdir -p "$worktrees_dir"
 
-  # Idempotency: path already exists.
   if [[ -d "$parent_path" ]]; then
     local actual_branch
     actual_branch="$(_worktree_branch "$parent_path")"
 
-    # Normalise: git stores refs as "refs/heads/<branch>"
     local expected_ref="refs/heads/${branch}"
     if [[ "$actual_branch" == "$expected_ref" || "$actual_branch" == "$branch" ]]; then
       echo "$parent_path"
@@ -139,8 +118,6 @@ setup_parent() {
   fi
 
   if [[ -n "$base_ref" ]]; then
-    # Check out an existing branch into the worktree. Fetch once if the ref
-    # does not resolve locally, then retry.
     if ! git rev-parse --verify "refs/heads/${base_ref}" >/dev/null 2>&1; then
       if ! git fetch origin "${base_ref}:${base_ref}" >/dev/null 2>&1; then
         _error "branch '${base_ref}' does not exist locally and could not be fetched from origin"
@@ -150,7 +127,6 @@ setup_parent() {
 
     git worktree add "$parent_path" "$base_ref"
   else
-    # Create the parent worktree branching from HEAD.
     git worktree add -B "$branch" "$parent_path" HEAD
   fi
 
@@ -158,7 +134,7 @@ setup_parent() {
 }
 
 # ---------------------------------------------------------------------------
-# Mode: child
+# Mode: child (deprecated — no separate worktree; echo feature path if exists)
 # ---------------------------------------------------------------------------
 
 setup_child() {
@@ -172,42 +148,93 @@ setup_child() {
     exit 1
   fi
 
-  local task_id
-  task_id="$(normalize_task_id "$raw_task_id")"
+  local _task_id
+  _task_id="$(normalize_task_id "$raw_task_id")"
 
   local worktrees_dir="${HOME}/.claude-worktrees"
-  local child_path="${worktrees_dir}/${repo_name}-${feature_slug}-${task_id}"
-  local branch="feat/${feature_slug}-${task_id}"
-  local parent_branch="feat/${feature_slug}"
+  local feature_path="${worktrees_dir}/${repo_name}-${feature_slug}"
 
-  # Ensure the parent branch exists before attempting child creation.
-  if ! git rev-parse --verify "refs/heads/${parent_branch}" >/dev/null 2>&1; then
-    _error "parent branch '${parent_branch}' does not exist; create the parent worktree first"
-    exit 1
-  fi
+  echo "setup-worktree.sh: DEPRECATED: 'child' does not create a per-task worktree (task-id=${_task_id}). Use a single feature worktree; all agents share: ${feature_path}" >&2
 
-  # Ensure the worktrees directory exists.
-  mkdir -p "$worktrees_dir"
-
-  # Idempotency: path already exists.
-  if [[ -d "$child_path" ]]; then
-    local actual_branch
-    actual_branch="$(_worktree_branch "$child_path")"
-
-    local expected_ref="refs/heads/${branch}"
-    if [[ "$actual_branch" == "$expected_ref" || "$actual_branch" == "$branch" ]]; then
-      echo "$child_path"
+  if [[ -d "$feature_path" ]]; then
+    if git -C "$feature_path" rev-parse --git-dir >/dev/null 2>&1; then
+      echo "$feature_path"
       return 0
-    else
-      _error "worktree already exists at '$child_path' but is on branch '${actual_branch}' (expected '${expected_ref}')"
-      exit 1
     fi
   fi
 
-  # Create the child worktree branching from the parent branch.
-  git worktree add -B "$branch" "$child_path" "$parent_branch"
+  _error "feature worktree not found at '${feature_path}'. Run: setup-worktree.sh parent ${repo_name} ${feature_slug}"
+  exit 1
+}
 
-  echo "$child_path"
+parse_parent_args() {
+  local -n out_repo="$1"
+  local -n out_slug="$2"
+  local -n out_base_ref="$3"
+  shift 3
+
+  out_repo=""
+  out_slug=""
+  out_base_ref=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --base-ref)
+        if [[ $# -lt 2 ]]; then
+          _error "'--base-ref' requires a branch argument"
+          usage
+          exit 1
+        fi
+        out_base_ref="$2"
+        shift 2
+        ;;
+      --base-ref=*)
+        out_base_ref="${1#--base-ref=}"
+        shift
+        ;;
+      --)
+        shift
+        break
+        ;;
+      -*)
+        _error "unknown flag in 'parent' mode: $1"
+        usage
+        exit 1
+        ;;
+      *)
+        if [[ -z "$out_repo" ]]; then
+          out_repo="$1"
+        elif [[ -z "$out_slug" ]]; then
+          out_slug="$1"
+        else
+          _error "'parent' mode takes at most 2 positional arguments: <repo-name> <feature-slug>"
+          usage
+          exit 1
+        fi
+        shift
+        ;;
+    esac
+  done
+}
+
+run_parent_mode() {
+  local p_repo p_slug p_base_ref
+  parse_parent_args p_repo p_slug p_base_ref "$@"
+  if [[ -z "$p_repo" || -z "$p_slug" ]]; then
+    _error "'parent' mode requires <repo-name> and <feature-slug>"
+    usage
+    exit 1
+  fi
+  setup_parent "$p_repo" "$p_slug" "$p_base_ref"
+}
+
+run_child_mode() {
+  if [[ $# -ne 3 ]]; then
+    _error "'child' mode requires exactly 3 arguments: <repo-name> <feature-slug> <task-id>"
+    usage
+    exit 1
+  fi
+  setup_child "$1" "$2" "$3"
 }
 
 # ---------------------------------------------------------------------------
@@ -215,64 +242,15 @@ setup_child() {
 # ---------------------------------------------------------------------------
 
 main() {
-  case "${1:-}" in
+  local mode="${1:-}"
+  case "$mode" in
     parent)
       shift
-      local p_repo="" p_slug="" p_base_ref=""
-      # Parse positional args + optional --base-ref.
-      while [[ $# -gt 0 ]]; do
-        case "$1" in
-          --base-ref)
-            if [[ $# -lt 2 ]]; then
-              _error "'--base-ref' requires a branch argument"
-              usage
-              exit 1
-            fi
-            p_base_ref="$2"
-            shift 2
-            ;;
-          --base-ref=*)
-            p_base_ref="${1#--base-ref=}"
-            shift
-            ;;
-          --)
-            shift
-            break
-            ;;
-          -*)
-            _error "unknown flag in 'parent' mode: $1"
-            usage
-            exit 1
-            ;;
-          *)
-            if [[ -z "$p_repo" ]]; then
-              p_repo="$1"
-            elif [[ -z "$p_slug" ]]; then
-              p_slug="$1"
-            else
-              _error "'parent' mode takes at most 2 positional arguments: <repo-name> <feature-slug>"
-              usage
-              exit 1
-            fi
-            shift
-            ;;
-        esac
-      done
-      if [[ -z "$p_repo" || -z "$p_slug" ]]; then
-        _error "'parent' mode requires <repo-name> and <feature-slug>"
-        usage
-        exit 1
-      fi
-      setup_parent "$p_repo" "$p_slug" "$p_base_ref"
+      run_parent_mode "$@"
       ;;
     child)
       shift
-      if [[ $# -ne 3 ]]; then
-        _error "'child' mode requires exactly 3 arguments: <repo-name> <feature-slug> <task-id>"
-        usage
-        exit 1
-      fi
-      setup_child "$1" "$2" "$3"
+      run_child_mode "$@"
       ;;
     --help|-h)
       usage

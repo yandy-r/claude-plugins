@@ -191,49 +191,52 @@ to a non-team mode — in both cases, `SendMessage(shutdown)` + `TeamDelete` fir
 
 Worktree mode is **on by default** for the 9 worktree-aware skills; pass `--no-worktree`
 to opt out. The legacy `--worktree` flag is accepted as a silent no-op (it matches the
-new default). When worktree mode is active (default), each parallel teammate must operate
-in its own child worktree so concurrent work doesn't corrupt a shared tree. Sequential
-teammates share the parent worktree. The mechanism layers on top of §2's six-step
-lifecycle and the parent/child model documented in
-[worktree-strategy.md](./worktree-strategy.md).
+new default). When worktree mode is active (default), all teammates — parallel and
+sequential — share **one** feature worktree: `~/.claude-worktrees/<repo>-<feature>/`
+(see [worktree-strategy.md](./worktree-strategy.md)). Parallel safety comes from
+per-skill batching and prompts (e.g. different files, or exclusive sections), not from
+separate per-task worktrees. The `setup-worktree.sh child` + `merge-children.sh` fan-in
+**sequence is deprecated**; do not add it in new team flows.
+
+**One-time (before the first `Agent` spawn, when the feature worktree is used):** ensure
+the feature worktree exists, typically via:
+
+`setup-worktree.sh parent <repo> <feature-slug>` (optional `--base-ref` for an existing
+branch — e.g. PR review).
 
 ### 7.1 Per-batch ordering
 
-Exact ordering within ONE batch (critical for correctness):
+Exact ordering within ONE batch (supersedes the old “create child / merge-children” flow):
 
-1. `TaskCreate` for all tasks in the batch (as in §2.2).
-2. `setup-worktree.sh child <repo> <feature> <task-id>` for each parallel teammate —
-   run **before** the `Agent` spawn message, in serial inside the orchestrator. (The
-   orchestrator, not the teammates, creates the child worktrees.)
-3. `Agent` spawn — one message, multiple `Agent` calls (per §2.3). Each call includes
-   `team_name=`, `name=`, **and** a `Working directory: <child-path>` line in the
-   prompt. On Claude Code, also pass `isolation: "worktree"` pointing at the
-   pre-created child — this pairs with the `WorktreeCreate` hook.
-4. `TaskList` monitor → `SendMessage(shutdown)` to every teammate of the batch (per
+1. `TaskCreate` for all tasks in the batch (as in §2.2) — _if_ the team graph registers batch tasks the same way as non-team mode; otherwise follow the skill’s own registration rules.
+2. `Agent` spawn — one message, multiple `Agent` calls (per §2.3). Each call includes
+   `team_name=`, `name=`, and the **same** `Working directory: <feature-worktree-path>` in the prompt (or equivalent) so all parallel teammates operate in the one tree. On
+   Claude Code, `isolation: "worktree"` may point at that **same** feature path; the
+   `WorktreeCreate` hook still applies.
+3. `TaskList` monitor → `SendMessage(shutdown)` to every teammate of the batch (per
    §2.4–2.5).
-5. **After teammates shut down**: `merge-children.sh <repo> <feature> <task-ids,...>`
-   → fan-in merges into the parent branch, removes child worktrees, deletes child
-   branches.
-6. On merge conflict (script exits 1 with `CONFLICT: <task-id> at <path>`): abort
-   subsequent batches, inform the user, wait for manual resolution + explicit resume
-   before proceeding.
+4. **Between batches:** run whatever validation the skill requires **inside the same**
+   feature worktree. **Do not** call `merge-children.sh` for fan-in; that entrypoint is a
+   deprecated no-op in the new contract.
+5. On validation or manual-merge failure in the worktree, follow the skill’s failure
+   policy; do not expect `CONFLICT:` lines from a removed child merge script.
 
-The shutdown in step 4 **MUST** precede the merge in step 5 — children still open
-when `merge-children.sh` runs will cause the merge to fail.
+`merge-children.sh` and `setup-worktree.sh child` remain on disk for legacy skill text
+and compatibility only.
 
-### 7.2 Sequential teammates
+### 7.2 Sequential vs parallel in one tree
 
-Teammates whose task has no parallel siblings (single task in a batch, or a
-sequential chain) do **not** get a child worktree. They run in the parent worktree.
-Do **not** pass `isolation: "worktree"` or a `Working directory:` line for them.
+“Sequential” here means the orchestrator does not run multiple `Agent` calls for a step
+in one message; it does **not** mean a different worktree. Everyone uses
+`<feature-worktree-path>` when worktree mode is on.
 
 ### 7.3 Dry-run interaction
 
 `--dry-run` with `--team` (worktree mode is active by default; add `--no-worktree` to
-suppress) adds a `Worktrees:` line to the existing dry-run output format (§5):
+suppress) may add a line to the existing dry-run output (§5), e.g.:
 
 ```
-Worktrees:   parent=~/.claude-worktrees/<repo>-<feature>/   children=<count>  (batch <n>: <child-paths>)
+Worktree:   feature=~/.claude-worktrees/<repo>-<feature>/  (all teammates)
 ```
 
 No `setup-worktree.sh` or `merge-children.sh` calls are made in dry-run mode.
