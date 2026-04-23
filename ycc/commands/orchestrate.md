@@ -1,5 +1,5 @@
 ---
-description: Orchestrate multiple specialized agents to accomplish a complex task through intelligent decomposition and parallel execution. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dependency wiring. Worktree isolation is ON by default for parallel tasks; pass --no-worktree to opt out. --worktree is accepted as a legacy no-op.
+description: Orchestrate multiple specialized agents to accomplish a complex task through intelligent decomposition and parallel execution. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dependency wiring. Worktree isolation is ON by default; all parallel and sequential agents share one feature worktree. Pass --no-worktree to opt out.
 argument-hint: '[--team] [--dry-run] [--plan-only] [--sequential] [--worktree] [--no-worktree] <task-description>'
 allowed-tools:
   - Read
@@ -20,7 +20,6 @@ allowed-tools:
   - Bash(mkdir:*)
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/scripts/*.sh:*)'
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/setup-worktree.sh:*)'
-  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/merge-children.sh:*)'
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/list-worktrees.sh:*)'
 ---
 
@@ -42,14 +41,14 @@ Parallelism is the baseline — every batch's agents dispatch concurrently. The 
 - `--plan-only` — Write the orchestration plan to `docs/orchestration/[sanitized-task].md` without execution. When worktree mode is active, the plan gains a `## Worktree Setup` section.
 - `--sequential` — Force sequential execution (single-task batches) for tightly coupled work. When worktree mode is active, uses the parent worktree only.
 - `--worktree` — (legacy — now default for parallel tasks; pass `--no-worktree` to opt out) Accepted as a silent no-op. Worktree isolation is on by default.
-- `--no-worktree` — Force worktree mode **OFF**. Parallel tasks run directly in the current checkout. No parent or child worktrees are created.
+- `--no-worktree` — Force worktree mode **OFF**. All tasks run directly in the current checkout. No feature worktree is created.
 
 ```
 Usage: /ycc:orchestrate [--team] [--dry-run] [--plan-only] [--sequential] [--worktree] [--no-worktree] <task-description>
 
 Examples:
   /ycc:orchestrate "Implement user authentication with tests and docs"
-    # default: parallel tasks get child worktrees; sequential tasks run in parent
+    # default: all parallel and sequential tasks share one feature worktree
 
   /ycc:orchestrate --team "Implement user authentication with tests and docs"
     # agent-team dispatch (worktree still on by default for parallel tasks)

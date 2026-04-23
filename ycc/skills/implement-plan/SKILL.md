@@ -137,12 +137,11 @@ The script emits optional header lines followed by per-task rows.
 - `WT_PARENT_PATH=<path>` — parent worktree path
 - `WT_FEATURE_SLUG=<slug>` — the `<repo>-<feature>` directory suffix; split on `-` to get the feature component
 
-**Per-task rows** (`TASK_ID|TASK_TITLE|DEPENDENCIES|WORKTREE_PATH`):
+**Per-task rows** (`TASK_ID|TASK_TITLE|DEPENDENCIES`):
 
 - **Task ID**: e.g., 1.1, 2.3, 3.1 (or T0, T1, T2)
 - **Task Title**: Descriptive name
 - **Dependencies**: List from `Depends on [...]` or `- **Dependencies**: ...`
-- **Worktree Path** (4th field): child worktree path from `- **Worktree**:` annotation, or empty when not annotated
 - **Files to Read**: From "READ THESE BEFORE TASK" (parsed from the plan markdown directly)
 - **Files to Create**: From "Files to Create"
 - **Files to Modify**: From "Files to Modify"
@@ -160,13 +159,12 @@ The decision follows a strict precedence order:
 
 **After parsing**, determine worktree activation:
 
-- If any `WT_PARENT_PATH=` header line was emitted OR any task row has a non-empty 4th field → the plan has worktree annotations → set `WORKTREE_ACTIVE=true`, store `WT_PARENT_PATH` and `WT_FEATURE_SLUG`.
+- If any `WT_PARENT_PATH=` header line was emitted → the plan has worktree annotations → set `WORKTREE_ACTIVE=true`, store `WT_PARENT_PATH` and `WT_FEATURE_SLUG`.
 - If `WORKTREE_MODE=true` (flag passed or default) → set `WORKTREE_ACTIVE=true` regardless of annotation presence.
 - If `WORKTREE_ACTIVE=true` and the plan had no annotations (the default-on fallback), deduce paths using:
   - `WT_REPO_NAME` = basename of git repo root (run `git -C . rev-parse --show-toplevel | xargs basename`)
   - `WT_FEATURE_SLUG` = the `<feature-name>` argument (same as `${feature_dir}` basename)
   - `WT_PARENT_PATH` = `~/.claude-worktrees/${WT_REPO_NAME}-${WT_FEATURE_SLUG}/`
-  - Per-task child path for task `<id>` (parallel tasks only): `~/.claude-worktrees/${WT_REPO_NAME}-${WT_FEATURE_SLUG}-<hyphenated-id>/` where dots in the task ID are replaced with hyphens (e.g., `1.1` → `1-1`).
 - If `WORKTREE_MODE=false` (--no-worktree) → no parent or child worktrees; set `WORKTREE_ACTIVE=false`.
 
 ### Step 4: Build Dependency Graph
@@ -233,9 +231,8 @@ worktree already exists with the correct branch it echoes the path and returns 0
 
 Store the echoed path as `WT_PARENT_PATH` (overrides any deduced value).
 
-Child worktrees are created just-in-time in Phase 3, one per parallel task per batch,
-immediately before the batch's agents are spawned. Sequential tasks always run in the
-parent worktree; do not create a child for them.
+All agents in every batch — parallel and sequential — operate directly in this
+single feature worktree. No child worktrees are created.
 
 ---
 
@@ -319,21 +316,6 @@ For each batch of ready tasks, in order:
 
 **CRITICAL**: Deploy all agents in the batch in a **SINGLE message** with **MULTIPLE `Agent` tool calls**.
 
-#### Path A — Worktree setup (per batch, when `WORKTREE_ACTIVE=true`)
-
-Before spawning agents for a batch, for each **parallel task** in the batch (a batch
-with 2+ tasks is always parallel; a batch with 1 task is sequential — skip child
-creation for sequential tasks):
-
-```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/setup-worktree.sh \
-  child "${WT_REPO_NAME}" "${WT_FEATURE_SLUG}" "<hyphenated-task-id>"
-```
-
-Capture the echoed path as `CHILD_PATH_<task_id>`. Run all child-creation calls
-before the Agent spawn message (the orchestrator creates children serially; agents
-are spawned after all children exist).
-
 #### Path A — Agent spawn
 
 For each task in the batch, deploy an implementor with:
@@ -346,22 +328,14 @@ For each task in the batch, deploy an implementor with:
 
 No `team_name`, no `name`, no `TaskCreate` — standalone sub-agent semantics.
 
-**When `WORKTREE_ACTIVE=true` and the task is parallel** (child worktree was created
-above), also include in the `prompt`:
+**When `WORKTREE_ACTIVE=true`**, include in the `prompt` for every task in the batch (parallel and sequential):
 
 ```
-Working directory: <CHILD_PATH_<task_id>>
+Working directory: ${WT_PARENT_PATH}
+All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.
 ```
 
-And on **Claude Code**, pass `isolation: "worktree"` pointing at the pre-created child
-path. The `WorktreeCreate` hook redirects the path to `~/.claude-worktrees/`. On
-**Codex / opencode**, the `Working directory:` line in the prompt is sufficient — no
-tool-level isolation available. On **Cursor**, emit a warning and print the
-`git worktree add` command for the user to run; do not auto-create.
-
-Sequential tasks (single-task batches when `WORKTREE_ACTIVE=true`) receive no
-`Working directory:` line and no `isolation: "worktree"` — they operate directly in
-the parent worktree at `WT_PARENT_PATH`.
+On **Claude Code**, pass `isolation: "worktree"` pointing at `${WT_PARENT_PATH}`. The `WorktreeCreate` hook redirects to `~/.claude-worktrees/`, which is the same feature path for all parallel agents. On **Codex / opencode**, the `Working directory:` line in the prompt is sufficient — no tool-level isolation available. On **Cursor**, emit a warning and print the `git worktree add` command for the user to run; do not auto-create.
 
 #### Agent Task Requirements (Path A)
 
@@ -386,27 +360,6 @@ Each implementor agent must:
    - List of files modified
    - Any issues encountered
 
-#### Path A — Fan-in merge (per batch, after validation, when `WORKTREE_ACTIVE=true`)
-
-After all agents in a parallel batch complete and their outputs are validated, merge
-children back into the parent branch:
-
-```bash
-bash ${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/merge-children.sh \
-  "${WT_REPO_NAME}" "${WT_FEATURE_SLUG}" "<task-id-1>,<task-id-2>,..."
-```
-
-Pass the **hyphenated** task IDs of all parallel tasks in the batch (e.g., `1-1,1-2`
-for tasks 1.1 and 1.2). The script merges each child branch into the parent branch
-with `--no-ff`, removes the child worktree, and deletes the child branch.
-
-**On merge conflict** (`merge-children.sh` exits 1 with a `CONFLICT: <task-id> at
-<path>` line): surface the conflict to the user with `AskUserQuestion`, show which
-child branch conflicts, and **pause** until the user resolves it manually and confirms
-they are ready to continue. Never advance to the next batch with a dirty parent branch.
-
-Sequential batches have no children to merge — skip this step.
-
 #### Process Batch Results (Path A)
 
 After each batch completes (and after fan-in merge when `WORKTREE_ACTIVE=true`):
@@ -421,12 +374,11 @@ After each batch completes (and after fan-in merge when `WORKTREE_ACTIVE=true`):
 ```
 While tasks remain:
   1. Find tasks where all dependencies are completed
-  2. (WORKTREE_ACTIVE) Create child worktrees for each parallel task
-  3. Deploy agents for those tasks in parallel (single message, multiple Agent calls)
-  4. Wait for batch to complete
-  5. (WORKTREE_ACTIVE) merge-children.sh for parallel tasks; handle conflicts
-  6. Update task status
-  7. Identify next batch
+  2. Deploy agents for those tasks in parallel (single message, multiple Agent calls)
+  3. Wait for batch to complete
+  4. (WORKTREE_ACTIVE) Validate in the feature worktree (type-check + tests)
+  5. Update task status
+  6. Identify next batch
 ```
 
 ---
@@ -495,62 +447,33 @@ For each batch `B1, B2, ... BN` in dependency order, follow the ordering mandate
 
 1. **Identify batch tasks** — All tasks whose dependencies are now satisfied and whose `TaskList` status is still pending.
 
-2. **(WORKTREE_ACTIVE, parallel tasks only) Create child worktrees** — Before the
-   Agent spawn message, for each **parallel task** in the batch (skip sequential
-   single-task batches):
-
-   ```bash
-   bash ${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/setup-worktree.sh \
-     child "${WT_REPO_NAME}" "${WT_FEATURE_SLUG}" "<hyphenated-task-id>"
-   ```
-
-   Capture the echoed path as `CHILD_PATH_<task_id>`. All children must exist before
-   the Agent spawn message.
-
-3. **Spawn batch teammates** — Single message, multiple `Agent` tool calls, one per task in the batch. Every call MUST include:
+2. **Spawn batch teammates** — Single message, multiple `Agent` tool calls, one per task in the batch. Every call MUST include:
    - `team_name`: `"impl-<sanitized-feature-name>"`
    - `name`: the task ID (e.g., `"1.1"`, `"2.3"`) — must match the `TaskCreate` subject prefix
    - `subagent_type`: `"ycc:implementor"`
    - `description`: `"Implement [Task ID]: [Title]"`
    - `prompt`: template-filled task spec. Include a directive that the agent must read the files listed in "READ THESE BEFORE TASK" before writing code, must validate its own modified files, and must call `TaskUpdate` to mark its task complete.
 
-   **(WORKTREE_ACTIVE, parallel tasks)** also include in each parallel teammate's `prompt`:
+   **(WORKTREE_ACTIVE)** include in every teammate's `prompt` (parallel and sequential):
 
    ```
-   Working directory: <CHILD_PATH_<task_id>>
+   Working directory: ${WT_PARENT_PATH}
+   All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.
    ```
 
-   And on **Claude Code**, pass `isolation: "worktree"` pointing at the pre-created
-   child path. On **Codex / opencode**, the `Working directory:` line in the prompt
-   is sufficient. On **Cursor**, emit a warning + manual `git worktree add` command.
+   On **Claude Code**, pass `isolation: "worktree"` pointing at `${WT_PARENT_PATH}`. The `WorktreeCreate` hook ensures all parallel teammates land in the same feature worktree. On **Codex / opencode**, the `Working directory:` line in the prompt is sufficient. On **Cursor**, emit a warning + manual `git worktree add` command.
 
-   Sequential teammates (single-task batch, `WORKTREE_ACTIVE=true`) receive no
-   `Working directory:` line — they operate in the parent worktree `WT_PARENT_PATH`.
+3. **Wait for batch completion via `TaskList`** — poll until all tasks in this batch are `completed`. If a teammate messages with an issue, respond via `SendMessage` with guidance.
 
-4. **Wait for batch completion via `TaskList`** — poll until all tasks in this batch are `completed`. If a teammate messages with an issue, respond via `SendMessage` with guidance.
-
-5. **Shut down completed-batch teammates** — Send to every teammate of the just-completed batch:
+4. **Shut down completed-batch teammates** — Send to every teammate of the just-completed batch:
 
    ```
    SendMessage(to="<task-id>", message={type:"shutdown_request"})
    ```
 
-   Wait for shutdowns to complete **before** the fan-in merge (§7.1 ordering is
-   shutdown → merge; children still open when merge-children.sh runs will cause failure).
+   Wait for shutdowns to complete before proceeding to the next batch.
 
-6. **(WORKTREE_ACTIVE, parallel tasks) Fan-in merge** — After all teammates have shut
-   down, merge children into the parent branch:
-
-   ```bash
-   bash ${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/merge-children.sh \
-     "${WT_REPO_NAME}" "${WT_FEATURE_SLUG}" "<task-id-1>,<task-id-2>,..."
-   ```
-
-   Pass hyphenated task IDs (e.g., `1-1,1-2`). On conflict (exit 1, `CONFLICT:`
-   line): surface with `AskUserQuestion`, pause for manual resolution. Never advance
-   to the next batch with an unresolved conflict.
-
-7. **Track progress** — Log: `[done] Batch BN: K tasks — complete`
+5. **Track progress** — Log: `[done] Batch BN: K tasks — complete`
 
 #### B.5 Failure handling
 
@@ -560,7 +483,7 @@ If a teammate fails:
 - **Do NOT skip the failing batch** — tasks in later batches may depend on it.
 - Use `AskUserQuestion` to ask the user: _"Batch {BN} had failures. Choose: (1) fix manually and resume, (2) switch to sequential standalone sub-agents for remaining batches, (3) abort."_
 - If the user chooses (2) or (3), send `SendMessage(shutdown)` to all active teammates, then `TeamDelete` before proceeding.
-- If `WORKTREE_ACTIVE=true` and the run aborts before the fan-in merge, remind the user that child worktrees may still exist under `~/.claude-worktrees/` and must be cleaned up manually.
+- If `WORKTREE_ACTIVE=true` and the run aborts mid-batch, the feature worktree at `~/.claude-worktrees/<repo>-<feature>/` survives and can be inspected or cleaned up manually.
 
 #### B.6 After all batches complete
 
