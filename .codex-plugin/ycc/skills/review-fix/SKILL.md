@@ -7,11 +7,12 @@ description: Plan and apply fixes for findings from a code-review artifact produ
   fix, updates the Status field in the source review file in place (Open → Fixed or
   Failed), runs validation after changes, and writes a fix report to docs/prps/reviews/fixes/.
   Pass `--parallel` to fan out independent fixes across parallel standalone review-fixer
-  sub-agents. Pass `--team` (Codex only) to run the same per-batch fan-out as a coordinated
-  agent team with up-front record the task, shared the task tracker across all batches,
-  and per-batch shutdown via send follow-up instructions. `--parallel` and `--team`
-  are mutually exclusive. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to change the
-  minimum severity threshold (default HIGH).
+  sub-agents. Pass `--team` (Codex runtime only; not available in bundle invocations)
+  to run the same per-batch fan-out as a coordinated agent team with up-front record
+  the task, shared the task tracker across all batches, and per-batch shutdown via
+  send follow-up instructions. `--parallel` and `--team` are mutually exclusive. Pass
+  `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to change the minimum severity threshold
+  (default HIGH).
 ---
 
 # Review Fix
@@ -34,8 +35,8 @@ Extract flags from `$ARGUMENTS` before treating the remainder as the input:
 
 | Flag                 | Effect                                                                                                                                                                                                                                                                                                                                      |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel`         | Dispatch `review-fixer` agents as **standalone sub-agents** in parallel per batch. Level 1+2 validation between batches. Fail-stop behavior. Works in Codex, Cursor, and Codex.                                                                                                                                                   |
-| `--team`             | (Codex only) Same per-batch fixer fan-out as `--parallel`, but dispatched as an **agent team**: `create an agent group` once, `record the task` for all eligible findings up front (flat graph — batches are orchestrator-controlled, not task-graph-controlled), per-batch spawn + shutdown via `send follow-up instructions`. Aborts if no eligible findings exist. |
+| `--parallel`         | Dispatch `review-fixer` agents as **standalone sub-agents** in parallel per batch. Level 1+2 validation between batches. Fail-stop behavior. Works in Claude Code, Cursor, and Codex.                                                                                                                                                   |
+| `--team`             | (Codex runtime only; not available in bundle invocations) Same per-batch fixer fan-out as `--parallel`, but dispatched as an **agent team**: `create an agent group` once, `record the task` for all eligible findings up front (flat graph — batches are orchestrator-controlled, not task-graph-controlled), per-batch spawn + shutdown via `send follow-up instructions`. Aborts if no eligible findings exist. |
 | `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).                                                                                                                                                                                                                                      |
 | `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files. When combined with `--team`, also print the team name and per-batch teammate roster.                                                                                                                                                                          |
 | `--worktree`         | (legacy / now default; safe to omit) Create one git worktree per severity level and apply each severity's fixes inside its own child worktree. Worktree mode is on by default; auto-detected from the `## Worktree Setup` section in the artifact. This flag is accepted as a no-op.                                                        |
@@ -486,14 +487,14 @@ If a `review-fixer` agent returns `STATUS: Failed`:
 - Include the agent's `BLOCKER` and `RECOMMENDATION` in the fix report.
 - Continue with remaining findings.
 
-### Path C — Agent Team Execution (`AGENT_TEAM_MODE=true`, Codex only)
+### Path C — Agent Team Execution (`AGENT_TEAM_MODE=true`, Codex runtime only; not available in bundle invocations)
 
 - When `WORKTREE_ACTIVE=true`: batches are severity-keyed. Dispatch teammates with `Working directory: <CHILD_PATH>` + `isolation: "worktree"` (Codex). Before each merge-children call, `send follow-up instructions(shutdown)` to all batch teammates. Then merge → advance to the next severity.
 
 > **MANDATORY — AGENT TEAMS REQUIRED**
 >
 > In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
-> with team dispatch. Every `Agent` call below MUST include `name=` AND `name=`.
+> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
 >
 > 1. `create an agent group` ONCE at the start (single team across all batches)
 > 2. `record the task` for **every eligible finding (or same-file group) across all batches**
@@ -501,7 +502,7 @@ If a `review-fixer` agent returns `STATUS: Failed`:
 >    orchestrator-controlled, not task-graph-controlled. Each batch is processed only
 >    after the previous one's teammates are shut down.
 > 3. Per batch: spawn teammates (single message, multiple `Agent` calls with
->    `name=` + `name=`)
+>    `team_name=` + `name=`)
 > 4. `the task tracker` to confirm batch completion; run between-batch validation
 > 5. `send follow-up instructions({type:"shutdown_request"})` to all teammates of completed batch
 >    BEFORE spawning next batch
@@ -548,7 +549,7 @@ Do **not** call any team/task/agent tools. Exit the skill.
 #### C.3 Create the team
 
 ```
-create an agent group: name="rfix-<sanitized-review-name>", description="Review-fix team for: <source review basename>"
+create an agent group: team_name="rfix-<sanitized-review-name>", description="Review-fix team for: <source review basename>"
 ```
 
 On failure, abort.

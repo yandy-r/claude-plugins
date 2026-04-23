@@ -45,7 +45,7 @@ Create a comprehensive implementation plan before writing any code. This is the 
 - `--dry-run` requires `--team` (the single-agent path has nothing to dry-run).
 - `--no-worktree` opts out of all worktree annotations. When omitted (the default), every parallel task gets a child worktree annotation and teammates dispatch into child worktrees per §7 of `agent-team-dispatch.md`.
 
-**Note**: `--parallel` on `$plan` shapes the _output_, not the research phase. For research fan-out on larger features, use `$prp-plan --parallel` (sub-agent fan-out) or `$prp-plan --team` (Codex only; shared-task-list coordination).
+**Note**: `--parallel` on `$plan` shapes the _output_, not the research phase. For research fan-out on larger features, use `$prp-plan --parallel` (sub-agent fan-out) or `$prp-plan --team` (Codex runtime only; not available in bundle invocations; shared-task-list coordination).
 
 ## When to Use
 
@@ -193,11 +193,11 @@ See `ycc/skills/_shared/references/worktree-strategy.md` for the canonical forma
 > **MANDATORY — AGENT TEAMS REQUIRED**
 >
 > In Path B you MUST use the agent-team lifecycle. Do NOT mix standalone sub-agents with
-> team dispatch. Every `Agent` call below MUST include `name=` AND `name=`.
+> team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
 >
 > 1. `create an agent group` FIRST — before any agent spawn
 > 2. `record the task` — register all 3 subtasks in the shared task list
-> 3. `Agent` with `name=` — one message, three calls
+> 3. `Agent` with `team_name=` — one message, three calls
 > 4. `the task tracker` — wait for all teammates to mark complete
 > 5. `send follow-up instructions({type:"shutdown_request"})` — shut down all teammates
 > 6. `close the agent group` — clean up
@@ -234,7 +234,7 @@ Do **not** call `create an agent group` or any team/task/agent tools. Exit the s
 #### B.3 Create the team
 
 ```
-create an agent group: name="plan-<sanitized-request>", description="Multi-perspective planning team for: <user request>"
+create an agent group: team_name="plan-<sanitized-request>", description="Multi-perspective planning team for: <user request>"
 ```
 
 On failure, abort.
@@ -258,7 +258,7 @@ record the task: subject="test-strategist: testing strategy for <user request>",
 | `test-strategist` | `test-strategy-planner`     | Testing strategy, validation commands, acceptance criteria |
 
 Spawn all three in **ONE message** with **THREE `Agent` tool calls**, each with
-`name="plan-<sanitized-request>"` and the role-specific `name` above.
+`team_name="plan-<sanitized-request>"` and the role-specific `name` above.
 
 Each teammate's prompt MUST include:
 
@@ -454,7 +454,7 @@ Use Option 1 for small features and quick iterations. Use Option 2 when the user
 
 ### When to use `--team`
 
-`--team` is a **Codex-only** execution mode. Cursor and Codex bundles ship
+`--team` is a **Codex-runtime-only (not available in bundle invocations)** execution mode. Cursor and Codex bundles ship
 without the team tools (`create an agent group`, `send follow-up instructions`, etc.), so invoking `--team`
 there has no effect — use `--parallel` instead.
 

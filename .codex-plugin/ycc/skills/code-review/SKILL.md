@@ -29,8 +29,8 @@ Before selecting mode, extract flags from `$ARGUMENTS`:
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| `--parallel`        | Fan out the REVIEW phase across 3 **standalone** `code-reviewer` sub-agents (correctness, security, quality) dispatched in parallel and merge findings. Works in Codex, Cursor, and Codex.                                                                                                                                                                                                                                                                                                   |
-| `--team`            | (Codex only) Fan out the REVIEW phase across the same 3 `code-reviewer` reviewers, but dispatched as an **agent team** with up-front `record the task`, shared `the task tracker` observability, inter-reviewer coordination via `send follow-up instructions`, and coordinated shutdown before merge. Heavier dispatch, richer communication.                                                                                                                                                                            |
+| `--parallel`        | Fan out the REVIEW phase across 3 **standalone** `code-reviewer` sub-agents (correctness, security, quality) dispatched in parallel and merge findings. Works in Claude Code, Cursor, and Codex.                                                                                                                                                                                                                                                                                                   |
+| `--team`            | (Codex runtime only; not available in bundle invocations) Fan out the REVIEW phase across the same 3 `code-reviewer` reviewers, but dispatched as an **agent team** with up-front `record the task`, shared `the task tracker` observability, inter-reviewer coordination via `send follow-up instructions`, and coordinated shutdown before merge. Heavier dispatch, richer communication.                                                                                                                                                                            |
 | `--worktree`        | (legacy / now default; safe to omit) Check out the PR head branch into an isolated worktree at `~/.claude-worktrees/<repo>-pr-<N>/`. Worktree mode is on by default in PR mode; pass `--no-worktree` to opt out.                                                                                                                                                                                                                                                                                       |
 | `--no-worktree`     | Opt out of worktree isolation in PR mode. Skip worktree creation, artifact commit+push, and cleanup. Files are read directly from the main checkout.                                                                                                                                                                                                                                                                                                                                                   |
 | `--keep-draft`      | Skip the automatic draft→ready promotion in PR mode. Default: PR is promoted to Ready for Review before posting the review.                                                                                                                                                                                                                                                                                                                                                                            |
@@ -173,16 +173,16 @@ rubric, findings format directive) and the **Merge Procedure** are defined
 in that reference. Pass the merged findings to Phase 3 (REPORT) as if they
 came from a single-pass review.
 
-#### Path C — Agent Team Review (`AGENT_TEAM_MODE=true`, Codex only)
+#### Path C — Agent Team Review (`AGENT_TEAM_MODE=true`, Codex runtime only; not available in bundle invocations)
 
 > **MANDATORY — AGENT TEAMS REQUIRED**
 >
 > In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
-> with team dispatch. Every `Agent` call below MUST include `name=` AND `name=`.
+> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
 >
 > 1. `create an agent group` once at the start
 > 2. `record the task` for all 3 reviewer subtasks up front (flat graph — no dependencies)
-> 3. Spawn 3 teammates: single message, three `Agent` calls with `name=` + `name=`
+> 3. Spawn 3 teammates: single message, three `Agent` calls with `team_name=` + `name=`
 > 4. `the task tracker` to monitor until all reviewers mark complete
 > 5. `send follow-up instructions({type:"shutdown_request"})` to all 3 teammates
 > 6. `close the agent group` before merging
@@ -200,7 +200,7 @@ Team name: `crev-local-<YYYYMMDD-HHMMSS>`. Use the same timestamp you will use l
 ##### C.2 Create the team
 
 ```
-create an agent group: name="crev-local-<timestamp>", description="Code review team for uncommitted local changes"
+create an agent group: team_name="crev-local-<timestamp>", description="Code review team for uncommitted local changes"
 ```
 
 On failure, abort.
@@ -417,16 +417,16 @@ they came from a single-pass review.
 **Note**: Validation commands (Phase 4) still run sequentially in the main
 skill — parallelization here only applies to the review pass.
 
-#### Path C — Agent Team Review (`AGENT_TEAM_MODE=true`, Codex only)
+#### Path C — Agent Team Review (`AGENT_TEAM_MODE=true`, Codex runtime only; not available in bundle invocations)
 
 > **MANDATORY — AGENT TEAMS REQUIRED**
 >
 > In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
-> with team dispatch. Every `Agent` call below MUST include `name=` AND `name=`.
+> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
 >
 > 1. `create an agent group` once at the start
 > 2. `record the task` for all 3 reviewer subtasks up front (flat graph — no dependencies)
-> 3. Spawn 3 teammates: single message, three `Agent` calls with `name=` + `name=`
+> 3. Spawn 3 teammates: single message, three `Agent` calls with `team_name=` + `name=`
 > 4. `the task tracker` to monitor until all reviewers mark complete
 > 5. `send follow-up instructions({type:"shutdown_request"})` to all 3 teammates
 > 6. `close the agent group` before merging
@@ -444,7 +444,7 @@ Team name: `crev-pr-<NUMBER>`. Use the PR number directly (no sanitization neede
 ##### C.2 Create the team
 
 ```
-create an agent group: name="crev-pr-<NUMBER>", description="Code review team for PR #<NUMBER>: <PR title>"
+create an agent group: team_name="crev-pr-<NUMBER>", description="Code review team for PR #<NUMBER>: <PR title>"
 ```
 
 On failure, abort.

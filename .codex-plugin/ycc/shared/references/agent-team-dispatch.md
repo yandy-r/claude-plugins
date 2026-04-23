@@ -43,7 +43,7 @@ shared task list or leaves orphaned teammates.
 ### Step 1 — create an agent group
 
 ```
-create an agent group: name="<prefix>-<sanitized-context>", description="<one-line purpose>"
+create an agent group: team_name="<prefix>-<sanitized-context>", description="<one-line purpose>"
 ```
 
 The description should name the skill and the concrete goal (e.g., `"Multi-perspective
@@ -74,7 +74,7 @@ register all tasks before spawning.
 **MULTIPLE `Agent` tool calls**. Sequential `Agent` calls across messages break the
 parallel semantics.
 
-Every `Agent` call MUST include both `name=` and `name=`:
+Every `Agent` call MUST include both `team_name=` and `name=`:
 
 ```
 Agent(
@@ -125,7 +125,7 @@ workspace.
 ## 3. Spawn Rule (non-negotiable)
 
 - All teammates in a batch → ONE message → MULTIPLE `Agent` calls.
-- Every `Agent` call includes `name=` + `name=`.
+- Every `Agent` call includes `team_name=` + `name=`.
 - No standalone sub-agent spawns mixed in.
 
 If an implementation spawns an agent without `team_name`, it's a bug. Fix before
@@ -206,7 +206,7 @@ Exact ordering within ONE batch (critical for correctness):
    run **before** the `Agent` spawn message, in serial inside the orchestrator. (The
    orchestrator, not the teammates, creates the child worktrees.)
 3. `Agent` spawn — one message, multiple `Agent` calls (per §2.3). Each call includes
-   `name=`, `name=`, **and** a `Working directory: <child-path>` line in the
+   `team_name=`, `name=`, **and** a `Working directory: <child-path>` line in the
    prompt. On Codex, also pass `isolation: "worktree"` pointing at the
    pre-created child — this pairs with the `WorktreeCreate` hook.
 4. `the task tracker` monitor → `send follow-up instructions(shutdown)` to every teammate of the batch (per

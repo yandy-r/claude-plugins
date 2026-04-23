@@ -4,9 +4,9 @@ description: Create shared context documentation for a feature by deploying 4 re
   (architecture, patterns, integration, docs) that write research artifacts, then
   synthesizing verified findings into shared.md. Use as Step 1 before parallel-plan
   when preparing implementation context. Default is standalone parallel sub-agents
-  via the parallel agent workflow. Pass `--team` (Codex only) to deploy the 4 researchers
-  as teammates under a shared create an agent group/the task tracker with coordinated
-  shutdown.
+  via the parallel agent workflow. Pass `--team` (Codex runtime only; not available
+  in bundle invocations) to deploy the 4 researchers as teammates under a shared create
+  an agent group/the task tracker with coordinated shutdown.
 ---
 
 ## SCOPE LIMITATION - READ FIRST
@@ -32,7 +32,7 @@ After creating the shared context files and displaying the summary, **STOP COMPL
 
 # Shared Context Creator
 
-Create planning context for a feature by dispatching 4 researchers in parallel — standalone sub-agents by default, or an agent team with `--team` (Codex only) where teammates share findings with each other — then persisting workstream reports and synthesizing `shared.md`.
+Create planning context for a feature by dispatching 4 researchers in parallel — standalone sub-agents by default, or an agent team with `--team` (Codex runtime only; not available in bundle invocations) where teammates share findings with each other — then persisting workstream reports and synthesizing `shared.md`.
 
 ## Workflow Integration
 
@@ -48,7 +48,7 @@ This skill ends after research files and `shared.md` are created and validated.
 
 Parse arguments (flags first, then the feature name):
 
-- **--team**: Optional. (Codex only) Deploy the 4 researchers as teammates under a shared `create an agent group`/`the task tracker` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
+- **--team**: Optional. (Codex runtime only; not available in bundle invocations) Deploy the 4 researchers as teammates under a shared `create an agent group`/`the task tracker` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
 - **--dry-run**: Show orchestration plan without creating files. With `--team`, also prints the team name and 4-teammate roster.
 - **feature-name**: Required. Directory name under `${PLANS_DIR}`.
 
@@ -183,7 +183,7 @@ If `AGENT_TEAM_MODE=true`, follow the universal lifecycle contract at
 Create an agent team for the research phase:
 
 ```
-create an agent group: name="sc-[feature-name]", description="Research team for [feature-name] shared context"
+create an agent group: team_name="sc-[feature-name]", description="Research team for [feature-name] shared context"
 ```
 
 On failure, abort the skill with the `create an agent group` error message. Do NOT silently fall back to sub-agent mode.
@@ -443,7 +443,7 @@ scope: local
 - **You are the research orchestrator** - coordinate the 4 researchers and synthesize `shared.md`
 - **Choose dispatch mode from `$ARGUMENTS`** - default is standalone sub-agents via `Task`; `--team` switches to teammates under `create an agent group`/`the task tracker`
 - **Team setup first (Path B only)** - call `create an agent group` and register all 4 tasks before spawning teammates
-- **Spawn in parallel** - a single message with 4 `Task` calls (Path A) or 4 `Agent` calls with `name=` + `name=` (Path B)
+- **Spawn in parallel** - a single message with 4 `Task` calls (Path A) or 4 `Agent` calls with `team_name=` + `name=` (Path B)
 - **Teammates share findings (Path B only)** - inter-teammate `send follow-up instructions` coordination is unavailable to standalone sub-agents
 - **Validate with script** - run `validate-research-artifacts.sh` after researchers complete
 - **Message on failure (Path B)** - if validation fails, message the relevant teammate; in Path A, re-dispatch a sub-agent

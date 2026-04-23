@@ -5,13 +5,13 @@ description: Fast interactive review of uncommitted changes. Prints findings inl
   only happens on confirmation. Hands off to $review-fix on "Apply fixes". Designed
   for short, low-friction code changes where opening a full $code-review artifact
   is overkill. Pass `--parallel` to fan out across 3 standalone code-reviewer sub-agents
-  (correctness, security, quality). Pass `--team` (Codex only) for the same fan-out
-  as a coordinated agent team. `--parallel` and `--team` are mutually exclusive. Pass
-  `--yes` to auto-confirm (Apply fixes) or `--save` to auto-confirm (Save to file)
-  for scripted use. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to forward the minimum
-  severity threshold to $review-fix (default HIGH). Use when the user asks to "quick
-  review", "fast review", "review what I have", "on-the-fly review", or says "/quick-review".
-  `$code-review --quick` delegates here.
+  (correctness, security, quality). Pass `--team` (Codex runtime only; not available
+  in bundle invocations) for the same fan-out as a coordinated agent team. `--parallel`
+  and `--team` are mutually exclusive. Pass `--yes` to auto-confirm (Apply fixes)
+  or `--save` to auto-confirm (Save to file) for scripted use. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>`
+  to forward the minimum severity threshold to $review-fix (default HIGH). Use when
+  the user asks to "quick review", "fast review", "review what I have", "on-the-fly
+  review", or says "/quick-review". `$code-review --quick` delegates here.
 ---
 
 # Quick Review
@@ -32,8 +32,8 @@ Extract flags from `$ARGUMENTS`:
 
 | Flag                 | Effect                                                                                                                                                                                                    |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel`         | Fan out REVIEW across 3 standalone `code-reviewer` sub-agents (correctness, security, quality) and merge findings. Works in Codex, Cursor, and Codex bundles.                                   |
-| `--team`             | (Codex only) Same 3-reviewer fan-out as a coordinated agent team with `create an agent group`, shared `the task tracker`, per-reviewer `record the task`, and coordinated shutdown. Heavier dispatch, richer communication. |
+| `--parallel`         | Fan out REVIEW across 3 standalone `code-reviewer` sub-agents (correctness, security, quality) and merge findings. Works in Claude Code, Cursor, and Codex bundles.                                   |
+| `--team`             | (Codex runtime only; not available in bundle invocations) Same 3-reviewer fan-out as a coordinated agent team with `create an agent group`, shared `the task tracker`, per-reviewer `record the task`, and coordinated shutdown. Heavier dispatch, richer communication. |
 | `--yes`              | Skip the confirmation prompt in Phase 4 and behave as "Apply fixes". Mutually exclusive with `--save`.                                                                                                    |
 | `--save`             | Skip the confirmation prompt in Phase 4 and behave as "Save to file" (write artifact, print Next steps, exit). Mutually exclusive with `--yes`.                                                           |
 | `--severity <level>` | Forwarded to `$review-fix` during hand-off. Valid: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH`. Ignored on "Save to file" / "Discard".                                                       |
@@ -110,12 +110,12 @@ Each reviewer prompt must include:
 Apply the **Merge Procedure** defined in the reference to produce a single
 combined findings list for Phase 3.
 
-### Path C — Agent Team Review (`AGENT_TEAM_MODE=true`, Codex only)
+### Path C — Agent Team Review (`AGENT_TEAM_MODE=true`, Codex runtime only; not available in bundle invocations)
 
 > **MANDATORY — AGENT TEAMS REQUIRED**
 >
 > You MUST follow the agent-team lifecycle. Every `Agent` call MUST include
-> `name=` AND `name=`. See
+> `team_name=` AND `name=`. See
 > `~/.codex/plugins/ycc/shared/references/agent-team-dispatch.md`.
 
 Roster and category split identical to Path B.
@@ -129,7 +129,7 @@ start of Phase 2 and reuse it if the user later selects "Save to file" or
 #### C.2 Create the team
 
 ```
-create an agent group: name="qrev-local-<timestamp>", description="Quick review team for uncommitted local changes"
+create an agent group: team_name="qrev-local-<timestamp>", description="Quick review team for uncommitted local changes"
 ```
 
 On failure, abort.

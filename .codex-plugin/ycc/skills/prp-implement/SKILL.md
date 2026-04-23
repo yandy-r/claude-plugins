@@ -7,11 +7,11 @@ description: Execute a PRP plan file with continuous validation loops. Detects p
   plans (those with a Batches section and Depends on annotations) and prompts the
   user to choose sequential or parallel execution. Pass `--parallel` to skip the prompt
   and run tasks in parallel via standalone implementor sub-agents. Pass `--team` (Codex
-  only) to run the same per-batch implementor fan-out under a shared create an agent
-  group/the task tracker with up-front dependency wiring (`addBlockedBy`) and coordinated
-  per-batch shutdown via send follow-up instructions. Worktree isolation is ON by
-  default; pass `--no-worktree` to opt out. `--worktree` is accepted as a legacy no-op
-  (matches the default). `--parallel` and `--team` are mutually exclusive.
+  runtime only; not available in bundle invocations) to run the same per-batch implementor
+  fan-out under a shared create an agent group/the task tracker with up-front dependency
+  wiring (`addBlockedBy`) and coordinated per-batch shutdown via send follow-up instructions.
+  Worktree isolation is ON by default; pass `--no-worktree` to opt out. `--worktree`
+  is accepted as a legacy no-op (matches the default).
 ---
 
 # PRP Implement
@@ -34,8 +34,8 @@ Extract flags from `$ARGUMENTS` before treating the remainder as a plan path:
 
 | Flag            | Effect                                                                                                                                                                                                                                                                                                                                             |
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel`    | Force parallel execution via **standalone sub-agents** when the plan is parallel-capable. Skips the interactive prompt. Falls back to sequential with a warning if the plan has no `Batches` section. Works in Codex, Cursor, and Codex.                                                                                                     |
-| `--team`        | (Codex only) Force parallel execution via an **agent team** with up-front `record the task` + `addBlockedBy` dependency wiring, per-batch teammate spawn, and inter-batch shutdown via `send follow-up instructions`. Aborts (does NOT fall back) if the plan has no `Batches` section. Heavier dispatch with shared task-graph observability across all batches. |
+| `--parallel`    | Force parallel execution via **standalone sub-agents** when the plan is parallel-capable. Skips the interactive prompt. Falls back to sequential with a warning if the plan has no `Batches` section. Works in Claude Code, Cursor, and Codex.                                                                                                     |
+| `--team`        | (Codex runtime only; not available in bundle invocations) Force parallel execution via an **agent team** with up-front `record the task` + `addBlockedBy` dependency wiring, per-batch teammate spawn, and inter-batch shutdown via `send follow-up instructions`. Aborts (does NOT fall back) if the plan has no `Batches` section. Heavier dispatch with shared task-graph observability across all batches. |
 | `--worktree`    | (legacy — now default; safe to omit) Accepted as a silent no-op. Worktree isolation is on by default; this flag matches the new default and has no additional effect.                                                                                                                                                                              |
 | `--no-worktree` | Force worktree mode **OFF** regardless of plan annotations. Tasks run directly in the current checkout. No parent or child worktrees are created.                                                                                                                                                                                                  |
 | `--dry-run`     | Only valid with `--team`. Prints the team name, full task graph (with dependencies), and per-batch teammate roster, then exits without spawning any teammates.                                                                                                                                                                                     |
@@ -307,13 +307,13 @@ Proceed to **Phase 4 — VALIDATE** and run the full 5-level validation as norma
 > **MANDATORY — AGENT TEAMS REQUIRED**
 >
 > In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
-> with team dispatch. Every `Agent` call below MUST include `name=` AND `name=`.
+> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
 >
 > 1. `create an agent group` ONCE at the start (single team across all batches)
 > 2. `record the task` for **every task across all batches** up front, with `addBlockedBy`
 >    wiring the dependency graph from the plan's `Depends on` annotations
 > 3. Per batch: spawn teammates (single message, multiple `Agent` calls with
->    `name=` + `name=`)
+>    `team_name=` + `name=`)
 > 4. `the task tracker` to monitor batch completion; run between-batch validation
 > 5. `send follow-up instructions({type:"shutdown_request"})` to all teammates of completed batch
 >    BEFORE spawning next batch
@@ -357,7 +357,7 @@ Do **not** call any team/task/agent tools. Exit the skill.
 #### C.3 Create the team
 
 ```
-create an agent group: name="prpi-<sanitized-plan-basename>", description="PRP-implement team for: <plan basename>"
+create an agent group: team_name="prpi-<sanitized-plan-basename>", description="PRP-implement team for: <plan basename>"
 ```
 
 On failure, abort.

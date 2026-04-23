@@ -2,11 +2,12 @@
 name: orchestrate
 description: Orchestrate multiple specialized agents in parallel to accomplish complex
   tasks. Decomposes the task, deploys implementor agents in dependency-resolved batches,
-  and synthesizes results. Defaults to standalone sub-agents; pass --team (Codex only)
-  to dispatch via an agent team with shared the task tracker, up-front record the
-  task/addBlockedBy dependency wiring, and coordinated inter-batch shutdown via send
-  follow-up instructions. Worktree isolation is ON by default for parallel tasks;
-  pass --no-worktree to opt out. --worktree is accepted as a legacy no-op.
+  and synthesizes results. Defaults to standalone sub-agents; pass --team (Codex runtime
+  only; not available in bundle invocations) to dispatch via an agent team with shared
+  the task tracker, up-front record the task/addBlockedBy dependency wiring, and coordinated
+  inter-batch shutdown via send follow-up instructions. Worktree isolation is ON by
+  default for parallel tasks; pass --no-worktree to opt out. --worktree is accepted
+  as a legacy no-op.
 ---
 
 # Multi-Agent Orchestration Skill
@@ -15,8 +16,8 @@ You are an orchestration expert coordinating multiple specialized agents to acco
 
 Parallelism is the baseline of this skill — every batch's tasks dispatch concurrently. The only choice is **how** the implementor agents are dispatched:
 
-- **Standalone sub-agents** (default) — plain `Agent` calls per batch, no shared task list. Works in Codex, Cursor, and Codex.
-- **Agent team** (`--team`, Codex only) — single `create an agent group` with all subtasks registered up front (`record the task` + `addBlockedBy` for dependency wiring), per-batch teammate spawn, coordinated inter-batch shutdown via `send follow-up instructions`, and `close the agent group` at the end. Adds shared task-graph observability across all batches.
+- **Standalone sub-agents** (default) — plain `Agent` calls per batch, no shared task list. Works in Claude Code, Cursor, and Codex.
+- **Agent team** (`--team`, Codex runtime only; not available in bundle invocations) — single `create an agent group` with all subtasks registered up front (`record the task` + `addBlockedBy` for dependency wiring), per-batch teammate spawn, coordinated inter-batch shutdown via `send follow-up instructions`, and `close the agent group` at the end. Adds shared task-graph observability across all batches.
 
 ## Current Task
 
@@ -24,7 +25,7 @@ Parallelism is the baseline of this skill — every batch's tasks dispatch concu
 
 Parse flags first, then treat the remainder as the task description:
 
-- `--team` — (Codex only) Dispatch each batch's agents under a shared `create an agent group` with up-front `record the task` + `addBlockedBy` dependency wiring and per-batch shutdown via `send follow-up instructions`. Aborts if invoked from a Cursor or Codex bundle (team tools are absent there).
+- `--team` — (Codex runtime only; not available in bundle invocations) Dispatch each batch's agents under a shared `create an agent group` with up-front `record the task` + `addBlockedBy` dependency wiring and per-batch shutdown via `send follow-up instructions`. Aborts if invoked from a Cursor or Codex bundle (team tools are absent there).
 - `--dry-run` — Show the orchestration plan without deploying agents. With `--team`, also prints the team name and per-batch teammate roster. Prints a `Worktrees:` line when worktree mode is active (no scripts called).
 - `--plan-only` — Create orchestration plan file at `docs/orchestration/[sanitized-task].md` without execution. When worktree mode is active, the plan gains a `## Worktree Setup` section.
 - `--sequential` — Force sequential execution (single-task batches, for tightly dependent tasks). When worktree mode is active, only the parent worktree is created — no children (sequential tasks always run in the parent).
@@ -141,7 +142,7 @@ Track batch completion in-context after each batch's `Agent` calls return.
 Sanitize the task description to create a team name (lowercase, replace non-alphanumeric with `-`, collapse runs, trim, cap at **20 chars**, fall back to `untitled` if empty). Team name: `orch-<sanitized-task>`.
 
 ```
-create an agent group: name="orch-<sanitized-task>", description="Orchestration team for: <task description>"
+create an agent group: team_name="orch-<sanitized-task>", description="Orchestration team for: <task description>"
 ```
 
 On failure, abort.
@@ -682,7 +683,7 @@ The final result must have:
 4. **Single Goal**: Keep all agents aligned to the main objective
 5. **Track Progress**: `the task tracker` in Path A, `the task tracker` in Path B
 6. **Synthesize Results**: Integrate outputs into coherent whole
-7. **Path B additions**: `create an agent group` before spawning; every `Agent` call with `name=` and `name=`; `send follow-up instructions` shutdown between batches; `close the agent group` on completion
+7. **Path B additions**: `create an agent group` before spawning; every `Agent` call with `team_name=` and `name=`; `send follow-up instructions` shutdown between batches; `close the agent group` on completion
 
 ### When to Use Sequential Mode
 

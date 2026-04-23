@@ -4,17 +4,17 @@ description: Run the 7-agent research pipeline for a new feature — deploys api
   business-analyzer, tech-designer, ux-researcher, security-researcher, practices-researcher,
   and recommendations-agent in parallel to produce 7 research-*.md files and a consolidated
   feature-spec.md under docs/plans/[feature-name]/. Default is standalone parallel
-  sub-agents via the parallel agent workflow. Pass `--team` (Codex only) to deploy
-  the 7 researchers as teammates under a shared create an agent group/the task tracker
-  with coordinated shutdown. Outputs to docs/plans/, NOT docs/prps/. Use when the
-  user asks to "research a feature", "run feature research", "deep-dive a feature
-  before planning", or says "/feature-research". For lightweight single-pass specs
-  in the PRP workflow, use prp-spec instead.
+  sub-agents via the parallel agent workflow. Pass `--team` (Codex runtime only; not
+  available in bundle invocations) to deploy the 7 researchers as teammates under
+  a shared create an agent group/the task tracker with coordinated shutdown. Outputs
+  to docs/plans/, NOT docs/prps/. Use when the user asks to "research a feature",
+  "run feature research", "deep-dive a feature before planning", or says "/feature-research".
+  For lightweight single-pass specs in the PRP workflow, use prp-spec instead.
 ---
 
 # Feature Research
 
-Deep research skill for application features. Goes beyond codebase analysis to research external APIs, business logic, technical specifications, UX considerations, and generate actionable recommendations. Dispatches 7 researchers in parallel — standalone sub-agents by default, or an agent team with `--team` (Codex only) where teammates share findings with each other.
+Deep research skill for application features. Goes beyond codebase analysis to research external APIs, business logic, technical specifications, UX considerations, and generate actionable recommendations. Dispatches 7 researchers in parallel — standalone sub-agents by default, or an agent team with `--team` (Codex runtime only; not available in bundle invocations) where teammates share findings with each other.
 
 ## Workflow Integration
 
@@ -55,7 +55,7 @@ feature-spec.md        feature-spec.md     parallel-plan.md
 
 Parse arguments (flags first, then the feature name):
 
-- **--team**: Optional. (Codex only) Deploy the 7 researchers as teammates under a shared `create an agent group`/`the task tracker` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
+- **--team**: Optional. (Codex runtime only; not available in bundle invocations) Deploy the 7 researchers as teammates under a shared `create an agent group`/`the task tracker` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
 - **--description "..."**: Brief description of the feature (guides research agents)
 - **--dry-run**: Show execution plan without running. With `--team`, also prints the team name and 7-teammate roster.
 - **feature-name**: Required. Directory name in `docs/plans/`
@@ -184,7 +184,7 @@ Team name: `fr-<sanitized-feature-name>`.
 **Create the team** (single `create an agent group` call for the whole skill run):
 
 ```
-create an agent group: name="fr-<sanitized-feature-name>", description="Feature research team for <feature-name>"
+create an agent group: team_name="fr-<sanitized-feature-name>", description="Feature research team for <feature-name>"
 ```
 
 On failure, abort the skill with the `create an agent group` error message. Do NOT silently fall back to sub-agent mode.
@@ -399,7 +399,7 @@ Each research file should: focus on its specific domain, include concrete exampl
 - **You are the research orchestrator** — coordinate the 7 researchers and synthesize the spec
 - **Choose dispatch mode from `$ARGUMENTS`** — default is standalone sub-agents via `Task`; `--team` switches to teammates under `create an agent group`/`the task tracker`
 - **Team setup first (Path B only)** — call `create an agent group` and register all 7 tasks before spawning teammates
-- **Spawn in parallel** — a single message with 7 `Task` calls (Path A) or 7 `Agent` calls with `name=` + `name=` (Path B)
+- **Spawn in parallel** — a single message with 7 `Task` calls (Path A) or 7 `Agent` calls with `team_name=` + `name=` (Path B)
 - **Teammates share findings (Path B only)** — inter-teammate `send follow-up instructions` coordination is unavailable to standalone sub-agents
 - **Single-owner research files** — each researcher writes only its assigned artifact
 - **Gate synthesis with validation** — do not generate `feature-spec.md` before validator pass

@@ -2,9 +2,10 @@
 name: implement-plan
 description: Execute a parallel implementation plan by deploying implementor agents
   in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Codex
-  only) to dispatch via an agent team with shared the task tracker and up-front dependency
-  wiring. Worktree isolation is ON by default; pass --no-worktree to opt out. --worktree
-  is accepted as a legacy no-op. Use as Step 3 after parallel-plan.
+  runtime only; not available in bundle invocations) to dispatch via an agent team
+  with shared the task tracker and up-front dependency wiring. Worktree isolation
+  is ON by default; pass --no-worktree to opt out. --worktree is accepted as a legacy
+  no-op. Use as Step 3 after parallel-plan.
 ---
 
 # Parallel Plan Executor
@@ -13,8 +14,8 @@ Execute a parallel implementation plan by deploying implementor agents in depend
 
 Parallelism is the baseline of this skill — every batch's tasks dispatch concurrently. The only choice is **how** the implementor agents are dispatched:
 
-- **Standalone sub-agents** (default) — plain `Agent` calls per batch, no shared task list. Works in Codex, Cursor, and Codex.
-- **Agent team** (`--team`, Codex only) — single `create an agent group` with all tasks registered up front (`record the task` + `addBlockedBy` for dependency wiring), per-batch teammate spawn, coordinated inter-batch shutdown via `send follow-up instructions`, and `close the agent group` at the end. Adds shared task-graph observability across all batches.
+- **Standalone sub-agents** (default) — plain `Agent` calls per batch, no shared task list. Works in Claude Code, Cursor, and Codex.
+- **Agent team** (`--team`, Codex runtime only; not available in bundle invocations) — single `create an agent group` with all tasks registered up front (`record the task` + `addBlockedBy` for dependency wiring), per-batch teammate spawn, coordinated inter-batch shutdown via `send follow-up instructions`, and `close the agent group` at the end. Adds shared task-graph observability across all batches.
 
 ## Workflow Integration
 
@@ -37,7 +38,7 @@ This skill is the final step of the planning workflow. It requires `parallel-pla
 
 Parse flags first, then treat the remainder as the feature name:
 
-- `--team` — (Codex only) Dispatch each batch's implementor agents under a shared `create an agent group` with up-front `record the task` + `addBlockedBy` dependency wiring and per-batch shutdown via `send follow-up instructions`. Aborts if invoked from a Cursor or Codex bundle (team tools are absent there).
+- `--team` — (Codex runtime only; not available in bundle invocations) Dispatch each batch's implementor agents under a shared `create an agent group` with up-front `record the task` + `addBlockedBy` dependency wiring and per-batch shutdown via `send follow-up instructions`. Aborts if invoked from a Cursor or Codex bundle (team tools are absent there).
 - `--dry-run` — Show the execution plan without deploying agents. With `--team`, also prints the team name and per-batch teammate roster.
 - `--worktree` — (legacy — now default; safe to omit) Accepted as a silent no-op. Worktree isolation is on by default; this flag matches the new default and has no additional effect.
 - `--no-worktree` — Force worktree mode **OFF** regardless of plan annotations. Tasks run directly in the current checkout. No parent or child worktrees are created.
@@ -416,13 +417,13 @@ While tasks remain:
 > **MANDATORY — AGENT TEAMS REQUIRED**
 >
 > In Path B you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
-> with team dispatch. Every `Agent` call below MUST include `name=` AND `name=`.
+> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
 >
 > 1. `create an agent group` ONCE at the start (single team across all batches)
 > 2. `record the task` for **every task across all batches** up front, with `addBlockedBy`
 >    wiring the dependency graph from the plan's `Depends on` annotations
 > 3. Per batch: spawn teammates (single message, multiple `Agent` calls with
->    `name=` + `name=`)
+>    `team_name=` + `name=`)
 > 4. `the task tracker` to monitor batch completion
 > 5. `send follow-up instructions({type:"shutdown_request"})` to all teammates of completed batch
 >    BEFORE spawning next batch
@@ -439,7 +440,7 @@ Sanitize the feature name (lowercase, replace non-alphanumeric with `-`, collaps
 #### B.2 Create the team
 
 ```
-create an agent group: name="impl-<sanitized-feature-name>", description="implement-plan team for: <feature-name>"
+create an agent group: team_name="impl-<sanitized-feature-name>", description="implement-plan team for: <feature-name>"
 ```
 
 On failure, abort.

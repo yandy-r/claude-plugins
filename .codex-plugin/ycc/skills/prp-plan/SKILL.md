@@ -6,12 +6,12 @@ description: Create a comprehensive, self-contained feature implementation plan 
   codebase discovery via prp-researcher, and writes a single-pass-ready plan to docs/prps/plans/{name}.plan.md.
   Pass `--parallel` to fan out research across 3 standalone researcher sub-agents
   and emit a dependency-batched task list ready for parallel execution by prp-implement.
-  Pass `--team` (Codex only) to run the same 3 researchers under a shared create an
-  agent group/the task tracker with coordinated shutdown — heavier but with a shared
-  task graph and observable progress. Pass `--worktree` to annotate the emitted plan
-  with a `## Worktree Setup` section and per-parallel-task `**Worktree**:` fields
-  for git-isolated execution. `--parallel` and `--team` are mutually exclusive; `--worktree`
-  combines freely with either.
+  Pass `--team` (Codex runtime only; not available in bundle invocations) to run the
+  same 3 researchers under a shared create an agent group/the task tracker with coordinated
+  shutdown — heavier but with a shared task graph and observable progress. Pass `--worktree`
+  to annotate the emitted plan with a `## Worktree Setup` section and per-parallel-task
+  `**Worktree**:` fields for git-isolated execution. `--parallel` and `--team` are
+  mutually exclusive; `--worktree` combines freely with either.
 ---
 
 # PRP Plan
@@ -34,8 +34,8 @@ Extract flags from `$ARGUMENTS`:
 
 | Flag            | Effect                                                                                                                                                                                                                                               |
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel`    | Fan out research into 3 **standalone sub-agent** researchers; emit tasks with batch/dependency annotations. Works in Codex, Cursor, and Codex.                                                                                                 |
-| `--team`        | (Codex only) Fan out the same 3 researchers as **teammates** under a shared `create an agent group`/`the task tracker` with coordinated shutdown via `send follow-up instructions`. Same plan output as `--parallel`, but with shared task-graph observability. Heavier dispatch. |
+| `--parallel`    | Fan out research into 3 **standalone sub-agent** researchers; emit tasks with batch/dependency annotations. Works in Claude Code, Cursor, and Codex.                                                                                                 |
+| `--team`        | (Codex runtime only; not available in bundle invocations) Fan out the same 3 researchers as **teammates** under a shared `create an agent group`/`the task tracker` with coordinated shutdown via `send follow-up instructions`. Same plan output as `--parallel`, but with shared task-graph observability. Heavier dispatch. |
 | `--worktree`    | (legacy — now default; safe to omit) Worktree annotations are emitted by default. Accepted as a silent no-op so existing pipelines continue to work.                                                                                                 |
 | `--no-worktree` | Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.                                                                                                                    |
 | `--dry-run`     | Only valid with `--team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                       |
@@ -135,16 +135,16 @@ By default (`WORKTREE_MODE=true`), append the following directive to each resear
 
 After all 3 return: merge tables, de-duplicate, verify all 8 categories covered.
 
-### Path C — Agent team (`AGENT_TEAM_MODE=true`, Codex only)
+### Path C — Agent team (`AGENT_TEAM_MODE=true`, Codex runtime only; not available in bundle invocations)
 
 > **MANDATORY — AGENT TEAMS REQUIRED**
 >
 > In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
-> with team dispatch. Every `Agent` call below MUST include `name=` AND `name=`.
+> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
 >
 > 1. `create an agent group` FIRST
 > 2. `record the task` for each researcher
-> 3. `Agent` with `name=` — one message, three calls
+> 3. `Agent` with `team_name=` — one message, three calls
 > 4. `the task tracker` — wait for all teammates to complete
 > 5. `send follow-up instructions({type:"shutdown_request"})` — shut down all 3 teammates
 > 6. `close the agent group` — clean up
@@ -180,7 +180,7 @@ Do **not** call any team/task/agent tools. Exit the skill.
 #### C.3 Create the team
 
 ```
-create an agent group: name="prpp-<sanitized-feature>", description="PRP-plan research team for: <feature description>"
+create an agent group: team_name="prpp-<sanitized-feature>", description="PRP-plan research team for: <feature description>"
 ```
 
 On failure, abort.
@@ -200,7 +200,7 @@ record the task: subject="infra-research: codebase infrastructure for <feature>"
 
 Use the same researcher categories/traces table from Path B. Spawn all three in **ONE
 message** with **THREE `Agent` tool calls**, each with
-`name="prpp-<sanitized-feature>"` and the role-specific `name`
+`team_name="prpp-<sanitized-feature>"` and the role-specific `name`
 (`patterns-research`, `quality-research`, `infra-research`), all using
 `prp-researcher` in codebase mode.
 

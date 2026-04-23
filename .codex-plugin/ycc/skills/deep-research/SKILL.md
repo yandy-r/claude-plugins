@@ -3,11 +3,11 @@ name: deep-research
 description: Conduct strategic multi-perspective research using the Asymmetric Research
   Squad methodology with 8 specialized personas. Deploys parallel research agents
   covering historical, contrarian, analogical, systems, journalistic, archaeological,
-  futurist, and negative-space perspectives. Pass `--team` (Codex only) to deploy
-  the 14 research agents as teammates under a shared `create an agent group`/`the
-  task tracker` with coordinated shutdown; default is standalone parallel sub-agents.
-  Use for comprehensive research on complex topics requiring diverse viewpoints, competitive
-  analysis, or strategic intelligence gathering.
+  futurist, and negative-space perspectives. Pass `--team` (Codex runtime only; not
+  available in bundle invocations) to deploy the 14 research agents as teammates under
+  a shared `create an agent group`/`the task tracker` with coordinated shutdown; default
+  is standalone parallel sub-agents. Use for comprehensive research on complex topics
+  requiring diverse viewpoints, competitive analysis, or strategic intelligence gathering.
 ---
 
 # Deep Research - Asymmetric Research Squad
@@ -20,7 +20,7 @@ Strategic, multi-perspective research skill using the Asymmetric Research Squad 
 
 Parse arguments (flags first, then the research subject):
 
-- **--team**: Optional. (Codex only) Deploy all 14 research agents as teammates under a single shared `create an agent group`/`the task tracker` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
+- **--team**: Optional. (Codex runtime only; not available in bundle invocations) Deploy all 14 research agents as teammates under a single shared `create an agent group`/`the task tracker` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
 - **--output-dir "..."**: Custom output directory (default: `research/[sanitized-subject]`)
 - **--dry-run**: Show research plan without deploying agents. With `--team`, also prints the team name and 14-teammate roster.
 - **research-subject**: Required. The topic to research (can be multi-word)
@@ -251,7 +251,7 @@ Team name: `drpr-<sanitized-subject>`.
 **Create the team** (single `create an agent group` call for the whole skill run):
 
 ```
-create an agent group: name="drpr-<sanitized-subject>", description="Deep-research squad for: <research-subject>"
+create an agent group: team_name="drpr-<sanitized-subject>", description="Deep-research squad for: <research-subject>"
 ```
 
 On failure, abort the skill with the `create an agent group` error message. Do NOT silently fall back to sub-agent mode.
@@ -332,7 +332,7 @@ Use the prompts from `persona-prompts.md` with variables substituted:
 
 #### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
 
-**CRITICAL**: Deploy all 8 persona agents in a **SINGLE message** with **MULTIPLE `Agent` tool calls**. Omit `name=` for standalone dispatch (keep per-agent `name=` where relevant).
+**CRITICAL**: Deploy all 8 persona agents in a **SINGLE message** with **MULTIPLE `Agent` tool calls**. Omit `team_name=` for standalone dispatch (keep per-agent `name=` where relevant).
 
 #### Path B — Agent team (`AGENT_TEAM_MODE=true`)
 
@@ -431,7 +431,7 @@ Both agents receive:
 
 #### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
 
-**CRITICAL**: Deploy both analysis agents in a **SINGLE message** with **MULTIPLE `Agent` tool calls**. Omit `name=` for standalone dispatch (keep per-agent `name=` where relevant).
+**CRITICAL**: Deploy both analysis agents in a **SINGLE message** with **MULTIPLE `Agent` tool calls**. Omit `team_name=` for standalone dispatch (keep per-agent `name=` where relevant).
 
 #### Path B — Agent team (`AGENT_TEAM_MODE=true`)
 
@@ -524,7 +524,7 @@ All agents receive:
 
 #### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
 
-**CRITICAL**: Deploy all 4 strategic analysis agents in a **SINGLE message** with **MULTIPLE `Agent` tool calls**. Omit `name=` for standalone dispatch (keep per-agent `name=` where relevant).
+**CRITICAL**: Deploy all 4 strategic analysis agents in a **SINGLE message** with **MULTIPLE `Agent` tool calls**. Omit `team_name=` for standalone dispatch (keep per-agent `name=` where relevant).
 
 #### Path B — Agent team (`AGENT_TEAM_MODE=true`)
 
@@ -820,7 +820,7 @@ Ensure research spans:
 ## Important Notes
 
 - **You are the research orchestrator** - coordinate persona agents, synthesize findings
-- **Deploy in parallel** - single message per phase. Default uses multiple `Task` calls (standalone sub-agents). With `--team`, use multiple `Agent` calls with `name=` + `name=` under a shared `create an agent group`/`the task tracker` (Codex only).
+- **Deploy in parallel** - single message per phase. Default uses multiple `Task` calls (standalone sub-agents). With `--team`, use multiple `Agent` calls with `team_name=` + `name=` under a shared `create an agent group`/`the task tracker` (Codex runtime only; not available in bundle invocations).
 - **Preserve contradictions** - don't smooth over disagreements
 - **Evidence quality matters** - prioritize primary sources
 - **Temporal coverage** - past, present, future perspectives

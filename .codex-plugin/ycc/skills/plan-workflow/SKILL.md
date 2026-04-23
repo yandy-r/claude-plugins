@@ -3,14 +3,14 @@ name: plan-workflow
 description: Unified planning workflow - research, analyze, and generate parallel
   implementation plans in one command. Combines shared-context and parallel-plan with
   checkpoint support. Default is standalone parallel sub-agents via the parallel agent
-  workflow. Pass `--team` (Codex only) to orchestrate research, analysis, and validation
-  stages as teammates under a shared create an agent group/the task tracker with coordinated
-  shutdown.
+  workflow. Pass `--team` (Codex runtime only; not available in bundle invocations)
+  to orchestrate research, analysis, and validation stages as teammates under a shared
+  create an agent group/the task tracker with coordinated shutdown.
 ---
 
 # Unified Planning Workflow
 
-Single command to research, analyze, and plan feature implementation. Default dispatch is standalone parallel sub-agents via the `Task` tool; pass `--team` (Codex only) to run each stage as teammates under a shared `create an agent group`/`the task tracker` with coordinated shutdown and inter-teammate `send follow-up instructions` coordination. This skill combines the functionality of `shared-context` and `parallel-plan` with optimizations and checkpoint support.
+Single command to research, analyze, and plan feature implementation. Default dispatch is standalone parallel sub-agents via the `Task` tool; pass `--team` (Codex runtime only; not available in bundle invocations) to run each stage as teammates under a shared `create an agent group`/`the task tracker` with coordinated shutdown and inter-teammate `send follow-up instructions` coordination. This skill combines the functionality of `shared-context` and `parallel-plan` with optimizations and checkpoint support.
 
 ## Workflow Overview
 
@@ -35,7 +35,7 @@ Single command to research, analyze, and plan feature implementation. Default di
 
 Parse arguments (flags first, then the feature name):
 
-- **--team**: Optional. (Codex only) Deploy research, analysis, and validation stages as teammates under a shared `create an agent group`/`the task tracker` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
+- **--team**: Optional. (Codex runtime only; not available in bundle invocations) Deploy research, analysis, and validation stages as teammates under a shared `create an agent group`/`the task tracker` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
 - **--research-only**: Stop after research phase (creates shared.md only)
 - **--plan-only**: Skip research, use existing shared.md
 - **--no-checkpoint**: No pause between research and planning
@@ -51,7 +51,7 @@ If no feature name provided, abort with usage instructions:
 Usage: /plan-workflow [--team] [options] [feature-name]
 
 Options:
-  --team            (Codex only) Dispatch stages as agent team (default: standalone sub-agents)
+  --team            (Codex runtime only; not available in bundle invocations) Dispatch stages as agent team (default: standalone sub-agents)
   --research-only   Stop after research phase (creates shared.md only)
   --plan-only       Skip research, use existing shared.md
   --no-checkpoint   No pause between research and planning (default: checkpoint enabled)
@@ -176,7 +176,7 @@ If `AGENT_TEAM_MODE=true`, follow the universal lifecycle contract at
 Create an agent team for the entire workflow:
 
 ```
-create an agent group: name="pw-[feature-name]", description="Planning workflow team for [feature-name]"
+create an agent group: team_name="pw-[feature-name]", description="Planning workflow team for [feature-name]"
 ```
 
 On failure, abort the skill with the `create an agent group` error message. Do NOT silently fall back to sub-agent mode.
@@ -357,7 +357,7 @@ If `AGENT_TEAM_MODE=false`, skip this step entirely — standalone mode has no t
 If `AGENT_TEAM_MODE=true` and `--plan-only` was used (team doesn't exist yet):
 
 ```
-create an agent group: name="pw-[feature-name]", description="Planning workflow team for [feature-name]"
+create an agent group: team_name="pw-[feature-name]", description="Planning workflow team for [feature-name]"
 ```
 
 ### Step 18: Read Analysis Prompts
@@ -401,7 +401,7 @@ Use the prompts from `planning-agents.md` with variables substituted:
 
 #### Path B — Agent team (`AGENT_TEAM_MODE=true`)
 
-Spawn all 3 teammates in **ONE message** with **THREE `Agent` tool calls** and the matching `name=` from the table above. The 3 analysis tasks registered in Step 19 are used here. After spawning, use `the task tracker` to confirm all 3 tasks are `completed`.
+Spawn all 3 teammates in **ONE message** with **THREE `Agent` tool calls**, each with `team_name="pw-[feature-name]"` and the matching `name=` from the table above. The 3 analysis tasks registered in Step 19 are used here. After spawning, use `the task tracker` to confirm all 3 tasks are `completed`.
 
 ---
 
@@ -574,7 +574,7 @@ If `AGENT_TEAM_MODE=true`:
 
 #### Path B — Agent team (`AGENT_TEAM_MODE=true`)
 
-Spawn all validation teammates in **ONE message** with matching `Agent` tool calls and the matching `name=` from the table above. The validation tasks registered in Step 29 are used here. After spawning, use `the task tracker` to confirm all tasks are `completed`.
+Spawn all validation teammates in **ONE message** with matching `Agent` tool calls, each with `team_name="pw-[feature-name]"` and the matching `name=` from the table above. The validation tasks registered in Step 29 are used here. After spawning, use `the task tracker` to confirm all tasks are `completed`.
 
 ### Step 31: Review and Fix Issues
 
@@ -698,7 +698,7 @@ Validation uses 2 agents instead of 3 (Path + Dependency merged).
 Dispatch follows the same Path A / Path B split as standard mode:
 
 - **Path A (standalone, default)**: spawn all 5 unified agents in a single message with 5 `Task` calls.
-- **Path B (`--team`)**: register 5 unified tasks up front, then spawn 5 teammates in a single message with `name="pw-[feature-name]"`.
+- **Path B (`--team`)**: register 5 unified tasks up front, then spawn 5 teammates in a single message with `team_name="pw-[feature-name]"`.
 
 **Total**: 7 agents instead of 10, 2 stages instead of 3.
 
@@ -813,7 +813,7 @@ scope: local
 - **You are the planning orchestrator** - coordinate all phases of the workflow
 - **Choose dispatch mode from `$ARGUMENTS`** - default is standalone sub-agents via `Task`; `--team` switches to teammates under `create an agent group`/`the task tracker`
 - **One team for entire workflow (Path B only)** - create once, use across all phases
-- **Spawn in parallel** - a single message per phase with multiple `Task` calls (Path A) or multiple `Agent` calls with `name=` + `name=` (Path B)
+- **Spawn in parallel** - a single message per phase with multiple `Task` calls (Path A) or multiple `Agent` calls with `team_name=` + `name=` (Path B)
 - **Pass model parameters** - use `model: "sonnet"` for research/analysis agents, `model: "haiku"` for path/dependency validators, `model: "sonnet"` for completeness-validator
 - **Teammates share findings (Path B only)** - inter-teammate `send follow-up instructions` coordination is unavailable to standalone sub-agents
 - **Shut down between phases (Path B only)** - shut down teammates before spawning new ones for next phase

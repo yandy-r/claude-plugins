@@ -4,8 +4,9 @@ description: Create detailed parallel implementation plans by running analysis a
   validation stages, then synthesizing dependency-aware tasks into parallel-plan.md.
   Use after shared-context to prepare implementation-ready planning artifacts. Defaults
   to standalone parallel sub-agents via the parallel agent workflow; pass `--team`
-  (Codex only) to orchestrate the analysis and validation stages as teammates under
-  a shared create an agent group/the task tracker with coordinated shutdown.
+  (Codex runtime only; not available in bundle invocations) to orchestrate the analysis
+  and validation stages as teammates under a shared create an agent group/the task
+  tracker with coordinated shutdown.
 ---
 
 ## SCOPE LIMITATION - READ FIRST
@@ -30,7 +31,7 @@ After creating planning artifacts and displaying the summary, **STOP COMPLETELY*
 
 # Parallel Implementation Plan Creator
 
-Create `parallel-plan.md` by running analysis and validation stages — standalone sub-agents by default, or agent teams with `--team` (Codex only) where teammates share findings with each other — synthesizing implementation tasks, and validating plan quality.
+Create `parallel-plan.md` by running analysis and validation stages — standalone sub-agents by default, or agent teams with `--team` (Codex runtime only; not available in bundle invocations) where teammates share findings with each other — synthesizing implementation tasks, and validating plan quality.
 
 ## Workflow Integration
 
@@ -50,7 +51,7 @@ This skill requires `${feature_dir}/shared.md` and ends after producing analysis
 
 Parse arguments (flags first, then the feature name):
 
-- **--team**: Optional. (Codex only) Deploy the analysis and validation stages as teammates under a shared `create an agent group`/`the task tracker` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
+- **--team**: Optional. (Codex runtime only; not available in bundle invocations) Deploy the analysis and validation stages as teammates under a shared `create an agent group`/`the task tracker` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
 - **--worktree**: Optional. (legacy — now default; safe to omit) Worktree annotations are emitted by default. Accepted as a silent no-op so existing pipelines continue to work.
 - **--no-worktree**: Optional. Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.
 - **--dry-run**: Show what would be created without making changes. With `--team`, also prints the team name and teammate roster.
@@ -203,7 +204,7 @@ If `AGENT_TEAM_MODE=true`, follow the universal lifecycle contract at
 Create an agent team for the planning workflow:
 
 ```
-create an agent group: name="pp-[feature-name]", description="Planning team for [feature-name] parallel plan"
+create an agent group: team_name="pp-[feature-name]", description="Planning team for [feature-name] parallel plan"
 ```
 
 On failure, abort the skill with the `create an agent group` error message. Do NOT silently fall back to sub-agent mode.
@@ -502,7 +503,7 @@ cat ~/.codex/plugins/ycc/skills/parallel-plan/templates/validation-prompts.md
 
 #### Path B — Agent team (`AGENT_TEAM_MODE=true`)
 
-Spawn all 3 validation teammates in **ONE message** with **THREE `Agent` tool calls** and the matching `name=` from the table above. The 3 validation tasks registered in Step 16 are used here.
+Spawn all 3 validation teammates in **ONE message** with **THREE `Agent` tool calls**, each with `team_name="pp-[feature-name]"` and the matching `name=` from the table above. The 3 validation tasks registered in Step 16 are used here.
 
 After spawning, use `the task tracker` to confirm all 3 tasks are `completed`.
 
@@ -696,7 +697,7 @@ scope: local
 - **You are the planning orchestrator** - coordinate analysis and validation stages
 - **Choose dispatch mode from `$ARGUMENTS`** - default is standalone sub-agents via `Task`; `--team` switches to teammates under `create an agent group`/`the task tracker`; worktree annotations are emitted by default (`--no-worktree` suppresses them)
 - **Team setup first (Path B only)** - call `create an agent group` and register analysis tasks before spawning teammates
-- **Spawn in parallel** - a single message with multiple `Task` calls (Path A) or multiple `Agent` calls with `name=` + `name=` (Path B)
+- **Spawn in parallel** - a single message with multiple `Task` calls (Path A) or multiple `Agent` calls with `team_name=` + `name=` (Path B)
 - **Pass model parameters** - use `model: "sonnet"` for analysis agents, `model: "haiku"` for path/dependency validators, `model: "sonnet"` for completeness-validator
 - **Teammates share findings (Path B only)** - inter-teammate `send follow-up instructions` coordination is unavailable to standalone sub-agents
 - **Two stages** - analysis first, then validation

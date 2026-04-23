@@ -6,6 +6,7 @@ Shared helpers for Codex-native generation.
 from __future__ import annotations
 
 import re
+from functools import reduce
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +30,59 @@ SOURCE_PLUGIN_PATH = YCC_DIR / ".claude-plugin" / "plugin.json"
 SOURCE_MCP_PATH = REPO_ROOT / "mcp-configs" / "mcp.json"
 
 HOME_INSTALL_PLUGIN_ROOT = "~/.codex/plugins/ycc"
+
+RUNTIME_LIST_SENTINEL = "\x00CODEX_RUNTIME_LIST\x00"
+RUNTIME_LIST_BUNDLES_SENTINEL = "\x00CODEX_RUNTIME_LIST_BUNDLES\x00"
+CLAUDE_CODE_ONLY_SENTINEL = "\x00CLAUDE_CODE_ONLY_ADVISORY\x00"
+CLAUDE_CODE_ONLY_HYPHEN_SENTINEL = "\x00CLAUDE_CODE_ONLY_HYPHEN_ADVISORY\x00"
+RUNTIME_LIST_TEXT = "Claude Code, Cursor, and Codex"
+RUNTIME_LIST_BUNDLES_TEXT = f"{RUNTIME_LIST_TEXT} bundles"
+CODEX_RUNTIME_ONLY_TEXT = "Codex runtime only; not available in bundle invocations"
+CODEX_RUNTIME_ONLY_HYPHEN_TEXT = "Codex-runtime-only (not available in bundle invocations)"
+
+PRODUCT_FILE_REPLACEMENTS: tuple[tuple[str, str], ...] = (
+    ("CLAUDE.md", "AGENTS.md"),
+    ("claude.template.md", "agents.template.md"),
+    (".claude-plugin/", ".codex-plugin/"),
+)
+
+HOME_PATH_REPLACEMENTS: tuple[tuple[str, str], ...] = (
+    ("~/.claude/", "~/.codex/"),
+    ("/.claude/", "/.codex/"),
+    ("../../_shared/scripts", "../../../shared/scripts"),
+)
+
+PRODUCT_WORDING_REPLACEMENTS: tuple[tuple[str, str], ...] = (
+    ("Claude Code", "Codex"),
+    ("Claude CLI", "Codex CLI"),
+    ("Claude home directory", "Codex home directory"),
+    ("main Claude session", "main Codex session"),
+    ("the main Claude session", "the main Codex session"),
+    ("Restart Claude CLI", "Restart Codex"),
+    ("Claude CLI logs", "Codex logs"),
+    ("set up Claude CLI environment", "set up the Codex environment"),
+    ("closing Claude Code", "closing Codex"),
+    ("a live Claude Code session", "a live Codex session"),
+)
+
+TOOL_WORDING_REPLACEMENTS: tuple[tuple[str, str], ...] = (
+    ("Task tool calls", "parallel agent runs"),
+    ("Task tool call", "agent run"),
+    ("Task tool", "parallel agent workflow"),
+    ("Agent tool calls", "parallel agent runs"),
+    ("Agent tool call", "agent run"),
+    ("Agent tool", "parallel agent workflow"),
+    ("TodoWrite", "the task tracker"),
+    ("AskUserQuestion", "ask the user"),
+    ("TeamCreate", "create an agent group"),
+    ("TeamDelete", "close the agent group"),
+    ("TaskCreate", "record the task"),
+    ("TaskUpdate", "update the task tracker"),
+    ("TaskList", "the task tracker"),
+    ("TaskGet", "the task details"),
+    ("SendMessage", "send follow-up instructions"),
+    ('message={type: "shutdown_request"}', "a shutdown request"),
+)
 
 VERBATIM_SKILL_FILES: frozenset[str] = frozenset(
     {
@@ -106,6 +160,24 @@ def fix_mcp_malformed_tokens(text: str) -> str:
     return output
 
 
+def apply_literal_replacements(text: str, replacements: tuple[tuple[str, str], ...]) -> str:
+    return reduce(lambda output, pair: output.replace(*pair), replacements, text)
+
+
+def protect_codex_runtime_terms(text: str) -> str:
+    output = text.replace(RUNTIME_LIST_BUNDLES_TEXT, RUNTIME_LIST_BUNDLES_SENTINEL)
+    output = output.replace(RUNTIME_LIST_TEXT, RUNTIME_LIST_SENTINEL)
+    output = output.replace("Claude Code-only", CLAUDE_CODE_ONLY_HYPHEN_SENTINEL)
+    return output.replace("Claude Code only", CLAUDE_CODE_ONLY_SENTINEL)
+
+
+def restore_codex_runtime_terms(text: str) -> str:
+    output = text.replace(CLAUDE_CODE_ONLY_HYPHEN_SENTINEL, CODEX_RUNTIME_ONLY_HYPHEN_TEXT)
+    output = output.replace(CLAUDE_CODE_ONLY_SENTINEL, CODEX_RUNTIME_ONLY_TEXT)
+    output = output.replace(RUNTIME_LIST_BUNDLES_SENTINEL, RUNTIME_LIST_BUNDLES_TEXT)
+    return output.replace(RUNTIME_LIST_SENTINEL, RUNTIME_LIST_TEXT)
+
+
 def load_agent_aliases() -> dict[str, str]:
     aliases: dict[str, str] = {}
     for path in sorted(SRC_AGENTS_DIR.glob("*.md")):
@@ -124,28 +196,22 @@ def apply_codex_text_transforms(text: str, aliases: dict[str, str]) -> str:
     output = fix_mcp_malformed_tokens(text)
 
     # Product/file naming.
-    output = output.replace("CLAUDE.md", "AGENTS.md")
-    output = output.replace("claude.template.md", "agents.template.md")
-    output = output.replace(".claude-plugin/", ".codex-plugin/")
+    output = apply_literal_replacements(output, PRODUCT_FILE_REPLACEMENTS)
 
     # Home/config paths.
-    output = output.replace("~/.claude/", "~/.codex/")
+    output = apply_literal_replacements(output, HOME_PATH_REPLACEMENTS)
     output = re.sub(r"\$\{HOME\}/\.claude/", r"${HOME}/.codex/", output)
     output = re.sub(r"\$HOME/\.claude/", r"$HOME/.codex/", output)
-    output = output.replace("/.claude/", "/.codex/")
-    output = output.replace("../../_shared/scripts", "../../../shared/scripts")
 
     # Product wording.
-    output = output.replace("Claude Code", "Codex")
-    output = output.replace("Claude CLI", "Codex CLI")
-    output = output.replace("Claude home directory", "Codex home directory")
-    output = output.replace("main Claude session", "main Codex session")
-    output = output.replace("the main Claude session", "the main Codex session")
-    output = output.replace("Restart Claude CLI", "Restart Codex")
-    output = output.replace("Claude CLI logs", "Codex logs")
-    output = output.replace("set up Claude CLI environment", "set up the Codex environment")
-    output = output.replace("closing Claude Code", "closing Codex")
-    output = output.replace("a live Claude Code session", "a live Codex session")
+    #
+    # Some source prose names Claude Code as one runtime in a multi-target list or
+    # as the only runtime that supports agent teams. Preserve those semantics
+    # before the broad product-name rewrite so Codex output does not duplicate
+    # "Codex" or advertise bundle-incompatible `--team` flags as plain
+    # "Codex-only" features.
+    output = protect_codex_runtime_terms(output)
+    output = apply_literal_replacements(output, PRODUCT_WORDING_REPLACEMENTS)
     output = re.sub(
         r"\bClaude API with structured output\b",
         "LLM API with structured output",
@@ -180,28 +246,8 @@ def apply_codex_text_transforms(text: str, aliases: dict[str, str]) -> str:
         lambda match: f"`{map_namespaced_reference(match.group(1), aliases)}`",
         output,
     )
-    output = re.sub(
-        r", each with `team_name=\"[^\"]+\"`",
-        "",
-        output,
-    )
-    output = output.replace("team_name=", "name=")
-    output = output.replace("Task tool calls", "parallel agent runs")
-    output = output.replace("Task tool call", "agent run")
-    output = output.replace("Task tool", "parallel agent workflow")
-    output = output.replace("Agent tool calls", "parallel agent runs")
-    output = output.replace("Agent tool call", "agent run")
-    output = output.replace("Agent tool", "parallel agent workflow")
-    output = output.replace("TodoWrite", "the task tracker")
-    output = output.replace("AskUserQuestion", "ask the user")
-    output = output.replace("TeamCreate", "create an agent group")
-    output = output.replace("TeamDelete", "close the agent group")
-    output = output.replace("TaskCreate", "record the task")
-    output = output.replace("TaskUpdate", "update the task tracker")
-    output = output.replace("TaskList", "the task tracker")
-    output = output.replace("TaskGet", "the task details")
-    output = output.replace("SendMessage", "send follow-up instructions")
-    output = output.replace('message={type: "shutdown_request"}', "a shutdown request")
+    output = apply_literal_replacements(output, TOOL_WORDING_REPLACEMENTS)
+    output = restore_codex_runtime_terms(output)
 
     if output and not output.endswith("\n"):
         output += "\n"
