@@ -68,17 +68,38 @@ link_rules_file() {
 
 usage() {
     cat <<EOF
-Usage: $(basename "$0") --target <target> [--settings] [--mcp] [--hooks] [--force] [--only <steps>]
+Usage: $(basename "$0") --target <target> [--mode <mode>] [--settings] [--mcp] [--hooks] [--force] [--only <steps>]
 
 Sync plugin assets to an IDE configuration directory.
 
 Options:
   --target <target>   Target: claude, cursor, codex, opencode, or all
+  --mode <mode>       Marketplace source mode (default: local). Supported:
+                        local — register the local repo checkout as the
+                                marketplace source. claude target adds the
+                                local path as a directory marketplace; codex
+                                target symlinks .codex-plugin/ycc/ into
+                                ~/.codex/plugins/ycc/ and writes a
+                                {source: local, path: <abs>} marketplace
+                                entry. cursor/opencode rsync the bundles.
+                        repo  — register the upstream github repo
+                                yandy-r/claude-plugins as the marketplace
+                                source. claude target adds the github slug
+                                via the CLI; codex target writes a
+                                {source: github, repo: yandy-r/claude-plugins,
+                                ref: main} marketplace entry and skips
+                                local generation/symlink/agents-sync.
+                                cursor and opencode REJECT --mode repo
+                                (they have no remote-source concept).
+                                With --target all + --mode repo, cursor and
+                                opencode are skipped with a warning.
   --settings          Additive: also run the target's 'settings' step.
-  --mcp               Additive: also run the target's 'mcp' step.
+                      Mode-agnostic — symlinks local source files regardless
+                      of --mode.
+  --mcp               Additive: also run the target's 'mcp' step. Mode-agnostic.
   --hooks             Additive: also run the target's 'hooks' step.
                       Currently supported by the claude target only; silently
-                      ignored by targets without hook support.
+                      ignored by targets without hook support. Mode-agnostic.
   --force             Replace a real (non-symlink) rules file (CLAUDE.md /
                       AGENTS.md) at the destination. Without --force, the
                       rules linker refuses to overwrite user-authored files.
@@ -155,6 +176,16 @@ Examples:
   $(basename "$0") --target all --settings --mcp
   $(basename "$0") --target all --settings --force       # install rules everywhere,
                                                          # overwriting user files
+
+  # Repo mode (track the upstream github repo instead of the local checkout):
+  $(basename "$0") --target claude --mode repo            # register yandy-r/claude-plugins
+                                                          # as a github marketplace source
+  $(basename "$0") --target codex  --mode repo            # write the codex marketplace.json
+                                                          # with {source: github, repo: ...,
+                                                          # ref: main}; skip symlink/rsync
+  $(basename "$0") --target all    --mode repo            # claude + codex in repo mode;
+                                                          # cursor/opencode are skipped
+  $(basename "$0") --target claude --mode repo --settings # repo-mode marketplace + symlinks
 EOF
 }
 
@@ -250,23 +281,35 @@ PY
 }
 
 # ---------------------------------------------------------------------------
-# Claude local marketplace — registers the repo checkout as a 'directory'
-# source via the canonical CLI:
+# Claude marketplace — registers ycc as a marketplace via the canonical CLI:
 #
-#   claude plugin marketplace add <repo-path> --scope user
-#   claude plugin install ycc@ycc --scope user
+#   local mode:  claude plugin marketplace add <repo-path>            --scope user
+#   repo  mode:  claude plugin marketplace add yandy-r/claude-plugins --scope user
+#                followed by:
+#                claude plugin install ycc@ycc --scope user
 #
-# The CLI writes to ~/.claude/settings.json. That path is typically a symlink
-# to ycc/settings/settings.json (via the 'settings' step), so we break the
-# symlink first — otherwise the CLI would follow the link and pollute the
-# committed source-of-truth file with an absolute machine-specific path.
+# The CLI writes to ~/.claude/settings.json regardless of source type. That
+# path is typically a symlink to ycc/settings/settings.json (via the
+# 'settings' step), so we break the symlink first in BOTH modes — otherwise
+# the CLI would follow the link and pollute the committed source-of-truth
+# file with the marketplace registration.
 #
 # After this step, ~/.claude/settings.json is a REAL file. Re-running
 # `install.sh --target claude --only settings` would symlink over it and wipe
-# the local marketplace entry; the 'settings' step detects this and refuses
+# the marketplace entry; the 'settings' step detects this and refuses
 # without --force.
+#
+# CLI source form (verified via `claude plugin marketplace add --help`):
+#   "Add a marketplace from a URL, path, or GitHub repo" — the
+#   <owner>/<repo> slug is accepted directly for repo mode.
 # ---------------------------------------------------------------------------
-register_claude_local_marketplace() {
+register_claude_marketplace() {
+    local mode="${1:-local}"
+    if [[ ! "$mode" =~ ^(local|repo)$ ]]; then
+        err "register_claude_marketplace: invalid mode '${mode}' (expected local|repo)"
+        exit 1
+    fi
+
     command -v claude >/dev/null 2>&1 || {
         err "'claude' CLI is required but not found in PATH"
         exit 1
@@ -274,8 +317,12 @@ register_claude_local_marketplace() {
     command -v python3 >/dev/null 2>&1 || { err "python3 is required but not found"; exit 1; }
     command -v realpath >/dev/null 2>&1 || { err "realpath is required but not found"; exit 1; }
 
-    local repo_root
-    repo_root="$(realpath "${SCRIPT_DIR}")"
+    local source_arg
+    if [[ "$mode" == "local" ]]; then
+        source_arg="$(realpath "${SCRIPT_DIR}")"
+    else
+        source_arg="yandy-r/claude-plugins"
+    fi
 
     local settings="${HOME}/.claude/settings.json"
 
@@ -296,8 +343,8 @@ register_claude_local_marketplace() {
     # Ensure parent dir exists (fresh $HOME case)
     mkdir -p "$(dirname "${settings}")"
 
-    info "Running: claude plugin marketplace add ${repo_root} --scope user"
-    claude plugin marketplace add "${repo_root}" --scope user
+    info "Running: claude plugin marketplace add ${source_arg} --scope user  (mode=${mode})"
+    claude plugin marketplace add "${source_arg}" --scope user
     info "Running: claude plugin install ycc@ycc --scope user"
     claude plugin install ycc@ycc --scope user || warn "plugin install returned non-zero — check 'claude plugin list'"
 
@@ -426,8 +473,12 @@ sync_claude_target() {
     local ran=0
     local base_ran=0
     if step_enabled base; then
-        printf '\n%sClaude: register repo checkout as local marketplace%s\n' "${BOLD}" "${NC}"
-        register_claude_local_marketplace
+        if [[ "${MODE:-local}" == "repo" ]]; then
+            printf '\n%sClaude: register github repo as marketplace (yandy-r/claude-plugins)%s\n' "${BOLD}" "${NC}"
+        else
+            printf '\n%sClaude: register repo checkout as local marketplace%s\n' "${BOLD}" "${NC}"
+        fi
+        register_claude_marketplace "${MODE:-local}"
         ran=1
         base_ran=1
     fi
@@ -470,50 +521,78 @@ sync_claude_target() {
     fi
     printf '\n%sClaude sync complete.%s\n' "${BOLD}" "${NC}"
     if [[ $base_ran -eq 1 ]]; then
-        local claude_repo_root_msg
-        claude_repo_root_msg="$(realpath "${SCRIPT_DIR}")"
-        warn "Run /reload-plugins or start a new Claude Code session. The 'ycc' marketplace in ~/.claude/settings.json now points at ${claude_repo_root_msg} (directory source)."
-        warn "Edits in ycc/ apply on plugin reload. No rsync, no cache clear."
-        warn "Heads up: ~/.claude/settings.json was the ycc/settings/settings.json symlink; it's now a REAL file so the CLI write didn't pollute the committed source. Re-running '--settings' would need --force to re-establish the symlink (which would wipe the local marketplace entry)."
-        warn "If you move or rename this repo, rerun ./install.sh --target claude --only base."
+        if [[ "${MODE:-local}" == "repo" ]]; then
+            warn "Run /reload-plugins or start a new Claude Code session. The 'ycc' marketplace in ~/.claude/settings.json now tracks the github source yandy-r/claude-plugins."
+            warn "Updates: rerun 'claude plugin install ycc@ycc --scope user' (or use the in-Claude /plugins UI) to pull the latest published commit."
+            warn "Heads up: ~/.claude/settings.json was the ycc/settings/settings.json symlink; it's now a REAL file so the CLI write didn't pollute the committed source. Re-running '--settings' would need --force to re-establish the symlink (which would wipe the github marketplace entry)."
+        else
+            local claude_repo_root_msg
+            claude_repo_root_msg="$(realpath "${SCRIPT_DIR}")"
+            warn "Run /reload-plugins or start a new Claude Code session. The 'ycc' marketplace in ~/.claude/settings.json now points at ${claude_repo_root_msg} (directory source)."
+            warn "Edits in ycc/ apply on plugin reload. No rsync, no cache clear."
+            warn "Heads up: ~/.claude/settings.json was the ycc/settings/settings.json symlink; it's now a REAL file so the CLI write didn't pollute the committed source. Re-running '--settings' would need --force to re-establish the symlink (which would wipe the local marketplace entry)."
+            warn "If you move or rename this repo, rerun ./install.sh --target claude --only base."
+        fi
     fi
 }
 
 # ---------------------------------------------------------------------------
 # Codex marketplace (~/.agents/plugins/marketplace.json)
-# Registers the repo's .codex-plugin/ycc/ as a live point-at-local marketplace
-# source. Caller passes an absolute path so a repo checkout outside $HOME still
-# resolves after Codex restarts.
+# Registers ycc as a marketplace source for Codex.
+#
+#   local mode: registers .codex-plugin/ycc/ as a live point-at-local source.
+#               Caller passes an absolute path so a repo checkout outside
+#               $HOME still resolves after Codex restarts.
+#   repo  mode: registers yandy-r/claude-plugins@main as a github source.
+#               Codex resolves the bundle from the remote git ref on install.
 # ---------------------------------------------------------------------------
 merge_codex_marketplace_json() {
     command -v python3 >/dev/null 2>&1 || { err "python3 is required but not found"; exit 1; }
 
-    local plugin_src="${1:-}"
-    if [[ -z "${plugin_src}" ]]; then
-        err "merge_codex_marketplace_json: missing plugin source path argument"
+    local mode="${1:-}"
+    if [[ ! "$mode" =~ ^(local|repo)$ ]]; then
+        err "merge_codex_marketplace_json: invalid or missing mode '${mode}' (expected local|repo)"
+        exit 1
+    fi
+
+    local plugin_src="${2:-}"
+    if [[ "$mode" == "local" && -z "${plugin_src}" ]]; then
+        err "merge_codex_marketplace_json: local mode requires a plugin source path"
         exit 1
     fi
 
     local dest="${HOME}/.agents/plugins/marketplace.json"
-    python3 - "$dest" "$plugin_src" <<'PY'
+    python3 - "$dest" "$mode" "$plugin_src" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 dest_path = Path(sys.argv[1])
-plugin_src = sys.argv[2]
+mode = sys.argv[2]
+plugin_src = sys.argv[3]
 payload = {
     "name": "local-ycc-plugins",
     "interface": {
         "displayName": "Local YCC Plugins",
     },
 }
-entry = {
-    "name": "ycc",
-    "source": {
+if mode == "local":
+    source_block = {
         "source": "local",
         "path": plugin_src,
-    },
+    }
+elif mode == "repo":
+    source_block = {
+        "source": "github",
+        "repo": "yandy-r/claude-plugins",
+        "ref": "main",
+    }
+else:
+    sys.stderr.write(f"error: unsupported mode '{mode}'\n")
+    sys.exit(1)
+entry = {
+    "name": "ycc",
+    "source": source_block,
     "policy": {
         "installation": "AVAILABLE",
         "authentication": "ON_INSTALL",
@@ -573,6 +652,13 @@ PY
 # ---------------------------------------------------------------------------
 sync_cursor_target() {
     validate_only_steps "cursor" "base,mcp,settings"
+
+    if [[ "${MODE:-local}" == "repo" ]]; then
+        err "--mode repo is not supported by the cursor target"
+        err "  cursor has no remote-source concept; it reads bundles from ~/.cursor/{skills,agents,rules}/."
+        err "  use --mode local (default) to rsync the local bundle into ~/.cursor/."
+        exit 1
+    fi
 
     local cursor_dir="${HOME}/.cursor"
     local scripts_dir="${SCRIPT_DIR}/scripts"
@@ -708,15 +794,34 @@ sync_codex_target() {
     fi
 
     command -v python3 >/dev/null 2>&1 || { err "python3 is required but not found"; exit 1; }
-    [[ $do_base -eq 1 ]] && { command -v rsync >/dev/null 2>&1 || { err "rsync is required but not found"; exit 1; }; }
-    [[ $do_base -eq 1 ]] && { command -v realpath >/dev/null 2>&1 || { err "realpath is required but not found"; exit 1; }; }
+    # Local-mode base needs rsync + realpath for the symlink + agents sync.
+    # Repo-mode base only writes the marketplace JSON, so those tools are not required.
+    if [[ $do_base -eq 1 && "${MODE:-local}" == "local" ]]; then
+        command -v rsync >/dev/null 2>&1 || { err "rsync is required but not found"; exit 1; }
+        command -v realpath >/dev/null 2>&1 || { err "realpath is required but not found"; exit 1; }
+    fi
 
+    local local_base_steps=5
+    local repo_base_steps=1
     local total=0
-    [[ $do_base -eq 1 ]] && total=$((total + 5))
+    if [[ $do_base -eq 1 ]]; then
+        if [[ "${MODE:-local}" == "repo" ]]; then
+            total=$((total + repo_base_steps))
+        else
+            total=$((total + local_base_steps))
+        fi
+    fi
     [[ $do_settings -eq 1 ]] && total=$((total + 1))
     local step=0
 
-    if [[ $do_base -eq 1 ]]; then
+    if [[ $do_base -eq 1 && "${MODE:-local}" == "repo" ]]; then
+        # Repo mode: Codex resolves the bundle from the github ref on install.
+        # We only need to write the marketplace entry. Bundle regeneration stays
+        # out-of-band via ./scripts/sync.sh --only codex.
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Register github repo as marketplace source (yandy-r/claude-plugins@main)%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        merge_codex_marketplace_json "repo"
+    elif [[ $do_base -eq 1 ]]; then
         mkdir -p "${codex_agents_dest}"
 
         if [[ ! -d "${SCRIPT_DIR}/.codex-plugin" ]]; then
@@ -794,7 +899,7 @@ sync_codex_target() {
         printf '\n%s[%d/%d] Register repo as local marketplace source%s\n' "${BOLD}" "$step" "$total" "${NC}"
         local codex_plugin_src_abs
         codex_plugin_src_abs="$(realpath "${CODEX_PLUGIN_DIR}")"
-        merge_codex_marketplace_json "${codex_plugin_src_abs}"
+        merge_codex_marketplace_json "local" "${codex_plugin_src_abs}"
     fi
 
     if [[ $do_settings -eq 1 ]]; then
@@ -808,11 +913,17 @@ sync_codex_target() {
 
     printf '\n%sCodex sync complete.%s\n' "${BOLD}" "${NC}"
     if [[ $do_base -eq 1 ]]; then
-        local codex_plugin_src_msg
-        codex_plugin_src_msg="$(realpath "${CODEX_PLUGIN_DIR}")"
-        warn "Restart Codex; the plugin tree at ${codex_plugin_dest} now symlinks into ${codex_plugin_src_msg} and is registered via the 'local-ycc-plugins' marketplace."
-        warn "Rerun ./scripts/sync.sh --only codex after editing ycc/ to refresh the Codex bundle."
-        warn "If you move or rename this repo, rerun ./install.sh --target codex --only base to refresh the symlink and marketplace path."
+        if [[ "${MODE:-local}" == "repo" ]]; then
+            warn "Restart Codex; the 'local-ycc-plugins' marketplace in ~/.agents/plugins/marketplace.json now tracks the github source yandy-r/claude-plugins@main."
+            warn "Updates: install ycc through the Codex /plugins UI to pull the latest published commit. No local symlink, no agents rsync."
+            warn "If you also want to iterate on ycc/ source locally, regenerate the bundle with ./scripts/sync.sh --only codex and switch back to --mode local."
+        else
+            local codex_plugin_src_msg
+            codex_plugin_src_msg="$(realpath "${CODEX_PLUGIN_DIR}")"
+            warn "Restart Codex; the plugin tree at ${codex_plugin_dest} now symlinks into ${codex_plugin_src_msg} and is registered via the 'local-ycc-plugins' marketplace."
+            warn "Rerun ./scripts/sync.sh --only codex after editing ycc/ to refresh the Codex bundle."
+            warn "If you move or rename this repo, rerun ./install.sh --target codex --only base to refresh the symlink and marketplace path."
+        fi
     fi
 }
 
@@ -821,6 +932,13 @@ sync_codex_target() {
 # ---------------------------------------------------------------------------
 sync_opencode_target() {
     validate_only_steps "opencode" "base,settings"
+
+    if [[ "${MODE:-local}" == "repo" ]]; then
+        err "--mode repo is not supported by the opencode target"
+        err "  opencode has no remote-source concept; it reads bundles from ~/.config/opencode/{skills,agents,commands}/."
+        err "  use --mode local (default) to rsync the local bundle into ~/.config/opencode/."
+        exit 1
+    fi
 
     local opencode_dir="${HOME}/.config/opencode"
     local scripts_dir="${SCRIPT_DIR}/scripts"
@@ -949,6 +1067,13 @@ sync_opencode_target() {
 # All targets
 # ---------------------------------------------------------------------------
 sync_all_targets() {
+    if [[ "${MODE:-local}" == "repo" ]]; then
+        warn "--mode repo: skipping cursor and opencode targets (no remote-source concept)."
+        warn "  use --target cursor / --target opencode (default --mode local) to install those bundles."
+        sync_claude_target
+        sync_codex_target
+        return 0
+    fi
     sync_claude_target
     sync_cursor_target
     sync_codex_target
@@ -959,6 +1084,7 @@ sync_all_targets() {
 # Argument parsing
 # ---------------------------------------------------------------------------
 TARGET=""
+MODE="local"
 MCP=0
 SETTINGS=0
 HOOKS=0
@@ -970,6 +1096,15 @@ while [[ $# -gt 0 ]]; do
         --target)
             [[ $# -lt 2 ]] && { err "--target requires an argument"; exit 1; }
             TARGET="$2"
+            shift 2
+            ;;
+        --mode)
+            [[ $# -lt 2 ]] && { err "--mode requires an argument (local|repo)"; exit 1; }
+            MODE="$2"
+            if [[ ! "$MODE" =~ ^(local|repo)$ ]]; then
+                err "Invalid --mode: ${MODE} (supported: local, repo)"
+                exit 1
+            fi
             shift 2
             ;;
         --only)

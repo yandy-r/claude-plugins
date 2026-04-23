@@ -162,6 +162,17 @@ Step reference:
 
 The rules linker refuses to overwrite a real (non-symlink) `CLAUDE.md` / `AGENTS.md` at a destination. Pass `--force` to replace a user-authored file.
 
+### Modes
+
+`--mode <local|repo>` selects the marketplace **source** registered for the `claude` and `codex` targets. Defaults to `local`.
+
+- `--mode local` (default) — register the local repo checkout. claude adds the local path as a directory marketplace via `claude plugin marketplace add <repo-path> --scope user`; codex symlinks `.codex-plugin/ycc/` into `~/.codex/plugins/ycc/`, rsyncs custom agents into `~/.codex/agents/`, and writes `~/.agents/plugins/marketplace.json` with `{source: "local", path: "<abs path>"}`. Edits in `ycc/` are live (after `./scripts/sync.sh --only codex` for the Codex bundle).
+- `--mode repo` — register the upstream `yandy-r/claude-plugins` GitHub repo. claude runs `claude plugin marketplace add yandy-r/claude-plugins --scope user`; codex writes `~/.agents/plugins/marketplace.json` with `{source: "github", repo: "yandy-r/claude-plugins", ref: "main"}` and skips local generation, the `~/.codex/plugins/ycc/` symlink, and the agents rsync (Codex pulls those from the remote on install). Use this for a non-developer install that tracks the published ref.
+
+`cursor` and `opencode` have no remote-source concept (they read bundles from `~/.cursor/...` and `~/.config/opencode/...`); both targets reject `--mode repo` with a clear error. With `--target all --mode repo`, cursor and opencode are skipped with a warning — only claude and codex run.
+
+The `settings`, `mcp`, and `hooks` steps are mode-agnostic — they symlink local source files (`ycc/settings/...`, `mcp-configs/mcp.json`) regardless of `--mode`.
+
 ### Install targets
 
 ```bash
@@ -178,6 +189,12 @@ The rules linker refuses to overwrite a real (non-symlink) `CLAUDE.md` / `AGENTS
 ./install.sh --target opencode --settings           # base + link opencode.json + AGENTS.md
 ./install.sh --target all --settings --mcp          # everything across all targets
 ./install.sh --target all --settings --force        # same, overwriting user-authored rules
+
+# Repo mode: track the upstream GitHub repo instead of the local checkout.
+./install.sh --target claude --mode repo            # register yandy-r/claude-plugins via the Claude CLI
+./install.sh --target codex  --mode repo            # write codex marketplace.json with source: github
+./install.sh --target all    --mode repo            # claude + codex in repo mode (cursor/opencode skipped)
+./install.sh --target claude --mode repo --settings # repo-mode marketplace + symlink rules
 
 # Exclusive (--only): run exactly the listed steps, nothing else.
 ./install.sh --target claude   --only base          # just the local-marketplace registration
@@ -214,12 +231,20 @@ The existing GitHub `ycc@ycc` marketplace entry in `~/.claude/settings.json` (fr
 
 ### Install Codex plugin from a GitHub repository
 
-The `install.sh --target codex` flow is the canonical way to run `ycc` in Codex during development. For a non-developer install that tracks a remote ref instead of a local checkout, write a `~/.agents/plugins/marketplace.json` pointing at this repository:
+The `install.sh --target codex` flow (default `--mode local`) is the canonical way to run `ycc` in Codex during development. For a non-developer install that tracks a remote ref instead of a local checkout, run:
+
+```bash
+./install.sh --target codex --mode repo
+```
+
+This writes `~/.agents/plugins/marketplace.json` with a `source: github` entry pointing at `yandy-r/claude-plugins@main`, skips the local symlink and agents rsync, and leaves the Codex client to pull the bundle from the remote on install. Restart Codex and install `ycc` via `/plugins`.
+
+The written marketplace JSON uses this shape (the same `github` source schema mirrored from the Claude Code `~/.claude/settings.json` marketplace block):
 
 ```json
 {
-  "name": "ycc-plugins",
-  "interface": { "displayName": "YCC Plugins" },
+  "name": "local-ycc-plugins",
+  "interface": { "displayName": "Local YCC Plugins" },
   "plugins": [
     {
       "name": "ycc",
@@ -238,9 +263,7 @@ The `install.sh --target codex` flow is the canonical way to run `ycc` in Codex 
 }
 ```
 
-This mirrors the Claude Code `github` marketplace source in `~/.claude/settings.json`. Restart Codex and install `ycc` via `/plugins`.
-
-Note: [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) is committed with a **relative** path (`./.codex-plugin/ycc`) so it remains portable across contributors' checkouts. The absolute path is only written to the user-global copy at `~/.agents/plugins/marketplace.json` by `install.sh`.
+Note: [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) is committed with a **relative** path (`./.codex-plugin/ycc`) so it remains portable across contributors' checkouts. The absolute path (or the github-source block in repo mode) is only written to the user-global copy at `~/.agents/plugins/marketplace.json` by `install.sh`.
 
 ### Codex notes
 
