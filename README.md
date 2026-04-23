@@ -134,17 +134,21 @@ This repository maintains generated compatibility trees under **`.cursor-plugin/
 
 Shared MCP server definitions live in [`mcp-configs/mcp.json`](mcp-configs/mcp.json). The installer is organized around **targets** and **steps** — each target exposes a set of steps that can be run by default, added with an additive flag, or isolated with `--only`.
 
-| Target     | Steps                      | Notes                                                                                                                                                                                                                                          |
-| ---------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `claude`   | `settings`, `mcp`, `hooks` | No default step — pass `--settings`, `--mcp`, `--hooks`, or `--only <steps>`. `settings` also links user-global `CLAUDE.md` + `AGENTS.md`. `hooks` symlinks `ycc/settings/hooks/` into `~/.claude/hooks/` (enables the `WorktreeCreate` hook). |
-| `cursor`   | `base`, `mcp`, `settings`  | `base` = generate + validate + format + rsync `skills/`, `agents/`, `rules/` into `~/.cursor/`. `settings` links user-global rules.                                                                                                            |
-| `codex`    | `base`, `settings`         | `base` = generate + validate + format + sync plugin & agents + merge `~/.agents/.../marketplace.json`. `settings` also links user-global rules.                                                                                                |
-| `opencode` | `base`, `settings`         | `base` = generate + validate + format + rsync `skills/agents/commands` into `~/.config/opencode/`. `settings` symlinks config + AGENTS.md.                                                                                                     |
-| `all`      | —                          | Runs `claude`, `cursor`, `codex`, then `opencode`; step flags propagate.                                                                                                                                                                       |
+| Target     | Steps                              | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| ---------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `claude`   | `base`, `settings`, `mcp`, `hooks` | `base` registers the repo's `.claude-plugin/marketplace.json` as a local marketplace (`local-ycc-plugins`, `source: "file"`) in `~/.claude/settings.local.json` (user-private, auto-gitignored). Edits in `ycc/` are live on next plugin reload (no rsync, no cache clear). `settings` also links user-global `CLAUDE.md` + `AGENTS.md`. `hooks` symlinks `ycc/settings/hooks/` into `~/.claude/hooks/` (enables the `WorktreeCreate` hook). |
+| `cursor`   | `base`, `mcp`, `settings`          | `base` = generate + validate + format + rsync `skills/`, `agents/`, `rules/` into `~/.cursor/`. `settings` links user-global rules.                                                                                                                                                                                                                                                                                                          |
+| `codex`    | `base`, `settings`                 | `base` = generate + validate + format + sync custom agents, then register the repo's `.codex-plugin/ycc/` as a local marketplace source in `~/.agents/plugins/marketplace.json` (live — no install-time plugin rsync). `settings` also links user-global rules.                                                                                                                                                                              |
+| `opencode` | `base`, `settings`                 | `base` = generate + validate + format + rsync `skills/agents/commands` into `~/.config/opencode/`. `settings` symlinks config + AGENTS.md.                                                                                                                                                                                                                                                                                                   |
+| `all`      | —                                  | Runs `claude`, `cursor`, `codex`, then `opencode`; step flags propagate. With the new Claude `base` step, `--target all` now also registers the Claude local marketplace.                                                                                                                                                                                                                                                                    |
 
 Step reference:
 
-- `base` — full generator/validator/sync pipeline for the target (cursor/codex/opencode).
+- `base` — per-target install/registration. Scope differs by target:
+  - claude: writes `~/.claude/settings.local.json` (user-private, auto-gitignored) with `extraKnownMarketplaces["local-ycc-plugins"] = {source: {source: "file", path: "<repo>/.claude-plugin/marketplace.json"}}` and flips `enabledPlugins["ycc@local-ycc-plugins"] = true`. No files are copied; edits in `ycc/` are live on plugin reload. Existing `settings.local.json` keys are preserved; the committed `ycc/settings/settings.json` (symlinked to `~/.claude/settings.json`) is never touched.
+  - cursor: generate + validate + format + rsync `.cursor-plugin/{skills,agents,rules}/` into `~/.cursor/`.
+  - codex: generate + validate + format + rsync **custom agents only** into `~/.codex/agents/`, then register the repo's `.codex-plugin/ycc/` absolute path as a local marketplace source in `~/.agents/plugins/marketplace.json`. Regenerate the bundle via `./scripts/sync.sh --only codex` to refresh skills without rerunning `install.sh`.
+  - opencode: generate + validate + format + rsync `.opencode-plugin/{skills,agents,commands}/` into `~/.config/opencode/`.
 - `settings` — symlinks per-target config files into the IDE's config dir. Every target also links the generic user-global rules from [`ycc/settings/rules/`](ycc/settings/rules/) (see that dir's README for the scope rationale):
   - claude: `ycc/settings/{settings.json,statusline-command.sh}` + `ycc/settings/rules/{CLAUDE.md,AGENTS.md}` → `~/.claude/`
   - cursor: `ycc/settings/rules/{CLAUDE.md,AGENTS.md}` → `~/.cursor/` (top level — NOT inside `~/.cursor/rules/`, which gets `rsync --delete`d during `base`)
@@ -161,19 +165,22 @@ The rules linker refuses to overwrite a real (non-symlink) `CLAUDE.md` / `AGENTS
 ### Install targets
 
 ```bash
-# Default (no --only): run base step if the target has one, then any additive flags.
+# Default (no --only): run base step, then any additive flags.
+./install.sh --target claude                        # base only — register local marketplace
+./install.sh --target claude --settings --mcp       # base + settings + MCP
+./install.sh --target claude --settings --mcp --hooks  # +worktree-redirect hook
 ./install.sh --target cursor                        # base only
 ./install.sh --target cursor --mcp                  # base + symlink MCP
 ./install.sh --target cursor --settings             # base + link user-global rules
+./install.sh --target codex                         # base only — generate + register marketplace
 ./install.sh --target codex --settings              # base + codex config + rules
 ./install.sh --target opencode                      # base only (skills + agents + commands)
 ./install.sh --target opencode --settings           # base + link opencode.json + AGENTS.md
-./install.sh --target claude --settings --mcp       # symlink settings + rules + merge MCP
-./install.sh --target claude --settings --mcp --hooks  # +worktree-redirect hook
 ./install.sh --target all --settings --mcp          # everything across all targets
 ./install.sh --target all --settings --force        # same, overwriting user-authored rules
 
 # Exclusive (--only): run exactly the listed steps, nothing else.
+./install.sh --target claude   --only base          # just the local-marketplace registration
 ./install.sh --target claude   --only mcp           # merge MCP, skip settings link
 ./install.sh --target cursor   --only mcp           # just the MCP symlink
 ./install.sh --target cursor   --only settings      # just the cursor rules symlinks
@@ -186,17 +193,60 @@ The rules linker refuses to overwrite a real (non-symlink) `CLAUDE.md` / `AGENTS
 
 The `codex` target syncs:
 
-- plugin source: [`.codex-plugin/ycc/`](.codex-plugin/ycc/) → `~/.codex/plugins/ycc/`
-- native custom agents: [`.codex-plugin/agents/`](.codex-plugin/agents/) → `~/.codex/agents/`
-- user marketplace entry: `~/.agents/plugins/marketplace.json`
+- plugin tree: **symlink** `~/.codex/plugins/ycc/ → <repo>/.codex-plugin/ycc/` (live — no rsync into the Codex plugin dir)
+- native custom agents: [`.codex-plugin/agents/`](.codex-plugin/agents/) → `~/.codex/agents/` (rsync)
+- user marketplace entry: `~/.agents/plugins/marketplace.json` with a `source: local` entry whose `path` is the **absolute** repo checkout path to `.codex-plugin/ycc/`
 
-After running the Codex target, restart Codex, open `/plugins`, and install `ycc` from your local marketplace if it is not already installed.
+The symlink keeps the hardcoded `~/.codex/plugins/ycc/...` paths inside generated skill bodies valid while making edits live. After running the Codex target, restart Codex, open `/plugins`, and install `ycc` from your local marketplace if it is not already installed. Skills regenerated via `./scripts/sync.sh --only codex` are picked up on the next plugin reload without rerunning `install.sh`.
+
+If `~/.codex/plugins/ycc/` already exists as a real directory (from the pre-symlink rsync flow), `install.sh` will refuse to replace it; `rm -rf ~/.codex/plugins/ycc` and rerun.
+
+### Iterate live without push or rsync
+
+Once the `base` step runs for `claude` or `codex`, editing `ycc/` is a live operation:
+
+- **Claude Code**: `~/.claude/settings.local.json` (user-private, auto-gitignored) has a `local-ycc-plugins` marketplace with `source: "file"` pointing at the repo's `.claude-plugin/marketplace.json`. After editing `ycc/skills/<name>/SKILL.md` (or any other source-of-truth file under `ycc/`), run `/reload-plugins` in Claude Code — no git push, no cache clear.
+- **Codex**: `~/.codex/plugins/ycc/` is a **symlink** to the repo's `.codex-plugin/ycc/`, and `~/.agents/plugins/marketplace.json` points at the same absolute path. Edits in `ycc/` require one extra step: run `./scripts/sync.sh --only codex` to regenerate `.codex-plugin/ycc/` (Codex consumes the generated bundle, not `ycc/` source). After that, reload the plugin in Codex.
+
+Both targets embed an **absolute** path in their user-private config. If you move or rename this repo checkout, rerun the corresponding `install.sh --target <target> --only base` to refresh the absolute path.
+
+The existing GitHub `ycc@ycc` marketplace entry in `~/.claude/settings.json` (from the committed `ycc/settings/settings.json`) is not touched — both `ycc@ycc` and `ycc@local-ycc-plugins` become addressable and active. If you leave both enabled, Claude Code loads two copies of the plugin. The base step detects this and prints the exact one-liner to disable `ycc@ycc` so the local copy wins.
+
+### Install Codex plugin from a GitHub repository
+
+The `install.sh --target codex` flow is the canonical way to run `ycc` in Codex during development. For a non-developer install that tracks a remote ref instead of a local checkout, write a `~/.agents/plugins/marketplace.json` pointing at this repository:
+
+```json
+{
+  "name": "ycc-plugins",
+  "interface": { "displayName": "YCC Plugins" },
+  "plugins": [
+    {
+      "name": "ycc",
+      "source": {
+        "source": "github",
+        "repo": "yandy-r/claude-plugins",
+        "ref": "main"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
+```
+
+This mirrors the Claude Code `github` marketplace source in `~/.claude/settings.json`. Restart Codex and install `ycc` via `/plugins`.
+
+Note: [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) is committed with a **relative** path (`./.codex-plugin/ycc`) so it remains portable across contributors' checkouts. The absolute path is only written to the user-global copy at `~/.agents/plugins/marketplace.json` by `install.sh`.
 
 ### Codex notes
 
 - Codex support is **native**, not a Cursor-style copy. Skills are packaged as a Codex plugin and agents are emitted as Codex custom-agent TOMLs.
 - Codex does **not** support this repo's custom slash-command layer as installable artifacts. Use the bundled skills directly with `$skill-name` or by invoking the installed `ycc` plugin, and use Codex built-ins such as `/plan` and `/review` where applicable.
-- Generated Codex skill references assume the managed install location `~/.codex/plugins/ycc/` for bundled helper scripts and references.
+- Generated Codex skill references assume the managed install location `~/.codex/plugins/ycc/` for bundled helper scripts and references. `install.sh --target codex` makes this path a symlink back to `<repo>/.codex-plugin/ycc/`, so those references stay valid while edits remain live.
 
 ### opencode notes
 

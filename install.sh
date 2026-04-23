@@ -95,14 +95,21 @@ Semantics:
     - Run exactly the listed steps. Nothing else.
 
 Target steps:
-  claude    settings | mcp | hooks
+  claude    base | settings | mcp | hooks
+            base:     invoke 'claude plugin marketplace add <repo> --scope user'
+                      + 'claude plugin install ycc@ycc --scope user'. Breaks
+                      ~/.claude/settings.json symlink (if any) first so the CLI
+                      write doesn't pollute the committed source file. Edits
+                      in ycc/ apply on /reload-plugins.
             settings: symlink ycc/settings/{settings.json,statusline-command.sh}
                       AND ycc/settings/rules/{CLAUDE.md,AGENTS.md} into ~/.claude/.
+                      Refuses to replace a non-symlink settings.json without
+                      --force (to protect a local marketplace entry registered
+                      by the base step).
             mcp:      merge mcp-configs/mcp.json mcpServers into ~/.claude.json.
             hooks:    symlink ycc/settings/hooks/ into ~/.claude/hooks/, enabling
                       the WorktreeCreate hook (redirects harness-managed
                       worktrees to ~/.claude-worktrees/).
-            (no base; claude is flag-driven.)
   cursor    base | mcp | settings
             base:     generate + validate + format + rsync bundle to ~/.cursor/.
             mcp:      symlink mcp-configs/mcp.json → ~/.cursor/mcp.json.
@@ -110,8 +117,12 @@ Target steps:
                       ~/.cursor/ (top level — NOT inside ~/.cursor/rules/, which
                       is rsynced with --delete during 'base').
   codex     base | settings
-            base:     generate + validate + format + rsync plugin & agents +
-                      merge marketplace entry.
+            base:     generate + validate + format + sync custom agents, then
+                      register the repo's .codex-plugin/ycc/ as a local
+                      marketplace source in ~/.agents/plugins/marketplace.json.
+                      Edits are live after regeneration — no install-time rsync
+                      of the plugin tree. Rerun ./scripts/sync.sh --only codex
+                      to refresh the bundle.
             settings: symlink .codex-plugin/config/{config.toml,default.rules}
                       AND ycc/settings/rules/{CLAUDE.md,AGENTS.md} into ~/.codex/.
   opencode  base | settings
@@ -126,9 +137,11 @@ Target steps:
   all       Run claude then cursor then codex then opencode; step flags propagate.
 
 Examples:
-  $(basename "$0") --target claude --settings --mcp
+  $(basename "$0") --target claude                       # base only (register local marketplace)
+  $(basename "$0") --target claude --only base           # same, exclusive
+  $(basename "$0") --target claude --settings --mcp      # base + settings + mcp
   $(basename "$0") --target claude --only mcp
-  $(basename "$0") --target claude --hooks                # install WorktreeCreate hook
+  $(basename "$0") --target claude --hooks                # base + WorktreeCreate hook
   $(basename "$0") --target claude --settings --mcp --hooks
   $(basename "$0") --target claude --only hooks           # hooks only
   $(basename "$0") --target cursor                       # base only
@@ -237,6 +250,110 @@ PY
 }
 
 # ---------------------------------------------------------------------------
+# Claude local marketplace — registers the repo checkout as a 'directory'
+# source via the canonical CLI:
+#
+#   claude plugin marketplace add <repo-path> --scope user
+#   claude plugin install ycc@ycc --scope user
+#
+# The CLI writes to ~/.claude/settings.json. That path is typically a symlink
+# to ycc/settings/settings.json (via the 'settings' step), so we break the
+# symlink first — otherwise the CLI would follow the link and pollute the
+# committed source-of-truth file with an absolute machine-specific path.
+#
+# After this step, ~/.claude/settings.json is a REAL file. Re-running
+# `install.sh --target claude --only settings` would symlink over it and wipe
+# the local marketplace entry; the 'settings' step detects this and refuses
+# without --force.
+# ---------------------------------------------------------------------------
+register_claude_local_marketplace() {
+    command -v claude >/dev/null 2>&1 || {
+        err "'claude' CLI is required but not found in PATH"
+        exit 1
+    }
+    command -v python3 >/dev/null 2>&1 || { err "python3 is required but not found"; exit 1; }
+    command -v realpath >/dev/null 2>&1 || { err "realpath is required but not found"; exit 1; }
+
+    local repo_root
+    repo_root="$(realpath "${SCRIPT_DIR}")"
+
+    local settings="${HOME}/.claude/settings.json"
+
+    # Break the symlink safely if it points into this repo (or anywhere).
+    # We materialize the current content before the CLI writes to it.
+    if [[ -L "${settings}" ]]; then
+        local link_target
+        link_target="$(readlink -f "${settings}")"
+        info "${settings} is a symlink to ${link_target}"
+        info "Breaking the symlink before CLI write (protects the committed source file from pollution)"
+        local tmp
+        tmp="$(mktemp)"
+        cat "${settings}" > "${tmp}"
+        rm "${settings}"
+        mv "${tmp}" "${settings}"
+    fi
+
+    # Ensure parent dir exists (fresh $HOME case)
+    mkdir -p "$(dirname "${settings}")"
+
+    info "Running: claude plugin marketplace add ${repo_root} --scope user"
+    claude plugin marketplace add "${repo_root}" --scope user
+    info "Running: claude plugin install ycc@ycc --scope user"
+    claude plugin install ycc@ycc --scope user || warn "plugin install returned non-zero — check 'claude plugin list'"
+
+    # Cleanup orphans from earlier broken attempts of this installer
+    cleanup_claude_local_orphans
+}
+
+# Remove 'local-ycc-plugins' detritus from earlier (broken) versions of the
+# installer that wrote to the wrong files with the wrong schema.
+cleanup_claude_local_orphans() {
+    local files=("${HOME}/.claude.json" "${HOME}/.claude/settings.local.json")
+    local f
+    for f in "${files[@]}"; do
+        [[ -f "$f" ]] || continue
+        python3 - "$f" <<'PY' || true
+import json
+import sys
+from pathlib import Path
+
+p = Path(sys.argv[1])
+try:
+    data = json.loads(p.read_text(encoding="utf-8"))
+except (OSError, json.JSONDecodeError):
+    sys.exit(0)
+if not isinstance(data, dict):
+    sys.exit(0)
+
+changed = False
+extras = data.get("extraKnownMarketplaces")
+if isinstance(extras, dict) and "local-ycc-plugins" in extras:
+    del extras["local-ycc-plugins"]
+    if not extras:
+        del data["extraKnownMarketplaces"]
+    changed = True
+
+enabled = data.get("enabledPlugins")
+if isinstance(enabled, dict) and "ycc@local-ycc-plugins" in enabled:
+    del enabled["ycc@local-ycc-plugins"]
+    if not enabled:
+        del data["enabledPlugins"]
+    changed = True
+
+if changed:
+    # If the file is now empty after cleanup and it's settings.local.json,
+    # just delete it rather than leaving an empty file.
+    if not data and p.name == "settings.local.json":
+        p.unlink()
+        print(f"removed empty orphan file {p}")
+    else:
+        p.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(f"removed orphaned 'local-ycc-plugins' entries from {p}")
+PY
+    done
+}
+
+# ---------------------------------------------------------------------------
 # MCP: Cursor (~/.cursor/mcp.json)
 # ---------------------------------------------------------------------------
 sync_cursor_mcp_json() {
@@ -304,11 +421,30 @@ validate_only_steps() {
 # Claude target (settings + mcp; no base)
 # ---------------------------------------------------------------------------
 sync_claude_target() {
-    validate_only_steps "claude" "settings,mcp,hooks"
+    validate_only_steps "claude" "base,settings,mcp,hooks"
 
     local ran=0
+    local base_ran=0
+    if step_enabled base; then
+        printf '\n%sClaude: register repo checkout as local marketplace%s\n' "${BOLD}" "${NC}"
+        register_claude_local_marketplace
+        ran=1
+        base_ran=1
+    fi
     if step_enabled settings; then
         printf '\n%sClaude: link settings + statusline + rules%s\n' "${BOLD}" "${NC}"
+        # If settings.json is a real file (not symlink) and NOT --force, it may
+        # contain user additions from the 'base' step (local marketplace entry,
+        # enabledPlugins). Replacing it with a symlink would wipe those. Refuse
+        # without --force, consistent with link_rules_file for CLAUDE.md/AGENTS.md.
+        local claude_settings_dest="${HOME}/.claude/settings.json"
+        if [[ -f "${claude_settings_dest}" && ! -L "${claude_settings_dest}" && "${FORCE:-0}" != "1" ]]; then
+            err "refusing to replace real file with symlink: ${claude_settings_dest}"
+            err "  this file likely contains a local marketplace entry registered by 'claude plugin marketplace add'."
+            err "  re-run with --force to overwrite it (you will lose local marketplace entries),"
+            err "  or skip --settings when iterating locally."
+            exit 1
+        fi
         link_file       "${SCRIPT_DIR}/ycc/settings/settings.json"         "${HOME}/.claude/settings.json"
         link_file       "${SCRIPT_DIR}/ycc/settings/statusline-command.sh" "${HOME}/.claude/statusline-command.sh"
         link_rules_file "${SCRIPT_DIR}/ycc/settings/rules/CLAUDE.md"       "${HOME}/.claude/CLAUDE.md"
@@ -333,21 +469,39 @@ sync_claude_target() {
         warn "Claude target ran no steps (pass --settings, --mcp, --hooks, or --only ...)"
     fi
     printf '\n%sClaude sync complete.%s\n' "${BOLD}" "${NC}"
+    if [[ $base_ran -eq 1 ]]; then
+        local claude_repo_root_msg
+        claude_repo_root_msg="$(realpath "${SCRIPT_DIR}")"
+        warn "Run /reload-plugins or start a new Claude Code session. The 'ycc' marketplace in ~/.claude/settings.json now points at ${claude_repo_root_msg} (directory source)."
+        warn "Edits in ycc/ apply on plugin reload. No rsync, no cache clear."
+        warn "Heads up: ~/.claude/settings.json was the ycc/settings/settings.json symlink; it's now a REAL file so the CLI write didn't pollute the committed source. Re-running '--settings' would need --force to re-establish the symlink (which would wipe the local marketplace entry)."
+        warn "If you move or rename this repo, rerun ./install.sh --target claude --only base."
+    fi
 }
 
 # ---------------------------------------------------------------------------
 # Codex marketplace (~/.agents/plugins/marketplace.json)
+# Registers the repo's .codex-plugin/ycc/ as a live point-at-local marketplace
+# source. Caller passes an absolute path so a repo checkout outside $HOME still
+# resolves after Codex restarts.
 # ---------------------------------------------------------------------------
 merge_codex_marketplace_json() {
     command -v python3 >/dev/null 2>&1 || { err "python3 is required but not found"; exit 1; }
 
+    local plugin_src="${1:-}"
+    if [[ -z "${plugin_src}" ]]; then
+        err "merge_codex_marketplace_json: missing plugin source path argument"
+        exit 1
+    fi
+
     local dest="${HOME}/.agents/plugins/marketplace.json"
-    python3 - "$dest" <<'PY'
+    python3 - "$dest" "$plugin_src" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 dest_path = Path(sys.argv[1])
+plugin_src = sys.argv[2]
 payload = {
     "name": "local-ycc-plugins",
     "interface": {
@@ -358,7 +512,7 @@ entry = {
     "name": "ycc",
     "source": {
         "source": "local",
-        "path": "./.codex/plugins/ycc",
+        "path": plugin_src,
     },
     "policy": {
         "installation": "AVAILABLE",
@@ -539,8 +693,7 @@ sync_cursor_target() {
 sync_codex_target() {
     validate_only_steps "codex" "base,settings"
 
-    local codex_plugins_dir="${HOME}/.codex/plugins"
-    local codex_plugin_dest="${codex_plugins_dir}/ycc"
+    local codex_plugin_dest="${HOME}/.codex/plugins/ycc"
     local codex_agents_dest="${HOME}/.codex/agents"
     local scripts_dir="${SCRIPT_DIR}/scripts"
 
@@ -556,6 +709,7 @@ sync_codex_target() {
 
     command -v python3 >/dev/null 2>&1 || { err "python3 is required but not found"; exit 1; }
     [[ $do_base -eq 1 ]] && { command -v rsync >/dev/null 2>&1 || { err "rsync is required but not found"; exit 1; }; }
+    [[ $do_base -eq 1 ]] && { command -v realpath >/dev/null 2>&1 || { err "realpath is required but not found"; exit 1; }; }
 
     local total=0
     [[ $do_base -eq 1 ]] && total=$((total + 5))
@@ -563,7 +717,7 @@ sync_codex_target() {
     local step=0
 
     if [[ $do_base -eq 1 ]]; then
-        mkdir -p "${codex_plugins_dir}" "${codex_agents_dest}"
+        mkdir -p "${codex_agents_dest}"
 
         if [[ ! -d "${SCRIPT_DIR}/.codex-plugin" ]]; then
             err "Codex plugin source directory not found: ${SCRIPT_DIR}/.codex-plugin"
@@ -620,16 +774,27 @@ sync_codex_target() {
         run_repo_style_format_modified
 
         step=$((step + 1))
-        printf '\n%s[%d/%d] Sync plugin source + agents%s\n' "${BOLD}" "$step" "$total" "${NC}"
-        mkdir -p "${codex_plugin_dest}" "${codex_agents_dest}"
-        rsync -av --delete "${CODEX_PLUGIN_DIR}/" "${codex_plugin_dest}/"
-        info "Synced Codex plugin source → ${codex_plugin_dest}"
+        printf '\n%s[%d/%d] Link plugin tree + sync custom agents%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        # Symlink (not rsync) the plugin tree so edits in .codex-plugin/ycc/ are
+        # live for Codex after regeneration. Generated skill bodies reference
+        # ~/.codex/plugins/ycc/... as absolute paths; the symlink keeps those
+        # references valid.
+        if [[ -d "${codex_plugin_dest}" && ! -L "${codex_plugin_dest}" ]]; then
+            err "Stale Codex plugin copy at ${codex_plugin_dest} (left over from the pre-symlink rsync flow)."
+            err "Remove it with:  rm -rf ${codex_plugin_dest}"
+            err "Then re-run this command. The symlink will be created in its place."
+            exit 1
+        fi
+        link_file "${CODEX_PLUGIN_DIR}" "${codex_plugin_dest}"
+        mkdir -p "${codex_agents_dest}"
         rsync -av --delete "${CODEX_AGENTS_DIR}/" "${codex_agents_dest}/"
         info "Synced Codex custom agents → ${codex_agents_dest}"
 
         step=$((step + 1))
-        printf '\n%s[%d/%d] Sync user marketplace entry%s\n' "${BOLD}" "$step" "$total" "${NC}"
-        merge_codex_marketplace_json
+        printf '\n%s[%d/%d] Register repo as local marketplace source%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        local codex_plugin_src_abs
+        codex_plugin_src_abs="$(realpath "${CODEX_PLUGIN_DIR}")"
+        merge_codex_marketplace_json "${codex_plugin_src_abs}"
     fi
 
     if [[ $do_settings -eq 1 ]]; then
@@ -643,7 +808,11 @@ sync_codex_target() {
 
     printf '\n%sCodex sync complete.%s\n' "${BOLD}" "${NC}"
     if [[ $do_base -eq 1 ]]; then
-        warn "Restart Codex, then open /plugins and install ycc from your local marketplace if it is not already installed."
+        local codex_plugin_src_msg
+        codex_plugin_src_msg="$(realpath "${CODEX_PLUGIN_DIR}")"
+        warn "Restart Codex; the plugin tree at ${codex_plugin_dest} now symlinks into ${codex_plugin_src_msg} and is registered via the 'local-ycc-plugins' marketplace."
+        warn "Rerun ./scripts/sync.sh --only codex after editing ycc/ to refresh the Codex bundle."
+        warn "If you move or rename this repo, rerun ./install.sh --target codex --only base to refresh the symlink and marketplace path."
     fi
 }
 

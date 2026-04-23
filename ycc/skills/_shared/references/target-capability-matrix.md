@@ -90,13 +90,25 @@ Cursor.
 No equivalent to Claude Code's dangerous mode exists in the Codex runtime.
 
 **INSTALL_PATH:claude**
-Installed at `~/.claude/plugins/ycc/` or the workspace `.claude-plugin/` directory.
+Two supported install paths. (1) GitHub marketplace install managed by Claude Code
+at `~/.claude/plugins/ycc/`, or the workspace `.claude-plugin/` directory. (2)
+`install.sh --target claude` additionally registers the repo's
+`.claude-plugin/marketplace.json` absolute path as a local marketplace
+(`local-ycc-plugins`, `source: "file"`) in `~/.claude/settings.local.json`
+(user-private, auto-gitignored) — edits in `ycc/` are live on the next plugin
+reload with no rsync. The two marketplaces coexist; enable either `ycc@ycc` or
+`ycc@local-ycc-plugins` to pick which copy is active.
 
 **INSTALL_PATH:cursor**
 Generated bundle lives at `.cursor-plugin/`; consumed by Cursor from the repo root.
 
 **INSTALL_PATH:codex**
-Generated bundle lives at `.codex-plugin/ycc/`; agents at `.codex-plugin/agents/`.
+`install.sh --target codex` symlinks `~/.codex/plugins/ycc/` to the repo's
+`.codex-plugin/ycc/`, rsyncs custom agents to `~/.codex/agents/`, and registers
+the absolute repo path as a local marketplace source in
+`~/.agents/plugins/marketplace.json`. Edits are live after regenerating the
+bundle via `./scripts/sync.sh --only codex`; no further `install.sh` run is
+needed.
 
 **INSTALL_PATH:opencode**
 Generated bundle lives at `.opencode-plugin/` (skills, agents, commands, AGENTS.md,
