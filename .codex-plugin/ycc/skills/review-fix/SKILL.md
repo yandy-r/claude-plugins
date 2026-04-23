@@ -39,7 +39,7 @@ Extract flags from `$ARGUMENTS` before treating the remainder as the input:
 | `--team`             | (Codex runtime only; not available in bundle invocations) Same per-batch fixer fan-out as `--parallel`, but dispatched as an **agent team**: `create an agent group` once, `record the task` for all eligible findings up front (flat graph — batches are orchestrator-controlled, not task-graph-controlled), per-batch spawn + shutdown via `send follow-up instructions`. Aborts if no eligible findings exist. |
 | `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).                                                                                                                                                                                                                                      |
 | `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files. When combined with `--team`, also print the team name and per-batch teammate roster.                                                                                                                                                                          |
-| `--worktree`         | (legacy / now default; safe to omit) Run all fixers inside the feature worktree created by `$code-review`. Worktree mode is on by default; auto-detected from the `## Worktree Setup` section in the artifact. This flag is accepted as a no-op.                                                                                          |
+| `--worktree`         | (legacy / now default; safe to omit) Run all fixers inside the feature worktree created by `$code-review`. Worktree mode is on by default; auto-detected from the `## Worktree Setup` section in the artifact. This flag is accepted as a no-op.                                                                                        |
 | `--no-worktree`      | Opt out of worktree isolation. Skip parent-worktree setup; all fixes are applied directly in the current working tree. Use this when running against a non-worktree checkout and no `## Worktree Setup` section exists.                                                                                                                     |
 
 Strip these flags from `$ARGUMENTS` and set `PARALLEL_MODE`, `AGENT_TEAM_MODE`, `MIN_SEVERITY`, `DRY_RUN`, and `WORKTREE_MODE=true` unless `--no-worktree` is present. The remaining text is the input selector.
@@ -304,7 +304,7 @@ When `WORKTREE_ACTIVE=true`, override the default same-file batching with severi
 - **Batch N = all eligible findings at one severity level.**
 - Batch order: CRITICAL (Batch 1) → HIGH (Batch 2) → MEDIUM (Batch 3) → LOW (Batch 4), stopping at `MIN_SEVERITY`. Severities with no eligible findings are skipped.
 - Within a severity batch, preserve the existing same-file grouping (findings in the same file stay together, sorted by line DESCENDING). Different files within the batch can still parallelize under Path B/C.
-Example plan summary when `WORKTREE_ACTIVE=true`:
+  Example plan summary when `WORKTREE_ACTIVE=true`:
 
 ```
 Worktree-mode plan (4 severity batches, 7 findings, 5 files):
