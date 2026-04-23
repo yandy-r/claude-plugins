@@ -444,9 +444,9 @@ For each batch `B1, B2, ... BN` in dependency order, follow the ordering mandate
 
    On **Codex**, pass `isolation: "worktree"` pointing at `${WT_PARENT_PATH}`. The `WorktreeCreate` hook ensures all parallel teammates land in the same feature worktree. On **Codex / opencode**, the `Working directory:` line in the prompt is sufficient. On **Cursor**, emit a warning + manual `git worktree add` command.
 
-4. **Wait for batch completion via `the task tracker`** — poll until all tasks in this batch are `completed`. If a teammate messages with an issue, respond via `send follow-up instructions` with guidance.
+3. **Wait for batch completion via `the task tracker`** — poll until all tasks in this batch are `completed`. If a teammate messages with an issue, respond via `send follow-up instructions` with guidance.
 
-5. **Shut down completed-batch teammates** — Send to every teammate of the just-completed batch:
+4. **Shut down completed-batch teammates** — Send to every teammate of the just-completed batch:
 
    ```
    send follow-up instructions(to="<task-id>", message={type:"shutdown_request"})
@@ -454,7 +454,7 @@ For each batch `B1, B2, ... BN` in dependency order, follow the ordering mandate
 
    Wait for shutdowns to complete before proceeding to the next batch.
 
-6. **Track progress** — Log: `[done] Batch BN: K tasks — complete`
+5. **Track progress** — Log: `[done] Batch BN: K tasks — complete`
 
 #### B.5 Failure handling
 
