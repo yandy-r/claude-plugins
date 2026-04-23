@@ -133,7 +133,6 @@ grep -c "^\- \*\*Worktree\*\*:" "$PLAN_PATH" || echo 0
 
 - `WT_PARENT_PATH` — from the `**Parent**:` line inside that section (the path before any whitespace/comment)
 - `WT_FEATURE_SLUG` — the segment after `<repo>-` in the parent path (e.g. `add-widget` from `~/.claude-worktrees/my-repo-add-widget/`)
-- `WT_TASK_CHILDREN` — a map of `task-id → child-path` by reading each `Task N.N → <path>` line in the `**Children**` list, and also each inline `**Worktree**:` annotation in individual task blocks
 
 Set `WORKTREE_ACTIVE=true` if the plan contains the `## Worktree Setup` section **OR** `WORKTREE_MODE=true` (default or explicitly passed).
 
@@ -142,7 +141,6 @@ Set `WORKTREE_ACTIVE=true` if the plan contains the `## Worktree Setup` section 
 - `WT_REPO_NAME` = `basename` of the git repository root (`git rev-parse --show-toplevel | xargs basename`)
 - `WT_FEATURE_SLUG` = sanitized plan basename (strip `.plan.md`, lowercase, replace `[^a-z0-9-]` with `-`, collapse runs, truncate to 40 chars — same rules as the team-name sanitization but without the prefix and with a longer cap)
 - `WT_PARENT_PATH` = `~/.claude-worktrees/${WT_REPO_NAME}-${WT_FEATURE_SLUG}/`
-- `WT_TASK_CHILDREN` = for every parallel task found during batch parsing: `~/.claude-worktrees/${WT_REPO_NAME}-${WT_FEATURE_SLUG}-${task-id-hyphenated}/` (replace `.` with `-` in task IDs per the naming convention in `worktree-strategy.md`)
 
 > Note: `WORKTREE_ACTIVE` only applies to parallel tasks. Sequential tasks always run in the parent worktree and are not affected by this flag.
 
@@ -243,26 +241,15 @@ For each batch `B1, B2, ... BN` in order (from the plan's `Batches` table):
 
 1. **Identify batch tasks** — Extract all tasks with `BATCH: BN` from the Step-by-Step Tasks section.
 
-2. **Create child worktrees (when `WORKTREE_ACTIVE=true`, parallel tasks only)** — Before spawning agents, create a child worktree for each parallel task in the batch:
-
-   ```bash
-   # Run for each parallel task in the batch
-   CHILD_PATH=$(bash "~/.config/opencode/shared/scripts/setup-worktree.sh" \
-     child "${WT_REPO_NAME}" "${WT_FEATURE_SLUG}" "<task-id>")
-   ```
-
-   Record each `<task-id> → CHILD_PATH` mapping for use in the spawn step. Children must be created before agents are spawned. Sequential tasks in the batch (batch size 1, or tasks with no parallel siblings) do NOT get a child — they run in the parent worktree.
-
-3. **Dispatch implementor agents in parallel** — Use a **SINGLE message** with **MULTIPLE `Agent` tool calls**, one per task in the batch. Each call:
+2. **Dispatch implementor agents in parallel** — Use a **SINGLE message** with **MULTIPLE `Agent` tool calls**, one per task in the batch. Each call:
    - `subagent_type`: `"implementor"`
    - `description`: The task title (e.g., `"Task 1.1: add rate limiter middleware"`)
    - `prompt`: The complete task spec (ACTION, IMPLEMENT, MIRROR, IMPORTS, GOTCHA, VALIDATE) plus the relevant excerpt from the plan's **Patterns to Mirror** section. Include a directive that the agent must read the MIRROR source file before writing code and must run its own type-check on modified files before reporting complete.
-   - **When `WORKTREE_ACTIVE=true` and the task is parallel**: append `Working directory: <child-path>` to the agent prompt. On opencode, also pass `isolation: "worktree"` pointing at the pre-created child path. The agent must treat that path as its repo root for all Read / Write / Edit / Bash calls.
-   - **When `WORKTREE_ACTIVE=true` and the task is sequential** (batch size 1): no `Working directory:` line, no `isolation:`. The task runs in the parent worktree.
+   - **When `WORKTREE_ACTIVE=true`**: append `Working directory: ${WT_PARENT_PATH}` and `All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.` to every agent prompt (parallel and sequential). On opencode, also pass `isolation: "worktree"` pointing at `${WT_PARENT_PATH}` — the `WorktreeCreate` hook ensures all parallel agents land in the same feature worktree. The agent must treat that path as its repo root for all Read / Write / Edit / Bash calls.
 
-4. **Wait for all agents in the batch to complete** before proceeding.
+3. **Wait for all agents in the batch to complete** before proceeding.
 
-5. **Between-batch validation (Levels 1 + 2)** — After each batch (including between-batches, not just at the end), run:
+4. **Between-batch validation (Levels 1 + 2)** — After each batch (including between-batches, not just at the end), run:
 
    ```bash
    # Level 1: Type-check — zero errors required
@@ -276,18 +263,9 @@ For each batch `B1, B2, ... BN` in order (from the plan's `Batches` table):
    - Report which batch failed and which type errors / test failures occurred.
    - Use `ask the user` to ask the user: _"Batch {BN} validation failed. Choose: (1) fix manually and resume from batch {BN+1}, (2) switch to sequential mode for remaining batches, (3) abort."_
    - Apply the user's choice.
+   - When fixing and resuming, work within the same feature worktree at `${WT_PARENT_PATH}` — no child branches to merge or clean up.
 
-6. **Fan-in merge (when `WORKTREE_ACTIVE=true`, after validation passes)** — After batch validation succeeds, merge all child worktrees back into the parent:
-
-   ```bash
-   bash "~/.config/opencode/shared/scripts/merge-children.sh" \
-     "${WT_REPO_NAME}" "${WT_FEATURE_SLUG}" "<task-id-1>,<task-id-2>,..."
-   ```
-
-   - On success: `merge-children.sh` prints `MERGED: <task-id>` for each child, removes child worktrees, and deletes child branches. The parent worktree now holds all accumulated work.
-   - On conflict (exit code 1, prints `CONFLICT: <task-id> at <path>`): **STOP** the parallel pipeline immediately. Surface the conflict output to the user. Wait for the user to resolve manually in the parent worktree and provide an explicit `resume` instruction before starting the next batch. Never advance to the next batch with an unresolved conflict.
-
-7. **Track progress** — Log: `[done] Batch BN: K tasks — complete (type-check + tests pass)`
+5. **Track progress** — Log: `[done] Batch BN: K tasks — complete (type-check + tests pass)`
 
 #### Handling Parallel Failures
 
@@ -388,21 +366,7 @@ For each batch `B1, B2, ... BN` in order (from the plan's `Batches` table):
 1. **Identify batch tasks** — Extract all tasks with `BATCH: BN` from the
    Step-by-Step Tasks section.
 
-2. **Create child worktrees (when `WORKTREE_ACTIVE=true`, parallel tasks only)** —
-   Before spawning teammates, create a child worktree for each parallel task in the
-   batch. Follow the ordering from `agent-team-dispatch.md` §7.1 — child setup MUST
-   happen before the `Agent` spawn message:
-
-   ```bash
-   # Run for each parallel task in the batch
-   CHILD_PATH=$(bash "~/.config/opencode/shared/scripts/setup-worktree.sh" \
-     child "${WT_REPO_NAME}" "${WT_FEATURE_SLUG}" "<task-id>")
-   ```
-
-   Record each `<task-id> → CHILD_PATH` mapping. Sequential tasks (batch size 1)
-   skip this step and run in the parent worktree.
-
-3. **Spawn batch teammates** — Single message, multiple `Agent` tool calls, one per
+2. **Spawn batch teammates** — Single message, multiple `Agent` tool calls, one per
    task in the batch. Every call MUST include:
    - `team_name`: `"prpi-<sanitized-plan-basename>"`
    - `name`: the task ID (e.g., `"1.1"`, `"2.3"`) — must match the `track the task`
@@ -414,18 +378,13 @@ For each batch `B1, B2, ... BN` in order (from the plan's `Batches` table):
      section. Include a directive that the agent must read the MIRROR source file
      before writing code, must run its own type-check on modified files before
      reporting complete, and must call `update the todo tracker` to mark its task complete.
-   - **When `WORKTREE_ACTIVE=true` and task is parallel**: append
-     `Working directory: <child-path>` to the prompt. On opencode, also pass
-     `isolation: "worktree"` pointing at the pre-created child path. Agents must
-     treat that path as their repo root for all Read / Write / Edit / Bash calls.
-   - **When `WORKTREE_ACTIVE=true` and task is sequential**: no `Working directory:`
-     line, no `isolation:` — the task runs in the parent worktree.
+   - **When `WORKTREE_ACTIVE=true`**: append `Working directory: ${WT_PARENT_PATH}` and `All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.` to every teammate's prompt (parallel and sequential). On opencode, also pass `isolation: "worktree"` pointing at `${WT_PARENT_PATH}` — the `WorktreeCreate` hook ensures all parallel teammates land in the same feature worktree. Agents must treat that path as their repo root for all Read / Write / Edit / Bash calls.
 
-4. **Wait for batch completion via `the todo tracker`** — poll until all tasks in this batch
+3. **Wait for batch completion via `the todo tracker`** — poll until all tasks in this batch
    are `completed`. If a teammate messages with an issue, respond via `send follow-up instructions`
    with guidance.
 
-5. **Between-batch validation (Levels 1 + 2)** — Run the same type-check and unit-test
+4. **Between-batch validation (Levels 1 + 2)** — Run the same type-check and unit-test
    commands as Path B. On failure, **STOP** the parallel pipeline and ask the user via
    `ask the user`: _"Batch {BN} validation failed. Choose: (1) fix manually and
    resume from batch {BN+1}, (2) switch to sequential mode for remaining batches,
@@ -436,33 +395,19 @@ For each batch `B1, B2, ... BN` in order (from the plan's `Batches` table):
    - If user picks (3) **abort**: send `send follow-up instructions(shutdown)` to all teammates,
      `end the coordinated run`, then exit.
    - If user picks (1) **resume**: wait for the user to fix; on resume, send
-     `send follow-up instructions(shutdown)` to current batch teammates and proceed to Step 6.
+     `send follow-up instructions(shutdown)` to current batch teammates and proceed to Step 5.
+   - When fixing and resuming, work within the same feature worktree at `${WT_PARENT_PATH}` — no child branches to merge or clean up.
 
-6. **Shut down completed-batch teammates** — Per `agent-team-dispatch.md` §7.1,
-   shutdown MUST happen BEFORE the fan-in merge. Send to every teammate of the
+5. **Shut down completed-batch teammates** — Send to every teammate of the
    just-completed batch:
 
    ```
    send follow-up instructions(to="<task-id>", message={type:"shutdown_request"})
    ```
 
-   Wait for shutdowns to complete before proceeding to the merge step.
+   Wait for shutdowns to complete before proceeding to the next batch.
 
-7. **Fan-in merge (when `WORKTREE_ACTIVE=true`, after shutdown, after validation)** —
-   Merge all child worktrees back into the parent:
-
-   ```bash
-   bash "~/.config/opencode/shared/scripts/merge-children.sh" \
-     "${WT_REPO_NAME}" "${WT_FEATURE_SLUG}" "<task-id-1>,<task-id-2>,..."
-   ```
-
-   - On success: child worktrees are removed and child branches deleted. The parent
-     worktree holds all accumulated work.
-   - On conflict (exit code 1, prints `CONFLICT: <task-id> at <path>`): **STOP** the
-     pipeline. Surface the conflict to the user. Wait for manual resolution and an
-     explicit `resume` instruction. Never start the next batch with a dirty parent.
-
-8. **Track progress** — Log: `[done] Batch BN: K tasks — complete (type-check + tests pass)`
+6. **Track progress** — Log: `[done] Batch BN: K tasks — complete (type-check + tests pass)`
 
 #### C.6 After all batches complete
 

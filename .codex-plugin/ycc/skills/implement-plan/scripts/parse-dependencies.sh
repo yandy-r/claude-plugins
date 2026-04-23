@@ -1,17 +1,13 @@
 #!/usr/bin/env bash
-# Parse parallel-plan.md and extract task dependencies plus optional worktree paths.
+# Parse parallel-plan.md and extract task dependencies.
 # Usage: parse-dependencies.sh <path-to-parallel-plan.md>
 #
 # Output format (one task per line):
-#   TASK_ID|TASK_TITLE|DEPENDENCIES|WORKTREE_PATH
+#   TASK_ID|TASK_TITLE|DEPENDENCIES
 #
-# The WORKTREE_PATH field is populated when the task block contains a
-# "- **Worktree**:" line (optional). Legacy per-task paths may still appear; the
-# single worktree contract does not require per-task lines — the fourth field may
-# be empty for all tasks when the plan only has `## Worktree Setup` with **Parent**.
-# Sequential tasks and plans produced without per-task worktree output have an
-# empty fourth field, preserving back-compatibility with callers that only read
-# the first three fields.
+# Under the single-worktree contract (GitHub #79 Phase 2), per-task
+# **Worktree**: annotations are no longer emitted by planners. The fourth
+# pipe field (WORKTREE_PATH) has been removed.
 #
 # Additionally, two header lines are emitted BEFORE the task rows when a
 # "## Worktree Setup" section is detected in the plan (only **Parent** is required
@@ -27,25 +23,17 @@
 #   Format B (T-prefix): #### Task T0: Title
 #                         - **Dependencies**: None
 #
-# Examples (no annotations):
-#   1.1|Create user model|none|
-#   T0|Create user model|none|
-#   T1|Add validation|T0|
-#   2.1|Setup routes|1.1,1.2|
+# Examples (no ## Worktree Setup section):
+#   1.1|Create user model|none
+#   T0|Create user model|none
+#   T1|Add validation|T0
+#   2.1|Setup routes|1.1,1.2
 #
-# Examples (with legacy per-task worktree lines):
+# Examples (with ## Worktree Setup section):
 #   WT_PARENT_PATH=~/.claude-worktrees/myrepo-my-feature/
 #   WT_FEATURE_SLUG=myrepo-my-feature
-#   1.1|Create user model|none|~/.claude-worktrees/myrepo-my-feature-1-1/
-#   1.2|Add validation|none|~/.claude-worktrees/myrepo-my-feature-1-2/
-#   2.1|Setup routes|1.1,1.2|
-#
-# Examples (single worktree / ## Worktree Setup + **Parent** only; per-task
-#   **Worktree** lines omitted; fourth field empty for each task):
-#   WT_PARENT_PATH=~/.claude-worktrees/myrepo-my-feature/
-#   WT_FEATURE_SLUG=myrepo-my-feature
-#   1.1|Create user model|none|
-#   1.2|Add validation|none|
+#   1.1|Create user model|none
+#   1.2|Add validation|none
 #
 # Supports monorepo configurations via .plans-config file.
 # See resolve-plans-dir.sh for configuration options.
@@ -106,12 +94,10 @@ in_wt_setup && /^\- \*\*Parent\*\*:/ {
 # ─────────────────────────────────────────────────────────────────────────────
 # Pass 2 — Extract tasks and their dependencies using a state machine.
 # Handles both inline deps (Format A) and multi-line deps (Format B).
-# Also captures per-task **Worktree**: lines (Format C, optional).
 #
 # State machine:
 #   - On task header: flush any pending task, start new pending task
-#   - On dependency line: attach deps to pending task
-#   - On worktree line: attach worktree path to pending task
+#   - On dependency line: attach deps to pending task, flush
 #   - On EOF: flush any remaining pending task
 # ─────────────────────────────────────────────────────────────────────────────
 awk '
@@ -123,11 +109,10 @@ function flush_pending() {
     }
     gsub(/, */, ",", pending_deps)
     gsub(/ /, "", pending_deps)
-    print pending_id "|" pending_title "|" pending_deps "|" pending_wt
+    print pending_id "|" pending_title "|" pending_deps
     pending_id = ""
     pending_title = ""
     pending_deps = ""
-    pending_wt = ""
   }
 }
 
@@ -135,7 +120,6 @@ BEGIN {
   pending_id = ""
   pending_title = ""
   pending_deps = ""
-  pending_wt = ""
 }
 
 /^#### Task ([0-9]+\.[0-9]+|T[0-9]+):/ {
@@ -173,13 +157,12 @@ BEGIN {
       deps = substr(deps, 1, bracket_pos - 1)
     }
     if (deps == "") deps = "none"
-    # Inline deps found — store in pending (worktree may follow on next lines)
+    # Inline deps found — flush immediately via next task header or EOF
     gsub(/, */, ",", deps)
     if (tolower(deps) == "none") deps = "none"
     pending_id = task_id
     pending_title = title
     pending_deps = deps
-    pending_wt = ""
     next
   }
 
@@ -187,7 +170,6 @@ BEGIN {
   pending_id = task_id
   pending_title = title
   pending_deps = ""
-  pending_wt = ""
   next
 }
 
@@ -197,25 +179,13 @@ pending_id != "" && /^- \*\*Dependencies\*\*:/ {
   sub(/.*\*\*Dependencies\*\*: */, "", dep_line)
   gsub(/^[[:space:]]+|[[:space:]]+$/, "", dep_line)
   pending_deps = dep_line
-  # Do NOT flush here — worktree line may still follow
-  next
-}
-
-# Per-task worktree annotation: - **Worktree**: <path>   (branch: ...)
-pending_id != "" && /^- \*\*Worktree\*\*:/ {
-  wt_line = $0
-  sub(/.*\*\*Worktree\*\*: */, "", wt_line)
-  # Strip trailing "(branch: ...)" annotation if present
-  sub(/ *(branch:.*|\(branch:.*)?$/, "", wt_line)
-  gsub(/^[[:space:]]+|[[:space:]]+$/, "", wt_line)
-  pending_wt = wt_line
-  # Flush now — worktree line is typically the last field in a task block
+  # Flush now — deps are the last field in the new contract
   flush_pending()
   next
 }
 
 # Next task header will flush the previous pending — but if a task with
-# multi-line deps has no worktree annotation we flush in flush_pending() at EOF.
+# multi-line deps has no following header we flush in flush_pending() at EOF.
 # Also flush when we see a new top-level heading that is NOT a task header.
 /^## / || /^### / {
   flush_pending()
@@ -225,14 +195,12 @@ pending_id != "" && /^- \*\*Worktree\*\*:/ {
 END {
   flush_pending()
 }
-' "$PLAN_FILE" | while IFS='|' read -r task_id title deps wt; do
+' "$PLAN_FILE" | while IFS='|' read -r task_id title deps; do
   task_id=$(echo "$task_id" | tr -d ' ')
   title=$(echo "$title" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
   deps=$(echo "$deps" | tr -d ' ')
-  # wt may be empty or contain a path — preserve as-is (trim only)
-  wt=$(echo "$wt" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
   if [[ -n "$task_id" && "$task_id" =~ ^([0-9]+\.[0-9]+|T[0-9]+)$ ]]; then
-    echo "${task_id}|${title}|${deps}|${wt}"
+    echo "${task_id}|${title}|${deps}"
   fi
 done

@@ -86,7 +86,7 @@
     },
     {
       "name": "orchestrate",
-      "description": "Orchestrate multiple specialized agents in parallel to accomplish complex tasks. Decomposes the task, deploys implementor agents in dependency-resolved batches, and synthesizes results. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList, up-front TaskCreate/addBlockedBy dependency wiring, and coordinated inter-batch shutdown via SendMessage. Worktree isolation is ON by default for parallel tasks; pass --no-worktree to opt out. --worktree is accepted as a legacy no-op."
+      "description": "Orchestrate multiple specialized agents in parallel to accomplish complex tasks. Decomposes the task, deploys implementor agents in dependency-resolved batches, and synthesizes results. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList, up-front TaskCreate/addBlockedBy dependency wiring, and coordinated inter-batch shutdown via SendMessage. Worktree isolation is ON by default; all parallel and sequential agents share one feature worktree. Pass --no-worktree to opt out."
     },
     {
       "name": "parallel-plan",
@@ -268,7 +268,7 @@
     },
     {
       "name": "orchestrate",
-      "description": "Orchestrate multiple specialized agents to accomplish a complex task through intelligent decomposition and parallel execution. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dependency wiring. Worktree isolation is ON by default for parallel tasks; pass --no-worktree to opt out. --worktree is accepted as a legacy no-op."
+      "description": "Orchestrate multiple specialized agents to accomplish a complex task through intelligent decomposition and parallel execution. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dependency wiring. Worktree isolation is ON by default; all parallel and sequential agents share one feature worktree. Pass --no-worktree to opt out."
     },
     {
       "name": "parallel-plan",
