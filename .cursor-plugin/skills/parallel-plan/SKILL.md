@@ -178,7 +178,7 @@ Mode: [standalone sub-agents | agent team pp-[feature-name]]
 
 ## Worktree Annotations
 
-- `WORKTREE_MODE=true` (default): `parallel-plan.md` will include a `## Worktree Setup` section listing the parent worktree and one child per parallel task, plus per-task `**Worktree**:` inline annotations. Sequential tasks are not annotated.
+- `WORKTREE_MODE=true` (default): `parallel-plan.md` will include a `## Worktree Setup` section listing the single feature worktree (`**Parent**:` only). All tasks — parallel and sequential — run inside this one worktree path; no per-task annotations are emitted.
 - `WORKTREE_MODE=false` (`--no-worktree`): no worktree annotations in `parallel-plan.md`.
 
 ## Next Steps
@@ -269,7 +269,7 @@ In this mode there is no shared task list; rely on each `Task`'s return value pl
 
 **WORKTREE MODE (Path A)**: By default (`WORKTREE_MODE=true`), append the following directive to the `task-structurer` prompt. Omit when `--no-worktree` was passed (`WORKTREE_MODE=false`):
 
-> WORKTREE MODE: In your `analysis-tasks.md` output, clearly label each task as **parallel** (can run concurrently with siblings) or **sequential** (must follow a predecessor). This labeling is used by the orchestrator to generate worktree annotations in `parallel-plan.md`. Follow `ycc/skills/_shared/references/worktree-strategy.md` for the annotation format.
+> WORKTREE MODE: In your `analysis-tasks.md` output, clearly label each task as **parallel** (can run concurrently with siblings) or **sequential** (must follow a predecessor). This labeling is used by the orchestrator for batch ordering. Follow `ycc/skills/_shared/references/worktree-strategy.md` for the single-worktree contract.
 
 #### Path B — Agent team (`AGENT_TEAM_MODE=true`)
 
@@ -288,7 +288,7 @@ Spawn all 3 teammates in **ONE message** with **THREE `Agent` tool calls**. Ever
 - `subagent_type` and `model` from the table above
 - The analysis-specific prompt from `analysis-prompts.md`
 
-**WORKTREE MODE (Path B)**: By default (`WORKTREE_MODE=true`), append the following directive to the `task-structurer` prompt (same directive as Path A above). Omit when `--no-worktree` was passed. Cross-reference `ycc/skills/_shared/references/worktree-strategy.md` and `agent-team-dispatch.md` §7 in the teammate prompt.
+**WORKTREE MODE (Path B)**: By default (`WORKTREE_MODE=true`), append the following directive to the `task-structurer` prompt (same directive as Path A above). Omit when `--no-worktree` was passed. Cross-reference `ycc/skills/_shared/references/worktree-strategy.md` (single-worktree contract) and `agent-team-dispatch.md` §7 in the teammate prompt.
 
 After spawning, use `TaskList` to confirm all 3 tasks are `completed` before proceeding to Step 10.
 
@@ -422,41 +422,24 @@ Files to Modify
 
 #### WORKTREE MODE (default — `WORKTREE_MODE=true`; skipped when `--no-worktree`)
 
-By default, the generated `${feature_dir}/parallel-plan.md` must also include the following worktree annotations. When `--no-worktree` was passed (`WORKTREE_MODE=false`), omit all worktree annotations. Follow
-`${CURSOR_PLUGIN_ROOT}/skills/_shared/references/worktree-strategy.md` exactly for
-the annotation format.
+By default, the generated `${feature_dir}/parallel-plan.md` must include a single
+worktree section. When `--no-worktree` was passed (`WORKTREE_MODE=false`), omit this
+section entirely. Follow `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/worktree-strategy.md`
+exactly for the single-worktree contract.
 
-**1. Top-level `## Worktree Setup` section** — insert immediately after the title
+**Top-level `## Worktree Setup` section** — insert immediately after the title
 and overview, before the first phase heading:
 
 ```markdown
 ## Worktree Setup
 
 - **Parent**: ~/.claude-worktrees/<repo>-<feature-slug>/ (branch: feat/<feature-slug>)
-- **Children** (per parallel task; merged back at end of each batch):
-  - Task 1.1 → ~/.claude-worktrees/<repo>-<feature-slug>-1-1/ (branch: feat/<feature-slug>-1-1)
-  - Task 1.2 → ~/.claude-worktrees/<repo>-<feature-slug>-1-2/ (branch: feat/<feature-slug>-1-2)
-    ...
 ```
 
-List every parallel task across all batches. Sequential tasks are omitted from the
-Children list (they run in the parent worktree).
-
-**2. Per-parallel-task inline annotation** — add immediately after the task header
-line for every parallel task (tasks whose `Depends on` allows concurrent execution):
-
-```markdown
-- **Worktree**: ~/.claude-worktrees/<repo>-<feature-slug>-<task-id>/ (branch: feat/<feature-slug>-<task-id>)
-```
-
-**3. Task-ID hyphenation**: replace `.` with `-` in all worktree paths and branch
-names (e.g., `1.1` → `1-1`, `2.3` → `2-3`).
-
-**4. Sequential tasks** carry no worktree annotation. Their absence of a
-`**Worktree**:` line signals that they run in the parent worktree.
-
-**5. `<feature-slug>`** is the sanitized feature name already used in
-`${feature_dir}` (same slug, lowercase, hyphens).
+All tasks — parallel and sequential — run inside this one feature worktree. No
+per-task `**Worktree**:` annotations are emitted. The `<feature-slug>` is the
+sanitized feature name already used in `${feature_dir}` (same slug, lowercase,
+hyphens).
 
 ### Step 15: Task Breakdown Guidelines
 
@@ -586,7 +569,7 @@ ${feature_dir}/parallel-plan.md
 - Mode: [standalone sub-agents | agent team pp-[feature-name]]
 - Phase 1: 3 analysis agents [standalone via Task | teammates that shared findings]
 - Phase 2: 3 validation agents [standalone via Task | teammates that cross-checked each other]
-- Worktree annotations: [included (default) | not included (--no-worktree)]
+- Worktree setup: [single feature worktree section included (default) | omitted (--no-worktree)]
 
 ## Plan Overview
 
@@ -710,7 +693,7 @@ scope: local
 ## Important Notes
 
 - **You are the planning orchestrator** - coordinate analysis and validation stages
-- **Choose dispatch mode from `$ARGUMENTS`** - default is standalone sub-agents via `Task`; `--team` switches to teammates under `TeamCreate`/`TaskList`; worktree annotations are emitted by default (`--no-worktree` suppresses them)
+- **Choose dispatch mode from `$ARGUMENTS`** - default is standalone sub-agents via `Task`; `--team` switches to teammates under `TeamCreate`/`TaskList`; a single feature worktree section is included by default (`--no-worktree` suppresses it)
 - **Team setup first (Path B only)** - call `TeamCreate` and register analysis tasks before spawning teammates
 - **Spawn in parallel** - a single message with multiple `Task` calls (Path A) or multiple `Agent` calls with `team_name=` + `name=` (Path B)
 - **Pass model parameters** - use `model: "sonnet"` for analysis agents, `model: "haiku"` for path/dependency validators, `model: "sonnet"` for completeness-validator

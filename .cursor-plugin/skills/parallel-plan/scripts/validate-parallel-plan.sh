@@ -98,8 +98,7 @@ else
   echo "✓ Tasks defined ($TASK_COUNT tasks)"
 fi
 
-# Optional: --no-worktree plans omit this. Single-worktree contract: **Parent** only
-# is valid; per-task **Worktree** lines are optional (legacy only).
+# Optional: --no-worktree plans omit this. Single-worktree contract: **Parent** only.
 if grep -q "^## Worktree Setup" "$PLAN_FILE"; then
   WORKTREE_TASK_COUNT=$(grep -c "^\- \*\*Worktree\*\*:" "$PLAN_FILE" 2>/dev/null || true)
   echo "✓ Worktree section present (## Worktree Setup; ${WORKTREE_TASK_COUNT} optional per-task **Worktree** line(s), if any)"

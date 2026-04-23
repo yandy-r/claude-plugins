@@ -497,38 +497,32 @@ Required sections:
 - Advice section
 
 **Worktree annotations** (default — `WORKTREE_MODE=true`; skipped when `--no-worktree`): insert a `## Worktree Setup` section immediately after the title/overview and before the first batch. When `WORKTREE_MODE=false`, omit all worktree annotations. Use
-`<feature-slug>` = the sanitized feature name (same as `${feature_dir}` basename)
-and hyphenated task IDs (`1.1` → `1-1`). Format exactly as defined in
+`<feature-slug>` = the sanitized feature name (same as `${feature_dir}` basename).
+Format exactly as defined in
 `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/worktree-strategy.md` §2:
 
 ```markdown
 ## Worktree Setup
 
 - **Parent**: ~/.claude-worktrees/<repo>-<feature-slug>/ (branch: feat/<feature-slug>)
-- **Children** (per parallel task; merged back at end of each batch):
-  - Task 1.1 → ~/.claude-worktrees/<repo>-<feature-slug>-1-1/ (branch: feat/<feature-slug>-1-1)
-  - Task 1.2 → ~/.claude-worktrees/<repo>-<feature-slug>-1-2/ (branch: feat/<feature-slug>-1-2)
 ```
 
-For each parallel task block, add immediately after the task header:
-
-```markdown
-- **Worktree**: ~/.claude-worktrees/<repo>-<feature-slug>-<task-id>/ (branch: feat/<feature-slug>-<task-id>)
-```
-
-Sequential tasks receive no worktree annotation.
+All tasks — parallel and sequential — share this single feature worktree. Do **not**
+add a `**Children**:` list. Do **not** add per-task `**Worktree**:` lines.
 
 **Plan-generation agent prompt** (both standalone Path A and `--team` Path B): by default (`WORKTREE_MODE=true`), append the following directive to the plan-generation prompt. Omit when `--no-worktree` was passed (`WORKTREE_MODE=false`):
 
-> WORKTREE MODE: Annotate the generated `parallel-plan.md` with worktree paths
-> following `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/worktree-strategy.md` §2.
-> Add a top-level `## Worktree Setup` section (parent + all parallel-task children)
-> before the first batch. Add a `**Worktree**:` line to each parallel task block.
-> Sequential tasks get no annotation. Use hyphenated task IDs (`1.1` → `1-1`).
+> WORKTREE MODE: Annotate the generated `parallel-plan.md` with a single
+> `## Worktree Setup` section (containing only the `**Parent**:` line) placed
+> before the first batch, following
+> `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/worktree-strategy.md` §2.
+> All tasks — parallel and sequential — share this one feature worktree path.
+> Do NOT add a `**Children**:` list. Do NOT add per-task `**Worktree**:` lines.
 
 In the `--team` Path B additionally cross-reference
-`${CURSOR_PLUGIN_ROOT}/skills/_shared/references/agent-team-dispatch.md` §7 so the
-planner encodes the per-batch child-worktree ordering.
+`${CURSOR_PLUGIN_ROOT}/skills/_shared/references/agent-team-dispatch.md` §7 for
+shared-worktree team dispatch: all parallel teammates operate against the same
+feature worktree path, not separate per-task paths.
 
 ### Step 27: Validate Plan Structure
 

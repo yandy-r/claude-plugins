@@ -204,7 +204,7 @@ if [[ $TASK_COUNT -gt 0 ]]; then
   # Optional. Single worktree: per-task **Worktree** is not required; count is informational.
   WORKTREE_FIELD_COUNT=$(grep -c '\*\*Worktree\*\*:' <<< "$CONTENT" || true)
   if [[ $WORKTREE_FIELD_COUNT -gt 0 ]]; then
-    success "Per-task **Worktree** field(s) present: $WORKTREE_FIELD_COUNT (optional / legacy)"
+    success "Per-task **Worktree** field(s) present: $WORKTREE_FIELD_COUNT (deprecated — not required)"
   fi
 
   # Self-containment heuristic: tasks with all 4 core fields

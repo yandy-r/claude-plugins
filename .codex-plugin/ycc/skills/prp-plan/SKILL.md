@@ -114,7 +114,7 @@ Dispatch a single `prp-researcher` agent in codebase mode to cover all 8 categor
 
 By default (`WORKTREE_MODE=true`), append the following directive to the researcher prompt. Omit when `--no-worktree` was passed (`WORKTREE_MODE=false`):
 
-> **WORKTREE MODE:** The plan you are helping to build will include worktree annotations. In the emitted plan, include a `## Worktree Setup` section (parent + per-parallel-task children) and a `**Worktree**:` field on every parallel task. Sequential tasks get no annotation. Follow `ycc/skills/_shared/references/worktree-strategy.md` for the naming scheme and annotation format.
+> **WORKTREE MODE:** The plan you are helping to build will include worktree annotations. In the emitted plan, include a `## Worktree Setup` section with a single `**Parent**:` line naming the feature worktree; no `**Children**:` list; no per-task `**Worktree**:` annotations. All tasks (parallel and sequential) share this one feature worktree path. Follow `ycc/skills/_shared/references/worktree-strategy.md` for the naming scheme and annotation format.
 
 ### Path B — Parallel sub-agents (`PARALLEL_MODE=true`)
 
@@ -131,7 +131,7 @@ sub-agents** (no `team_name`):
 
 By default (`WORKTREE_MODE=true`), append the following directive to each researcher prompt. Omit when `--no-worktree` was passed (`WORKTREE_MODE=false`):
 
-> **WORKTREE MODE:** The plan you are helping to build will include worktree annotations. In the emitted plan, include a `## Worktree Setup` section (parent + per-parallel-task children) and a `**Worktree**:` field on every parallel task. Sequential tasks get no annotation. Follow `ycc/skills/_shared/references/worktree-strategy.md` for the naming scheme and annotation format.
+> **WORKTREE MODE:** The plan you are helping to build will include worktree annotations. In the emitted plan, include a `## Worktree Setup` section with a single `**Parent**:` line naming the feature worktree; no `**Children**:` list; no per-task `**Worktree**:` annotations. All tasks (parallel and sequential) share this one feature worktree path. Follow `ycc/skills/_shared/references/worktree-strategy.md` for the naming scheme and annotation format.
 
 After all 3 return: merge tables, de-duplicate, verify all 8 categories covered.
 
@@ -209,7 +209,7 @@ table format only, no prose summaries.
 
 By default (`WORKTREE_MODE=true`), append the following directive to each teammate prompt. Omit when `--no-worktree` was passed (`WORKTREE_MODE=false`):
 
-> **WORKTREE MODE:** The plan you are helping to build will include worktree annotations. In the emitted plan, include a `## Worktree Setup` section (parent + per-parallel-task children) and a `**Worktree**:` field on every parallel task. Sequential tasks get no annotation. Follow `ycc/skills/_shared/references/worktree-strategy.md` for the naming scheme and annotation format.
+> **WORKTREE MODE:** The plan you are helping to build will include worktree annotations. In the emitted plan, include a `## Worktree Setup` section with a single `**Parent**:` line naming the feature worktree; no `**Children**:` list; no per-task `**Worktree**:` annotations. All tasks (parallel and sequential) share this one feature worktree path. Follow `ycc/skills/_shared/references/worktree-strategy.md` for the naming scheme and annotation format.
 
 #### C.6 Monitor and merge
 
@@ -284,11 +284,11 @@ If `PARALLEL_MODE=true` **or** `AGENT_TEAM_MODE=true`, also read `~/.codex/plugi
 **Do NOT generate the entire plan in a single Write call.** Instead:
 
 1. **Write** the initial file with: header through Metadata (+ Batches section if parallel), UX Design, and Mandatory Reading sections
-   - By default (`WORKTREE_MODE=true`), include the `## Worktree Setup` section immediately after the Metadata / Batches block and before the first implementation section (see worktree annotation rules below). When `--no-worktree` was passed (`WORKTREE_MODE=false`), omit this section.
+   - By default (`WORKTREE_MODE=true`), include the `## Worktree Setup` section immediately after the Metadata / Batches block and before the first implementation section (see worktree annotation rules below). The section contains a single `**Parent**:` line only. When `--no-worktree` was passed (`WORKTREE_MODE=false`), omit this section.
 2. **Edit/append** the Patterns to Mirror section (populated from researcher discovery tables)
 3. **Edit/append** the Files to Change + NOT Building sections
 4. **Edit/append** the Step-by-Step Tasks section (this is usually the largest — keep each task description concise)
-   - By default (`WORKTREE_MODE=true`), add a `- **Worktree**: ...` line inside every **parallel** task block; sequential tasks get no annotation. When `--no-worktree` was passed, omit all worktree annotations.
+   - All tasks (parallel and sequential) share the single feature worktree. Do NOT add per-task `- **Worktree**: ...` annotation lines.
 5. **Edit/append** the Testing Strategy, Validation Commands, Acceptance Criteria, Completion Checklist, Risks, and Notes sections
 
 Each chunk should be a separate Write or Edit call. This prevents any single generation from being too large.
@@ -297,29 +297,15 @@ Each chunk should be a separate Write or Edit call. This prevents any single gen
 
 Derive `<feature-slug>` from the kebab-case plan file name (same value used for `{kebab-case-feature-name}.plan.md`). Derive `<repo>` from `git rev-parse --show-toplevel` basename.
 
-Normalize task IDs: replace `.` with `-` (e.g., `1.1` → `1-1`).
-
 **`## Worktree Setup` section** (top-level, before Batches/implementation):
 
 ```markdown
 ## Worktree Setup
 
 - **Parent**: ~/.claude-worktrees/<repo>-<feature-slug>/ (branch: feat/<feature-slug>)
-- **Children** (per parallel task; merged back at end of each batch):
-  - Task 1.1 → ~/.claude-worktrees/<repo>-<feature-slug>-1-1/ (branch: feat/<feature-slug>-1-1)
-  - Task 1.2 → ~/.claude-worktrees/<repo>-<feature-slug>-1-2/ (branch: feat/<feature-slug>-1-2)
-  - ...
 ```
 
-List only the parallel tasks enumerated in the Batches / Step-by-Step Tasks sections. Sequential tasks are omitted from the Children list.
-
-**Per-parallel-task inline annotation** (inside the task block, immediately after the task heading line):
-
-```markdown
-- **Worktree**: ~/.claude-worktrees/<repo>-<feature-slug>-<task-id>/ (branch: feat/<feature-slug>-<task-id>)
-```
-
-Sequential tasks receive **no** `**Worktree**:` annotation.
+All tasks — parallel and sequential — share this one feature worktree path. No `**Children**:` list and no per-task `**Worktree**:` annotation lines are emitted.
 
 Follow `ycc/skills/_shared/references/worktree-strategy.md` for the full naming scheme and annotation contract.
 
@@ -381,7 +367,7 @@ Update the phase status from `pending` to `in-progress` and add the plan file pa
 - **Confidence Score**: [1-10]
 - **Research Dispatch**: [Sequential | Parallel sub-agents | Agent team]
 - **Execution Mode**: [Sequential | Parallel (N batches, max width X)]
-- **Worktree Mode**: [Enabled (default) — plan includes ## Worktree Setup + per-task annotations | Disabled via --no-worktree]
+- **Worktree Mode**: [Enabled (default) — plan includes ## Worktree Setup (single feature worktree — **Parent**: line only) | Disabled via --no-worktree]
 
 > Next step: Run `$prp-implement docs/prps/plans/{name}.plan.md` to execute this plan.
 ```

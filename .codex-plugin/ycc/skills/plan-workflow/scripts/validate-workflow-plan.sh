@@ -9,10 +9,10 @@
 # - Phase organization is present
 #
 # Optional sections (back-compat + forward-compat, never flagged as errors):
-# - ## Worktree Setup  — emitted by --worktree flag in plan-workflow / parallel-plan
+# - ## Worktree Setup  — emitted by default in plan-workflow / parallel-plan (opt out: --no-worktree)
 #
 # Optional per-task fields (never flagged as errors):
-# - **Worktree**: ...  — optional legacy per-task path; single worktree is **Parent** only
+# - **Worktree**: ...  — legacy field; new plans use a single **Parent** worktree only
 #
 # Supports monorepo configurations via .plans-config file.
 # See resolve-plans-dir.sh for configuration options.
@@ -138,16 +138,16 @@ else
   warning "Missing 'Advice' section"
 fi
 
-# Optional. Single worktree: **Parent** in ## Worktree Setup is the contract; per-task
-# **Worktree** lines are optional (legacy or omitted in new plans).
+# Optional. Single-worktree contract: ## Worktree Setup contains only **Parent**;
+# per-task **Worktree** lines are legacy and not required in new plans.
 echo ""
 echo "Checking optional worktree annotations..."
 if echo "$CONTENT" | grep -q "^## Worktree Setup"; then
-  success "Worktree Setup section present (see worktree-strategy: single feature worktree)"
+  success "Worktree Setup section present (single feature worktree — see worktree-strategy.md)"
   WORKTREE_TASK_FIELDS=$(echo "$CONTENT" | grep -c '\*\*Worktree\*\*:' || echo "0")
-  success "  $WORKTREE_TASK_FIELDS optional per-task **Worktree** field(s) (if any)"
+  success "  $WORKTREE_TASK_FIELDS legacy per-task **Worktree** field(s) (expected 0 in new plans)"
 else
-  echo "       (no ## Worktree Setup — plan was generated without worktree block)"
+  echo "       (no ## Worktree Setup — plan was generated with --no-worktree)"
 fi
 
 # Phase structure

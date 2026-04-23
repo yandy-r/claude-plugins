@@ -51,7 +51,7 @@ Create a comprehensive implementation plan before writing any code. This is the 
 
 - `--parallel` and `--team` are **independent and combinable**. `--parallel` shapes the plan's _output format_; `--team` switches the _dispatch mechanism_. Pass both for a multi-perspective plan formatted for parallel execution.
 - `--dry-run` requires `--team` (the single-agent path has nothing to dry-run).
-- `--no-worktree` opts out of all worktree annotations. When omitted (the default), every parallel task gets a child worktree annotation and teammates dispatch into child worktrees per §7 of `agent-team-dispatch.md`.
+- `--no-worktree` opts out of all worktree annotations. When omitted (the default), the plan emits a `## Worktree Setup` section naming the one feature worktree; all tasks (parallel and sequential) share that single path.
 
 **Note**: `--parallel` on `/plan` shapes the _output_, not the research phase. For research fan-out on larger features, use `/prp-plan --parallel` (sub-agent fan-out) or `/prp-plan --team` (Claude Code only; shared-task-list coordination).
 
@@ -177,21 +177,21 @@ By default, append these directives to the prompt. When `--no-worktree` is passe
 ```
 WORKTREE MODE:
 
-The plan consumer will run each parallel task in its own git worktree.
+The plan consumer will run all tasks in a single shared git worktree.
 In your emitted plan:
 
-1. Add a top-level `## Worktree Setup` section BEFORE the Batches summary:
-   - `**Parent**: ~/.claude-worktrees/<repo>-<feature-slug>/   (branch: feat/<feature-slug>)`
-   - A nested `**Children**` list with one entry per parallel task:
-     `Task <id> → ~/.claude-worktrees/<repo>-<feature-slug>-<task-id>/   (branch: feat/<feature-slug>-<task-id>)`
-     (Hyphenate dots in task IDs: `1.1` → `1-1`.)
+1. Add a top-level `## Worktree Setup` section BEFORE the Batches summary
+   (or before Implementation Steps when there is no Batches section):
 
-2. On every parallel task step, add a `- **Worktree**:` field matching the
-   child path.
+   ## Worktree Setup
 
-3. Sequential tasks carry NO worktree annotation — they run in the parent.
+   - **Parent**: ~/.claude-worktrees/<repo>-<feature>/ (branch: feat/<feature>)
 
-See `ycc/skills/_shared/references/worktree-strategy.md` for the canonical format.
+   All tasks — parallel and sequential — share this one path. Do NOT add a
+   `**Children**:` list and do NOT add per-task `**Worktree**:` annotations.
+
+See `ycc/skills/_shared/references/worktree-strategy.md` §1–§2 for the
+canonical single-worktree contract.
 ```
 
 ---
@@ -281,8 +281,8 @@ Each teammate's prompt MUST include:
   (section "Parallel prompt") — each teammate should structure its own slice with
   hierarchical step IDs and `Depends on` annotations
 - If `WORKTREE_MODE=true` (default): append the same worktree directives from Path A
-  (section "Worktree prompt") — each teammate should annotate its parallel tasks
-  with child worktree paths per §7 of `agent-team-dispatch.md`. Omit when `--no-worktree` was passed.
+  (section "Worktree prompt") — teammates share the single feature worktree and must
+  not emit per-task child paths. Omit when `--no-worktree` was passed.
 
 #### B.6 Monitor and collect results
 
