@@ -1,15 +1,16 @@
 ---
 name: code-review
 description: Dual-mode code review — local uncommitted changes OR a GitHub pull request.
-  Both modes now write a machine-parseable review artifact (Local → docs/prps/reviews/local-{timestamp}-review.md,
+  Both modes write a machine-parseable review artifact (Local → docs/prps/reviews/local-{timestamp}-review.md,
   PR → docs/prps/reviews/pr-{N}-review.md) with sequential finding IDs (F001, F002,
   ...) and Status fields (Open/Fixed/Failed) so /review-fix can consume and update
   them in place. Local mode runs a full security + quality pass on the diff. PR mode
   fetches the PR, reads each changed file in full, builds context from AGENTS.md and
   PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build)
-  for detected stacks, assigns severity, and posts the review to GitHub via gh. Pass
-  `--parallel` to fan out the REVIEW phase across 3 standalone code-reviewer sub-agents
-  (correctness, security, quality) and merge findings.
+  for detected stacks, assigns severity, and posts the review to GitHub via gh. For
+  fast, inline, interactive reviews of short uncommitted changes (no file written
+  unless confirmed), use `/quick-review` directly — `--quick` here is kept as a thin
+  alias that delegates.
 ---
 
 # Code Review
@@ -24,17 +25,17 @@ description: Dual-mode code review — local uncommitted changes OR a GitHub pul
 
 Before selecting mode, extract flags from `$ARGUMENTS`:
 
-| Flag                | Effect                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                                                                                                                                                                                                                                                                                                                                                                     |
-| `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `--parallel`        | Fan out the REVIEW phase across 3 **standalone** `code-reviewer` sub-agents (correctness, security, quality) dispatched in parallel and merge findings. Works in opencode, Cursor, and Codex.                                                                                                                                                                                                                                                                        |
-| `--team`            | (Claude Code only) Fan out the REVIEW phase across the same 3 `code-reviewer` reviewers, but dispatched as an **agent team** with up-front `track the task`, shared `the todo tracker` observability, inter-reviewer coordination via `send follow-up instructions`, and coordinated shutdown before merge. Heavier dispatch, richer communication.                                                                                                                                                 |
-| `--worktree`        | (legacy / now default; safe to omit) Check out the PR head branch into an isolated worktree at `~/.claude-worktrees/<repo>-pr-<N>/`. Worktree mode is on by default in PR mode; pass `--no-worktree` to opt out.                                                                                                                                                                                                                                                            |
-| `--no-worktree`     | Opt out of worktree isolation in PR mode. Skip worktree creation, artifact commit+push, and cleanup. Files are read directly from the main checkout.                                                                                                                                                                                                                                                                                                                        |
-| `--keep-draft`      | Skip the automatic draft→ready promotion in PR mode. Default: PR is promoted to Ready for Review before posting the review.                                                                                                                                                                                                                                                                                                                                                 |
-| `--keep-worktree`   | Skip removal of the PR worktree after the review is posted. The artifact is still committed and pushed to the PR branch. Default: worktree is removed via `git worktree remove <path>` after a clean review post.                                                                                                                                                                                                                                                           |
-| `--quick`           | Fast on-the-fly review of uncommitted changes. Skips worktree setup, toolchain validation (typecheck/lint/test/build), and GitHub publish. Writes a minimal artifact to `docs/prps/reviews/quick-{timestamp}-review.md` and ends with a `Next steps:` block recommending `/review-fix` (single-pass) or `/review-fix --parallel` (fan-out). Compatible with `--parallel` and `--team`. Mutually exclusive with a PR argument, `--approve`, and `--request-changes`. |
+| Flag                | Effect                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `--parallel`        | Fan out the REVIEW phase across 3 **standalone** `code-reviewer` sub-agents (correctness, security, quality) dispatched in parallel and merge findings. Works in opencode, Cursor, and Codex.                                                                                                                                                                                                                                                                                                   |
+| `--team`            | (Claude Code only) Fan out the REVIEW phase across the same 3 `code-reviewer` reviewers, but dispatched as an **agent team** with up-front `track the task`, shared `the todo tracker` observability, inter-reviewer coordination via `send follow-up instructions`, and coordinated shutdown before merge. Heavier dispatch, richer communication.                                                                                                                                                                            |
+| `--worktree`        | (legacy / now default; safe to omit) Check out the PR head branch into an isolated worktree at `~/.claude-worktrees/<repo>-pr-<N>/`. Worktree mode is on by default in PR mode; pass `--no-worktree` to opt out.                                                                                                                                                                                                                                                                                       |
+| `--no-worktree`     | Opt out of worktree isolation in PR mode. Skip worktree creation, artifact commit+push, and cleanup. Files are read directly from the main checkout.                                                                                                                                                                                                                                                                                                                                                   |
+| `--keep-draft`      | Skip the automatic draft→ready promotion in PR mode. Default: PR is promoted to Ready for Review before posting the review.                                                                                                                                                                                                                                                                                                                                                                            |
+| `--keep-worktree`   | Skip removal of the PR worktree after the review is posted. The artifact is still committed and pushed to the PR branch. Default: worktree is removed via `git worktree remove <path>` after a clean review post.                                                                                                                                                                                                                                                                                      |
+| `--quick`           | **Alias for `/quick-review`.** Fast interactive review of uncommitted changes — prints findings inline and asks Apply fixes / Save to file / Discard. Writes only on confirmation. Compatible with `--parallel` and `--team`. Mutually exclusive with a PR argument, `--approve`, and `--request-changes`. This skill validates the combination and then delegates to `/quick-review` with the remaining flags. See that skill's `--yes`, `--save`, and `--severity` options for scripted use. |
 
 Strip these from `$ARGUMENTS` and set `QUICK_MODE=true|false`, `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `NO_WORKTREE_MODE=true|false`, `KEEP_DRAFT=true|false`, and `KEEP_WORKTREE=true|false`. Compute `WORKTREE_MODE=true` unless `--no-worktree` is present (default-on in PR mode; ignored for local mode as before). The remaining text is the mode selector (PR number/URL or blank for local).
 
@@ -148,82 +149,29 @@ The shape of this phase depends on `PARALLEL_MODE` and `AGENT_TEAM_MODE`:
 
 #### Path A — Single-Pass Review (default, neither flag set)
 
-Read each changed file in full. Check for:
+Read each changed file in full and apply the **Local / Quick Review —
+Single-Pass Checklist** (Security CRITICAL, Code Quality HIGH, Best Practices
+MEDIUM) and the **Severity Rubric** from:
 
-**Security Issues (CRITICAL):**
-
-- Hardcoded credentials, API keys, tokens
-- SQL injection vulnerabilities
-- XSS vulnerabilities
-- Missing input validation
-- Insecure dependencies
-- Path traversal risks
-
-**Code Quality (HIGH):**
-
-- Functions > 50 lines
-- Files > 800 lines
-- Nesting depth > 4 levels
-- Missing error handling
-- `console.log` statements
-- TODO/FIXME comments
-- Missing JSDoc for public APIs
-
-**Best Practices (MEDIUM):**
-
-- Mutation patterns (use immutable instead)
-- Emoji usage in code/comments
-- Missing tests for new code
-- Accessibility issues (a11y)
+```
+~/.config/opencode/shared/references/review-checklist.md
+```
 
 #### Path B — Parallel Sub-Agent Review (`PARALLEL_MODE=true`)
 
-Dispatch **3 standalone `code-reviewer` sub-agents in parallel** in a SINGLE message with MULTIPLE `Agent` tool calls. Each agent reads all changed files and applies its assigned focus:
+Dispatch **3 standalone `code-reviewer` sub-agents in parallel** in a SINGLE
+message with MULTIPLE `Agent` tool calls. Use the **Local / Quick Mode Roster**
+(`correctness-reviewer`, `security-reviewer`, `quality-reviewer`) and
+**Standard Findings Format** from:
 
-| Reviewer               | Focus           | Checklist Items                                                                                                               |
-| ---------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `correctness-reviewer` | Code Quality    | Functions > 50 lines, files > 800 lines, nesting > 4 levels, missing error handling, `console.log`, TODO/FIXME, missing JSDoc |
-| `security-reviewer`    | Security Issues | Hardcoded credentials/keys/tokens, SQL injection, XSS, missing input validation, insecure deps, path traversal                |
-| `quality-reviewer`     | Best Practices  | Mutation patterns, emoji in code/comments, missing tests, accessibility (a11y)                                                |
-
-Each reviewer prompt must include:
-
-1. The list of changed files (`git diff --name-only HEAD`)
-2. Its assigned focus and checklist items (from the table above)
-3. The severity rubric (CRITICAL, HIGH, MEDIUM, LOW)
-4. A directive to return findings in the standard format below
-
-Each reviewer returns findings as:
-
-```markdown
-## Findings
-
-### CRITICAL
-
-- `file.ts:42` — [description]
-  - Suggested fix: [fix]
-
-### HIGH
-
-- ...
-
-### MEDIUM
-
-- ...
-
-### LOW
-
-- ...
+```
+~/.config/opencode/shared/references/review-checklist.md
 ```
 
-After all 3 reviewers return, **merge findings**:
-
-1. Combine by severity (CRITICAL first, then HIGH, MEDIUM, LOW)
-2. De-duplicate findings at the same `file:line` (if two reviewers flagged the same issue, keep the more severe one and annotate which reviewers concurred)
-3. Sort within each severity by file path
-4. Attach the reviewer source to each finding (`[correctness]`, `[security]`, `[quality]`) for traceability
-
-Pass the merged findings to Phase 3 (REPORT) as if they came from a single-pass review.
+The reviewer-prompt contract (changed files, focus + checklist items, severity
+rubric, findings format directive) and the **Merge Procedure** are defined
+in that reference. Pass the merged findings to Phase 3 (REPORT) as if they
+came from a single-pass review.
 
 #### Path C — Agent Team Review (`AGENT_TEAM_MODE=true`, Claude Code only)
 
@@ -345,55 +293,32 @@ Never approve code with security vulnerabilities.
 
 ## Quick Review Mode
 
-> Triggered by `--quick`. Lightweight review of uncommitted changes — no worktree, no toolchain validation, no GitHub publish. Just findings plus a `Next steps:` block offering `/review-fix`. Writes a minimal artifact to `docs/prps/reviews/quick-{YYYYMMDD-HHMMSS}-review.md` so `/review-fix` can consume it unchanged.
+> Triggered by `--quick`. This mode is now a **thin delegator** to
+> `/quick-review` — the interactive inline-review skill. Phase 0 above
+> has already validated the flag combination; this section hands off.
 
-### Phase 1 — GATHER
+### Delegation
 
-Identical to Local Review Mode Phase 1 (line 151 above). Compute changed files with:
-
-```bash
-git diff --name-only HEAD
-```
-
-If the diff is empty, print `Nothing to review.` and exit. Do NOT write an artifact.
-
-### Phase 2 — REVIEW
-
-Delegate to **Local Review Mode Phase 2** (starting at line 159 above). The same 7-category checklist, severity rubric, Path A (single-pass) / Path B (`--parallel` → 3 standalone sub-agent reviewers) / Path C (`--team` → coordinated agent team) all apply unchanged.
-
-- If `--parallel` → Path B fan-out.
-- If `--team` → Path C (Claude Code only; compatibility gate already enforced in Phase 0).
-- Otherwise → Path A.
-
-When using Path C in quick mode, use team name `qrev-local-<YYYYMMDD-HHMMSS>` (matching the artifact timestamp). Lifecycle is identical to Local Mode Path C: spawn coordinated subagents → track the task × 3 → Agent × 3 in one message → monitor via the todo tracker → merge → send follow-up instructions shutdown → end the coordinated run.
-
-### Phase 3 — REPORT
-
-Assign sequential finding IDs (F001, F002, …) with `Status: Open` on every finding. Write the artifact to `docs/prps/reviews/quick-{YYYYMMDD-HHMMSS}-review.md`. The artifact uses the **Review Artifact Format** (defined at the bottom of this skill) with two omissions:
-
-- **No** `## Validation Results` section — quick mode does not run toolchain validation.
-- **No** `## Worktree Setup` section — quick mode never creates a worktree.
-
-All other sections (Header, Summary, Findings with full ID/Status/Category/Suggested fix, Files Reviewed) are identical to Local Mode's output. `/review-fix` parses the result unchanged.
-
-Then print a `Next steps:` block to stdout:
+Invoke the `quick-review` skill via the `Skill` tool. Forward the
+remaining flags — `--parallel` or `--team`, plus anything quick-review
+accepts — but drop the flags this skill owns (`--quick`, `--approve`,
+`--request-changes`, `--no-worktree`, `--keep-draft`, `--keep-worktree`;
+Phase 0 already consumed them).
 
 ```
-Quick review written to: docs/prps/reviews/quick-YYYYMMDD-HHMMSS-review.md
-Findings: [C] {critical_count}  [H] {high_count}  [M] {medium_count}  [L] {low_count}
-
-Next steps:
-  /review-fix docs/prps/reviews/quick-YYYYMMDD-HHMMSS-review.md              # apply fixes {recommended_single if 1-2 Open findings}
-  /review-fix docs/prps/reviews/quick-YYYYMMDD-HHMMSS-review.md --parallel   # fan out fixes {recommended_parallel if 3+ Open across 2+ files}
+Skill: quick-review
+  args: "<stripped flags: --parallel | --team | --yes | --save | --severity <level>>"
 ```
 
-**Recommendation heuristic** (annotate ONE of the two commands with `# ← recommended`):
+Print a single one-line notice before delegating so the user sees what
+happened:
 
-- 0 Open findings → print `No findings. No follow-up needed.` and skip the two `/review-fix` command lines.
-- 1–2 Open findings → recommend the single-pass form.
-- 3+ Open findings spanning 2+ files → recommend the `--parallel` form.
+```
+--quick delegated to /quick-review. Run /quick-review directly for full option surface (--yes, --save, --severity).
+```
 
-Quick mode has **NO** Phase 4/5/6/7/8 — no VALIDATE, DECIDE, PUBLISH, or OUTPUT phases. If you need toolchain validation or a GitHub review posted, re-run without `--quick`.
+After the Skill call returns, exit. Do NOT run Phase 4/5/6/7/8. Do NOT
+write an artifact here — quick-review owns the artifact lifecycle.
 
 ---
 
@@ -460,69 +385,37 @@ The shape of this phase depends on `PARALLEL_MODE` and `AGENT_TEAM_MODE`:
 
 #### Path A — Single-Pass Review (default, neither flag set)
 
-Apply the review checklist across 7 categories:
+Apply the **PR Review — Single-Pass Checklist** (7 categories: Correctness,
+Type Safety, Pattern Compliance, Security, Performance, Completeness,
+Maintainability) and the **Severity Rubric** from:
 
-| Category               | What to Check                                                                 |
-| ---------------------- | ----------------------------------------------------------------------------- |
-| **Correctness**        | Logic errors, off-by-ones, null handling, edge cases, race conditions         |
-| **Type Safety**        | Type mismatches, unsafe casts, `any` usage, missing generics                  |
-| **Pattern Compliance** | Matches project conventions (naming, file structure, error handling, imports) |
-| **Security**           | Injection, auth gaps, secret exposure, SSRF, path traversal, XSS              |
-| **Performance**        | N+1 queries, missing indexes, unbounded loops, memory leaks, large payloads   |
-| **Completeness**       | Missing tests, missing error handling, incomplete migrations, missing docs    |
-| **Maintainability**    | Dead code, magic numbers, deep nesting, unclear naming, missing types         |
+```
+~/.config/opencode/shared/references/review-checklist.md
+```
 
 #### Path B — Parallel Sub-Agent Review (`PARALLEL_MODE=true`)
 
-Dispatch **3 standalone `code-reviewer` sub-agents in parallel** in a SINGLE message with MULTIPLE `Agent` tool calls. Each agent reads all changed files at the PR head revision and applies its assigned category slice:
+Dispatch **3 standalone `code-reviewer` sub-agents in parallel** in a SINGLE
+message with MULTIPLE `Agent` tool calls. Use the **PR Mode Roster**
+(`correctness-reviewer`, `security-reviewer`, `quality-reviewer`) and
+**Standard Findings Format** from:
 
-| Reviewer               | Categories                             | What to Check                                                                                                                                                             |
-| ---------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `correctness-reviewer` | Correctness, Type Safety, Completeness | Logic errors, off-by-ones, null handling, edge cases, race conditions, type mismatches, unsafe casts, `any` usage, missing generics, missing tests, incomplete migrations |
-| `security-reviewer`    | Security, Performance                  | Injection, auth gaps, secret exposure, SSRF, path traversal, XSS, N+1 queries, missing indexes, unbounded loops, memory leaks, large payloads                             |
-| `quality-reviewer`     | Pattern Compliance, Maintainability    | Project conventions (naming, file structure, error handling, imports), dead code, magic numbers, deep nesting, unclear naming, missing types                              |
+```
+~/.config/opencode/shared/references/review-checklist.md
+```
 
-Each reviewer prompt must include:
+Each reviewer prompt must additionally include:
 
 1. The PR number, head revision, and the list of changed files
 2. Relevant context from Phase 2 (AGENTS.md rules, PRP artifacts, PR description)
-3. Its assigned categories and what to check (from the table above)
-4. The severity rubric
-5. A directive to return findings in the standard format below
 
-Each reviewer returns findings as:
+The reviewer-prompt contract (focus + categories, severity rubric, findings
+format directive) and the **Merge Procedure** are defined in that reference.
+Pass the merged findings to Phase 4 (VALIDATE) and downstream phases as if
+they came from a single-pass review.
 
-```markdown
-## Findings
-
-### CRITICAL
-
-- `file.ts:42` — [description] [category]
-  - Suggested fix: [fix]
-
-### HIGH
-
-- ...
-
-### MEDIUM
-
-- ...
-
-### LOW
-
-- ...
-```
-
-After all 3 reviewers return, **merge findings**:
-
-1. Combine by severity (CRITICAL first, then HIGH, MEDIUM, LOW)
-2. De-duplicate findings at the same `file:line` (if two reviewers flagged the same issue, keep the more severe one and list both concurring reviewers)
-3. Sort within each severity by file path
-4. Tag each finding with its source reviewer (`[correctness]`, `[security]`, `[quality]`) for traceability
-
-Pass the merged findings to Phase 4 (VALIDATE) and downstream phases as if they came from a single-pass review.
-
-**Note**: Validation commands (Phase 4) still run sequentially in the main skill — parallelization here only applies to the review pass.
+**Note**: Validation commands (Phase 4) still run sequentially in the main
+skill — parallelization here only applies to the review pass.
 
 #### Path C — Agent Team Review (`AGENT_TEAM_MODE=true`, Claude Code only)
 
