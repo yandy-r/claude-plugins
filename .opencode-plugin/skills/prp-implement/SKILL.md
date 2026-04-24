@@ -37,7 +37,7 @@ Extract flags from `$ARGUMENTS` before treating the remainder as a plan path:
 | `--parallel`    | Force parallel execution via **standalone sub-agents** when the plan is parallel-capable. Skips the interactive prompt. Falls back to sequential with a warning if the plan has no `Batches` section. Works in opencode, Cursor, and Codex.                                                                                                     |
 | `--team`        | (Claude Code only) Force parallel execution via an **agent team** with up-front `track the task` + `addBlockedBy` dependency wiring, per-batch teammate spawn, and inter-batch shutdown via `send follow-up instructions`. Aborts (does NOT fall back) if the plan has no `Batches` section. Heavier dispatch with shared task-graph observability across all batches. |
 | `--worktree`    | (legacy — now default; safe to omit) Accepted as a silent no-op. Worktree isolation is on by default; this flag matches the new default and has no additional effect.                                                                                                                                                                              |
-| `--no-worktree` | Force worktree mode **OFF** regardless of plan annotations. Tasks run directly in the current checkout. No parent or child worktrees are created.                                                                                                                                                                                                  |
+| `--no-worktree` | Force worktree mode **OFF** regardless of plan annotations. Tasks run directly in the current checkout. No feature worktree is created.                                                                                                                                                                                                               |
 | `--dry-run`     | Only valid with `--team`. Prints the team name, full task graph (with dependencies), and per-batch teammate roster, then exits without spawning any teammates.                                                                                                                                                                                     |
 
 Strip the flags from `$ARGUMENTS` and set `PARALLEL_FLAG=true|false`, `AGENT_TEAM_FLAG=true|false`, `WORKTREE_MODE=true|false`, `DRY_RUN=true|false`. The remaining text is the plan file path.
@@ -114,9 +114,9 @@ grep -c "^## Batches" "$PLAN_PATH" || echo 0
 
 The decision follows a strict precedence order:
 
-1. **`--no-worktree` present** → `WORKTREE_MODE=false`. Worktree isolation is forced off regardless of plan annotations. No parent or child worktrees are created.
+1. **`--no-worktree` present** → `WORKTREE_MODE=false`. Worktree isolation is forced off regardless of plan annotations. No feature worktree is created.
 2. **Plan contains `## Worktree Setup`** → `WORKTREE_MODE=true`. The plan annotations are the source of truth; follow them exactly.
-3. **Neither of the above** → `WORKTREE_MODE=true` **(new default — was false)**. Worktree isolation activates even when the plan has no annotations. The skill derives parent and child paths from the plan name (see deduction rules below) and creates worktrees using `setup-worktree.sh` helpers.
+3. **Neither of the above** → `WORKTREE_MODE=true` **(new default — was false)**. Worktree isolation activates even when the plan has no annotations. The skill derives the single feature-worktree path from the plan name (see deduction rules below) and creates it using `setup-worktree.sh parent`.
 
 `--worktree` is accepted as a silent no-op and matches the new default; it has no additional effect beyond what the default already provides.
 
@@ -245,7 +245,7 @@ For each batch `B1, B2, ... BN` in order (from the plan's `Batches` table):
    - `subagent_type`: `"implementor"`
    - `description`: The task title (e.g., `"Task 1.1: add rate limiter middleware"`)
    - `prompt`: The complete task spec (ACTION, IMPLEMENT, MIRROR, IMPORTS, GOTCHA, VALIDATE) plus the relevant excerpt from the plan's **Patterns to Mirror** section. Include a directive that the agent must read the MIRROR source file before writing code and must run its own type-check on modified files before reporting complete.
-   - **When `WORKTREE_ACTIVE=true`**: append `Working directory: ${WT_PARENT_PATH}` and `All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.` to every agent prompt (parallel and sequential). On opencode, also pass `isolation: "worktree"` pointing at `${WT_PARENT_PATH}` — the `WorktreeCreate` hook ensures all parallel agents land in the same feature worktree. The agent must treat that path as its repo root for all Read / Write / Edit / Bash calls.
+   - **When `WORKTREE_ACTIVE=true`**: append `Working directory: ${WT_PARENT_PATH}` and `All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.` to every agent prompt (parallel and sequential). Do **not** request per-agent worktree isolation here: `Agent(isolation: "worktree")` creates distinct harness worktrees and breaks the single-worktree contract. The agent must treat `${WT_PARENT_PATH}` as its repo root for all Read / Write / Edit / Bash calls.
 
 3. **Wait for all agents in the batch to complete** before proceeding.
 
@@ -378,7 +378,7 @@ For each batch `B1, B2, ... BN` in order (from the plan's `Batches` table):
      section. Include a directive that the agent must read the MIRROR source file
      before writing code, must run its own type-check on modified files before
      reporting complete, and must call `update the todo tracker` to mark its task complete.
-   - **When `WORKTREE_ACTIVE=true`**: append `Working directory: ${WT_PARENT_PATH}` and `All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.` to every teammate's prompt (parallel and sequential). On opencode, also pass `isolation: "worktree"` pointing at `${WT_PARENT_PATH}` — the `WorktreeCreate` hook ensures all parallel teammates land in the same feature worktree. Agents must treat that path as their repo root for all Read / Write / Edit / Bash calls.
+   - **When `WORKTREE_ACTIVE=true`**: append `Working directory: ${WT_PARENT_PATH}` and `All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.` to every teammate's prompt (parallel and sequential). Do **not** request per-agent worktree isolation here: `Agent(isolation: "worktree")` creates distinct harness worktrees and breaks the single-worktree contract. Agents must treat `${WT_PARENT_PATH}` as their repo root for all Read / Write / Edit / Bash calls.
 
 3. **Wait for batch completion via `the todo tracker`** — poll until all tasks in this batch
    are `completed`. If a teammate messages with an issue, respond via `send follow-up instructions`

@@ -60,7 +60,7 @@ Parse flags first, then treat the remainder as the feature name:
 - `--team` — (Claude Code only) Dispatch each batch's implementor agents under a shared `TeamCreate` with up-front `TaskCreate` + `addBlockedBy` dependency wiring and per-batch shutdown via `SendMessage`. Aborts if invoked from a Cursor or Codex bundle (team tools are absent there).
 - `--dry-run` — Show the execution plan without deploying agents. With `--team`, also prints the team name and per-batch teammate roster.
 - `--worktree` — (legacy — now default; safe to omit) Accepted as a silent no-op. Worktree isolation is on by default; this flag matches the new default and has no additional effect.
-- `--no-worktree` — Force worktree mode **OFF** regardless of plan annotations. Tasks run directly in the current checkout. No parent or child worktrees are created.
+- `--no-worktree` — Force worktree mode **OFF** regardless of plan annotations. Tasks run directly in the current checkout. No feature worktree is created.
 - `<feature-name>` — The name of the feature to implement (matches directory name in `docs/plans/`).
 
 Strip the flags from `$ARGUMENTS` and set `TEAM_FLAG=true|false`, `DRY_RUN=true|false`, `WORKTREE_MODE=true|false`. The remaining non-flag token is the feature name.
@@ -87,7 +87,7 @@ Examples:
     # agent-team dispatch without worktrees
 ```
 
-**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must abort with a clear message. Those bundles ship without team tools (`TeamCreate`, `TaskCreate`, `SendMessage`, etc.). The default standalone sub-agent path is the only execution mode available there. `--worktree` is compatible with all targets: Claude Code uses `Agent(isolation: "worktree")`; Codex and opencode use Bash `git worktree add`; Cursor emits manual setup commands only.
+**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must abort with a clear message. Those bundles ship without team tools (`TeamCreate`, `TaskCreate`, `SendMessage`, etc.). The default standalone sub-agent path is the only execution mode available there. `--worktree` is compatible with all targets through a single pre-created feature worktree plus `Working directory:` prompts. Do **not** request tool-side per-agent worktree isolation for task dispatch in this flow, because that creates separate harness worktrees and breaks the single-worktree contract. Codex and opencode use Bash `git worktree add`; Cursor emits manual setup commands only.
 
 ---
 
@@ -151,9 +151,9 @@ The script emits optional header lines followed by per-task rows.
 
 The decision follows a strict precedence order:
 
-1. **`--no-worktree` present** → `WORKTREE_MODE=false`. Worktree isolation is forced off regardless of plan annotations. No parent or child worktrees are created.
+1. **`--no-worktree` present** → `WORKTREE_MODE=false`. Worktree isolation is forced off regardless of plan annotations. No feature worktree is created.
 2. **Plan contains `## Worktree Setup`** → `WORKTREE_MODE=true`. The plan annotations are the source of truth; follow them exactly.
-3. **Neither of the above** → `WORKTREE_MODE=true` **(new default — was false)**. Worktree isolation activates even when the plan has no annotations. Parent and child paths are derived from the feature name using the deduction rules below.
+3. **Neither of the above** → `WORKTREE_MODE=true` **(new default — was false)**. Worktree isolation activates even when the plan has no annotations. The single feature-worktree path is derived from the feature name using the deduction rules below.
 
 `--worktree` is accepted as a silent no-op and matches the new default; it has no additional effect.
 
@@ -165,7 +165,7 @@ The decision follows a strict precedence order:
   - `WT_REPO_NAME` = basename of git repo root (run `git -C . rev-parse --show-toplevel | xargs basename`)
   - `WT_FEATURE_SLUG` = the `<feature-name>` argument (same as `${feature_dir}` basename)
   - `WT_PARENT_PATH` = `~/.claude-worktrees/${WT_REPO_NAME}-${WT_FEATURE_SLUG}/`
-- If `WORKTREE_MODE=false` (--no-worktree) → no parent or child worktrees; set `WORKTREE_ACTIVE=false`.
+- If `WORKTREE_MODE=false` (`--no-worktree`) → no feature worktree; set `WORKTREE_ACTIVE=false`.
 
 ### Step 4: Build Dependency Graph
 
@@ -335,7 +335,7 @@ Working directory: ${WT_PARENT_PATH}
 All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.
 ```
 
-On **Claude Code**, pass `isolation: "worktree"` pointing at `${WT_PARENT_PATH}`. The `WorktreeCreate` hook redirects to `~/.claude-worktrees/`, which is the same feature path for all parallel agents. On **Codex / opencode**, the `Working directory:` line in the prompt is sufficient — no tool-level isolation available. On **Cursor**, emit a warning and print the `git worktree add` command for the user to run; do not auto-create.
+Do **not** pass `isolation: "worktree"` here. Tool-side worktree isolation creates a distinct harness worktree per agent, which is exactly the behavior this migration is removing. Use the shared `Working directory:` line only. On **Codex / opencode**, that prompt line is likewise sufficient. On **Cursor**, emit a warning and print the `git worktree add` command for the user to run; do not auto-create.
 
 #### Agent Task Requirements (Path A)
 
@@ -461,7 +461,7 @@ For each batch `B1, B2, ... BN` in dependency order, follow the ordering mandate
    All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.
    ```
 
-   On **Claude Code**, pass `isolation: "worktree"` pointing at `${WT_PARENT_PATH}`. The `WorktreeCreate` hook ensures all parallel teammates land in the same feature worktree. On **Codex / opencode**, the `Working directory:` line in the prompt is sufficient. On **Cursor**, emit a warning + manual `git worktree add` command.
+   Do **not** pass `isolation: "worktree"` here. Tool-side worktree isolation creates a distinct harness worktree per teammate, which breaks the single-worktree contract. On **Codex / opencode**, the `Working directory:` line in the prompt is sufficient. On **Cursor**, emit a warning + manual `git worktree add` command.
 
 3. **Wait for batch completion via `TaskList`** — poll until all tasks in this batch are `completed`. If a teammate messages with an issue, respond via `SendMessage` with guidance.
 

@@ -164,11 +164,12 @@ opencode permission model uses per-agent `permission.{edit,bash,webfetch}` field
 **WORKTREE:claude**
 Full support. Worktree isolation is **on by default** for the 9 worktree-aware skills; pass
 `--no-worktree` to opt out. The legacy `--worktree` flag is accepted as a silent no-op.
-`Agent(isolation: "worktree")`, `EnterWorktree`, and the `WorktreeCreate` hook
-(ycc-provided, registered in `ycc/settings/settings.json`) rewrite the harness-chosen worktree
-path to `~/.claude-worktrees/<repo>-<branch>/`. A Bash fallback (`git worktree add`) is always
-available. See `ycc/skills/_shared/references/worktree-strategy.md` for the parent/child model
-and naming scheme.
+Harness-managed worktrees exist (`Agent(isolation: "worktree")`, `EnterWorktree`, plus the
+`WorktreeCreate` hook registered in `ycc/settings/settings.json`), but the current ycc
+single-worktree contract should not use per-agent tool-side isolation for parallel task fan-out.
+Instead, pre-create one feature worktree and point every agent at it via `Working directory:`.
+A Bash fallback (`git worktree add`) is always available. See
+`ycc/skills/_shared/references/worktree-strategy.md` for the single-worktree naming scheme.
 
 **WORKTREE:cursor**
 Partial. Worktree mode is on by default for the 9 worktree-aware skills; pass `--no-worktree`

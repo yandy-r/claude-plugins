@@ -175,12 +175,11 @@ need not emit per-task `**Worktree**:` lines for new work.
 
 ## 4. Per-Target Dispatch Matrix
 
-| Target      | Primary mechanism                                      | Fallback                |
-| ----------- | ------------------------------------------------------ | ----------------------- |
-| Claude Code | `Agent(isolation: "worktree")` + `WorktreeCreate` hook | Bash `git worktree add` |
-| Codex       | Bash `git worktree add` via prompt                     | same                    |
-| opencode    | Bash `git worktree add` via prompt                     | same                    |
-| Cursor      | Docs-only (emit commands; no auto-create)              | User runs manually      |
+| Capability profile             | Primary mechanism                                                      | Fallback                |
+| ------------------------------ | ---------------------------------------------------------------------- | ----------------------- |
+| Tool-side agent isolation      | Pre-create one feature worktree, then dispatch agents with `Working directory:` only | Bash `git worktree add` |
+| Bash-only agent runtimes       | Bash `git worktree add` via prompt                                     | same                    |
+| Docs-only / manual runtimes    | Docs-only (emit commands; no auto-create)                              | User runs manually      |
 
 Parallel teammates all target the **same** feature worktree path in prompts.
 See [target-capability-matrix.md](./target-capability-matrix.md) for the full
@@ -203,13 +202,14 @@ git branch -d feat/<feature>
 
 ---
 
-## 6. Claude Code `WorktreeCreate` Hook Integration
+## 6. Harness `WorktreeCreate` Hook Integration
 
-When a skill dispatches an agent with `Agent(isolation: "worktree")`, the Claude
-Code harness would normally create the worktree inside the repo at
-`<repo>/.cursor/worktrees/`. The `WorktreeCreate` hook registered in
-`ycc/settings/settings.json` intercepts this and redirects the path to
-`~/.claude-worktrees/<repo>-<branch>/`, keeping worktrees outside every repo and
-preventing pollution of the working tree. The hook body lives at
+The `WorktreeCreate` hook registered in `ycc/settings/settings.json` still
+matters for runtimes that intentionally use harness-managed worktree
+creation. But for the single-worktree contract described here, executors should
+pre-create the feature worktree once and dispatch agents against that existing
+path via `Working directory:`. Do **not** rely on `Agent(isolation: "worktree")`
+for per-task fan-out in these workflows, because the harness will create distinct
+harness worktrees per agent. The hook body lives at
 `ycc/settings/hooks/worktree-create.sh`. The full worktree placement policy is
 documented in `ycc/settings/rules/CLAUDE.md:207–224`.

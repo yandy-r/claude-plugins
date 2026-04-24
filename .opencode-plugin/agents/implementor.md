@@ -25,20 +25,19 @@ as your repo root for ALL file operations. Specifically:
 - Every Bash `cd`, `git`, or path-dependent command must operate relative to this
   directory (use `git -C <path>` or `cd` at the top of the command).
 - Never mix paths from the parent repo clone with the working directory. The two
-  are distinct git worktrees; mixing them corrupts the per-task isolation the
-  orchestrating skill set up.
-- The working directory is a git worktree on a task-specific branch
-  (`feat/<feature>-<task-id>`). Your commits land on that branch; the orchestrating
-  skill merges the branch back into the parent branch after you finish.
+  are distinct git checkouts; mixing them corrupts the single-worktree setup the
+  orchestrating skill selected.
+- In the current contract, the working directory is usually the shared feature
+  worktree (`~/.claude-worktrees/<repo>-<feature>/`) used by every task in the run.
+  Do not assume a task-specific branch or a later merge-back step unless the prompt
+  explicitly says otherwise.
 - If the path starts with `~`, expand it to `$HOME` (or the absolute user home
   path) before passing it to any tool call — `Read`, `Write`, `Edit`, `Glob`,
   `Grep`, and `Bash` do not perform shell expansion.
 
-On opencode, the orchestrating skill may additionally dispatch you with
-`Agent(isolation: "worktree")`. In that case, your cwd is already the worktree —
-you can largely ignore the `Working directory:` line (it will match your cwd).
-On Codex/opencode, `isolation` is not available, so the `Working directory:` line
-is your only signal. Trust the prompt.
+The orchestrating skill may have already created that feature worktree before
+dispatching you. Treat the `Working directory:` line as the source of truth for
+where you should operate. Do not rely on tool-side per-agent worktree isolation.
 
 If no `Working directory:` line is present, operate in the default cwd (the parent
 worktree or the main repo clone, as applicable).

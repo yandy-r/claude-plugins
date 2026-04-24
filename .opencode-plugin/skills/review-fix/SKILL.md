@@ -371,7 +371,7 @@ WORKTREE_ACTIVE=true
 1. **Dispatch** review-fixer agents with `Working directory: $PARENT_PATH` appended to
    their prompt, plus the coordination note: "Other agents in this batch are working
    in the same directory — do not run destructive git commands (reset, clean, checkout)."
-   On opencode, also pass `isolation: "worktree"`.
+   Do **not** pass `isolation: "worktree"` here; that creates a separate harness worktree per review-fixer and breaks the single-worktree contract.
 
 2. **Validate** inside `$PARENT_PATH` after the batch completes:
 
@@ -387,7 +387,7 @@ in the active worktree at `$PARENT_PATH/docs/prps/reviews/pr-<N>-review.md`.
 
 ### Path A — Sequential Execution (default)
 
-- When `WORKTREE_ACTIVE=true`: every review-fixer dispatch in this path appends `Working directory: ${PARENT_PATH}` to the agent prompt (and `isolation: "worktree"` on opencode). After each severity batch, run the between-batch validation inside `${PARENT_PATH}` before advancing to the next severity.
+- When `WORKTREE_ACTIVE=true`: every review-fixer dispatch in this path appends `Working directory: ${PARENT_PATH}` to the agent prompt. Do **not** add `isolation: "worktree"`; that would allocate separate harness worktrees per agent. After each severity batch, run the between-batch validation inside `${PARENT_PATH}` before advancing to the next severity.
 
 Process batches in order. Within each batch, process findings (or same-file groups) one at a time.
 
@@ -409,7 +409,7 @@ For each finding or group:
 
 ### Path B — Parallel Sub-Agent Execution (`PARALLEL_MODE=true`)
 
-- When `WORKTREE_ACTIVE=true`: batches are still severity-ordered. Dispatch every parallel review-fixer with `Working directory: ${PARENT_PATH}` (and `isolation: "worktree"` on opencode). Between-batch validation runs once in `${PARENT_PATH}` before advancing to the next severity. No fan-in merge.
+- When `WORKTREE_ACTIVE=true`: batches are still severity-ordered. Dispatch every parallel review-fixer with `Working directory: ${PARENT_PATH}` only. Do **not** add `isolation: "worktree"`. Between-batch validation runs once in `${PARENT_PATH}` before advancing to the next severity. No fan-in merge.
 
 Process batches sequentially; within each batch, dispatch all review-fixer agents as standalone sub-agents in parallel.
 
@@ -452,7 +452,7 @@ If a `review-fixer` agent returns `STATUS: Failed`:
 
 ### Path C — Agent Team Execution (`AGENT_TEAM_MODE=true`, Claude Code only)
 
-- When `WORKTREE_ACTIVE=true`: batches are still severity-ordered. Dispatch teammates with `Working directory: ${PARENT_PATH}` + `isolation: "worktree"` (opencode). Before advancing to the next severity batch, send `send follow-up instructions(shutdown)` to all current batch teammates, then run between-batch validation inside `${PARENT_PATH}`. No fan-in merge.
+- When `WORKTREE_ACTIVE=true`: batches are still severity-ordered. Dispatch teammates with `Working directory: ${PARENT_PATH}` only. Do **not** add `isolation: "worktree"`. Before advancing to the next severity batch, send `send follow-up instructions(shutdown)` to all current batch teammates, then run between-batch validation inside `${PARENT_PATH}`. No fan-in merge.
 
 > **MANDATORY — AGENT TEAMS REQUIRED**
 >

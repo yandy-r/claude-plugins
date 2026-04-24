@@ -210,9 +210,9 @@ Exact ordering within ONE batch (supersedes the old “create child / merge-chil
 
 1. `TaskCreate` for all tasks in the batch (as in §2.2) — _if_ the team graph registers batch tasks the same way as non-team mode; otherwise follow the skill’s own registration rules.
 2. `Agent` spawn — one message, multiple `Agent` calls (per §2.3). Each call includes
-   `team_name=`, `name=`, and the **same** `Working directory: <feature-worktree-path>` in the prompt (or equivalent) so all parallel teammates operate in the one tree. On
-   Claude Code, `isolation: "worktree"` may point at that **same** feature path; the
-   `WorktreeCreate` hook still applies.
+   `team_name=`, `name=`, and the **same** `Working directory: <feature-worktree-path>` in the prompt (or equivalent) so all parallel teammates operate in the one tree. Do
+   **not** add `isolation: "worktree"` for this contract; that creates
+   separate harness worktrees per teammate.
 3. `TaskList` monitor → `SendMessage(shutdown)` to every teammate of the batch (per
    §2.4–2.5).
 4. **Between batches:** run whatever validation the skill requires **inside the same**

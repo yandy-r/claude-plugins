@@ -375,7 +375,7 @@ For each batch, do the following **in order**:
 
 **2. Spawn ALL batch agents in a SINGLE message** using MULTIPLE `Agent` tool calls. **No `team_name`, no `name`, no `record the task`** — standalone sub-agent semantics. Each prompt must use the **Path A coordination block** from `agent-prompts.md` (standalone implementor — no inter-agent coordination).
 
-When `WORKTREE_MODE=true`, each Agent call includes `Working directory: <PARENT_WORKTREE_PATH>` in the prompt and on Codex passes `isolation: "worktree"` pointing at `<PARENT_WORKTREE_PATH>`. The `WorktreeCreate` hook ensures all parallel agents land in the same feature worktree. Add a coordination note: `All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.`:
+When `WORKTREE_MODE=true`, each Agent call includes `Working directory: <PARENT_WORKTREE_PATH>` in the prompt. Do **not** pass `isolation: "worktree"` here: that creates a distinct harness worktree per agent and breaks the single-worktree contract. Add a coordination note: `All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.`:
 
 ```
 Agent(
@@ -418,7 +418,7 @@ For each batch, do the following **in order** (follows `agent-team-dispatch.md` 
 
 **1. Build the teammate list** for this batch — list each subtask's name and description so teammates know who else is working in parallel. Substitute into `{{BATCH_TEAMMATES}}`.
 
-**2. Spawn ALL batch teammates in a SINGLE message** using MULTIPLE `Agent` tool calls. Every call MUST include `team_name` AND `name`. When `WORKTREE_MODE=true`, each call also includes `isolation: "worktree"` and a `Working directory: <PARENT_WORKTREE_PATH>` line in the prompt. The `WorktreeCreate` hook ensures all parallel teammates land in the same feature worktree. Add the coordination note: `All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.`:
+**2. Spawn ALL batch teammates in a SINGLE message** using MULTIPLE `Agent` tool calls. Every call MUST include `team_name` AND `name`. When `WORKTREE_MODE=true`, each call also includes a `Working directory: <PARENT_WORKTREE_PATH>` line in the prompt. Do **not** pass `isolation: "worktree"` here: that creates a distinct harness worktree per teammate and breaks the single-worktree contract. Add the coordination note: `All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.`:
 
 ```
 Agent(
