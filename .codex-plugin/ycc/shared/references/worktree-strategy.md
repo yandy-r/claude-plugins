@@ -175,11 +175,11 @@ need not emit per-task `**Worktree**:` lines for new work.
 
 ## 4. Per-Target Dispatch Matrix
 
-| Capability profile             | Primary mechanism                                                      | Fallback                |
-| ------------------------------ | ---------------------------------------------------------------------- | ----------------------- |
-| Tool-side agent isolation      | Pre-create one feature worktree, then dispatch agents with `Working directory:` only | Bash `git worktree add` |
-| Bash-only agent runtimes       | Bash `git worktree add` via prompt                                     | same                    |
-| Docs-only / manual runtimes    | Docs-only (emit commands; no auto-create)                              | User runs manually      |
+| Capability profile          | Primary mechanism                                                                    | Fallback                |
+| --------------------------- | ------------------------------------------------------------------------------------ | ----------------------- |
+| Tool-side agent isolation   | Pre-create one feature worktree, then dispatch agents with `Working directory:` only | Bash `git worktree add` |
+| Bash-only agent runtimes    | Bash `git worktree add` via prompt                                                   | same                    |
+| Docs-only / manual runtimes | Docs-only (emit commands; no auto-create)                                            | User runs manually      |
 
 Parallel teammates all target the **same** feature worktree path in prompts.
 See [target-capability-matrix.md](./target-capability-matrix.md) for the full
