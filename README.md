@@ -87,13 +87,15 @@ The plugin bundles **52** specialized agents covering codebase analysis, languag
 <!-- END:GENERATED-AGENTS -->
 
 - **Claude Code:** reference any of them via `subagent_type: "ycc:{agent-name}"`. Canonical source lives in [`ycc/agents/`](ycc/agents/).
-- **Cursor:** generated, Cursor-native copies live in [`.cursor-plugin/agents/`](.cursor-plugin/agents/) (produced from `ycc/agents/` — see [Cursor IDE sync](#cursor-ide-sync)).
-- **Codex:** generated, Codex-native custom-agent TOMLs live in [`.codex-plugin/agents/`](.codex-plugin/agents/) (produced from `ycc/agents/` and synced to `~/.codex/agents/` by `install.sh --target codex`).
-- **opencode:** generated, opencode-native agent markdown files live in [`.opencode-plugin/agents/`](.opencode-plugin/agents/) (produced from `ycc/agents/` and synced to `~/.config/opencode/agents/` by `install.sh --target opencode`). Invoke via `@agent-name` mention or the built-in `task` tool.
+- **Cursor:** generated, Cursor-native copies live in [`.cursor-plugin/agents/`](.cursor-plugin/agents/) (produced from `ycc/agents/` — see the [Cursor install guide](docs/install/cursor.md)).
+- **Codex:** generated, Codex-native custom-agent TOMLs live in [`.codex-plugin/agents/`](.codex-plugin/agents/) (produced from `ycc/agents/` — see the [Codex install guide](docs/install/codex.md)).
+- **opencode:** generated, opencode-native agent markdown files live in [`.opencode-plugin/agents/`](.opencode-plugin/agents/) (produced from `ycc/agents/` — see the [opencode install guide](docs/install/opencode.md)). Invoke via `@agent-name` mention or the built-in `task` tool.
 
 **Contributing:** before proposing a new skill, command, or agent, read the Scope & Guardrails policy in [`CONTRIBUTING.md`](CONTRIBUTING.md#scope--guardrails).
 
 ## Installation
+
+For Claude Code, install the published `ycc` plugin from the marketplace:
 
 ```bash
 # Add the marketplace
@@ -113,6 +115,17 @@ Or enable in `~/.claude/settings.json`:
 }
 ```
 
+For local development installs, generated compatibility bundles, and desktop app
+notes, use the dedicated install guides:
+
+| Runtime                      | Install guide                                          |
+| ---------------------------- | ------------------------------------------------------ |
+| Claude Code / Claude Desktop | [`docs/install/claude.md`](docs/install/claude.md)     |
+| Cursor                       | [`docs/install/cursor.md`](docs/install/cursor.md)     |
+| Codex / Codex Desktop        | [`docs/install/codex.md`](docs/install/codex.md)       |
+| opencode                     | [`docs/install/opencode.md`](docs/install/opencode.md) |
+| Shared installer concepts    | [`docs/install/README.md`](docs/install/README.md)     |
+
 ## Workflow composition
 
 The planning skills compose into a pipeline:
@@ -124,166 +137,16 @@ ycc:feature-research → ycc:shared-context → ycc:parallel-plan → ycc:implem
 
 Use `ycc:plan-workflow` to run the full pipeline, or invoke individual stages.
 
-## Local Sync Targets
+## Development Sync
 
-- Cursor loads **skills**, **agents**, and **rules** from `~/.cursor/{skills,agents,rules}/`.
-- Codex uses a **plugin** for skills/MCP plus **custom agents** in `~/.codex/agents/`.
-- opencode loads **skills**, **agents**, and **commands** from `~/.config/opencode/{skills,agents,commands}/` and reads MCP + default-model config from `~/.config/opencode/opencode.json`.
+This repository maintains generated compatibility trees under **`.cursor-plugin/`**,
+**`.codex-plugin/`**, and **`.opencode-plugin/`**. The canonical source of truth
+is the Claude-facing [`ycc/`](ycc/) tree.
 
-This repository maintains generated compatibility trees under **`.cursor-plugin/`**, **`.codex-plugin/`**, and **`.opencode-plugin/`**.
-
-Shared MCP server definitions live in [`mcp-configs/mcp.json`](mcp-configs/mcp.json). The installer is organized around **targets** and **steps** — each target exposes a set of steps that can be run by default, added with an additive flag, or isolated with `--only`.
-
-| Target     | Steps                              | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| ---------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `claude`   | `base`, `settings`, `mcp`, `hooks` | `base` registers the repo's `.claude-plugin/marketplace.json` as a local marketplace (`local-ycc-plugins`, `source: "file"`) in `~/.claude/settings.local.json` (user-private, auto-gitignored). Edits in `ycc/` are live on next plugin reload (no rsync, no cache clear). `settings` also links user-global `CLAUDE.md` + `AGENTS.md`. `hooks` symlinks `ycc/settings/hooks/` into `~/.claude/hooks/` (enables the `WorktreeCreate` hook). |
-| `cursor`   | `base`, `mcp`, `settings`          | `base` = generate + validate + format + rsync `skills/`, `agents/`, `rules/` into `~/.cursor/`. `settings` links user-global rules.                                                                                                                                                                                                                                                                                                          |
-| `codex`    | `base`, `settings`                 | `base` = generate + validate + format + sync custom agents, then register the repo's `.codex-plugin/ycc/` as a local marketplace source in `~/.agents/plugins/marketplace.json` (live — no install-time plugin rsync). `settings` also links user-global rules.                                                                                                                                                                              |
-| `opencode` | `base`, `settings`                 | `base` = generate + validate + format + rsync `skills/agents/commands` into `~/.config/opencode/`. `settings` symlinks config + AGENTS.md.                                                                                                                                                                                                                                                                                                   |
-| `all`      | —                                  | Runs `claude`, `cursor`, `codex`, then `opencode`; step flags propagate. With the new Claude `base` step, `--target all` now also registers the Claude local marketplace.                                                                                                                                                                                                                                                                    |
-
-Step reference:
-
-- `base` — per-target install/registration. Scope differs by target:
-  - claude: writes `~/.claude/settings.local.json` (user-private, auto-gitignored) with `extraKnownMarketplaces["local-ycc-plugins"] = {source: {source: "file", path: "<repo>/.claude-plugin/marketplace.json"}}` and flips `enabledPlugins["ycc@local-ycc-plugins"] = true`. No files are copied; edits in `ycc/` are live on plugin reload. Existing `settings.local.json` keys are preserved; the committed `ycc/settings/settings.json` (symlinked to `~/.claude/settings.json`) is never touched.
-  - cursor: generate + validate + format + rsync `.cursor-plugin/{skills,agents,rules}/` into `~/.cursor/`.
-  - codex: generate + validate + format + rsync **custom agents only** into `~/.codex/agents/`, then register the repo's `.codex-plugin/ycc/` absolute path as a local marketplace source in `~/.agents/plugins/marketplace.json`. Regenerate the bundle via `./scripts/sync.sh --only codex` to refresh skills without rerunning `install.sh`.
-  - opencode: generate + validate + format + rsync `.opencode-plugin/{skills,agents,commands}/` into `~/.config/opencode/`.
-- `settings` — symlinks per-target config files into the IDE's config dir. Every target also links the generic user-global rules from [`ycc/settings/rules/`](ycc/settings/rules/) (see that dir's README for the scope rationale):
-  - claude: `ycc/settings/{settings.json,statusline-command.sh}` + `ycc/settings/rules/{CLAUDE.md,AGENTS.md}` → `~/.claude/`
-  - cursor: `ycc/settings/rules/{CLAUDE.md,AGENTS.md}` → `~/.cursor/` (top level — NOT inside `~/.cursor/rules/`, which gets `rsync --delete`d during `base`)
-  - codex: `.codex-plugin/config/{config.toml,default.rules}` + `ycc/settings/rules/{CLAUDE.md,AGENTS.md}` → `~/.codex/`
-  - opencode: `.opencode-plugin/{opencode.json,AGENTS.md}` → `~/.config/opencode/` (opencode's `AGENTS.md` is generator-produced from the repo `CLAUDE.md`, not the generic rules tree)
-- `mcp` — shared `mcp-configs/mcp.json` integration:
-  - claude: merges `mcpServers` into `~/.claude.json` (preserves other keys such as `projects`)
-  - cursor: symlinks `mcp-configs/mcp.json` → `~/.cursor/mcp.json` (kept in sync across systems)
-  - opencode: there is no separate `mcp` step — the generated `opencode.json` already embeds the translated MCP block, and enabling it is part of the `settings` step.
-- `hooks` — claude-only. Symlinks `ycc/settings/hooks/` → `~/.claude/hooks/`, which wires the `WorktreeCreate` hook that redirects harness-managed worktrees from `<repo>/.claude/worktrees/` to `~/.claude-worktrees/`. Silently ignored by targets without hook support.
-
-The rules linker refuses to overwrite a real (non-symlink) `CLAUDE.md` / `AGENTS.md` at a destination. Pass `--force` to replace a user-authored file.
-
-### Modes
-
-`--mode <local|repo>` selects the marketplace **source** registered for the `claude` and `codex` targets. Defaults to `local`.
-
-- `--mode local` (default) — register the local repo checkout. claude adds the local path as a directory marketplace via `claude plugin marketplace add <repo-path> --scope user`; codex symlinks `.codex-plugin/ycc/` into `~/.codex/plugins/ycc/`, rsyncs custom agents into `~/.codex/agents/`, and writes `~/.agents/plugins/marketplace.json` with `{source: "local", path: "<abs path>"}`. Edits in `ycc/` are live (after `./scripts/sync.sh --only codex` for the Codex bundle).
-- `--mode repo` — register the upstream `yandy-r/claude-plugins` GitHub repo. claude runs `claude plugin marketplace add yandy-r/claude-plugins --scope user`; codex writes `~/.agents/plugins/marketplace.json` with `{source: "github", repo: "yandy-r/claude-plugins", ref: "main"}` and skips local generation, the `~/.codex/plugins/ycc/` symlink, and the agents rsync (Codex pulls those from the remote on install). Use this for a non-developer install that tracks the published ref.
-
-`cursor` and `opencode` have no remote-source concept (they read bundles from `~/.cursor/...` and `~/.config/opencode/...`); both targets reject `--mode repo` with a clear error. With `--target all --mode repo`, cursor and opencode are skipped with a warning — only claude and codex run.
-
-The `settings`, `mcp`, and `hooks` steps are mode-agnostic — they symlink local source files (`ycc/settings/...`, `mcp-configs/mcp.json`) regardless of `--mode`.
-
-### Install targets
+Regenerate and validate derived artifacts with:
 
 ```bash
-# Default (no --only): run base step, then any additive flags.
-./install.sh --target claude                        # base only — register local marketplace
-./install.sh --target claude --settings --mcp       # base + settings + MCP
-./install.sh --target claude --settings --mcp --hooks  # +worktree-redirect hook
-./install.sh --target cursor                        # base only
-./install.sh --target cursor --mcp                  # base + symlink MCP
-./install.sh --target cursor --settings             # base + link user-global rules
-./install.sh --target codex                         # base only — generate + register marketplace
-./install.sh --target codex --settings              # base + codex config + rules
-./install.sh --target opencode                      # base only (skills + agents + commands)
-./install.sh --target opencode --settings           # base + link opencode.json + AGENTS.md
-./install.sh --target all --settings --mcp          # everything across all targets
-./install.sh --target all --settings --force        # same, overwriting user-authored rules
-
-# Repo mode: track the upstream GitHub repo instead of the local checkout.
-./install.sh --target claude --mode repo            # register yandy-r/claude-plugins via the Claude CLI
-./install.sh --target codex  --mode repo            # write codex marketplace.json with source: github
-./install.sh --target all    --mode repo            # claude + codex in repo mode (cursor/opencode skipped)
-./install.sh --target claude --mode repo --settings # repo-mode marketplace + symlink rules
-
-# Exclusive (--only): run exactly the listed steps, nothing else.
-./install.sh --target claude   --only base          # just the local-marketplace registration
-./install.sh --target claude   --only mcp           # merge MCP, skip settings link
-./install.sh --target cursor   --only mcp           # just the MCP symlink
-./install.sh --target cursor   --only settings      # just the cursor rules symlinks
-./install.sh --target codex    --only settings      # just the codex config + rules symlinks
-./install.sh --target codex    --only base,settings # equivalent to default + --settings
-./install.sh --target opencode --only settings      # just the opencode config + rules symlinks
-```
-
-`--settings` and `--mcp` are **additive** on top of the default (`base`) step. `--only <steps>` is **exclusive** and overrides both defaults and additive flags. Invalid steps for a target (e.g. `--only settings` on `cursor`) fail fast with a clear error.
-
-The `codex` target syncs:
-
-- plugin tree: **symlink** `~/.codex/plugins/ycc/ → <repo>/.codex-plugin/ycc/` (live — no rsync into the Codex plugin dir)
-- native custom agents: [`.codex-plugin/agents/`](.codex-plugin/agents/) → `~/.codex/agents/` (rsync)
-- user marketplace entry: `~/.agents/plugins/marketplace.json` with a `source: local` entry whose `path` is the **absolute** repo checkout path to `.codex-plugin/ycc/`
-
-The symlink keeps the hardcoded `~/.codex/plugins/ycc/...` paths inside generated skill bodies valid while making edits live. After running the Codex target, restart Codex, open `/plugins`, and install `ycc` from your local marketplace if it is not already installed. Skills regenerated via `./scripts/sync.sh --only codex` are picked up on the next plugin reload without rerunning `install.sh`.
-
-If `~/.codex/plugins/ycc/` already exists as a real directory (from the pre-symlink rsync flow), `install.sh` will refuse to replace it; `rm -rf ~/.codex/plugins/ycc` and rerun.
-
-### Iterate live without push or rsync
-
-Once the `base` step runs for `claude` or `codex`, editing `ycc/` is a live operation:
-
-- **Claude Code**: `~/.claude/settings.local.json` (user-private, auto-gitignored) has a `local-ycc-plugins` marketplace with `source: "file"` pointing at the repo's `.claude-plugin/marketplace.json`. After editing `ycc/skills/<name>/SKILL.md` (or any other source-of-truth file under `ycc/`), run `/reload-plugins` in Claude Code — no git push, no cache clear.
-- **Codex**: `~/.codex/plugins/ycc/` is a **symlink** to the repo's `.codex-plugin/ycc/`, and `~/.agents/plugins/marketplace.json` points at the same absolute path. Edits in `ycc/` require one extra step: run `./scripts/sync.sh --only codex` to regenerate `.codex-plugin/ycc/` (Codex consumes the generated bundle, not `ycc/` source). After that, reload the plugin in Codex.
-
-Both targets embed an **absolute** path in their user-private config. If you move or rename this repo checkout, rerun the corresponding `install.sh --target <target> --only base` to refresh the absolute path.
-
-The existing GitHub `ycc@ycc` marketplace entry in `~/.claude/settings.json` (from the committed `ycc/settings/settings.json`) is not touched — both `ycc@ycc` and `ycc@local-ycc-plugins` become addressable and active. If you leave both enabled, Claude Code loads two copies of the plugin. The base step detects this and prints the exact one-liner to disable `ycc@ycc` so the local copy wins.
-
-### Install Codex plugin from a GitHub repository
-
-The `install.sh --target codex` flow (default `--mode local`) is the canonical way to run `ycc` in Codex during development. For a non-developer install that tracks a remote ref instead of a local checkout, run:
-
-```bash
-./install.sh --target codex --mode repo
-```
-
-This writes `~/.agents/plugins/marketplace.json` with a `source: github` entry pointing at `yandy-r/claude-plugins@main`, skips the local symlink and agents rsync, and leaves the Codex client to pull the bundle from the remote on install. Restart Codex and install `ycc` via `/plugins`.
-
-The written marketplace JSON uses this shape (the same `github` source schema mirrored from the Claude Code `~/.claude/settings.json` marketplace block):
-
-```json
-{
-  "name": "local-ycc-plugins",
-  "interface": { "displayName": "Local YCC Plugins" },
-  "plugins": [
-    {
-      "name": "ycc",
-      "source": {
-        "source": "github",
-        "repo": "yandy-r/claude-plugins",
-        "ref": "main"
-      },
-      "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL"
-      },
-      "category": "Productivity"
-    }
-  ]
-}
-```
-
-Note: [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) is committed with a **relative** path (`./.codex-plugin/ycc`) so it remains portable across contributors' checkouts. The absolute path (or the github-source block in repo mode) is only written to the user-global copy at `~/.agents/plugins/marketplace.json` by `install.sh`.
-
-### Codex notes
-
-- Codex support is **native**, not a Cursor-style copy. Skills are packaged as a Codex plugin and agents are emitted as Codex custom-agent TOMLs.
-- Codex does **not** support this repo's custom slash-command layer as installable artifacts. Use the bundled skills directly with `$skill-name` or by invoking the installed `ycc` plugin, and use Codex built-ins such as `/plan` and `/review` where applicable.
-- Generated Codex skill references assume the managed install location `~/.codex/plugins/ycc/` for bundled helper scripts and references. `install.sh --target codex` makes this path a symlink back to `<repo>/.codex-plugin/ycc/`, so those references stay valid while edits remain live.
-
-### opencode notes
-
-- opencode support is **native**. Skills install at `~/.config/opencode/skills/`, agents at `~/.config/opencode/agents/`, and commands at `~/.config/opencode/commands/`. opencode loads `SKILL.md` on demand via the built-in `skill` tool; agents respond to `@mention` or the built-in `task` tool; commands run as `/<name>` in the TUI.
-- opencode has no `${PLUGIN_ROOT}` variable, so generated skill bodies reference absolute paths (e.g. `~/.config/opencode/skills/foo/...`) rather than a runtime-injected root.
-- **Default model**: the generated `opencode.json` sets `model: "openai/gpt-5.4"` with `reasoningEffort: "high"` and `textVerbosity: "low"`. Users need `OPENAI_API_KEY` in their environment, or can run `opencode auth login openai` once. Anthropic/Claude is not first-class in opencode (Anthropic blocked opencode client spoofing in January 2026; opencode 1.3.0 removed the built-in Anthropic OAuth plugin) — users who want different models can override via `scripts/opencode_model_aliases.local.json` (gitignored, merged on top of `scripts/opencode_model_aliases.json`).
-- **Hooks** are marked `partial` in the capability matrix: opencode's lifecycle hooks require a TypeScript plugin module, which the `ycc` bundle does not ship in v1. Hook guidance is emitted as rule-embedded notes only.
-
-### Unified sync and validate
-
-The recommended workflow is a single entry point that regenerates (or validates) every derived artifact in one call:
-
-```bash
-./scripts/sync.sh        # regenerate everything: inventory, Cursor, Codex
+./scripts/sync.sh        # regenerate inventory and compatibility bundles
 ./scripts/validate.sh    # run every validator; CI runs this on push and PR
 ```
 
@@ -304,113 +167,6 @@ Examples:
 ```
 
 CI runs `./scripts/validate.sh` via [`.github/workflows/validate.yml`](.github/workflows/validate.yml) and fails the job on any generated drift, so local and CI paths are identical.
-
-### Regenerate inventory
-
-`docs/inventory.json` is the canonical manifest of skills, commands, and agents. The inventory generator also rewrites three marker-bounded regions of `README.md`:
-
-- **GENERATED-COUNTS** — the skills/commands/agents counts sentence
-- **GENERATED-COMMANDS** — the capability table
-- **GENERATED-AGENTS** — the agent-count sentence
-
-Each region is bounded by HTML-comment markers (`BEGIN:` / `END:`) that must live on their own line. Content inside the markers is overwritten by the generator — edits there will be clobbered. Everything else in `README.md` is hand-authored.
-
-```bash
-./scripts/generate-inventory.sh
-./scripts/validate-inventory.sh
-```
-
-Skills that legitimately lack a matching slash command (for example, passive trigger-only skills) appear in the generator's `skills without commands` summary — this is informational, not an error.
-
-### Regenerate Cursor agents
-
-`ycc/agents/*.md` is the **source of truth**. After editing an agent there, regenerate the Cursor copies and validate:
-
-```bash
-./scripts/generate-cursor-agents.sh
-./scripts/validate-cursor-agents.sh
-```
-
-The generator **overwrites** each matching `*.md` and **deletes** any `*.md` under `.cursor-plugin/agents/` that no longer exists in `ycc/agents/`, so the two trees stay in lockstep.
-
-Cursor model normalization is applied during generation:
-
-- Generated Cursor agents always emit `model: inherit` or `model: fast`.
-- `fast` assignments are controlled by [`scripts/cursor_fast_agents.json`](scripts/cursor_fast_agents.json).
-- Any non-allowlisted agent is normalized to `inherit`.
-- [`scripts/validate-cursor-agents.sh`](scripts/validate-cursor-agents.sh) fails on legacy shorthand model tokens (for example `opus`, `sonnet`, `haiku`) in generated Cursor output.
-
-Commit changes to both `ycc/agents/` and `.cursor-plugin/agents/` together.
-
-### Regenerate Cursor skills
-
-`ycc/skills/` is the **source of truth**. After editing skills (including scripts and templates), regenerate the Cursor tree and validate:
-
-```bash
-./scripts/generate-cursor-skills.sh
-./scripts/validate-cursor-skills.sh
-```
-
-The generator **mirrors** the full directory (new/updated files and **deletions**), preserves Unix file modes (e.g. executable `*.sh`), and applies Cursor-native rewrites (for example `CLAUDE_PLUGIN_ROOT` → `CURSOR_PLUGIN_ROOT`, `/ycc:foo` → `/foo`, `~/.claude/` → `~/.cursor/` where applicable).
-
-**`CURSOR_PLUGIN_ROOT`:** Generated skills reference bundled files as `${CURSOR_PLUGIN_ROOT}/skills/...`. Set this to the absolute path of your **plugin root** (the directory that contains a `skills/` folder — e.g. this repo’s [`.cursor-plugin`](.cursor-plugin) when developing, or your installed plugin directory under `~/.cursor/plugins/` after installation).
-
-Commit changes to both `ycc/skills/` and `.cursor-plugin/skills/` together.
-
-### Regenerate Cursor rules
-
-`ycc/rules/` is the **source of truth** (nested `common/`, language folders, `web/`, etc.). After editing `.md` sources, regenerate Cursor `.mdc` rules and validate:
-
-```bash
-./scripts/generate-cursor-rules.sh
-./scripts/validate-cursor-rules.sh
-```
-
-The generator writes **nested** `.mdc` files (same folder layout as `ycc/rules/`), converts Claude-style `paths:` frontmatter to `globs:`, mirrors the tree exactly (including deletions), and applies the same Cursor-native text rewrites as skills.
-
-### Regenerate Codex skills, plugin metadata, and agents
-
-`ycc/skills/` and `ycc/agents/` remain the **source of truth**. After editing either tree, regenerate the Codex artifacts and validate:
-
-```bash
-./scripts/generate-codex-skills.sh
-./scripts/generate-codex-agents.sh
-./scripts/generate-codex-plugin.sh
-./scripts/validate-codex-skills.sh
-./scripts/validate-codex-agents.sh
-./scripts/validate-codex-plugin.sh
-```
-
-Codex output layout:
-
-- [`.codex-plugin/ycc/`](.codex-plugin/ycc/) — generated Codex plugin root
-- [`.codex-plugin/agents/`](.codex-plugin/agents/) — generated Codex custom agents
-- [`.agents/plugins/marketplace.json`](.agents/plugins/marketplace.json) — repo-local marketplace source for development
-
-### Regenerate opencode skills, agents, commands, and plugin metadata
-
-`ycc/skills/`, `ycc/agents/`, and `ycc/commands/` are the **source of truth**. After editing any of them, regenerate the opencode artifacts and validate:
-
-```bash
-./scripts/generate-opencode-skills.sh
-./scripts/generate-opencode-agents.sh
-./scripts/generate-opencode-commands.sh
-./scripts/generate-opencode-plugin.sh
-./scripts/validate-opencode-skills.sh
-./scripts/validate-opencode-agents.sh
-./scripts/validate-opencode-commands.sh
-./scripts/validate-opencode-plugin.sh
-```
-
-opencode output layout:
-
-- [`.opencode-plugin/skills/`](.opencode-plugin/skills/) — generated opencode skills
-- [`.opencode-plugin/agents/`](.opencode-plugin/agents/) — generated opencode agents
-- [`.opencode-plugin/commands/`](.opencode-plugin/commands/) — generated opencode slash commands
-- [`.opencode-plugin/opencode.json`](.opencode-plugin/opencode.json) — config with `$schema`, default model, reasoning effort, translated MCP
-- [`.opencode-plugin/AGENTS.md`](.opencode-plugin/AGENTS.md) — rules file (transformed from CLAUDE.md)
-- [`.opencode-plugin/shared/`](.opencode-plugin/shared/) — infrastructure scripts referenced from skills
-- [`scripts/opencode_model_aliases.json`](scripts/opencode_model_aliases.json) — Claude-shorthand → `openai/gpt-5.4`-family mapping; override per-user via `scripts/opencode_model_aliases.local.json`.
 
 ## Repository layout
 
@@ -490,6 +246,7 @@ claude-plugins/
 │           ├── references/    # templates and examples
 │           └── scripts/       # validation and helpers
 └── docs/
+    ├── install/               # runtime-specific install guides
     └── plans/                 # implementation plans
 ```
 

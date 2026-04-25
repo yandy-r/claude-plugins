@@ -2,8 +2,8 @@
 
 Hand-maintained documentation for the `claude-plugins` repository. The
 top-level `README.md` covers user-facing plugin surfaces (skills, commands,
-agents); this directory holds everything else: implementation plans, release
-notes, review artifacts, and ad-hoc recommendations.
+agents) and links to focused guides here for install details, implementation
+plans, release notes, review artifacts, and ad-hoc recommendations.
 
 The repository's authoritative agent-runtime rules live in
 [`../CLAUDE.md`](../CLAUDE.md) (and its mirrored
@@ -15,11 +15,22 @@ twins). Per-skill documentation lives inline at
 
 | Path                           | Purpose                                                                          |
 | ------------------------------ | -------------------------------------------------------------------------------- |
+| `install/`                     | Runtime-specific install guides for Claude, Cursor, Codex, and opencode.         |
 | `plans/`                       | Multi-phase implementation plans — see below.                                    |
 | `releases/`                    | One file per tagged release, drafted by `ycc:bundle-release`.                    |
 | `prps/`                        | Product Requirements / Plans / Reviews — PRP-workflow artifacts.                 |
 | `inventory.json`               | **Generated.** Skill/command/agent manifest. Regenerate via `./scripts/sync.sh`. |
 | `pre-commit-recommendation.md` | Stand-alone note on pre-commit hook policy.                                      |
+
+## Install Guides
+
+Runtime-specific install instructions live under [`install/`](install/):
+
+- [`install/README.md`](install/README.md) — shared installer concepts and target matrix.
+- [`install/claude.md`](install/claude.md) — Claude Code plus Claude Desktop MCP setup.
+- [`install/codex.md`](install/codex.md) — Codex plugin, custom agents, and Codex Desktop setup.
+- [`install/cursor.md`](install/cursor.md) — Cursor-native bundle sync and MCP setup.
+- [`install/opencode.md`](install/opencode.md) — opencode-native skills, agents, commands, config, and rules.
 
 ## Plans
 
@@ -69,9 +80,9 @@ been run.
 
 ## Generated vs. source-of-truth
 
-- `inventory.json` and the top-level `README.md` are **generated**. Edit the
-  inputs (`ycc/` tree and the generator templates), then run
-  `./scripts/sync.sh`.
+- `inventory.json` and the generated regions in the top-level `README.md` are
+  **generated**. Edit the inputs (`ycc/` tree and the generator templates), then
+  run `./scripts/sync.sh`.
 - Everything else in this directory is hand-edited.
 
 See [`../CONTRIBUTING.md`](../CONTRIBUTING.md) for the scope policy and
