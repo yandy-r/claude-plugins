@@ -107,6 +107,8 @@ run_target() {
             "${REPO_ROOT}/scripts/validate-opencode-commands.sh" || fail "validate-opencode-commands.sh"
             echo "== validate: opencode plugin =="
             "${REPO_ROOT}/scripts/validate-opencode-plugin.sh" || fail "validate-opencode-plugin.sh"
+            echo "== validate: opencode install coverage =="
+            "${REPO_ROOT}/scripts/validate-opencode-install-coverage.sh" || fail "validate-opencode-install-coverage.sh"
             ;;
         json)
             echo "== validate: marketplace and plugin manifests =="

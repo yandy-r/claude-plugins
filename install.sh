@@ -1129,7 +1129,13 @@ sync_opencode_target() {
         step=$((step + 1))
         printf '\n%s[%d/%d] Sync bundle to ~/.config/opencode%s\n' "${BOLD}" "$step" "$total" "${NC}"
 
-        local managed_units=(skills agents commands)
+        # `shared/` carries the cross-skill scripts and references that
+        # ycc/skills/_shared/... gets rewritten to at generation time
+        # (~/.config/opencode/shared/...). It MUST stay in this list — see
+        # scripts/validate-opencode-install-coverage.sh which enforces that
+        # every <dir> referenced in the bundle is either rsynced here or
+        # explicitly allowlisted as a user-global/runtime path.
+        local managed_units=(skills agents commands shared)
         local unit
         for unit in "${managed_units[@]}"; do
             local src_unit="${OPENCODE_PLUGIN_DIR}/${unit}/"

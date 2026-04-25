@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+# Verifies that every ~/.config/opencode/<root>/... reference inside
+# the .opencode-plugin/ bundle is either:
+#   (a) installable: <root> is in install.sh's managed_units array AND
+#       the backing file exists under .opencode-plugin/<root>/...
+#   (b) intentionally not bundle-shipped (a user-global or runtime path
+#       on the explicit allowlist).
+#
+# This is the regression guard for bugs where the generator emits a
+# reference but the install step never copies the backing dir, or vice
+# versa. Run after the other validate-opencode-*.sh scripts so structural
+# problems surface first.
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+BUNDLE_ROOT="${REPO_ROOT}/.opencode-plugin"
+INSTALL_SCRIPT="${REPO_ROOT}/install.sh"
+
+if [[ ! -d "${BUNDLE_ROOT}" ]]; then
+    echo "validate-opencode-install-coverage: ${BUNDLE_ROOT} not found" >&2
+    exit 1
+fi
+if [[ ! -f "${INSTALL_SCRIPT}" ]]; then
+    echo "validate-opencode-install-coverage: ${INSTALL_SCRIPT} not found" >&2
+    exit 1
+fi
+
+echo "== Install-coverage check (~/.config/opencode/... references) =="
+python3 - "${BUNDLE_ROOT}" "${INSTALL_SCRIPT}" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+bundle_root = Path(sys.argv[1])
+install_script = Path(sys.argv[2])
+
+# Single source of truth: parse the managed_units=(...) array out of
+# install.sh's opencode sync step specifically. install.sh has multiple
+# managed_units arrays (cursor and opencode each declare their own); we
+# anchor on the "Sync bundle to ~/.config/opencode" marker that appears
+# in the opencode sync step's progress banner so we always pick up the
+# opencode-targeted array.
+text = install_script.read_text(encoding="utf-8")
+anchor = text.find("Sync bundle to ~/.config/opencode")
+if anchor < 0:
+    print(
+        "FAIL: could not find the opencode sync banner in install.sh — "
+        "validator cannot locate the opencode managed_units array.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+match = re.search(r"managed_units=\(([^)]*)\)", text[anchor:])
+if not match:
+    print(
+        "FAIL: could not find managed_units=(...) in install.sh's "
+        "opencode block — validator cannot determine what install.sh "
+        "actually copies.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+MANAGED_UNITS = set(match.group(1).split())
+
+# Roots intentionally NOT bundle-shipped: user-global directories that
+# the user maintains outside the plugin, or runtime/state paths the
+# plugin only reads/writes at runtime.
+ALLOWLIST_ROOTS = {
+    "file-templates",   # user-maintained doc templates (~/.claude/file-templates rewritten to ~/.config/opencode/file-templates)
+    "sessions",         # runtime session state
+    "session-data",     # runtime session state
+}
+# Top-level files installed directly (bypassing the managed_units
+# rsync). These exist at .opencode-plugin/<file> as plain top-level
+# files; install.sh copies / symlinks them in dedicated steps.
+ALLOWLIST_FILES = {
+    "opencode.json",
+    "AGENTS.md",
+    "settings.json",                # user opencode settings, not shipped
+    "settings-hooks-fragment.json", # generated hook fragment, not shipped
+}
+
+# Match ~/.config/opencode/<root>(/<rest>)?
+# - <root> is one path segment of normal name characters
+# - <rest> is greedy across path-safe characters; may include trailing /
+PATH_RE = re.compile(
+    r"~/\.config/opencode/([A-Za-z0-9._-]+)(?:/([A-Za-z0-9._/-]*))?"
+)
+
+unknown_roots: dict[str, str] = {}    # root -> first .opencode-plugin file referencing it
+missing_targets: list[tuple[str, str, str]] = []  # (src, raw_ref, expected_path)
+
+for path in sorted(bundle_root.rglob("*")):
+    if not path.is_file():
+        continue
+    try:
+        body = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        continue
+    for m in PATH_RE.finditer(body):
+        root = m.group(1)
+        rest = m.group(2) or ""
+        if root in ALLOWLIST_FILES or root in ALLOWLIST_ROOTS:
+            continue
+        if root not in MANAGED_UNITS:
+            unknown_roots.setdefault(root, str(path.relative_to(bundle_root)))
+            continue
+        # Strip a trailing slash so "skills/init/templates/" resolves to
+        # the directory rather than a non-existent path with empty tail.
+        rest_clean = rest.rstrip("/")
+        if rest_clean:
+            target = bundle_root / root / rest_clean
+        else:
+            target = bundle_root / root
+        if not target.exists():
+            missing_targets.append(
+                (
+                    str(path.relative_to(bundle_root)),
+                    m.group(0),
+                    str(target.relative_to(bundle_root.parent)),
+                )
+            )
+
+failed = False
+
+if unknown_roots:
+    failed = True
+    print(
+        "FAIL: bundle references roots that are neither in install.sh's "
+        "managed_units nor on the allowlist:",
+        file=sys.stderr,
+    )
+    for root, src in sorted(unknown_roots.items()):
+        print(
+            f"  ~/.config/opencode/{root}/... "
+            f"(first seen in .opencode-plugin/{src})",
+            file=sys.stderr,
+        )
+    print(
+        "  Fix: either add the dir to install.sh's managed_units array "
+        "(if the plugin should ship it) or add it to ALLOWLIST_ROOTS / "
+        "ALLOWLIST_FILES in this validator (if it is user-global).",
+        file=sys.stderr,
+    )
+
+if missing_targets:
+    failed = True
+    print(
+        "FAIL: bundle references files that do not exist in "
+        ".opencode-plugin/:",
+        file=sys.stderr,
+    )
+    for src, ref, expected in missing_targets:
+        print(f"  .opencode-plugin/{src}", file=sys.stderr)
+        print(f"    references: {ref}", file=sys.stderr)
+        print(f"    expected:   {expected}", file=sys.stderr)
+    print(
+        "  Fix: regenerate the bundle (./scripts/sync.sh --only opencode) "
+        "or update the source skill/agent/command to point at a path that "
+        "actually ships.",
+        file=sys.stderr,
+    )
+
+if failed:
+    sys.exit(1)
+
+print(
+    f"OK: every ~/.config/opencode/<root>/... reference in "
+    f"{bundle_root.name}/ resolves to a backing file or an allowlisted "
+    f"user-global path."
+)
+PY
