@@ -6,14 +6,45 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+
+resolve_repo_root() {
+    local root
+    if [[ -n "${YCC_REPO_ROOT:-}" ]]; then
+        root="$(cd "${YCC_REPO_ROOT}" && pwd)"
+        if [[ -f "${root}/ycc/.claude-plugin/plugin.json" ]]; then
+            printf '%s\n' "${root}"
+            return 0
+        fi
+        echo "draft-notes.sh: FAIL: YCC_REPO_ROOT does not point at claude-plugins: ${YCC_REPO_ROOT}" >&2
+        exit 1
+    fi
+
+    if root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+        if [[ -f "${root}/ycc/.claude-plugin/plugin.json" ]]; then
+            printf '%s\n' "${root}"
+            return 0
+        fi
+    fi
+
+    root="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+    if [[ -f "${root}/ycc/.claude-plugin/plugin.json" ]]; then
+        printf '%s\n' "${root}"
+        return 0
+    fi
+
+    echo "draft-notes.sh: FAIL: could not resolve claude-plugins repo root" >&2
+    echo "  run from the repository checkout or use the source-tree script" >&2
+    exit 1
+}
+
+REPO_ROOT="$(resolve_repo_root)"
 
 usage() {
     cat <<EOF
 Usage: $(basename "$0") <new-version>
 
 Draft release notes for <new-version> at docs/releases/<new-version>.md,
-filled from .opencode-plugin/skills/bundle-release/references/release-notes-template.md.
+filled from ycc/skills/bundle-release/references/release-notes-template.md.
 
 Sources:
   - Date: UTC today
@@ -66,7 +97,7 @@ fi
 OUT="${REPO_ROOT}/docs/releases/${NEW_VERSION}.md"
 [[ -e "${OUT}" ]] && { echo "draft-notes.sh: refuse: ${OUT} already exists" >&2; exit 1; }
 
-TEMPLATE="${REPO_ROOT}/.opencode-plugin/skills/bundle-release/references/release-notes-template.md"
+TEMPLATE="${REPO_ROOT}/ycc/skills/bundle-release/references/release-notes-template.md"
 [[ -f "${TEMPLATE}" ]] || { echo "draft-notes.sh: template missing: ${TEMPLATE}" >&2; exit 1; }
 
 # --- gather inputs ---

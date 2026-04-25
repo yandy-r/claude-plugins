@@ -8,15 +8,16 @@ generator script.
 
 | File                              | Kind        | Maintained by                      |
 | --------------------------------- | ----------- | ---------------------------------- |
-| `ycc/.opencode-plugin/plugin.json`  | hand-edited | `bundle-release` `bump-version.sh` |
-| `.opencode-plugin/marketplace.json` | hand-edited | `bundle-release` `bump-version.sh` |
+| `ycc/.claude-plugin/plugin.json`  | hand-edited | `bundle-release` `bump-version.sh` |
+| `.claude-plugin/marketplace.json` | hand-edited | `bundle-release` `bump-version.sh` |
 | `.codex-plugin/ycc/**`            | regenerated | `scripts/generate-codex-plugin.sh` |
 | `.cursor-plugin/**`               | regenerated | `scripts/sync.sh --only cursor`    |
+| `.opencode-plugin/**`             | regenerated | `scripts/sync.sh --only opencode`  |
 
 ## Parity Rule
 
-`ycc/.opencode-plugin/plugin.json:"version"` and both `"version"` fields inside
-`.opencode-plugin/marketplace.json` (top-level `metadata.version` and
+`ycc/.claude-plugin/plugin.json:"version"` and both `"version"` fields inside
+`.claude-plugin/marketplace.json` (top-level `metadata.version` and
 `plugins[0].version`) MUST be identical at all times. `bundle-release/scripts/preflight.sh`
 enforces this check before any release action proceeds. If the values diverge, fix them
 manually in both hand-edited files before continuing.
@@ -33,10 +34,10 @@ instead:
 
 ```
 # Directory tree
-plugin.json      # name: "ycc", version bumped by /bundle-release
+plugin.json      # name: "ycc", version bumped by bundle-release
 
 # JSON example
-"version": "<managed by /bundle-release>"
+"version": "<managed by bundle-release>"
 ```
 
 `bundle-release/scripts/preflight.sh` enforces this: it scans the hand-edited files for
@@ -84,6 +85,7 @@ scripts) to propagate:
 
 - `.cursor-plugin/**`
 - `.codex-plugin/**`
+- `.opencode-plugin/**`
 - `docs/inventory.json`
 
 ## Pre-Bump Checklist

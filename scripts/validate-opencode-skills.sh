@@ -86,14 +86,26 @@ is_verbatim() {
   return 1
 }
 
+is_bundle_release_file() {
+  local rel="${1#"${SKILLS_DIR}/"}"
+  [[ "$rel" == bundle-release/* ]]
+}
+
 BAD=0
 while IFS= read -r -d '' f; do
   if is_verbatim "$f"; then
     continue
   fi
-  if grep -qE '/ycc:|\bycc:|CLAUDE_PLUGIN_ROOT|~/\.claude/|\.claude-plugin/|TeamCreate|TeamDelete|TaskCreate|TaskUpdate|TaskList|TaskGet|SendMessage|AskUserQuestion|TodoWrite|subagent_type:' "$f" 2>/dev/null; then
+  if is_bundle_release_file "$f"; then
+    # bundle-release intentionally manages Claude plugin metadata as the
+    # source-of-truth version surface, even from generated opencode skills.
+    pattern='/ycc:|\bycc:|CLAUDE_PLUGIN_ROOT|~/\.claude/|TeamCreate|TeamDelete|TaskCreate|TaskUpdate|TaskList|TaskGet|SendMessage|AskUserQuestion|TodoWrite|subagent_type:'
+  else
+    pattern='/ycc:|\bycc:|CLAUDE_PLUGIN_ROOT|~/\.claude/|\.claude-plugin/|TeamCreate|TeamDelete|TaskCreate|TaskUpdate|TaskList|TaskGet|SendMessage|AskUserQuestion|TodoWrite|subagent_type:'
+  fi
+  if grep -qE "$pattern" "$f" 2>/dev/null; then
     echo "FORBIDDEN pattern in $f:" >&2
-    grep -nE '/ycc:|\bycc:|CLAUDE_PLUGIN_ROOT|~/\.claude/|\.claude-plugin/|TeamCreate|TeamDelete|TaskCreate|TaskUpdate|TaskList|TaskGet|SendMessage|AskUserQuestion|TodoWrite|subagent_type:' "$f" >&2 || true
+    grep -nE "$pattern" "$f" >&2 || true
     BAD=1
   fi
 done < <(find "$SKILLS_DIR" -type f -print0)

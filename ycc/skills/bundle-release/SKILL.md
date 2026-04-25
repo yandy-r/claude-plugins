@@ -9,6 +9,7 @@ allowed-tools:
   - Write
   - Bash(git:*)
   - Bash(python3:*)
+  - 'Bash(ycc/skills/bundle-release/scripts/*.sh:*)'
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/bundle-release/scripts/*.sh:*)'
   - Bash(./scripts/sync.sh:*)
   - Bash(./scripts/validate.sh:*)
@@ -34,7 +35,7 @@ Parse `$ARGUMENTS` for:
 
 ## Phase 0: Pre-flight
 
-Run `${CLAUDE_PLUGIN_ROOT}/skills/bundle-release/scripts/preflight.sh`. On non-zero
+Run `ycc/skills/bundle-release/scripts/preflight.sh`. On non-zero
 exit, STOP and surface the full stderr output to the user. Do not proceed.
 
 Checks owned by `preflight.sh`:
@@ -46,13 +47,13 @@ Checks owned by `preflight.sh`:
 - No stale version literals (`version: X.Y.Z` or `"version": "X.Y.Z"`) in hand-edited
   docs (`CLAUDE.md`, `AGENTS.md`, `README.md`, `docs/README.md`) where the semver does
   not match the current bundle version. Author should use the `<managed by
-/ycc:bundle-release>` placeholder form in example snippets — see
+bundle-release>` placeholder form in example snippets — see
   `references/version-policy.md` for the full rule.
 - `./scripts/validate.sh` passes on the pre-release tree.
 
 ## Phase 1: Semver sanity check
 
-Read `${CLAUDE_PLUGIN_ROOT}/skills/bundle-release/references/version-policy.md`.
+Read `ycc/skills/bundle-release/references/version-policy.md`.
 Compare the current version (reported by preflight output) against the requested
 `<new-version>`.
 
@@ -80,7 +81,7 @@ Then STOP without writing or executing anything.
 
 ## Phase 3: Bump version
 
-Run `${CLAUDE_PLUGIN_ROOT}/skills/bundle-release/scripts/bump-version.sh <new-version>`.
+Run `ycc/skills/bundle-release/scripts/bump-version.sh <new-version>`.
 
 This script updates both hand-edited JSON files atomically. After it exits, surface the
 diff (`git diff ycc/.claude-plugin/plugin.json .claude-plugin/marketplace.json`) for
@@ -111,7 +112,7 @@ continuing.
 Unless `--skip-notes` was passed, run:
 
 ```
-${CLAUDE_PLUGIN_ROOT}/skills/bundle-release/scripts/draft-notes.sh <new-version>
+ycc/skills/bundle-release/scripts/draft-notes.sh <new-version>
 ```
 
 This fills the release notes template and writes `docs/releases/<new-version>.md`.

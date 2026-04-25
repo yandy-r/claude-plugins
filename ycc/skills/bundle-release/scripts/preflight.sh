@@ -15,7 +15,38 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+
+resolve_repo_root() {
+    local root
+    if [[ -n "${YCC_REPO_ROOT:-}" ]]; then
+        root="$(cd "${YCC_REPO_ROOT}" && pwd)"
+        if [[ -f "${root}/ycc/.claude-plugin/plugin.json" ]]; then
+            printf '%s\n' "${root}"
+            return 0
+        fi
+        echo "preflight.sh: FAIL: YCC_REPO_ROOT does not point at claude-plugins: ${YCC_REPO_ROOT}" >&2
+        exit 1
+    fi
+
+    if root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+        if [[ -f "${root}/ycc/.claude-plugin/plugin.json" ]]; then
+            printf '%s\n' "${root}"
+            return 0
+        fi
+    fi
+
+    root="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+    if [[ -f "${root}/ycc/.claude-plugin/plugin.json" ]]; then
+        printf '%s\n' "${root}"
+        return 0
+    fi
+
+    echo "preflight.sh: FAIL: could not resolve claude-plugins repo root" >&2
+    echo "  run from the repository checkout or use the source-tree script" >&2
+    exit 1
+}
+
+REPO_ROOT="$(resolve_repo_root)"
 
 usage() {
     cat <<'EOF'
@@ -87,7 +118,7 @@ fi
 # version declarations in an example (version: X.Y.Z or "version": "X.Y.Z").
 # Any matched semver that does not equal PLUGIN_VERSION is flagged as stale
 # — the author should either bump the example to match or replace it with
-# the "<managed by /ycc:bundle-release>" placeholder.
+# the "<managed by bundle-release>" placeholder.
 #
 # Prose mentions of older versions (e.g., "2.0.0 breaking change") are not
 # matched because the pattern requires a "version" key preceding the semver.

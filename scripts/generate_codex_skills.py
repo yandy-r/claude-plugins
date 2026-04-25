@@ -168,6 +168,8 @@ def write_tree(dest_root: Path, dry_run: bool) -> set[Path]:
                     rewrite_plugin_paths(text),
                     aliases,
                 )
+            if rel.parts and rel.parts[0] == "bundle-release":
+                transformed = restore_bundle_release_source_paths(transformed)
             out.write_text(transformed, encoding="utf-8")
         else:
             shutil.copyfile(src, out)
@@ -176,6 +178,15 @@ def write_tree(dest_root: Path, dry_run: bool) -> set[Path]:
     if not dry_run:
         prune_orphans(dest_root, written)
     return written
+
+
+def restore_bundle_release_source_paths(content: str) -> str:
+    """Release docs intentionally point at Claude plugin metadata source files."""
+    return (
+        content.replace("ycc/.codex-plugin/plugin.json", "ycc/.claude-plugin/plugin.json")
+        .replace(".codex-plugin/marketplace.json", ".claude-plugin/marketplace.json")
+        .replace(".codex-plugin/ && ./scripts/sync.sh", ".opencode-plugin/ && ./scripts/sync.sh")
+    )
 
 
 def compare_trees(generated: Path, repo_dest: Path, expected_files: set[Path]) -> list[str]:

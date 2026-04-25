@@ -11,10 +11,10 @@ The completed checklist for each release is saved to `docs/releases/<version>.md
 
 - [ ] Working tree is clean (no uncommitted changes). `git status --porcelain` must return empty output.
 - [ ] Currently on `main` branch (or a dedicated release branch with intent).
-- [ ] Version fields are in parity: `ycc/.opencode-plugin/plugin.json` and `.opencode-plugin/marketplace.json` agree before the bump.
+- [ ] Version fields are in parity: `ycc/.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` agree before the bump.
 - [ ] `./scripts/validate.sh` passes on the pre-release tree.
 
-Run: `.opencode-plugin/skills/bundle-release/scripts/preflight.sh`
+Run: `ycc/skills/bundle-release/scripts/preflight.sh`
 
 If pre-flight fails: resolve all failing conditions before proceeding. Do not skip.
 
@@ -35,13 +35,13 @@ If pre-flight fails: resolve all failing conditions before proceeding. Do not sk
 
 ## Phase 2: Bump Version
 
-Run: `.opencode-plugin/skills/bundle-release/scripts/bump-version.sh <new-version>`
+Run: `ycc/skills/bundle-release/scripts/bump-version.sh <new-version>`
 
-- [ ] `ycc/.opencode-plugin/plugin.json` — `version` field updated.
-- [ ] `.opencode-plugin/marketplace.json` — both `metadata.version` and `plugins[0].version` updated.
+- [ ] `ycc/.claude-plugin/plugin.json` — `version` field updated.
+- [ ] `.claude-plugin/marketplace.json` — both `metadata.version` and `plugins[0].version` updated.
 - [ ] Diff reviewed with `git diff` to confirm only version strings changed.
 
-If this step fails: restore both files with `git checkout -- ycc/.opencode-plugin/plugin.json .opencode-plugin/marketplace.json` and investigate.
+If this step fails: restore both files with `git checkout -- ycc/.claude-plugin/plugin.json .claude-plugin/marketplace.json` and investigate.
 
 ---
 
@@ -51,6 +51,7 @@ Run: `./scripts/sync.sh`
 
 - [ ] `.cursor-plugin/` fully regenerated.
 - [ ] `.codex-plugin/` fully regenerated.
+- [ ] `.opencode-plugin/` fully regenerated.
 - [ ] No unexpected file changes (inspect with `git status`).
 
 If unexpected files appear: diff them before proceeding. Do not commit unreviewed generated output.
@@ -68,6 +69,10 @@ Run: `./scripts/validate.sh`
 - [ ] `validate-codex-agents.sh` passes.
 - [ ] `validate-codex-skills.sh` passes.
 - [ ] `validate-codex-plugin.sh` passes.
+- [ ] `validate-opencode-agents.sh` passes.
+- [ ] `validate-opencode-skills.sh` passes.
+- [ ] `validate-opencode-commands.sh` passes.
+- [ ] `validate-opencode-plugin.sh` passes.
 - [ ] Manifest JSON check passes.
 
 If validation fails: do not proceed to Phase 5. Fix the reported error, re-run `./scripts/sync.sh` if needed, then re-run `./scripts/validate.sh`.
@@ -76,7 +81,7 @@ If validation fails: do not proceed to Phase 5. Fix the reported error, re-run `
 
 ## Phase 5: Draft Release Notes
 
-Run: `.opencode-plugin/skills/bundle-release/scripts/draft-notes.sh <new-version>`
+Run: `ycc/skills/bundle-release/scripts/draft-notes.sh <new-version>`
 
 - [ ] `docs/releases/<new-version>.md` created from template.
 - [ ] `Summary` section edited to describe the release in 1–3 sentences.
@@ -91,10 +96,11 @@ Run: `.opencode-plugin/skills/bundle-release/scripts/draft-notes.sh <new-version
 The skill does NOT auto-commit. After reviewing all changes, run:
 
 ```
-git add ycc/.opencode-plugin/plugin.json \
-        .opencode-plugin/marketplace.json \
+git add ycc/.claude-plugin/plugin.json \
+        .claude-plugin/marketplace.json \
         .cursor-plugin \
         .codex-plugin \
+        .opencode-plugin \
         docs/inventory.json \
         docs/releases/<new-version>.md
 git commit -m "chore(release): v<new-version>"
@@ -129,7 +135,7 @@ If anything fails after Phase 1:
 1. Restore version files:
 
    ```
-   git checkout -- ycc/.opencode-plugin/plugin.json .opencode-plugin/marketplace.json
+   git checkout -- ycc/.claude-plugin/plugin.json .claude-plugin/marketplace.json
    ```
 
 2. Restore generated bundles to pre-release state:

@@ -10,7 +10,38 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+
+resolve_repo_root() {
+    local root
+    if [[ -n "${YCC_REPO_ROOT:-}" ]]; then
+        root="$(cd "${YCC_REPO_ROOT}" && pwd)"
+        if [[ -f "${root}/ycc/.claude-plugin/plugin.json" ]]; then
+            printf '%s\n' "${root}"
+            return 0
+        fi
+        echo "bump-version.sh: FAIL: YCC_REPO_ROOT does not point at claude-plugins: ${YCC_REPO_ROOT}" >&2
+        exit 1
+    fi
+
+    if root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+        if [[ -f "${root}/ycc/.claude-plugin/plugin.json" ]]; then
+            printf '%s\n' "${root}"
+            return 0
+        fi
+    fi
+
+    root="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+    if [[ -f "${root}/ycc/.claude-plugin/plugin.json" ]]; then
+        printf '%s\n' "${root}"
+        return 0
+    fi
+
+    echo "bump-version.sh: FAIL: could not resolve claude-plugins repo root" >&2
+    echo "  run from the repository checkout or use the source-tree script" >&2
+    exit 1
+}
+
+REPO_ROOT="$(resolve_repo_root)"
 
 usage() {
     cat <<EOF

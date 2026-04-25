@@ -12,6 +12,7 @@ generator script.
 | `.claude-plugin/marketplace.json` | hand-edited | `bundle-release` `bump-version.sh` |
 | `.codex-plugin/ycc/**`            | regenerated | `scripts/generate-codex-plugin.sh` |
 | `.cursor-plugin/**`               | regenerated | `scripts/sync.sh --only cursor`    |
+| `.opencode-plugin/**`             | regenerated | `scripts/sync.sh --only opencode`  |
 
 ## Parity Rule
 
@@ -33,10 +34,10 @@ instead:
 
 ```
 # Directory tree
-plugin.json      # name: "ycc", version bumped by /ycc:bundle-release
+plugin.json      # name: "ycc", version bumped by bundle-release
 
 # JSON example
-"version": "<managed by /ycc:bundle-release>"
+"version": "<managed by bundle-release>"
 ```
 
 `bundle-release/scripts/preflight.sh` enforces this: it scans the hand-edited files for
@@ -84,6 +85,7 @@ scripts) to propagate:
 
 - `.cursor-plugin/**`
 - `.codex-plugin/**`
+- `.opencode-plugin/**`
 - `docs/inventory.json`
 
 ## Pre-Bump Checklist

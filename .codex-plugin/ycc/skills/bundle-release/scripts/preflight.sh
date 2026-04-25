@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Pre-flight gate for the bundle-release skill.
 # Checks that the git working tree is clean, versions are in parity across
-# ycc/.codex-plugin/plugin.json and .codex-plugin/marketplace.json, warns
+# ycc/.claude-plugin/plugin.json and .claude-plugin/marketplace.json, warns
 # if not on the main branch, and scans hand-edited docs for stale semver
 # literals that don't match the current version.
 #
@@ -15,7 +15,38 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+
+resolve_repo_root() {
+    local root
+    if [[ -n "${YCC_REPO_ROOT:-}" ]]; then
+        root="$(cd "${YCC_REPO_ROOT}" && pwd)"
+        if [[ -f "${root}/ycc/.claude-plugin/plugin.json" ]]; then
+            printf '%s\n' "${root}"
+            return 0
+        fi
+        echo "preflight.sh: FAIL: YCC_REPO_ROOT does not point at claude-plugins: ${YCC_REPO_ROOT}" >&2
+        exit 1
+    fi
+
+    if root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+        if [[ -f "${root}/ycc/.claude-plugin/plugin.json" ]]; then
+            printf '%s\n' "${root}"
+            return 0
+        fi
+    fi
+
+    root="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+    if [[ -f "${root}/ycc/.claude-plugin/plugin.json" ]]; then
+        printf '%s\n' "${root}"
+        return 0
+    fi
+
+    echo "preflight.sh: FAIL: could not resolve claude-plugins repo root" >&2
+    echo "  run from the repository checkout or use the source-tree script" >&2
+    exit 1
+}
+
+REPO_ROOT="$(resolve_repo_root)"
 
 usage() {
     cat <<'EOF'
@@ -23,8 +54,8 @@ Usage: preflight.sh
 
 Gate checks before a ycc release:
   1. git working tree is clean
-  2. current version parity across ycc/.codex-plugin/plugin.json
-     and .codex-plugin/marketplace.json
+  2. current version parity across ycc/.claude-plugin/plugin.json
+     and .claude-plugin/marketplace.json
   3. warn if not on main branch
   4. no stale version literals (version: X.Y.Z or "version": "X.Y.Z")
      in hand-edited docs where the semver does not match the current
@@ -69,15 +100,15 @@ read_json_value() {
     python3 -c "import json,sys; print(json.load(open(sys.argv[1]))$2)" "$1"
 }
 
-PLUGIN_VERSION="$(read_json_value "${REPO_ROOT}/ycc/.codex-plugin/plugin.json" '["version"]')"
-MARKETPLACE_META_VERSION="$(read_json_value "${REPO_ROOT}/.codex-plugin/marketplace.json" '["metadata"]["version"]')"
-MARKETPLACE_PLUGIN_VERSION="$(read_json_value "${REPO_ROOT}/.codex-plugin/marketplace.json" '["plugins"][0]["version"]')"
+PLUGIN_VERSION="$(read_json_value "${REPO_ROOT}/ycc/.claude-plugin/plugin.json" '["version"]')"
+MARKETPLACE_META_VERSION="$(read_json_value "${REPO_ROOT}/.claude-plugin/marketplace.json" '["metadata"]["version"]')"
+MARKETPLACE_PLUGIN_VERSION="$(read_json_value "${REPO_ROOT}/.claude-plugin/marketplace.json" '["plugins"][0]["version"]')"
 
 if ! [[ "${PLUGIN_VERSION}" == "${MARKETPLACE_META_VERSION}" && "${PLUGIN_VERSION}" == "${MARKETPLACE_PLUGIN_VERSION}" ]]; then
     echo "preflight.sh: FAIL: version parity violation" >&2
-    echo "  ycc/.codex-plugin/plugin.json .version           = ${PLUGIN_VERSION}" >&2
-    echo "  .codex-plugin/marketplace.json .metadata.version = ${MARKETPLACE_META_VERSION}" >&2
-    echo "  .codex-plugin/marketplace.json .plugins[0].version = ${MARKETPLACE_PLUGIN_VERSION}" >&2
+    echo "  ycc/.claude-plugin/plugin.json .version           = ${PLUGIN_VERSION}" >&2
+    echo "  .claude-plugin/marketplace.json .metadata.version = ${MARKETPLACE_META_VERSION}" >&2
+    echo "  .claude-plugin/marketplace.json .plugins[0].version = ${MARKETPLACE_PLUGIN_VERSION}" >&2
     exit 1
 fi
 
@@ -87,7 +118,7 @@ fi
 # version declarations in an example (version: X.Y.Z or "version": "X.Y.Z").
 # Any matched semver that does not equal PLUGIN_VERSION is flagged as stale
 # — the author should either bump the example to match or replace it with
-# the "<managed by $bundle-release>" placeholder.
+# the "<managed by bundle-release>" placeholder.
 #
 # Prose mentions of older versions (e.g., "2.0.0 breaking change") are not
 # matched because the pattern requires a "version" key preceding the semver.

@@ -51,6 +51,7 @@ Run: `./scripts/sync.sh`
 
 - [ ] `.cursor-plugin/` fully regenerated.
 - [ ] `.codex-plugin/` fully regenerated.
+- [ ] `.opencode-plugin/` fully regenerated.
 - [ ] No unexpected file changes (inspect with `git status`).
 
 If unexpected files appear: diff them before proceeding. Do not commit unreviewed generated output.
@@ -68,6 +69,10 @@ Run: `./scripts/validate.sh`
 - [ ] `validate-codex-agents.sh` passes.
 - [ ] `validate-codex-skills.sh` passes.
 - [ ] `validate-codex-plugin.sh` passes.
+- [ ] `validate-opencode-agents.sh` passes.
+- [ ] `validate-opencode-skills.sh` passes.
+- [ ] `validate-opencode-commands.sh` passes.
+- [ ] `validate-opencode-plugin.sh` passes.
 - [ ] Manifest JSON check passes.
 
 If validation fails: do not proceed to Phase 5. Fix the reported error, re-run `./scripts/sync.sh` if needed, then re-run `./scripts/validate.sh`.
@@ -95,6 +100,7 @@ git add ycc/.claude-plugin/plugin.json \
         .claude-plugin/marketplace.json \
         .cursor-plugin \
         .codex-plugin \
+        .opencode-plugin \
         docs/inventory.json \
         docs/releases/<new-version>.md
 git commit -m "chore(release): v<new-version>"

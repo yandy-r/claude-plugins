@@ -26,8 +26,8 @@ TODO: 1–2 sentence release summary.
 
 - `./scripts/sync.sh` — OK
 - `./scripts/validate.sh` — OK
-- `python3 -m json.tool .cursor-plugin/marketplace.json` — OK
-- `python3 -m json.tool ycc/.cursor-plugin/plugin.json` — OK
+- `python3 -m json.tool .claude-plugin/marketplace.json` — OK
+- `python3 -m json.tool ycc/.claude-plugin/plugin.json` — OK
 
 ## Upgrade Notes
 

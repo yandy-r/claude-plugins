@@ -5,20 +5,51 @@
 #   bump-version.sh <new-version>
 #
 # Updates:
-#   - ycc/.codex-plugin/plugin.json (.version)
-#   - .codex-plugin/marketplace.json (.metadata.version and .plugins[0].version)
+#   - ycc/.claude-plugin/plugin.json (.version)
+#   - .claude-plugin/marketplace.json (.metadata.version and .plugins[0].version)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+
+resolve_repo_root() {
+    local root
+    if [[ -n "${YCC_REPO_ROOT:-}" ]]; then
+        root="$(cd "${YCC_REPO_ROOT}" && pwd)"
+        if [[ -f "${root}/ycc/.claude-plugin/plugin.json" ]]; then
+            printf '%s\n' "${root}"
+            return 0
+        fi
+        echo "bump-version.sh: FAIL: YCC_REPO_ROOT does not point at claude-plugins: ${YCC_REPO_ROOT}" >&2
+        exit 1
+    fi
+
+    if root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+        if [[ -f "${root}/ycc/.claude-plugin/plugin.json" ]]; then
+            printf '%s\n' "${root}"
+            return 0
+        fi
+    fi
+
+    root="$(cd "${SCRIPT_DIR}/../../../.." && pwd)"
+    if [[ -f "${root}/ycc/.claude-plugin/plugin.json" ]]; then
+        printf '%s\n' "${root}"
+        return 0
+    fi
+
+    echo "bump-version.sh: FAIL: could not resolve claude-plugins repo root" >&2
+    echo "  run from the repository checkout or use the source-tree script" >&2
+    exit 1
+}
+
+REPO_ROOT="$(resolve_repo_root)"
 
 usage() {
     cat <<EOF
 Usage: bump-version.sh <new-version>
 
 Atomically bump version across the two hand-edited source-of-truth files:
-  - ycc/.codex-plugin/plugin.json (.version)
-  - .codex-plugin/marketplace.json (.metadata.version and .plugins[0].version)
+  - ycc/.claude-plugin/plugin.json (.version)
+  - .claude-plugin/marketplace.json (.metadata.version and .plugins[0].version)
 
 Does not touch generated bundles. Validates semver format (x.y.z).
 EOF
@@ -72,9 +103,9 @@ marketplace["plugins"][0]["version"] = new_version
 dump(plugin_path, plugin)
 dump(marketplace_path, marketplace)
 
-print(f"ycc/.codex-plugin/plugin.json:       {old_plugin} -> {new_version}")
-print(f".codex-plugin/marketplace.json meta: {old_meta} -> {new_version}")
-print(f".codex-plugin/marketplace.json entry: {old_entry} -> {new_version}")
+print(f"ycc/.claude-plugin/plugin.json:       {old_plugin} -> {new_version}")
+print(f".claude-plugin/marketplace.json meta: {old_meta} -> {new_version}")
+print(f".claude-plugin/marketplace.json entry: {old_entry} -> {new_version}")
 PY
 
 echo "bump-version.sh: OK (${NEW_VERSION})"

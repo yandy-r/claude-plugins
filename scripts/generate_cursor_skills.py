@@ -146,8 +146,19 @@ def apply_skills_text_transforms(s: str) -> str:
     return s
 
 
-def transform_text_content(content: str) -> str:
+def restore_bundle_release_source_paths(content: str) -> str:
+    """Release docs intentionally point at Claude plugin metadata source files."""
+    return (
+        content.replace("ycc/.cursor-plugin/plugin.json", "ycc/.claude-plugin/plugin.json")
+        .replace(".cursor-plugin/marketplace.json", ".claude-plugin/marketplace.json")
+        .replace(".cursor-plugin/ && ./scripts/sync.sh", ".opencode-plugin/ && ./scripts/sync.sh")
+    )
+
+
+def transform_text_content(content: str, rel: Path) -> str:
     out = apply_skills_text_transforms(content)
+    if rel.parts and rel.parts[0] == "bundle-release":
+        out = restore_bundle_release_source_paths(out)
     if out and not out.endswith("\n"):
         out += "\n"
     return out
@@ -202,7 +213,7 @@ def write_tree(dest: Path, dry_run: bool) -> set[Path]:
                 dst_file.write_bytes(data)
                 copy_mode(src_file, dst_file)
                 continue
-            dst_file.write_text(transform_text_content(text), encoding="utf-8")
+            dst_file.write_text(transform_text_content(text, rel), encoding="utf-8")
         else:
             dst_file.write_bytes(src_file.read_bytes())
 
