@@ -494,6 +494,21 @@ def apply_opencode_text_transforms(
 # ---------------------------------------------------------------------------
 
 
+def translate_opencode_env(value: Any) -> Any:
+    """Translate shell-style env placeholders to opencode config variables.
+
+    The shared MCP source uses ``${TOKEN_NAME}``, which works for Claude/Codex
+    but is a literal string in opencode. opencode expects ``{env:TOKEN_NAME}``.
+    """
+    if isinstance(value, str):
+        return re.sub(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}", r"{env:\1}", value)
+    if isinstance(value, list):
+        return [translate_opencode_env(item) for item in value]
+    if isinstance(value, dict):
+        return {key: translate_opencode_env(item) for key, item in value.items()}
+    return value
+
+
 def translate_mcp_servers(servers: dict[str, Any]) -> dict[str, Any]:
     """Translate a Claude Code ``mcpServers`` mapping to opencode's ``mcp``
     mapping.
@@ -515,7 +530,7 @@ def translate_mcp_servers(servers: dict[str, Any]) -> dict[str, Any]:
 
         # Already opencode-shaped? Pass through.
         if raw.get("type") in {"local", "remote"}:
-            translated[name] = dict(raw)
+            translated[name] = translate_opencode_env(dict(raw))
             continue
 
         # Remote-looking (has a URL)?
@@ -529,7 +544,7 @@ def translate_mcp_servers(servers: dict[str, Any]) -> dict[str, Any]:
                 entry["timeout"] = raw["timeout"]
             if raw.get("enabled") is False:
                 entry["enabled"] = False
-            translated[name] = entry
+            translated[name] = translate_opencode_env(entry)
             continue
 
         # Local: merge command + args, rename env -> environment.
@@ -551,5 +566,5 @@ def translate_mcp_servers(servers: dict[str, Any]) -> dict[str, Any]:
             entry["timeout"] = raw["timeout"]
         if raw.get("enabled") is False:
             entry["enabled"] = False
-        translated[name] = entry
+        translated[name] = translate_opencode_env(entry)
     return translated
