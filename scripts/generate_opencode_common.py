@@ -60,6 +60,7 @@ __all__ = [
     "dump_frontmatter",
     "fix_mcp_malformed_tokens",
     "load_agent_aliases",
+    "normalize_agent_color",
     "is_model_drop_sentinel",
     "load_model_aliases",
     "map_model",
@@ -104,6 +105,55 @@ HOME_INSTALL_OPENCODE_ROOT = "~/.config/opencode"
 # Path to the committed model-alias table and the optional user override file.
 MODEL_ALIASES_PATH = REPO_ROOT / "scripts" / "opencode_model_aliases.json"
 MODEL_ALIASES_LOCAL_PATH = REPO_ROOT / "scripts" / "opencode_model_aliases.local.json"
+
+# opencode agent colors must be hex colors or one of its theme color tokens.
+# Claude agent metadata commonly uses simple color names; normalize those names
+# at generation time so ycc/agents can remain the source of truth for all targets.
+OPENCODE_THEME_COLORS: frozenset[str] = frozenset(
+    {
+        "primary",
+        "secondary",
+        "accent",
+        "success",
+        "warning",
+        "error",
+        "info",
+    }
+)
+
+CLAUDE_COLOR_TO_OPENCODE_HEX: dict[str, str] = {
+    "blue": "#3B82F6",
+    "cyan": "#06B6D4",
+    "green": "#22C55E",
+    "magenta": "#D946EF",
+    "orange": "#F97316",
+    "pink": "#EC4899",
+    "purple": "#8B5CF6",
+    "red": "#EF4444",
+    "yellow": "#EAB308",
+}
+
+
+def normalize_agent_color(value: object) -> str | None:
+    """Return an opencode-valid color value or ``None`` if it cannot be mapped."""
+    if not isinstance(value, str):
+        return None
+
+    color = value.strip()
+    if not color:
+        return None
+
+    lowered = color.lower()
+    if lowered in OPENCODE_THEME_COLORS:
+        return lowered
+    if lowered in CLAUDE_COLOR_TO_OPENCODE_HEX:
+        return CLAUDE_COLOR_TO_OPENCODE_HEX[lowered]
+    if re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+        return color
+    if re.fullmatch(r"[0-9a-fA-F]{6}", color):
+        return f"#{color}"
+    return None
+
 
 # ---------------------------------------------------------------------------
 # Tool name map — Claude Code PascalCase -> opencode lowercase.

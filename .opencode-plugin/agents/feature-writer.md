@@ -9,7 +9,7 @@ tools:
   write: true
   edit: true
   bash: true
-color: green
+color: '#22C55E'
 ---
 
 You are a technical writer specializing in user-facing feature documentation. Your role is to create clear, practical guides that help users understand and use product features.

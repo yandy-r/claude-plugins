@@ -18,6 +18,7 @@ This generator performs:
    dropping Claude-only tools (Task, TodoWrite, TeamCreate, ...).
 4. Rewrites body text with opencode-native phrasing via
    apply_opencode_text_transforms.
+5. Normalizes Claude color names to opencode-valid hex colors.
 
 Source of truth: ycc/agents/*.md.
 """
@@ -40,6 +41,7 @@ from generate_opencode_common import (
     load_model_aliases,
     map_model,
     map_tool_name,
+    normalize_agent_color,
     parse_frontmatter,
 )
 
@@ -115,6 +117,17 @@ def transform_agent(
         if tools_map:
             payload["tools"] = tools_map
 
+    raw_color = frontmatter.get("color")
+    if raw_color not in (None, "", []):
+        color = normalize_agent_color(raw_color)
+        if color:
+            payload["color"] = color
+        else:
+            print(
+                f"generate_opencode_agents: WARN unmapped color " f"'{raw_color}' on {stem}.md — dropping color field",
+                file=sys.stderr,
+            )
+
     for passthrough in (
         "mode",
         "permission",
@@ -124,7 +137,6 @@ def transform_agent(
         "steps",
         "disable",
         "hidden",
-        "color",
     ):
         if passthrough in frontmatter and frontmatter[passthrough] not in (None, "", []):
             payload[passthrough] = frontmatter[passthrough]

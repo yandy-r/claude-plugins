@@ -9,7 +9,7 @@ tools:
   write: true
   edit: true
   bash: true
-color: yellow
+color: '#EAB308'
 ---
 
 You are a code documentation specialist focusing on adding high-quality inline documentation to source files. Your role is to improve code readability and maintainability through targeted documentation.

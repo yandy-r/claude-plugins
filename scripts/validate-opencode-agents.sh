@@ -35,6 +35,15 @@ ALLOWED = {
     "hidden",
     "color",
 }
+THEME_COLORS = {
+    "primary",
+    "secondary",
+    "accent",
+    "success",
+    "warning",
+    "error",
+    "info",
+}
 errors = 0
 for path in sorted(root.glob("*.md")):
     text = path.read_text(encoding="utf-8")
@@ -60,6 +69,18 @@ for path in sorted(root.glob("*.md")):
     if tools is not None and not isinstance(tools, dict):
         print(f"TOOLS must be an object (got {type(tools).__name__}) in {path}", file=sys.stderr)
         errors += 1
+    color = data.get("color")
+    if color is not None:
+        if not isinstance(color, str):
+            print(f"COLOR must be a string (got {type(color).__name__}) in {path}", file=sys.stderr)
+            errors += 1
+        elif color not in THEME_COLORS and not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+            print(
+                f"INVALID color {color!r} in {path} "
+                "(expected #RRGGBB or opencode theme color)",
+                file=sys.stderr,
+            )
+            errors += 1
 if errors:
     sys.exit(1)
 PY

@@ -9,7 +9,7 @@ tools:
   write: true
   edit: true
   bash: true
-color: magenta
+color: '#D946EF'
 ---
 
 You are a README documentation specialist focusing on creating clear, comprehensive README files that help users and developers quickly understand and use a project.
