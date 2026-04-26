@@ -818,12 +818,12 @@ The review file is updated incrementally after each agent returns, so if the run
 
 ## Comparison with related skills
 
-| Skill                    | Purpose                                                                                          |
-| ------------------------ | ------------------------------------------------------------------------------------------------ |
-| `/code-review`       | Produces a review artifact with findings and `Status: Open`                                      |
-| `/review-fix` (this) | Consumes a review artifact and applies fixes, updating `Status` to `Fixed` or `Failed`           |
-| `/prp-implement`     | Executes a PRP plan file with per-task validation — a different workflow, different input format |
-| `/git-workflow --commit` | Commits changes after fixes land                                                             |
+| Skill                        | Purpose                                                                                          |
+| ---------------------------- | ------------------------------------------------------------------------------------------------ |
+| `/code-review`           | Produces a review artifact with findings and `Status: Open`                                      |
+| `/review-fix` (this)     | Consumes a review artifact and applies fixes, updating `Status` to `Fixed` or `Failed`           |
+| `/prp-implement`         | Executes a PRP plan file with per-task validation — a different workflow, different input format |
+| `/git-workflow --commit` | Commits changes after fixes land                                                                 |
 
 ---
 

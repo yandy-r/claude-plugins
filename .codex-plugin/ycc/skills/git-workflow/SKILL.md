@@ -158,6 +158,7 @@ Before proceeding to Phase 1, determine which actions the user requested. The ac
    ```
 
    Map the reply: `1 → {commit}`, `2 → {commit, push}`, `3 → {commit, push, pr}`. Reject other replies and re-prompt.
+
 4. Validate flag combinations:
    - If `--draft` is present and `pr ∉ actions`, stop with the error: "`--draft` requires `--pr`. Re-run with `--pr --draft`, or omit `--draft`."
 5. Record the resolved action set; later phases gate on it.
