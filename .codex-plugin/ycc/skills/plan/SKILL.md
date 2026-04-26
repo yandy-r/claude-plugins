@@ -416,7 +416,7 @@ After planning, depending on what the user approves:
 - Use `$prp-implement` if they want rigorous per-task validation loops (requires a PRP-format plan file — consider running `$prp-plan` first if you want that workflow)
 - Use `$implement-plan` if the work was structured via `$parallel-plan`
 - Use `$code-review` to review completed implementation
-- Use `$git-workflow` or `$prp-commit` to commit
+- Use `$git-workflow --commit` or `$prp-commit` to commit
 
 ### Executing a Parallel Plan
 

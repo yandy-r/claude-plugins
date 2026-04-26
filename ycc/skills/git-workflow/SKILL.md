@@ -11,15 +11,21 @@ Intelligent git commit and documentation workflow orchestration. Analyzes change
 
 **Managing git workflow for**: `$ARGUMENTS`
 
-Parse arguments:
+Parse arguments. **At least one action flag is required**; if none are provided, follow the interactive prompt in Phase 0.5.
+
+**Action flags** (cumulative ladder — `--pr` implies `--push` implies `--commit`):
+
+- **--commit**: Commit only (no push, no PR)
+- **--push**: Commit and push (implies `--commit`)
+- **--pr**: Commit, push, and create PR (implies `--push` and `--commit`)
+
+**Modifier flags** (do NOT satisfy the action requirement on their own):
 
 - **--dry-run**: Show analysis and plan without making changes
 - **--no-docs**: Skip documentation updates (commits only)
-- **--push**: Automatically push after committing
-- **--pr**: Create pull request after pushing (implies --push)
-- **--draft**: Create PR as draft (requires --pr)
+- **--draft**: Create PR as draft (requires `--pr`)
 
-If no arguments needed, proceed with analysis.
+Flag order does not matter — only presence matters. If no action flag is provided, proceed to Phase 0.5 to resolve the action set interactively.
 
 ---
 
@@ -120,6 +126,40 @@ For each modified file, understand:
 - Do changes warrant documentation updates?
 
 Group related changes together for commit organization.
+
+---
+
+## Phase 0.5: Resolve Action Set
+
+### Step 3.5: Determine Requested Actions
+
+Before proceeding to Phase 1, determine which actions the user requested. The action set is what every later phase keys off — Phase 3 commits only when `commit ∈ actions`, Phase 4 pushes only when `push ∈ actions`, Phase 5 creates a PR only when `pr ∈ actions`.
+
+**Resolution algorithm**:
+
+1. Initialize `actions` from explicit flags: include `commit` if `--commit` is present, `push` if `--push` is present, `pr` if `--pr` is present.
+2. Apply implications (cumulative ladder):
+   - If `pr ∈ actions`, add `push` and `commit`.
+   - If `push ∈ actions`, add `commit`.
+3. If `actions` is empty after step 2 (no action flag was provided), present this menu and wait for the user's reply:
+
+   ```
+   No action flag provided. What do you want to do?
+
+     1) Commit only
+     2) Commit and push
+     3) Commit, push, and create PR
+
+   Reply with 1, 2, or 3 (or pass --commit / --push / --pr next time).
+   ```
+
+   Map the reply: `1 → {commit}`, `2 → {commit, push}`, `3 → {commit, push, pr}`. Reject other replies and re-prompt.
+
+4. Validate flag combinations:
+   - If `--draft` is present and `pr ∉ actions`, stop with the error: "`--draft` requires `--pr`. Re-run with `--pr --draft`, or omit `--draft`."
+5. Record the resolved action set; later phases gate on it.
+
+**Note**: `--dry-run` is honored regardless of the resolved action set — it applies to whichever action(s) the user picked. `--no-docs` likewise applies regardless.
 
 ---
 
@@ -323,13 +363,13 @@ EOF
 
 ### Step 12: Optional Push
 
-If `--push` flag is present:
+If `push ∈ resolved action set` (from Phase 0.5):
 
 ```bash
 git push
 ```
 
-Skip to Phase 4 (Summary).
+Skip to Phase 4 (Summary). If `pr ∈ resolved action set`, continue through Phase 4 into Phase 5.
 
 ---
 
@@ -513,9 +553,9 @@ Provide comprehensive completion summary:
 Changes have been pushed to remote
 ```
 
-### Step 21: Optional Push
+### Step 21: Push (if requested)
 
-If `--push` flag is present and not already pushed:
+If `push ∈ resolved action set` and not already pushed in Step 12:
 
 ```bash
 git push
@@ -529,7 +569,7 @@ Display push result.
 
 ### Step 22: Check for PR Flag
 
-If `--pr` flag is present in `$ARGUMENTS`:
+If `pr ∈ resolved action set`:
 
 **Prerequisites**:
 
@@ -537,7 +577,7 @@ If `--pr` flag is present in `$ARGUMENTS`:
 - GitHub MCP server OR GitHub CLI (`gh`) must be available:
   - If MCP tools available (`mcp__github__*`): no additional prerequisites
   - If using CLI fallback: `gh` must be installed and authenticated
-- If `--pr` but not pushed, automatically push first
+- Phase 0.5 guarantees `push` and `commit` are in the action set whenever `pr` is — this step assumes commits exist and the branch has been pushed in Step 12 or Step 21.
 
 ### Step 23: Load PR Template
 
@@ -930,8 +970,9 @@ If repository has `.github/PULL_REQUEST_TEMPLATE.md`:
 - **Documentation**: Only update when substantial changes warrant it
 - **CLAUDE.md**: Rarely needed, only for critical directory-specific patterns
 - **Atomic commits**: Stage and commit in single operation
-- **No premature push**: Only push when explicitly requested or with `--push` flag
-- **Pull requests**: Use `--pr` flag to automatically create PR after pushing
+- **Explicit actions**: every invocation must select at least one of `--commit`, `--push`, or `--pr` (or pick from the interactive menu). Push and PR are never implicit.
+- **Pull requests**: `--pr` implies `--push` and `--commit` — one flag is enough.
+- **Cumulative ladder**: `--commit` < `--push` < `--pr`. Each step up adds the prior steps; flag order does not matter.
 - **Draft PRs**: Use `--draft` with `--pr` for work-in-progress or early feedback
 - **MCP-first**: GitHub operations prefer MCP tools (`mcp__github__*`) when available, with automatic `gh` CLI fallback
 - **GitHub tools required**: PR creation requires GitHub MCP server or `gh` CLI tool installed and authenticated
@@ -947,6 +988,7 @@ If repository has `.github/PULL_REQUEST_TEMPLATE.md`:
 ```bash
 # Analysis shows: 1 file, 10 lines changed
 # Strategy: Direct commit
+# User runs: /ycc:git-workflow --commit
 
 # Crafted message:
 fix(auth): prevent null email validation bypass
@@ -978,6 +1020,7 @@ git commit -m "fix(auth): prevent null email validation bypass"
 
 ```bash
 # Analysis shows: 2 doc files changed
+# User runs: /ycc:git-workflow --commit
 # Strategy: Direct commit (no feature changes)
 
 # Message:
@@ -993,6 +1036,7 @@ docs(api): update authentication endpoint examples
 ```bash
 # User runs with PR flag
 /git-workflow --pr
+# Note: --pr implies --push and --commit — one flag is enough
 
 # Workflow executes:
 # 1. Analyzes changes (12 files)
@@ -1014,6 +1058,7 @@ docs(api): update authentication endpoint examples
 
 ```bash
 /git-workflow --pr --draft
+# Note: --draft requires --pr; it is not an action flag on its own
 
 # Workflow executes:
 # 1. Commits current work
@@ -1033,6 +1078,7 @@ docs(api): update authentication endpoint examples
 
 ```bash
 /git-workflow --push
+# Note: --push implies --commit
 
 # Workflow executes:
 # 1. Commits and documents
@@ -1041,6 +1087,24 @@ docs(api): update authentication endpoint examples
 
 # User can create PR later:
 # /git-workflow --pr  (will use existing commits)
+```
+
+### Example 7: No Flags (Interactive Prompt)
+
+**Scenario**: User invokes the skill without an action flag
+
+```bash
+/ycc:git-workflow
+
+# Workflow renders the menu:
+#   No action flag provided. What do you want to do?
+#     1) Commit only
+#     2) Commit and push
+#     3) Commit, push, and create PR
+#
+# User replies: 2
+# Resolved action set: {commit, push}
+# Workflow proceeds: analyze → commit → push → summary
 ```
 
 ---

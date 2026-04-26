@@ -448,4 +448,4 @@ fix phase has its own execution decision.
 - `/ycc:code-review --quick` delegates to this skill.
 - `/ycc:quick-fix` consumes inline findings for artifact-free fixing.
 - `/ycc:review-fix` consumes written artifacts only.
-- `/ycc:prp-commit` or `/ycc:git-workflow` can commit the fixes afterward.
+- `/ycc:prp-commit` or `/ycc:git-workflow --commit` can commit the fixes afterward.

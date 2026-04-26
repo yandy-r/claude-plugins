@@ -424,7 +424,7 @@ After planning, depending on what the user approves:
 - Use `/ycc:prp-implement` if they want rigorous per-task validation loops (requires a PRP-format plan file — consider running `/ycc:prp-plan` first if you want that workflow)
 - Use `/ycc:implement-plan` if the work was structured via `/ycc:parallel-plan`
 - Use `/ycc:code-review` to review completed implementation
-- Use `/ycc:git-workflow` or `/ycc:prp-commit` to commit
+- Use `/ycc:git-workflow --commit` or `/ycc:prp-commit` to commit
 
 ### Executing a Parallel Plan
 

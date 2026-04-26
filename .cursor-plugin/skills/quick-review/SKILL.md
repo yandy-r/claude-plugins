@@ -448,4 +448,4 @@ fix phase has its own execution decision.
 - `/code-review --quick` delegates to this skill.
 - `/quick-fix` consumes inline findings for artifact-free fixing.
 - `/review-fix` consumes written artifacts only.
-- `/prp-commit` or `/git-workflow` can commit the fixes afterward.
+- `/prp-commit` or `/git-workflow --commit` can commit the fixes afterward.

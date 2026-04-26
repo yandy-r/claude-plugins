@@ -67,7 +67,7 @@ The skill parses the review file produced by `/ycc:code-review`, filters finding
 
 ## What the skill does NOT do
 
-- Does NOT commit changes. After fixes land, run `/ycc:git-workflow` when ready.
+- Does NOT commit changes. After fixes land, run `/ycc:git-workflow --commit` when ready.
 - Does NOT re-run `/ycc:code-review`. Run it again manually to verify fixes resolved the findings.
 - Does NOT retry failed fixes. Failed fixes are logged with their blocker and recommendation; the user decides how to proceed.
 - Does NOT touch findings that are already `Status: Fixed` or `Status: Failed` from a prior run — this skill is resumable.
@@ -92,6 +92,6 @@ Examples:
 
 Next steps after fixes land:
   /ycc:code-review <same target>   # re-review to verify
-  /ycc:git-workflow                # commit the fixes (in --no-worktree mode)
+  /ycc:git-workflow --commit       # commit the fixes (in --no-worktree mode)
   # In worktree mode, fixes are committed and pushed automatically with each batch
 ```

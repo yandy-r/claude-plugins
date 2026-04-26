@@ -715,7 +715,7 @@ git push
 
 - Re-run `/ycc:code-review <same target>` to verify the remaining open findings and confirm fixes resolved the issues
 - Address failed fixes manually using the Blocker + Recommendation notes above
-- Run `/ycc:git-workflow` to commit the changes when satisfied
+- Run `/ycc:git-workflow --commit` to commit the changes when satisfied
 ```
 
 ### Worktree Summary (only when `WORKTREE_ACTIVE=true`)
@@ -772,7 +772,7 @@ The source review at <path> has been updated in place:
 
 ### Next Steps
   /ycc:code-review <same target>   # re-review to verify fixes landed
-  /ycc:git-workflow                # commit the fixes when satisfied
+  /ycc:git-workflow --commit       # commit the fixes when satisfied
 ```
 
 ---
@@ -818,12 +818,12 @@ The review file is updated incrementally after each agent returns, so if the run
 
 ## Comparison with related skills
 
-| Skill                    | Purpose                                                                                          |
-| ------------------------ | ------------------------------------------------------------------------------------------------ |
-| `/ycc:code-review`       | Produces a review artifact with findings and `Status: Open`                                      |
-| `/ycc:review-fix` (this) | Consumes a review artifact and applies fixes, updating `Status` to `Fixed` or `Failed`           |
-| `/ycc:prp-implement`     | Executes a PRP plan file with per-task validation — a different workflow, different input format |
-| `/ycc:git-workflow`      | Commits changes after fixes land                                                                 |
+| Skill                        | Purpose                                                                                          |
+| ---------------------------- | ------------------------------------------------------------------------------------------------ |
+| `/ycc:code-review`           | Produces a review artifact with findings and `Status: Open`                                      |
+| `/ycc:review-fix` (this)     | Consumes a review artifact and applies fixes, updating `Status` to `Fixed` or `Failed`           |
+| `/ycc:prp-implement`         | Executes a PRP plan file with per-task validation — a different workflow, different input format |
+| `/ycc:git-workflow --commit` | Commits changes after fixes land                                                                 |
 
 ---
 
@@ -834,7 +834,7 @@ The review file is updated incrementally after each agent returns, so if the run
 - **Resumable**: Re-running on the same review file skips already-processed findings.
 - **Audit trail**: The combination of (a) updated source review file and (b) fix report gives a complete history of what was attempted, what succeeded, and why.
 - **Parallel safety**: Parallel mode (both Path B sub-agents and Path C agent team) never dispatches two agents to the same file concurrently — same-file findings always travel together in one fixer.
-- **Commits in worktree mode**: In worktree mode (the default), the skill commits the fix report alongside fix commits and pushes to the PR branch. In `--no-worktree` mode, no automatic commit is made — run `/ycc:git-workflow` when ready.
+- **Commits in worktree mode**: In worktree mode (the default), the skill commits the fix report alongside fix commits and pushes to the PR branch. In `--no-worktree` mode, no automatic commit is made — run `/ycc:git-workflow --commit` when ready.
 - Does NOT automatically open a follow-up PR. After fixes land, the parent worktree's branch already has all commits pushed; the user decides when to request a re-review.
 
 ---
