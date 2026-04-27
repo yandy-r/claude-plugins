@@ -9,9 +9,9 @@ opencode.json we emit here, and the native rules file is AGENTS.md.
 
 opencode.json contents:
 - `$schema`: https://opencode.ai/config.json
-- `model`: openai/gpt-5.4 (bundle default; users can override globally)
+- `model`: openai/gpt-5.5 (bundle default; users can override globally)
 - `instructions`: ["AGENTS.md"] so opencode pulls in the bundle's rules
-- `provider.openai.models["gpt-5.4"]`: reasoningEffort=high, textVerbosity=low
+- `provider.openai.models["gpt-5.5"]`: reasoningEffort=high, textVerbosity=low
   (per the plan §6; high-reasoning default for coding-agent work)
 - `mcp`: translated from mcp-configs/mcp.json (Claude Code shape → opencode shape)
 
@@ -52,11 +52,11 @@ from generate_opencode_common import (
 # user-global rules tree — not this repo's project-specific CLAUDE.md.
 SOURCE_RULES_PATH = REPO_ROOT / "ycc" / "settings" / "rules" / "CLAUDE.md"
 
-DEFAULT_MODEL = "openai/gpt-5.4"
+DEFAULT_MODEL = "openai/gpt-5.5"
 DEFAULT_PROVIDER_CONFIG: dict[str, object] = {
     "openai": {
         "models": {
-            "gpt-5.4": {
+            "gpt-5.5": {
                 "reasoningEffort": "high",
                 "textVerbosity": "low",
             }
