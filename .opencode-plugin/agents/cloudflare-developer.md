@@ -2,7 +2,7 @@
 description: Implement Cloudflare Workers, Pages, D1, R2, KV, Durable Objects, and
   wrangler.toml configurations. Writes Worker code, creates configs, and verifies
   deployments.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 tools:
   read: true
   write: true

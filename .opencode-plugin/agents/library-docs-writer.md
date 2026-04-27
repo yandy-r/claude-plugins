@@ -2,7 +2,7 @@
 description: Fetch and compress external library documentation into concise local
   reference files from web sources and context7. Creates quick-reference docs for
   external dependencies.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 tools:
   read: true
   write: true

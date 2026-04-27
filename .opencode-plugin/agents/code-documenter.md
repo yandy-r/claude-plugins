@@ -1,7 +1,7 @@
 ---
 description: Generate and maintain code documentation including inline comments, module-level
   docs, and architectural documentation.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 tools:
   read: true
   grep: true

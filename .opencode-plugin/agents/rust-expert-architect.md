@@ -2,7 +2,7 @@
 description: Expert Rust development assistance including async systems (tokio), ownership/lifetime
   design, trait/generic APIs, CLI/systems/embedded/WASM apps, performance optimization,
   crate selection, and architectural decisions.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 color: '#EF4444'
 ---
 

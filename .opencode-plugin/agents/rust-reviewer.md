@@ -2,7 +2,7 @@
 description: Expert Rust code reviewer specializing in ownership, lifetimes, error
   handling, unsafe usage, and idiomatic patterns. Use for all Rust code changes. MUST
   BE USED for Rust projects.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 tools:
   read: true
   grep: true

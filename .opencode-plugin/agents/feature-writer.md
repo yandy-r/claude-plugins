@@ -1,7 +1,7 @@
 ---
 description: Create and maintain user-facing feature documentation with clear guides,
   examples, and troubleshooting.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 tools:
   read: true
   grep: true

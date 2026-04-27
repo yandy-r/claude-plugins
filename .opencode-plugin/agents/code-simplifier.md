@@ -1,7 +1,7 @@
 ---
 description: Simplifies and refines code for clarity, consistency, and maintainability
   while preserving behavior. Focus on recently modified code unless instructed otherwise.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 tools:
   read: true
   write: true

@@ -1,7 +1,7 @@
 ---
 description: Generate comprehensive README files for projects with proper structure,
   badges, installation instructions, and usage examples.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 tools:
   read: true
   grep: true

@@ -2,7 +2,7 @@
 description: Expert Next.js UX/UI guidance including component architecture, SSR/SSG
   optimization, accessibility, responsive design, state management, animations, theme
   systems, and design system integration.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 color: '#3B82F6'
 ---
 

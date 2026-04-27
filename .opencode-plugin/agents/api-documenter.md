@@ -1,7 +1,7 @@
 ---
 description: Generate comprehensive API documentation from code, including endpoint
   specs, parameter descriptions, response schemas, and usage examples.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 tools:
   read: true
   grep: true

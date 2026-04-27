@@ -2,7 +2,7 @@
 description: Software architecture specialist for system design, scalability, and
   technical decision-making. Use when planning new features, refactoring large systems,
   or making architectural decisions.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 tools:
   read: true
   grep: true

@@ -1,7 +1,7 @@
 ---
 description: Comprehensive analysis of a codebase's architecture, patterns, and implementation
   details to inform feature development or architectural decisions.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 color: '#3B82F6'
 ---
 

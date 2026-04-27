@@ -2,7 +2,7 @@
 description: Create, modify, or enhance frontend React components, UI elements, pages,
   and styling including Tailwind CSS and shadcn/ui. Analyzes existing patterns before
   implementation.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 color: '#8B5CF6'
 ---
 

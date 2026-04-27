@@ -2,7 +2,7 @@
 description: Expert guidance on Node.js/TypeScript backend development including microservices
   architecture, performance optimization, async/concurrency, API design, auth systems,
   and database optimization.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 color: '#22C55E'
 ---
 

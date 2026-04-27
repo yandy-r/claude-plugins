@@ -2,7 +2,7 @@
 description: Quickly locate specific code files, functions, classes, or patterns within
   a codebase. Find implementations, search syntax patterns, and discover related code
   across files.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 color: '#EAB308'
 ---
 

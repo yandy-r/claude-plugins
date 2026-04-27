@@ -1,7 +1,7 @@
 ---
 description: Create or update documentation for specific files, features, CLI commands,
   or other project components by analyzing code and writing proper docs.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 color: '#22C55E'
 ---
 

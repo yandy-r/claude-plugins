@@ -2,7 +2,7 @@
 description: Implement Python code from specs including FastAPI/Flask/Django services,
   CLI tools, data pipelines, async apps, pytest suites, pyproject.toml configs, and
   Dockerfiles.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 tools:
   read: true
   write: true

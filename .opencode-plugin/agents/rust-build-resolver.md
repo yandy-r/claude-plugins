@@ -2,7 +2,7 @@
 description: Rust build, compilation, and dependency error resolution specialist.
   Fixes cargo build errors, borrow checker issues, and Cargo.toml problems with minimal
   changes.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 tools:
   read: true
   write: true

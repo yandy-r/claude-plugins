@@ -2,7 +2,7 @@
 description: Implement TypeScript/JavaScript code including libraries, tsconfig hierarchies,
   package.json exports, monorepo workspaces, bundler pipelines (vite/tsup/esbuild),
   ESM/CJS dual builds, and Vitest configs.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 tools:
   read: true
   write: true

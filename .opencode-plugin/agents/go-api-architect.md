@@ -2,7 +2,7 @@
 description: Design, develop, review, and improve Go/Golang REST APIs including microservices,
   authentication, performance optimization, testing strategies, and architectural
   decisions.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 color: '#3B82F6'
 ---
 

@@ -2,7 +2,7 @@
 description: Expert Terraform IaC assistance including cloud-native architecture design,
   module development, multi-cloud strategies, deployment debugging, and configuration
   review.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 color: '#3B82F6'
 ---
 

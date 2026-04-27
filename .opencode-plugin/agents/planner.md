@@ -2,7 +2,7 @@
 description: Software architect agent for designing implementation plans. Returns
   step-by-step plans with specific file paths, dependencies, risks, testing strategy,
   and success criteria. Waits for user confirmation.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 tools:
   read: true
   grep: true

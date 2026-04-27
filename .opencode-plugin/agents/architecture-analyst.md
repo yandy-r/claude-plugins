@@ -1,7 +1,7 @@
 ---
 description: Analyze codebase architecture and create documentation in docs/architecture/
   with system overviews, component maps, and Mermaid data flow diagrams.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 tools:
   read: true
   grep: true

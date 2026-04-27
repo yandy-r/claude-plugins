@@ -2,7 +2,7 @@
 description: Expert guidance on software engineering best practices, system administration,
   and optimization for macOS/Linux including security hardening, performance tuning,
   DevOps, shell scripting, and cross-platform development.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 color: '#3B82F6'
 ---
 

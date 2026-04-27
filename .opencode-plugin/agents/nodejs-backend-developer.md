@@ -2,7 +2,7 @@
 description: Implement Node.js/TypeScript backend services including Express/Fastify/Hono
   routes, Prisma/Drizzle setup, auth flows, Docker configs, structured logging, and
   test suites.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 tools:
   read: true
   write: true

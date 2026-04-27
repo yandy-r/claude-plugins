@@ -1,7 +1,7 @@
 ---
 description: Implement specific software engineering tasks assigned from a master
   plan with planning documentation context. Receives a single task and executes it.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 color: '#EF4444'
 ---
 

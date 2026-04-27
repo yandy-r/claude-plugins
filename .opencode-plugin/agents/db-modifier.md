@@ -2,7 +2,7 @@
 description: Make database schema changes, data migrations, or modifications to the
   production Supabase/PostgreSQL database including tables, RLS policies, RPC functions,
   storage buckets, and data updates.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 color: '#EF4444'
 ---
 

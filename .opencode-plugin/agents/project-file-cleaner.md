@@ -1,7 +1,7 @@
 ---
 description: Clean up unnecessary files from a project directory including old code,
   compiled binaries, unused assets, outdated docs, and temporary files.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 color: '#EAB308'
 ---
 

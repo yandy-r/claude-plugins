@@ -2,7 +2,7 @@
 description: Expert Python architecture guidance including package design, async systems,
   framework selection (FastAPI/Flask/Django), data pipelines, CLI tools, packaging
   (hatch/poetry/uv), and testing strategies.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 color: '#EAB308'
 ---
 

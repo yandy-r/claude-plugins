@@ -1,7 +1,7 @@
 ---
 description: Update documentation after code changes (feature docs, AGENTS.md files)
   and commit all changes to git.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 color: '#06B6D4'
 ---
 

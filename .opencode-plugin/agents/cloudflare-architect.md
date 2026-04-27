@@ -2,7 +2,7 @@
 description: Expert guidance on Cloudflare services, architecture, security (WAF,
   DDoS, Zero Trust), Workers, CDN configuration, performance optimization, and deployment
   strategies.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 color: '#EAB308'
 ---
 

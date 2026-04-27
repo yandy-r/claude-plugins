@@ -2,7 +2,7 @@
 description: Implement database code for Turso/libSQL/SQLite including SQL migrations,
   schemas, typed query modules, Drizzle/SQLAlchemy ORM setup, seed scripts, and connection
   configs. For Supabase/PostgreSQL, use db-modifier.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 tools:
   read: true
   write: true

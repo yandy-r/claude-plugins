@@ -1,7 +1,7 @@
 ---
 description: Implement Terraform infrastructure code including .tf modules, variables/outputs,
   provider/backend configs, terragrunt.hcl, resource lifecycle rules, and module structures.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 tools:
   read: true
   write: true

@@ -2,7 +2,7 @@
 description: Diagnose why a bug is occurring without fixing it. Systematic investigation
   with multiple hypotheses and supporting evidence. Use when understanding the 'why'
   is crucial before attempting a fix.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 color: '#06B6D4'
 ---
 

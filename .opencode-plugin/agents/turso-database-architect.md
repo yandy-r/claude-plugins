@@ -2,7 +2,7 @@
 description: Expert database design, architecture, and optimization for Turso/libSQL/SQLite
   including schema design, query optimization, migration strategies, performance tuning,
   and index strategies.
-model: openai/gpt-5.4
+model: openai/gpt-5.5
 color: '#F97316'
 ---
 
