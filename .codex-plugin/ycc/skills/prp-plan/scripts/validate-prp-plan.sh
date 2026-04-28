@@ -158,10 +158,11 @@ done
 # --- Task structure ---
 echo ""
 echo "Checking task structure..."
-TASK_COUNT=$(grep -c "^### Task" <<< "$CONTENT" || true)
+TASK_HEADING_REGEX='^#{3,4}[[:space:]]+Task[[:space:]]+[0-9]+([.][0-9]+)*:'
+TASK_COUNT=$(grep -Ec "$TASK_HEADING_REGEX" <<< "$CONTENT" || true)
 
 if [[ $TASK_COUNT -eq 0 ]]; then
-  error "No tasks found (expected ### Task N: headings)"
+  error "No tasks found (expected ### Task N: or #### Task N.N: headings)"
 else
   success "$TASK_COUNT task(s) found"
 fi
@@ -217,7 +218,7 @@ if [[ $TASK_COUNT -gt 0 ]]; then
   in_task=false
 
   while IFS= read -r line; do
-    if [[ "$line" =~ ^###[[:space:]]Task ]]; then
+    if [[ "$line" =~ $TASK_HEADING_REGEX ]]; then
       # Score previous task
       if $in_task; then
         if $current_has_action && $current_has_implement && $current_has_mirror && $current_has_validate; then
@@ -297,7 +298,7 @@ if grep -q "^## Batches" <<< "$CONTENT"; then
   fi
 
   # Check batch table has entries
-  BATCH_TABLE_ROWS=$(echo "$CONTENT" | sed -n '/^## Batches/,/^## /p' | grep "^| B" | wc -l | tr -d ' ')
+  BATCH_TABLE_ROWS=$(echo "$CONTENT" | sed -n '/^## Batches/,/^## /p' | grep -E "^\|[[:space:]]*B[0-9]+" | wc -l | tr -d ' ')
   if [[ $BATCH_TABLE_ROWS -gt 0 ]]; then
     success "Batch table has $BATCH_TABLE_ROWS batch(es)"
   else
