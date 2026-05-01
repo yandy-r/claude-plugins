@@ -137,8 +137,8 @@ if [[ ! -r "${NOTES_FILE}" ]]; then
     exit 1
 fi
 
-# --- verify tag exists in git ---
-if ! git rev-parse --verify --quiet "${TAG}" >/dev/null 2>&1; then
+# --- verify tag exists as a real tag ref (not a branch/commit named like the tag) ---
+if ! git show-ref --verify --quiet "refs/tags/${TAG}"; then
     fail "tag ${TAG} does not exist in this repo"
     hint "create the tag first: git tag ${TAG} && git push origin ${TAG}"
     exit 1
@@ -153,13 +153,13 @@ if [[ "${MODE}" == "auto" ]]; then
 fi
 
 # --- release existence detection ---
+# Always probe GitHub (including --mode=create) so create-mode can detect an
+# existing release and suggest --mode=edit instead of failing later on gh.
 RELEASE_JSON=""
 RELEASE_EXISTS=0
-if [[ "${MODE}" != "create" ]]; then
-    RELEASE_JSON="$(gh release view "${TAG}" --json url,tagName,body 2>/dev/null || true)"
-    if [[ -n "${RELEASE_JSON}" ]]; then
-        RELEASE_EXISTS=1
-    fi
+RELEASE_JSON="$(gh release view "${TAG}" --json url,tagName,body 2>/dev/null || true)"
+if [[ -n "${RELEASE_JSON}" ]]; then
+    RELEASE_EXISTS=1
 fi
 
 # --- mode conflict checks ---
@@ -187,7 +187,7 @@ esac
 
 # --- build resolved command ---
 if [[ "${MODE}" == "create" ]]; then
-    RESOLVED_CMD="gh release create $(printf '%q' "${TAG}") --notes-file $(printf '%q' "${NOTES_FILE}") --title $(printf '%q' "${TAG}")"
+    RESOLVED_CMD="gh release create $(printf '%q' "${TAG}") --notes-file $(printf '%q' "${NOTES_FILE}") --title $(printf '%q' "${TAG}") --verify-tag"
 else
     RESOLVED_CMD="gh release edit $(printf '%q' "${TAG}") --notes-file $(printf '%q' "${NOTES_FILE}")"
 fi
@@ -207,7 +207,7 @@ fi
 
 # --- execute ---
 if [[ "${MODE}" == "create" ]]; then
-    gh release create "${TAG}" --notes-file "${NOTES_FILE}" --title "${TAG}"
+    gh release create "${TAG}" --notes-file "${NOTES_FILE}" --title "${TAG}" --verify-tag
 else
     gh release edit "${TAG}" --notes-file "${NOTES_FILE}"
 fi

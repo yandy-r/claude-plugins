@@ -7,8 +7,8 @@
 #
 # Arguments:
 #   new-version   Semver to title the fragment (e.g. 1.4.0 or v1.4.0).
-#   from-ref      Optional "since" ref.  Defaults to the latest tag, or HEAD~50 if no
-#                 tag exists.
+#   from-ref      Optional "since" ref.  Defaults to the latest tag, or the repo root
+#                 commit if no tag exists.
 #
 # Options:
 #   --exclude-internal   Omit the Maintenance <details> block entirely.
@@ -27,7 +27,7 @@ Draft release notes by filling the release-notes template.
 
 Arguments:
   new-version         Semver to title the fragment (e.g. 1.4.0 or v1.4.0).
-  from-ref            Optional explicit "since" ref.  Defaults to latest tag or HEAD~50.
+  from-ref            Optional explicit "since" ref.  Defaults to latest tag or root commit.
 
 Options:
   --exclude-internal  Omit the Maintenance <details> block from the output.
@@ -38,6 +38,9 @@ EOF
 
 # ── defaults ──────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Template is always adjacent to this script under the skill (…/skills/releaser/references/).
+# Keep this SCRIPT_DIR-relative path: generated Codex bundles forbid the plugin-root env var
+# literal in shell sources (content policy).
 TEMPLATE="${SCRIPT_DIR}/../references/release-notes-template.md"
 
 # ── argument parsing ──────────────────────────────────────────────────────────
@@ -116,17 +119,37 @@ if [[ -z "${FROM_REF}" ]]; then
     if [[ -n "${PREVIOUS_TAG}" ]]; then
         FROM_REF="${PREVIOUS_TAG}"
     else
-        FROM_REF="HEAD~50"
+        ROOT_HASH="$(git rev-list --max-parents=0 HEAD 2>/dev/null | head -n1)"
+        if [[ -z "${ROOT_HASH}" ]]; then
+            echo "draft-changelog.sh: FAIL: could not resolve repository root commit" >&2
+            exit 1
+        fi
+        FROM_REF="${ROOT_HASH}"
         PREVIOUS_TAG="(no previous tag)"
     fi
 else
     PREVIOUS_TAG="${FROM_REF}"
 fi
 
-# Validate the from-ref.  If it is a range (contains ".."), validate the left
-# side only; otherwise validate the whole value as a single ref.
-if [[ "${FROM_REF}" == *..* ]]; then
-    _left_ref="${FROM_REF%%\.\.*}"
+# When from-ref is a revision range (two- or three-dot), use only the left endpoint for
+# "Previous release" lines and compare URLs (never the raw "A..B" / "A...B" string).
+if [[ "${FROM_REF}" == *...* ]]; then
+    PREVIOUS_TAG="${FROM_REF%%...*}"
+elif [[ "${FROM_REF}" == *..* ]]; then
+    PREVIOUS_TAG="${FROM_REF%%..*}"
+fi
+
+# Validate the from-ref.  If it is a range, validate the left side only; otherwise
+# validate the whole value as a single ref.  Check three-dot ranges before two-dot.
+if [[ "${FROM_REF}" == *...* ]]; then
+    _left_ref="${FROM_REF%%...*}"
+    if [[ -n "${_left_ref}" ]] && \
+       ! git rev-parse --verify --quiet "${_left_ref}" >/dev/null 2>&1; then
+        echo "draft-changelog.sh: FAIL: ref not found: ${_left_ref} (from range ${FROM_REF})" >&2
+        exit 1
+    fi
+elif [[ "${FROM_REF}" == *..* ]]; then
+    _left_ref="${FROM_REF%%..*}"
     if [[ -n "${_left_ref}" ]] && \
        ! git rev-parse --verify --quiet "${_left_ref}" >/dev/null 2>&1; then
         echo "draft-changelog.sh: FAIL: ref not found: ${_left_ref} (from range ${FROM_REF})" >&2
@@ -182,6 +205,11 @@ OTHER_LINES=()
 ONELINE_LINES=()
 
 while IFS=$'\t' read -r -d '' hash subject body; do
+    # Strip a leading '-' from the subject before type/breaking regexes so
+    # subjects like "- feat!: foo" classify consistently with "feat!: foo".
+    subject="${subject#-}"
+    subject="${subject# }"
+
     # Detect breaking-change markers.
     is_breaking=0
     if [[ "${subject}" =~ ${_BREAKING_PREFIX_RE} ]]; then
@@ -190,11 +218,6 @@ while IFS=$'\t' read -r -d '' hash subject body; do
     if [[ "${body}" =~ ${_BREAKING_BODY_RE} ]]; then
         is_breaking=1
     fi
-
-    # Strip a leading '-' from the subject to prevent accidental nested-list
-    # rendering when the commit subject itself begins with a dash.
-    subject="${subject#-}"
-    subject="${subject# }"
     line="- ${subject} (${hash})"
     ONELINE_LINES+=("${hash} ${subject}")
 
