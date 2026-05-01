@@ -284,14 +284,12 @@ Report to the user:
 
 - **Never auto-commits, pushes, or publishes.** The user reviews every change and runs
   the emitted commands manually. This is the same discipline as `bundle-release`.
-- **When `--publish` is used, the user STILL invokes `--confirm` manually.** The skill
-  never bypasses confirmation, even when the user passes `--publish` and `--confirm`
-  together as initial arguments — surface the resolved command via the helper's
-  print-only mode and STOP for explicit acknowledgement before re-running with
-  `--confirm`. The real enforcement layer is `publish-release.sh` itself: the script
-  requires `--confirm` as a separate shell invocation and will only print the resolved
-  `gh` command otherwise. The LLM cannot forge that second invocation on the user's
-  behalf.
+- **Publish helper = operator workflow, not a guardrail.** `publish-release.sh` runs in
+  print-only mode by default: it prints the resolved `gh` command (including
+  `--verify-tag` for creates) and exits successfully. The operator reviews that line,
+  then re-runs the same invocation with `--confirm` when they intend to publish.
+  The script sets an internal confirm flag only when `--confirm` is passed; without
+  it, no mutating `gh` call runs.
 - **`--dry-run` beats `--publish`.** If both flags are present, the publish helper does
   not run. Dry-run always exits before any side-effecting step.
 - **Never edits files outside the detected `manifest_files` list.** If the repo has
