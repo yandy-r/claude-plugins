@@ -1,7 +1,7 @@
 ---
 name: releaser
-description: This skill should be used when the user asks to "prepare a release", "cut a release", "tag a release", "create a GitHub release", "draft release notes", "set up release CI", "add a release workflow", or "audit release pipeline" for any project. Detects language/toolchain, drafts a changelog, plans platform/arch artifacts, optionally generates or audits GitHub Actions release CI, and emits the exact commands the user runs to tag and publish. Never auto-commits, pushes, or publishes. Generic external-project counterpart to `ycc:bundle-release` (which is scoped to this repo's ycc bundle).
-argument-hint: '[version] [--arch=list] [--os=list] [--ci[=generate|audit]] [--platform=name] [--skip-notes] [--dry-run]'
+description: This skill should be used when the user asks to "prepare a release", "cut a release", "tag a release", "create a GitHub release", "draft release notes", "set up release CI", "add a release workflow", "audit release pipeline", "publish a GitHub release", or "publish release notes" for any project. Detects language/toolchain, drafts a changelog, plans platform/arch artifacts, optionally generates or audits GitHub Actions release CI, and emits the exact commands the user runs to tag and publish. Never auto-commits, pushes, or publishes without an explicit `--publish` and `--confirm` from the user. Generic external-project counterpart to `ycc:bundle-release` (which is scoped to this repo's ycc bundle).
+argument-hint: '[version] [--arch=list] [--os=list] [--ci[=generate|audit]] [--platform=name] [--skip-notes] [--dry-run] [--exclude-internal] [--publish[=create|edit|auto]] [--confirm]'
 allowed-tools:
   - Read
   - Grep
@@ -28,7 +28,7 @@ This skill prepares a release for **any** project: detects the toolchain, drafts
 changelog from conventional commits, plans platform/architecture artifacts, and — on
 request — either generates a GitHub Actions release workflow or audits an existing one
 against best practices. It emits the exact `git tag`, `git push`, and `gh release
-create` commands the user runs; it never commits, pushes, or publishes on its own.
+create` commands the user runs; **it never commits, pushes, or publishes without an explicit `--publish` and `--confirm` from the user**.
 
 > **Not for this bundle.** For `ycc` bundle releases use `ycc:bundle-release`, which is
 > scoped to this repo's `plugin.json` + `marketplace.json` version-parity contract and
@@ -55,6 +55,14 @@ Parse `$ARGUMENTS`:
 - **--skip-notes** — skip drafting `CHANGELOG` updates and release notes.
 - **--dry-run** — run detection and print the full release plan. Writes nothing,
   executes no state-changing commands.
+- **--exclude-internal** — omit the Maintenance section from the drafted release notes
+  entirely. Use only when the release truly has zero internal-only churn worth surfacing.
+- **--publish[=create|edit|auto]** — after the user reviews the rendered notes, invoke
+  `publish-release.sh` to preview or apply the `gh release` command. Default mode is
+  `auto` (creates if no release exists, otherwise proposes `edit`). Use `edit` only to
+  intentionally replace an existing release body — this is destructive.
+- **--confirm** — when combined with `--publish`, re-runs the helper with `--confirm` to
+  actually execute the `gh` command. The skill NEVER passes `--confirm` automatically.
 
 ## Phase 0: Preflight
 
@@ -129,25 +137,36 @@ Store the matrix for Phases 5, 6, and 7.
 
 Unless `--skip-notes` was passed:
 
-1. Invoke:
+1. Invoke the changelog helper and capture its stdout:
 
    ```
-   ${CLAUDE_PLUGIN_ROOT}/skills/releaser/scripts/draft-changelog.sh <new-version>
+   ${CLAUDE_PLUGIN_ROOT}/skills/releaser/scripts/draft-changelog.sh [--exclude-internal] [--template <path>] <new-version> [<from-ref>]
    ```
 
-   The helper writes grouped, conventional-commit-based Markdown to stdout
-   (sections: **Features**, **Fixes**, **Breaking Changes**, **Docs**, **Chore**).
+   Pass `--exclude-internal` if the user requested it. Pass `--template <path>` if the
+   user supplied a custom template path. The helper fills the template placeholders
+   (`{{VERSION}}`, `{{DATE}}`, `{{HIGHLIGHTS}}`, `{{BREAKING}}`, `{{FEATURES}}`,
+   `{{FIXES}}`, `{{INTERNAL}}`, `{{COMMITS}}`, `{{COMPARE_URL}}`, `{{PREVIOUS_TAG}}`)
+   from git history and writes the complete rendered document to stdout.
 
-2. Update the project's changelog file in place. Supported layouts:
-   - `CHANGELOG.md` with `## [Unreleased]` section → insert a new dated entry above it.
-   - `CHANGELOG.md` with no `Unreleased` marker → prepend a new entry under the title.
-   - No `CHANGELOG.md` → create one seeded from
-     `${CLAUDE_PLUGIN_ROOT}/skills/releaser/references/release-notes-template.md`.
-3. Write `docs/releases/<new-version>.md` (or `.github/releases/<version>.md` if the
-   repo already uses that path) using the same template. This is the body that the
-   emitted `gh release create` command consumes.
+2. Write the captured stdout to `docs/releases/<new-version>.md` (or
+   `.github/releases/<version>.md` if the repo already uses that path). This is the
+   notes file that the `gh release create` command consumes.
+
+3. Update `CHANGELOG.md` by prepending a slim version of the same content — Summary and
+   per-category sections only, no `<details>` blocks — above any `## [Unreleased]`
+   marker. If no `CHANGELOG.md` exists, create one using the template seeded from
+   `${CLAUDE_PLUGIN_ROOT}/skills/releaser/references/release-notes-template.md`.
 
 Ask the user to review the drafted Summary and Upgrade Notes sections before moving on.
+
+### Internal vs. user-facing commits
+
+Commits typed `docs`, `chore`, `test`, `build`, `ci`, `style`, and `refactor` are
+classified as Maintenance. The helper surfaces them in a collapsible `<details>` block
+so they are visible but not dominant. Pass `--exclude-internal` to drop the Maintenance
+section entirely — use this only when the release genuinely contains no internal-only
+churn worth surfacing; otherwise keep the section so reviewers have full context.
 
 ## Phase 5: Bump version in manifests
 
@@ -205,6 +224,8 @@ If `--dry-run` was passed:
 1. Print the full release plan: detected project, proposed version, target matrix,
    files that would change, commands that would run.
 2. STOP. Write nothing, execute nothing side-effecting.
+3. If both `--dry-run` and `--publish` were passed, `--dry-run` wins: the publish helper
+   does NOT run.
 
 ## Phase 8: Emit next-step commands
 
@@ -235,6 +256,27 @@ If `--ci=generate` ran, append:
 # build the matrix and attach artifacts to the GitHub release.
 ```
 
+When the user passed `--publish[=create|edit|auto]`, after they review the rendered
+notes, run:
+
+```
+${CLAUDE_PLUGIN_ROOT}/skills/releaser/scripts/publish-release.sh v<new-version> <notes-path> --mode=<mode>
+```
+
+**Examples:**
+
+```
+# Preview only — prints the resolved gh command without executing it:
+${CLAUDE_PLUGIN_ROOT}/skills/releaser/scripts/publish-release.sh v1.4.0 docs/releases/v1.4.0.md --mode=auto
+
+# Apply — executes the resolved gh command:
+${CLAUDE_PLUGIN_ROOT}/skills/releaser/scripts/publish-release.sh v1.4.0 docs/releases/v1.4.0.md --mode=auto --confirm
+```
+
+This prints the resolved `gh` command without executing it. Re-run with `--confirm` to
+apply. Use `--mode=edit` only when intentionally replacing an existing release body —
+this is destructive.
+
 ## Phase 9: Final summary
 
 Report to the user:
@@ -244,12 +286,23 @@ Report to the user:
 - Target `{os × arch}` matrix.
 - Files modified (changelog, notes, manifests, workflow).
 - CI mode outcome (generate / audit / skipped) and report path if audit ran.
+- Publish mode outcome: whether the release was published (applied with `--confirm`),
+  previewed only (print-only via `--publish` without `--confirm`), or emit-only
+  (no `--publish` flag).
 - The exact command block from Phase 8.
 
 ## Important Notes
 
 - **Never auto-commits, pushes, or publishes.** The user reviews every change and runs
   the emitted commands manually. This is the same discipline as `ycc:bundle-release`.
+- **Publish helper = operator workflow, not a guardrail.** `publish-release.sh` runs in
+  print-only mode by default: it prints the resolved `gh` command (including
+  `--verify-tag` for creates) and exits successfully. The operator reviews that line,
+  then re-runs the same invocation with `--confirm` when they intend to publish.
+  The script sets an internal confirm flag only when `--confirm` is passed; without
+  it, no mutating `gh` call runs.
+- **`--dry-run` beats `--publish`.** If both flags are present, the publish helper does
+  not run. Dry-run always exits before any side-effecting step.
 - **Never edits files outside the detected `manifest_files` list.** If the repo has
   unusual version ownership (e.g. a `VERSION` file, a `_version.py`, multi-package
   workspaces), add it to the list via `--platform=generic` and the user confirms
