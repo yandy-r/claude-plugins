@@ -126,6 +126,9 @@ approval_mode = "approve"
 [notice.model_migrations]
 "gpt-5.1-codex-max" = "gpt-5.3-codex"
 
+[tui]
+status_line = ["model-with-reasoning", "context-remaining", "current-dir", "git-branch"]
+
 [features]
 shell_snapshot = true
 multi_agent = true
