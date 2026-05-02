@@ -307,6 +307,8 @@ Derive `<feature-slug>` from the kebab-case plan file name (same value used for 
 
 All tasks — parallel and sequential — share this one feature worktree path. No `**Children**:` list and no per-task `**Worktree**:` annotation lines are emitted.
 
+> **Plan-file handoff**: leave the emitted plan file in `docs/prps/plans/<name>.plan.md` (in the main checkout). The implementor (`prp-implement`) will **move** it into the feature worktree once the worktree is created — do not pre-write the plan to a worktree path, and do not copy it. See `worktree-strategy.md` §7.
+
 Follow `ycc/skills/_shared/references/worktree-strategy.md` for the full naming scheme and annotation contract.
 
 ### Writing guidelines

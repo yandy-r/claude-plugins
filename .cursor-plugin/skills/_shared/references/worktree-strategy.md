@@ -202,7 +202,38 @@ git branch -d feat/<feature>
 
 ---
 
-## 6. Harness `WorktreeCreate` Hook Integration
+## 7. Plan-artifact handoff
+
+Plan files (and their companion artifacts) are **pre-commit** at the moment the
+implementor is invoked. They live in the main checkout because the planner ran
+before the worktree existed. The implementor **moves** them into the feature
+worktree exactly once, immediately after `setup-worktree.sh parent`.
+
+**Never** `cp`, `rsync`, or "sync" plan files. Copying leaves an untracked file
+behind in the main checkout, and from the user's perspective the canonical
+location of the plan becomes ambiguous.
+
+Artifacts covered by the always-move rule:
+
+- `docs/prps/plans/<name>.plan.md` (from `prp-plan`)
+- `docs/plans/<feature>/parallel-plan.md` (from `parallel-plan` / `plan-workflow`)
+- `docs/plans/<feature>/shared.md` (from `plan-workflow`)
+- Any companion research artifact emitted in the same `docs/plans/<feature>/`
+  directory before commit
+
+The canonical implementation is
+[`_shared/scripts/move-plan-to-worktree.sh`](../scripts/move-plan-to-worktree.sh).
+Skills that consume plan artifacts in worktree mode **must** call it. They
+**must not** perform ad-hoc `cp` / `mv` / `rsync` logic of their own. The script
+is idempotent (re-running is safe), echoes the new in-worktree plan path on
+stdout, and never copies — only moves.
+
+After the move, the implementor archives the plan inside the worktree at the
+end of the run (`<plan-dir>/completed/<plan>`), keeping main untouched.
+
+---
+
+## 8. Harness `WorktreeCreate` Hook Integration
 
 The `WorktreeCreate` hook registered in `ycc/settings/settings.json` still
 matters for runtimes that intentionally use harness-managed worktree

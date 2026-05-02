@@ -125,9 +125,11 @@ setup_parent() {
       fi
     fi
 
-    git worktree add "$parent_path" "$base_ref"
+    # Redirect git's stdout to stderr so callers capturing the script's stdout
+    # via $(...) only receive the worktree path on the final echo below.
+    git worktree add "$parent_path" "$base_ref" >&2
   else
-    git worktree add -B "$branch" "$parent_path" HEAD
+    git worktree add -B "$branch" "$parent_path" HEAD >&2
   fi
 
   echo "$parent_path"

@@ -441,6 +441,8 @@ per-task `**Worktree**:` annotations are emitted. The `<feature-slug>` is the
 sanitized feature name already used in `${feature_dir}` (same slug, lowercase,
 hyphens).
 
+> **Plan-file handoff**: leave `parallel-plan.md` and `shared.md` in `docs/plans/<feature-slug>/` (main checkout). The implementor (`implement-plan`) will **move** them into the feature worktree once it's created — never copied. See `worktree-strategy.md` §7.
+
 ### Step 15: Task Breakdown Guidelines
 
 For each task ensure:

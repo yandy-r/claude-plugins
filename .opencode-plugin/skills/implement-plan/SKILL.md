@@ -199,11 +199,13 @@ Mark these as ready for execution.
 ## Phase 2.5: PREPARE — Worktree Parent Setup
 
 > **Only when `WORKTREE_ACTIVE=true`** — skip entirely otherwise.
+>
+> **Invariant**: plan artifacts move into the worktree once; they never travel back. Never `cp`, `rsync`, or "sync" plan files across trees.
 
 ### Step 6.5: Create parent worktree
 
 ```bash
-bash ~/.config/opencode/shared/scripts/setup-worktree.sh parent "${WT_REPO_NAME}" "${WT_FEATURE_SLUG}"
+WT_PARENT_PATH=$(bash ~/.config/opencode/shared/scripts/setup-worktree.sh parent "${WT_REPO_NAME}" "${WT_FEATURE_SLUG}")
 ```
 
 This is a one-time call before Batch 1. The script is idempotent — if the parent
@@ -213,6 +215,21 @@ Store the echoed path as `WT_PARENT_PATH` (overrides any deduced value).
 
 All agents in every batch — parallel and sequential — operate directly in this
 single feature worktree. No child worktrees are created.
+
+### Step 6.6: Move plan artifacts into the worktree
+
+`parallel-plan.md` and `shared.md` are pre-commit and live in the **main checkout** when this skill starts. Move them into the worktree right after creation — never copy, never sync. After this step the main checkout is clean.
+
+```bash
+PLAN_PATH=$(bash ~/.config/opencode/shared/scripts/move-plan-to-worktree.sh \
+  "docs/plans/${WT_FEATURE_SLUG}/parallel-plan.md" \
+  "$WT_PARENT_PATH" \
+  "docs/plans/${WT_FEATURE_SLUG}/shared.md")
+```
+
+`$PLAN_PATH` is the canonical plan location inside the worktree. Use it for every later reference in this run. Any companion research artifact emitted under the same `docs/plans/${WT_FEATURE_SLUG}/` directory before commit can ride along by appending it to the argument list above.
+
+All subsequent file writes in Phase 3 (validation, between-batch checks, reports) run inside `$WT_PARENT_PATH`, not from the main repo root.
 
 ---
 

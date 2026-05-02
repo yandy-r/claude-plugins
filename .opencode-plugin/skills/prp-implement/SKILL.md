@@ -185,6 +185,8 @@ When `WORKTREE_ACTIVE=true`, the branch decision above applies to the **main rep
 
 ### Parent Worktree Setup (when `WORKTREE_ACTIVE=true`)
 
+> **Invariant**: plan artifacts move into the worktree once; they never travel back. Never `cp`, `rsync`, or "sync" the plan file across trees — that's exactly the ambiguity this step exists to remove.
+
 After the branch decision, create the parent worktree **once** before the first batch:
 
 ```bash
@@ -194,7 +196,22 @@ WT_PARENT_PATH=$(bash "~/.config/opencode/shared/scripts/setup-worktree.sh" \
 
 This creates `~/.claude-worktrees/${WT_REPO_NAME}-${WT_FEATURE_SLUG}/` on branch `feat/${WT_FEATURE_SLUG}`, branching from the current HEAD. The call is idempotent — if the parent already exists on the expected branch it echoes the path and exits 0.
 
-All subsequent git operations in Phase 3 (validation, between-batch checks) should be run from the parent worktree path, not from the main repo root.
+### Move Plan Into Worktree (when `WORKTREE_ACTIVE=true`)
+
+Plan artifacts written by `prp-plan` are pre-commit and live in the **main checkout** when this skill starts. The first thing to do after the worktree exists is **move** them in — never copy, never sync:
+
+```bash
+PLAN_PATH=$(bash "~/.config/opencode/shared/scripts/move-plan-to-worktree.sh" \
+  "$ARGUMENTS" "$WT_PARENT_PATH")
+```
+
+After this step:
+
+- `$PLAN_PATH` is the canonical plan location (inside the worktree). Use it for every later reference (validation, agent prompts, archive).
+- The main checkout is clean — there is no plan file left behind in `docs/prps/plans/`.
+- Companion artifacts (e.g. `docs/plans/<feature>/shared.md` from `plan-workflow`) can ride along by passing them as extra arguments to `move-plan-to-worktree.sh`.
+
+All subsequent git operations and file writes in Phase 3 (validation, between-batch checks, the implementation report) run inside `$WT_PARENT_PATH`, not from the main repo root.
 
 ### Sync Remote
 
@@ -589,9 +606,12 @@ If this implementation was for a PRD phase:
 
 ### Archive Plan
 
+Run inside `$WT_PARENT_PATH` (when `WORKTREE_ACTIVE=true`) so the archive lives next to the implementation report, not back in main. `$PLAN_PATH` is the relocated plan path set in Phase 2; if the run was `--no-worktree` it falls back to `$ARGUMENTS`.
+
 ```bash
-mkdir -p docs/prps/plans/completed
-mv "$ARGUMENTS" docs/prps/plans/completed/
+PLAN_PATH="${PLAN_PATH:-$ARGUMENTS}"
+mkdir -p "$(dirname -- "$PLAN_PATH")/completed"
+mv "$PLAN_PATH" "$(dirname -- "$PLAN_PATH")/completed/"
 ```
 
 ### Worktree Summary (when `WORKTREE_ACTIVE=true`)
