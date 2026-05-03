@@ -4,8 +4,9 @@ description: Execute a parallel implementation plan by deploying implementor age
   in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Codex
   runtime only; not available in bundle invocations) to dispatch via an agent team
   with shared the task tracker and up-front dependency wiring. Worktree isolation
-  is ON by default; pass --no-worktree to opt out. --worktree is accepted as a legacy
-  no-op. Use as Step 3 after parallel-plan.
+  is ON by default and creates/reuses one feature worktree on a feature branch; pass
+  --no-worktree to opt out and create/use only the current-checkout feature branch.
+  --worktree is accepted as a legacy no-op. Use as Step 3 after parallel-plan.
 ---
 
 # Parallel Plan Executor
@@ -41,10 +42,14 @@ Parse flags first, then treat the remainder as the feature name:
 - `--team` — (Codex runtime only; not available in bundle invocations) Dispatch each batch's implementor agents under a shared `create an agent group` with up-front `record the task` + `addBlockedBy` dependency wiring and per-batch shutdown via `send follow-up instructions`. Aborts if invoked from a Cursor or Codex bundle (team tools are absent there).
 - `--dry-run` — Show the execution plan without deploying agents. With `--team`, also prints the team name and per-batch teammate roster.
 - `--worktree` — (legacy — now default; safe to omit) Accepted as a silent no-op. Worktree isolation is on by default; this flag matches the new default and has no additional effect.
-- `--no-worktree` — Force worktree mode **OFF** regardless of plan annotations. Tasks run directly in the current checkout. No feature worktree is created.
+- `--no-worktree` — Force worktree mode **OFF** regardless of plan annotations. Create/use `feat/<feature-name>` in the current checkout and run tasks there. No feature worktree is created.
 - `<feature-name>` — The name of the feature to implement (matches directory name in `docs/plans/`).
 
-Strip the flags from `$ARGUMENTS` and set `TEAM_FLAG=true|false`, `DRY_RUN=true|false`, `WORKTREE_MODE=true|false`. The remaining non-flag token is the feature name.
+Strip the flags from `$ARGUMENTS` and set `TEAM_FLAG=true|false`, `DRY_RUN=true|false`, `WORKTREE_MODE=true|false`, and `WORKTREE_FLAG_PRESENT=true|false`. The remaining non-flag token is the feature name.
+
+**Validation**:
+
+- `--worktree` and `--no-worktree` together → abort with: `--worktree and --no-worktree are mutually exclusive. Use --no-worktree to opt out of the default.`
 
 If no feature name is provided after stripping flags, abort with usage instructions:
 
@@ -53,7 +58,7 @@ Usage: /implement-plan [--team] [--dry-run] [--worktree] [--no-worktree] <featur
 
 Examples:
   /implement-plan user-authentication
-    # default: worktree isolation ON; plan annotations used when present, derived paths otherwise
+    # default: create/reuse one feature worktree on feat/user-authentication
 
   /implement-plan --team user-authentication
     # agent-team dispatch (worktree still on by default)
@@ -62,10 +67,10 @@ Examples:
   /implement-plan --team --dry-run payment-integration
 
   /implement-plan --no-worktree my-feature
-    # opt out of worktree isolation; tasks run directly in the current checkout
+    # opt out of worktree isolation; create/use feat/my-feature in the current checkout
 
   /implement-plan --team --no-worktree my-feature
-    # agent-team dispatch without worktrees
+    # agent-team dispatch on the current-checkout feature branch
 ```
 
 **Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must abort with a clear message. Those bundles ship without team tools (`create an agent group`, `record the task`, `send follow-up instructions`, etc.). The default standalone sub-agent path is the only execution mode available there. `--worktree` is compatible with all targets through a single pre-created feature worktree plus `Working directory:` prompts. Do **not** request tool-side per-agent worktree isolation for task dispatch in this flow, because that creates separate harness worktrees and breaks the single-worktree contract. Codex and opencode use Bash `git worktree add`; Cursor emits manual setup commands only.
@@ -142,10 +147,11 @@ The decision follows a strict precedence order:
 
 - If any `WT_PARENT_PATH=` header line was emitted → the plan has worktree annotations → set `WORKTREE_ACTIVE=true`, store `WT_PARENT_PATH` and `WT_FEATURE_SLUG`.
 - If `WORKTREE_MODE=true` (flag passed or default) → set `WORKTREE_ACTIVE=true` regardless of annotation presence.
-- If `WORKTREE_ACTIVE=true` and the plan had no annotations (the default-on fallback), deduce paths using:
+- Always ensure branch variables exist:
   - `WT_REPO_NAME` = basename of git repo root (run `git -C . rev-parse --show-toplevel | xargs basename`)
-  - `WT_FEATURE_SLUG` = the `<feature-name>` argument (same as `${feature_dir}` basename)
-  - `WT_PARENT_PATH` = `~/.claude-worktrees/${WT_REPO_NAME}-${WT_FEATURE_SLUG}/`
+  - `WT_FEATURE_SLUG` = parsed plan annotation slug if present; otherwise the `<feature-name>` argument (same as `${feature_dir}` basename)
+  - `FEATURE_BRANCH` = `feat/${WT_FEATURE_SLUG}`
+- If `WORKTREE_ACTIVE=true` and the plan had no annotations (the default-on fallback), also set `WT_PARENT_PATH` = `~/.claude-worktrees/${WT_REPO_NAME}-${WT_FEATURE_SLUG}/`.
 - If `WORKTREE_MODE=false` (`--no-worktree`) → no feature worktree; set `WORKTREE_ACTIVE=false`.
 
 ### Step 4: Build Dependency Graph
@@ -197,13 +203,27 @@ Mark these as ready for execution.
 
 ---
 
-## Phase 2.5: PREPARE — Worktree Parent Setup
+## Phase 2.5: PREPARE — Branch / Worktree Setup
 
-> **Only when `WORKTREE_ACTIVE=true`** — skip entirely otherwise.
->
-> **Invariant**: plan artifacts move into the worktree once; they never travel back. Never `cp`, `rsync`, or "sync" plan files across trees.
+### Step 6.5: Check git state
 
-### Step 6.5: Create parent worktree
+Run from the current checkout:
+
+```bash
+REPO_ROOT=$(git rev-parse --show-toplevel)
+CURRENT_BRANCH=$(git branch --show-current)
+GIT_STATUS=$(git status --porcelain)
+FEATURE_BRANCH="feat/${WT_FEATURE_SLUG}"
+```
+
+Before creating a worktree or branch, inspect `GIT_STATUS`.
+
+- If the only dirty files are expected pre-commit plan artifacts under `docs/plans/${WT_FEATURE_SLUG}/`, continue.
+- If there are unrelated dirty files, **STOP** and ask the user to stash, commit, or re-run after cleaning the checkout.
+
+### Step 6.6: Prepare the execution tree
+
+When `WORKTREE_ACTIVE=true`, create the parent worktree **once** before Batch 1. The worktree owns `FEATURE_BRANCH`; do not check out that branch in the main checkout:
 
 ```bash
 WT_PARENT_PATH=$(bash ~/.codex/plugins/ycc/shared/scripts/setup-worktree.sh parent "${WT_REPO_NAME}" "${WT_FEATURE_SLUG}")
@@ -217,7 +237,23 @@ Store the echoed path as `WT_PARENT_PATH` (overrides any deduced value).
 All agents in every batch — parallel and sequential — operate directly in this
 single feature worktree. No child worktrees are created.
 
-### Step 6.6: Move plan artifacts into the worktree
+When `WORKTREE_ACTIVE=false` (`--no-worktree`), skip parent-worktree setup and prepare the feature branch directly in the current checkout:
+
+| Current State                                                                | Action                                                      |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| On `FEATURE_BRANCH`                                                          | Use current branch                                          |
+| On another feature branch                                                    | Use current branch only if the user confirms it is intended |
+| On main, clean/plan-only dirty checkout, and `FEATURE_BRANCH` exists         | Switch to it: `git checkout "${FEATURE_BRANCH}"`            |
+| On main, clean/plan-only dirty checkout, and `FEATURE_BRANCH` does not exist | Create it: `git checkout -b "${FEATURE_BRANCH}"`            |
+| On main with unrelated dirty files                                           | **STOP** — ask user to stash or commit first                |
+
+After this branch step, all agents in every batch operate in the current checkout. Include `Working directory: ${REPO_ROOT}` in each prompt when `--no-worktree` is active so dispatched agents target the prepared branch consistently.
+
+### Step 6.7: Move plan artifacts into the worktree
+
+> **Only when `WORKTREE_ACTIVE=true`** — skip this move entirely when `--no-worktree` is active.
+>
+> **Invariant**: plan artifacts move into the worktree once; they never travel back. Never `cp`, `rsync`, or "sync" plan files across trees.
 
 `parallel-plan.md` and `shared.md` are pre-commit and live in the **main checkout** when this skill starts. Move them into the worktree right after creation — never copy, never sync. After this step the main checkout is clean.
 
@@ -230,7 +266,7 @@ PLAN_PATH=$(bash ~/.codex/plugins/ycc/shared/scripts/move-plan-to-worktree.sh \
 
 `$PLAN_PATH` is the canonical plan location inside the worktree. Use it for every later reference in this run. Any companion research artifact emitted under the same `docs/plans/${WT_FEATURE_SLUG}/` directory before commit can ride along by appending it to the argument list above.
 
-All subsequent file writes in Phase 3 (validation, between-batch checks, reports) run inside `$WT_PARENT_PATH`, not from the main repo root.
+All subsequent file writes in Phase 3 (validation, between-batch checks, reports) run inside `$WT_PARENT_PATH`, not from the main repo root. When `--no-worktree` is active, keep using the original plan path and run Phase 3 in the current checkout on the prepared feature branch.
 
 ---
 
@@ -333,6 +369,13 @@ Working directory: ${WT_PARENT_PATH}
 All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.
 ```
 
+**When `WORKTREE_ACTIVE=false` (`--no-worktree`)**, include the prepared current checkout instead:
+
+```
+Working directory: ${REPO_ROOT}
+All parallel agents in this batch share the current feature branch; batching guarantees no two agents touch the same file.
+```
+
 Do **not** pass `isolation: "worktree"` here. Tool-side worktree isolation creates a distinct harness worktree per agent, which is exactly the behavior this migration is removing. Use the shared `Working directory:` line only. On **Codex / opencode**, that prompt line is likewise sufficient. On **Cursor**, emit a warning and print the `git worktree add` command for the user to run; do not auto-create.
 
 #### Agent Task Requirements (Path A)
@@ -360,7 +403,7 @@ Each implementor agent must:
 
 #### Process Batch Results (Path A)
 
-After each batch completes (and after fan-in merge when `WORKTREE_ACTIVE=true`):
+After each batch completes:
 
 1. **Update todos**: Mark completed tasks as `completed`
 2. **Review agent outputs**: Check for errors or issues
@@ -374,7 +417,7 @@ While tasks remain:
   1. Find tasks where all dependencies are completed
   2. Deploy agents for those tasks in parallel (single message, multiple Agent calls)
   3. Wait for batch to complete
-  4. (WORKTREE_ACTIVE) Validate in the feature worktree (type-check + tests)
+  4. Validate in the execution tree: `$WT_PARENT_PATH` when `WORKTREE_ACTIVE=true`, otherwise the prepared current-checkout feature branch
   5. Update task status
   6. Identify next batch
 ```
@@ -457,6 +500,13 @@ For each batch `B1, B2, ... BN` in dependency order, follow the ordering mandate
    ```
    Working directory: ${WT_PARENT_PATH}
    All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.
+   ```
+
+   **(`--no-worktree`)** include the prepared current checkout instead:
+
+   ```
+   Working directory: ${REPO_ROOT}
+   All parallel agents in this batch share the current feature branch; batching guarantees no two agents touch the same file.
    ```
 
    Do **not** pass `isolation: "worktree"` here. Tool-side worktree isolation creates a distinct harness worktree per teammate, which breaks the single-worktree contract. On **Codex / opencode**, the `Working directory:` line in the prompt is sufficient. On **Cursor**, emit a warning + manual `git worktree add` command.

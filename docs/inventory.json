@@ -74,7 +74,7 @@
     },
     {
       "name": "implement-plan",
-      "description": "Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dependency wiring. Worktree isolation is ON by default; pass --no-worktree to opt out. --worktree is accepted as a legacy no-op. Use as Step 3 after parallel-plan."
+      "description": "Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dependency wiring. Worktree isolation is ON by default and creates/reuses one feature worktree on a feature branch; pass --no-worktree to opt out and create/use only the current-checkout feature branch. --worktree is accepted as a legacy no-op. Use as Step 3 after parallel-plan."
     },
     {
       "name": "init",
@@ -260,7 +260,7 @@
     },
     {
       "name": "implement-plan",
-      "description": "Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dep wiring. Worktree isolation is ON by default; pass --no-worktree to opt out. --worktree is accepted as a legacy no-op. Step 3 of the planning workflow, requires parallel-plan.md from plan-workflow."
+      "description": "Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dep wiring. Worktree isolation is ON by default and creates/reuses one feature worktree on a feature branch; pass --no-worktree to opt out and create/use only the current-checkout feature branch. --worktree is accepted as a legacy no-op. Step 3 of the planning workflow, requires parallel-plan.md from plan-workflow."
     },
     {
       "name": "init",

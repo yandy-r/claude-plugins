@@ -2,10 +2,11 @@
 description: 'Execute a parallel implementation plan by deploying implementor agents
   in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Claude
   Code only) to dispatch via an agent team with shared the todo tracker and up-front
-  dep wiring. Worktree isolation is ON by default; pass --no-worktree to opt out.
-  --worktree is accepted as a legacy no-op. Step 3 of the planning workflow, requires
-  parallel-plan.md from plan-workflow. Usage: [--team] [--dry-run] [--worktree] [--no-worktree]
-  <feature-name>'
+  dep wiring. Worktree isolation is ON by default and creates/reuses one feature worktree
+  on a feature branch; pass --no-worktree to opt out and create/use only the current-checkout
+  feature branch. --worktree is accepted as a legacy no-op. Step 3 of the planning
+  workflow, requires parallel-plan.md from plan-workflow. Usage: [--team] [--dry-run]
+  [--worktree] [--no-worktree] <feature-name>'
 ---
 
 # Implement Plan Command
@@ -23,15 +24,15 @@ Parallelism is the baseline — every batch's implementor agents dispatch concur
 
 - `--team` — (Claude Code only) Force agent-team dispatch.
 - `--dry-run` — Print the execution plan without deploying agents. With `--team`, also prints the team name and per-batch teammate roster.
-- `--worktree` — (legacy — now default; pass `--no-worktree` to opt out) Accepted as a silent no-op. Worktree isolation is on by default.
-- `--no-worktree` — Force worktree mode **OFF** regardless of plan annotations. Tasks run directly in the current checkout.
+- `--worktree` — (legacy — now default; pass `--no-worktree` to opt out) Accepted as a silent no-op. Worktree isolation is on by default. Cannot be combined with `--no-worktree`.
+- `--no-worktree` — Force worktree mode **OFF** regardless of plan annotations. Create/use `feat/<feature-name>` in the current checkout and run tasks there.
 
 ```
 Usage: /implement-plan [--team] [--dry-run] [--worktree] [--no-worktree] <feature-name>
 
 Examples:
   /implement-plan user-authentication
-    # default: worktree isolation ON; plan annotations used when present, derived paths otherwise
+    # default: create/reuse one feature worktree on feat/user-authentication
 
   /implement-plan --team user-authentication
     # agent-team dispatch (worktree still on by default)
@@ -40,8 +41,8 @@ Examples:
   /implement-plan --team --dry-run payment-integration
 
   /implement-plan --no-worktree my-feature
-    # opt out of worktree isolation; tasks run directly in the current checkout
+    # opt out of worktree isolation; create/use feat/my-feature in the current checkout
 
   /implement-plan --team --no-worktree my-feature
-    # agent-team dispatch without worktrees
+    # agent-team dispatch on the current-checkout feature branch
 ```

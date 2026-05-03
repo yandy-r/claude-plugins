@@ -7,6 +7,7 @@ tools:
   read: true
   grep: true
   glob: true
+  write: true
   webfetch: true
 ---
 
