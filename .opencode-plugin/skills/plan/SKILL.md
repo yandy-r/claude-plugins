@@ -1,17 +1,16 @@
 ---
 name: plan
 description: Lightweight conversational planner that dispatches the planner agent
-  (or a multi-perspective agent team) to produce a specific, phased implementation
+  (or a multi-perspective fan-out of sub-agents) to produce a specific, phased implementation
   plan with file paths, dependencies, risks, and a testing strategy — then WAITS for
   explicit user confirmation before any code is written. Pass `--parallel` to instruct
   the planner to shape its output for parallel execution (Batches summary section,
   hierarchical step IDs, explicit Depends on annotations). Pass `--team` to spawn
   a 3-persona team (architect / risk-analyst / test-strategist) and merge their outputs
-  into a richer plan. Pass `--enhanced` to grow the team from 3 to 5 personas, adding
-  security-reviewer and ux-reviewer for explicit security and user-facing perspectives
-  (auto-promotes to team mode). Flags are independent and combinable. Use for quick
-  planning on a new feature, architectural change, or complex refactor when you do
-  NOT need the heavier parallel-agent plan-workflow or the PRD-driven prp-plan.
+  into a richer plan. Pass `--enhanced` to widen the roster from 3 to 5 personas,
+  adding security-reviewer and ux-reviewer for explicit security and user-facing perspectives
+  — dispatched as standalone parallel sub-agents by default, or as a 5-persona team
+  when combined with `--team`. Flags are independent and combinable.
 ---
 
 # Plan Skill
@@ -25,29 +24,29 @@ Create a comprehensive implementation plan before writing any code. This is the 
 ## What This Skill Does
 
 1. **Parse flags and the request** — Extract `--parallel`, `--team`, `--enhanced`, `--dry-run`, then read the user input and any referenced files
-2. **Dispatch planner(s)** — Either dispatch a single `planner` (default) or deploy a 3-persona team (`--team`) or 5-persona team (`--enhanced`, auto-promotes to team mode). In parallel mode, augment the prompt(s) with output-shape directives
+2. **Dispatch planner(s)** — Either dispatch a single `planner` (default), deploy a 3-persona team (`--team`), fan out 5 standalone parallel sub-agents (`--enhanced` alone), or deploy a 5-persona team (`--enhanced --team`). In parallel mode, augment the prompt(s) with output-shape directives
 3. **Merge and relay the plan** — For the single-agent path, relay verbatim. For the team path, merge teammate outputs into one unified plan
 4. **Wait for confirmation** — MUST receive explicit user approval before proceeding
 
 ## Flags
 
-| Flag            | Effect                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel`    | Instruct the planner(s) to emit a parallel-capable plan: a `Batches` summary section at the top, hierarchical step IDs (`1.1`, `1.2`, `2.1`), and explicit `Depends on [...]` annotations on every step. Enables in-conversation parallel implementation via `implementor` agents, or file-based handoff to `/prp-implement --parallel`.                                                                                                    |
-| `--team`        | Dispatch a 3-persona planning team (architect / risk-analyst / test-strategist) under a shared `spawn coordinated subagents`/`the todo tracker` with coordinated shutdown. Produces a richer plan by merging structural, risk, and testing perspectives. Heavier than the default single-agent path.                                                                                                                                                                         |
-| `--enhanced`    | (Claude Code only) Grow the team from 3 to **5** personas, adding `security-reviewer` (threat model, input validation, authn/authz, secrets, dependency risk) and `ux-reviewer` (user-facing impact — UI, CLI, API responses, error messages). Auto-promotes to team mode when passed alone. Composes with `--parallel` and `--no-worktree`. Lighter than `/prp-plan --enhanced` (which fans out to 7 researchers and writes an artifact file). |
-| `--dry-run`     | Only valid with `--team` or `--enhanced`. Prints the team name and teammate roster (3 baseline or 5 enhanced), then exits without spawning any teammates.                                                                                                                                                                                                                                                                                           |
-| `--worktree`    | (legacy — now default; safe to omit) Previously required to emit worktree annotations; the annotations are now emitted by default. Accepted as a silent no-op so existing pipelines continue to work.                                                                                                                                                                                                                                               |
-| `--no-worktree` | Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.                                                                                                                                                                                                                                                                                                                   |
+| Flag            | Effect                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel`    | Instruct the planner(s) to emit a parallel-capable plan: a `Batches` summary section at the top, hierarchical step IDs (`1.1`, `1.2`, `2.1`), and explicit `Depends on [...]` annotations on every step. Enables in-conversation parallel implementation via `implementor` agents, or file-based handoff to `/prp-implement --parallel`.                                                                                                                                                                                                                                                   |
+| `--team`        | Dispatch a 3-persona planning team (architect / risk-analyst / test-strategist) under a shared `spawn coordinated subagents`/`the todo tracker` with coordinated shutdown. Produces a richer plan by merging structural, risk, and testing perspectives. Heavier than the default single-agent path.                                                                                                                                                                                                                                                                                                                        |
+| `--enhanced`    | Grow the persona roster from 3 to **5**, adding `security-reviewer` (threat model, input validation, authn/authz, secrets, dependency risk) and `ux-reviewer` (user-facing impact — UI, CLI, API responses, error messages). When passed alone, dispatches the 5 personas as **standalone parallel sub-agents** (Path C — works in every bundle). Combine with `--team` (Claude Code only) for team-coordinated dispatch (Path B enhanced). Composes with `--parallel` and `--no-worktree`. Lighter than `/prp-plan --enhanced` (which fans out to 7 researchers and writes an artifact file). |
+| `--dry-run`     | Valid with `--team` (prints team-coordinated roster) or `--enhanced` (prints standalone or team roster depending on whether `--team` is also present). Prints the roster, then exits without spawning any agents.                                                                                                                                                                                                                                                                                                                                                                                  |
+| `--worktree`    | (legacy — now default; safe to omit) Previously required to emit worktree annotations; the annotations are now emitted by default. Accepted as a silent no-op so existing pipelines continue to work.                                                                                                                                                                                                                                                                                                                                                                                              |
+| `--no-worktree` | Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 **Flag interaction**:
 
-- `--parallel` and `--team` are **independent and combinable**. `--parallel` shapes the plan's _output format_; `--team` switches the _dispatch mechanism_. Pass both for a multi-perspective plan formatted for parallel execution.
-- `--enhanced` shapes the _team roster_ (3 → 5 personas). It only meaningfully applies to the team path, so `--enhanced` alone auto-promotes to `--enhanced --team` with a one-line notice. Combine freely with `--parallel` and `--no-worktree`.
-- `--dry-run` requires `--team` (or `--enhanced`, which auto-promotes). The single-agent path has nothing to dry-run.
+- `--parallel` and `--team` are **independent and combinable**. `--parallel` shapes the plan's _output format_; `--team` switches the _dispatch mechanism_ to a coordinated team. Pass both for a multi-perspective plan formatted for parallel execution.
+- `--enhanced` widens the persona _roster_ (3 → 5 personas). When passed alone it selects **Path C** (5 standalone parallel sub-agents); when combined with `--team` it selects **Path B enhanced** (5-persona team). Combine freely with `--parallel` and `--no-worktree`.
+- `--dry-run` requires `--team` or `--enhanced` (or both). The single-agent path has nothing to dry-run.
 - `--no-worktree` opts out of all worktree annotations. When omitted (the default), the plan emits a `## Worktree Setup` section naming the one feature worktree; all tasks (parallel and sequential) share that single path.
 
-**Compatibility note**: `--team` and `--enhanced` both depend on team tools (`spawn coordinated subagents`, `send follow-up instructions`, etc.) which only opencode ships. In Cursor or Codex bundles, both flags abort with a compatibility message — use `--parallel` instead.
+**Compatibility note**: `--team` depends on team tools (`spawn coordinated subagents`, `send follow-up instructions`, etc.) which only opencode ships — in Cursor or Codex bundles `--team` aborts with a compatibility message. `--enhanced` alone runs in every bundle (Path C uses parallel `Agent` calls without team tools). Only the combination `--enhanced --team` requires opencode; in Cursor or Codex, drop `--team` and `--enhanced` will dispatch via Path C.
 
 **Note**: `--parallel` on `/plan` shapes the _output_, not the research phase. For research fan-out on larger features, use `/prp-plan --parallel` (sub-agent fan-out) or `/prp-plan --team` (Claude Code only; shared-task-list coordination).
 
@@ -87,9 +86,10 @@ ARGUMENTS="${ARGUMENTS//--enhanced/}"
 
 **Validation**:
 
-- If `ENHANCED_MODE=true` and `AGENT_TEAM_MODE=false` → **auto-promote** to team mode (`AGENT_TEAM_MODE=true`) and print one line: `--enhanced implies --team for /plan; promoting dispatch.` `--enhanced` only shapes the team roster, so the single-agent path has nothing to enhance.
-- If `DRY_RUN=true` and `AGENT_TEAM_MODE=false` (after the auto-promote check above) → abort with: `--dry-run requires --team or --enhanced (no-op for the single-agent path).`
-- If `--enhanced` (or `--team`) is invoked from a Cursor or Codex bundle, abort with: `--enhanced requires team tools, which Cursor/Codex bundles do not ship. Use --parallel instead.` (For plain `--team` the existing compatibility message stands.)
+- `--enhanced` does **not** auto-promote to team mode. When `ENHANCED_MODE=true` and `AGENT_TEAM_MODE=false`, dispatch via the new **Path C** below: a 5-persona roster spawned as standalone parallel sub-agents with no `spawn coordinated subagents`. Add `--team` explicitly to opt in to team-coordinated dispatch (Path B enhanced).
+- If `DRY_RUN=true` and both `AGENT_TEAM_MODE=false` and `ENHANCED_MODE=false` → abort with: `--dry-run requires --team or --enhanced (no-op for the single-agent path).`
+- If `--team` is invoked from a Cursor or Codex bundle, abort with the existing compatibility message: `--team requires team tools, which Cursor/Codex bundles do not ship. Use --parallel instead.`
+- `--enhanced` alone is supported in every bundle: Path C uses parallel `Agent` calls without team tools. Only the `--enhanced --team` combination requires opencode; in Cursor or Codex, abort with: `--enhanced --team requires team tools, which Cursor/Codex bundles do not ship. Drop --team to use the standalone 5-persona path.`
 
 Read the stripped `$ARGUMENTS`. If it references a file path, read that file for context. If the request is ambiguous, ask a single focused clarifying question **before** dispatching.
 
@@ -97,7 +97,8 @@ Read the stripped `$ARGUMENTS`. If it references a file path, read that file for
 
 Choose dispatch path based on `AGENT_TEAM_MODE` and `ENHANCED_MODE`:
 
-- **`AGENT_TEAM_MODE=false`** (default) → **Path A**: single `planner` agent.
+- **`AGENT_TEAM_MODE=false`, `ENHANCED_MODE=false`** (default) → **Path A**: single `planner` agent.
+- **`AGENT_TEAM_MODE=false`, `ENHANCED_MODE=true`** → **Path C**: 5-persona roster (3 baseline + `security-reviewer` + `ux-reviewer`) spawned as standalone parallel sub-agents. No `spawn coordinated subagents`.
 - **`AGENT_TEAM_MODE=true`, `ENHANCED_MODE=false`** → **Path B**: 3-persona planning team.
 - **`AGENT_TEAM_MODE=true`, `ENHANCED_MODE=true`** → **Path B (enhanced)**: 5-persona planning team (3 baseline + `security-reviewer` + `ux-reviewer`). All Path B steps below apply with the wider roster.
 
@@ -198,6 +199,83 @@ In your emitted plan:
 See `.opencode-plugin/skills/_shared/references/worktree-strategy.md` §1–§2 for the
 canonical single-worktree contract.
 ```
+
+---
+
+### Path C — Parallel sub-agent dispatch (`--enhanced` without `--team`)
+
+> **MANDATORY — STANDALONE SUB-AGENTS, NO TEAM**
+>
+> Path C dispatches the same 5-persona roster as Path B (enhanced) but **without** any
+> team tooling. Do NOT call `spawn coordinated subagents`, `track the task`, `send follow-up instructions`, or `end the coordinated run`.
+> Every `Agent` call below MUST omit `team_name=` and use `name=` purely as a
+> human-readable label for the merge step. This path mirrors the standalone fan-out
+> pattern in `prp-plan`.
+>
+> 1. **No team lifecycle** — no `spawn coordinated subagents`, no shared `the todo tracker`, no shutdown messages
+> 2. `Agent` with `subagent_type=` and `name=` — **one message, FIVE Agent calls**, fired in parallel
+> 3. Wait for all 5 sub-agent responses to return (they return inline as opencode `task` tool results)
+> 4. Merge outputs per Path B §B.7 — same Markdown sections, same omission rules
+
+#### C.1 Persona roster
+
+Identical to Path B enhanced (5 personas):
+
+| Sub-agent name      | `subagent_type`                 | Role focus                                                                         |
+| ------------------- | ------------------------------- | ---------------------------------------------------------------------------------- |
+| `architect`         | `planner`                   | Structural plan, phases, file layout, dependencies                                 |
+| `risk-analyst`      | `codebase-research-analyst` | Risks, edge cases, rollback, migration concerns                                    |
+| `test-strategist`   | `test-strategy-planner`     | Testing strategy, validation commands, acceptance criteria                         |
+| `security-reviewer` | `research-specialist`       | Threat model, input validation, authn/authz, secrets handling, dependency risk     |
+| `ux-reviewer`       | `research-specialist`       | User-facing impact (UI, CLI, API responses, error messages); skip if internal-only |
+
+#### C.2 Dry-run gate (if `DRY_RUN=true`)
+
+Print:
+
+```
+Dispatch:    standalone parallel sub-agents (no team)
+Sub-agents:  5
+  - architect         subagent_type=planner                    task=Structural plan, phases, file layout, dependencies
+  - risk-analyst      subagent_type=codebase-research-analyst  task=Risks, edge cases, rollback, migration concerns
+  - test-strategist   subagent_type=test-strategy-planner      task=Testing strategy, validation commands, acceptance criteria
+  - security-reviewer subagent_type=research-specialist        task=Threat model, input validation, authn/authz, secrets, dependency risk
+  - ux-reviewer       subagent_type=research-specialist        task=User-facing impact (UI, CLI, API responses, error messages); skip if internal-only
+Batches:     1  (single message, 5 parallel Agent calls)
+```
+
+Do **not** spawn any agents. Exit the skill.
+
+#### C.3 Spawn the sub-agents (single message, 5 Agent calls)
+
+In ONE assistant message, issue 5 `Agent` tool calls in parallel. Each call:
+
+- Sets `subagent_type` and `name` per the C.1 roster
+- Does **NOT** set `team_name=`
+- Uses the same role-specific prompt content as Path B §B.5, with the following adjustment for the 3 baseline personas: **omit** the "coordinate via `send follow-up instructions` if you discover work overlapping another teammate's scope" line — there is no team channel in Path C. Each prompt MUST still include:
+  - The user's original request (verbatim)
+  - Any file paths or context they referenced
+  - The role focus (from C.1)
+  - The standard confirmation prompt instruction
+  - If `PARALLEL_MODE=true`: the parallel output directives from Path A (Parallel prompt section)
+  - If `WORKTREE_MODE=true` (default): the worktree directives from Path A (Worktree prompt section)
+
+For `security-reviewer` and `ux-reviewer`, copy the role-specific prompt verbatim from `~/.config/opencode/skills/plan/references/enhanced-personas.md`. Append the same `PARALLEL_MODE` and `WORKTREE_MODE` directives so all 5 sub-agents emit consistent output.
+
+#### C.4 Collect results
+
+Sub-agents return inline as opencode `task` tool results. There is no shared `the todo tracker` to poll —
+gather the 5 outputs directly from the tool-result block.
+
+Failure handling (no shutdown calls needed since no team was created):
+
+- `architect` failure → critical; abort the skill with a clear error.
+- `risk-analyst` or `test-strategist` failure → record "partial plan — {role} did not complete" and proceed with reduced merge, noting the gap in the relayed plan.
+- `security-reviewer` or `ux-reviewer` failure → non-critical; record the gap ("partial plan — {role} did not complete; security/UX coverage may be incomplete") and proceed.
+
+#### C.5 Merge outputs
+
+Apply the Path B §B.7 merge rules verbatim — same `## Overview`, `## Architecture Changes`, `## Implementation Steps`, `## Risks & Mitigations`, `## Testing Strategy`, `## Security Considerations`, `## UX Impact`, `## Success Criteria` sections, same omission rules for `security-reviewer` / `ux-reviewer` no-finding responses, same `PARALLEL_MODE` Batches re-indexing rule. End with the standard confirmation prompt: `**WAITING FOR CONFIRMATION**: Proceed with this plan? (yes / no / modify)`.
 
 ---
 
@@ -409,9 +487,9 @@ If the plan was requested with `--parallel`, verify:
 
 If any are missing, re-dispatch the planner (or `architect` teammate, if in Path B — but only _after_ `end the coordinated run` has run; do not try to re-spawn inside a torn-down team) with a directive to add the missing parallel annotations.
 
-#### Check 4: Agent-team merge integrity (`AGENT_TEAM_MODE=true` only)
+#### Check 4: Multi-agent merge integrity (Path B and Path C)
 
-After Path B merge, verify the unified plan reflects every spawned perspective:
+After a Path B or Path C merge — that is, whenever multiple sub-agents contributed to the plan — verify the unified plan reflects every spawned perspective:
 
 - `architect` slice: `## Implementation Steps` (or equivalent) is present and non-empty
 - `risk-analyst` slice: a `## Risks` / `## Risks & Mitigations` section OR per-step risk callouts are present
@@ -443,6 +521,8 @@ Valid user responses:
 - **"no"** → stop, do not implement
 
 **Team-mode re-dispatch note**: Path B's team is `end the coordinated run`d in Step B.8 _before_ the user sees the plan. Any re-dispatch from this step creates a **new** team (same name is fine — the old one no longer exists) with a fresh set of teammates. Do not attempt to send messages to teammates from the prior team.
+
+**Path C re-dispatch note**: Path C never created a team, so there is no teardown to worry about. Any re-dispatch from this step simply fires a fresh batch of 5 parallel `Agent` calls (no `team_name=`).
 
 ---
 
@@ -493,13 +573,13 @@ Use Option 1 for small features and quick iterations. Use Option 2 when the user
 
 ## Comparison with other ycc planning tracks
 
-| Track                  | When to use                                                                                                                                                                                                              |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `/plan` (this one) | Quick conversational plan via `planner` agent. No artifact file. Add `--parallel` to shape the output for parallel execution (no research fan-out). Add `--enhanced` to grow the team to 5 personas (security + UX). |
-| `/prp-plan`        | Artifact-producing plan with codebase pattern extraction. Single-pass. Add `--parallel` for 3-researcher fan-out + batched plan. Add `--enhanced` for the full 7-researcher fan-out.                                     |
-| `/prp-prd`         | Interactive PRD first, then prp-plan. Problem-first hypothesis workflow.                                                                                                                                                 |
-| `/plan-workflow`   | Heavyweight parallel-agent planning. Multi-task features. Artifact output.                                                                                                                                               |
-| `/parallel-plan`   | Lower-level component of `/plan-workflow` for dependency-aware plans.                                                                                                                                                |
+| Track                  | When to use                                                                                                                                                                                                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/plan` (this one) | Quick conversational plan via `planner` agent. No artifact file. Add `--parallel` to shape the output for parallel execution (no research fan-out). Add `--enhanced` to widen to 5 personas (security + UX), dispatched as standalone parallel sub-agents by default. |
+| `/prp-plan`        | Artifact-producing plan with codebase pattern extraction. Single-pass. Add `--parallel` for 3-researcher fan-out + batched plan. Add `--enhanced` for the full 7-researcher fan-out.                                                                                      |
+| `/prp-prd`         | Interactive PRD first, then prp-plan. Problem-first hypothesis workflow.                                                                                                                                                                                                  |
+| `/plan-workflow`   | Heavyweight parallel-agent planning. Multi-task features. Artifact output.                                                                                                                                                                                                |
+| `/parallel-plan`   | Lower-level component of `/plan-workflow` for dependency-aware plans.                                                                                                                                                                                                 |
 
 ### Which `--parallel` should I use?
 
@@ -520,14 +600,10 @@ there has no effect — use `--parallel` instead.
 
 ### When to use `--enhanced`
 
-`--enhanced` is also **Claude Code only** (it relies on team tools). It grows the team
-from 3 to **5** personas, adding `security-reviewer` and `ux-reviewer`. Reach for it
-when the change has plausible security exposure (new endpoint, new input source,
-authn/authz touch, secret handling) or user-facing surface (new UI / CLI flag /
-API response shape / error path). Skip it for purely internal refactors where no new
-threat surface or user touchpoint is introduced.
+`--enhanced` widens the roster from 3 to **5** personas, adding `security-reviewer` and `ux-reviewer`. By default (no `--team`) it dispatches via **Path C** — 5 standalone parallel sub-agents — which works in every bundle (opencode, Cursor, Codex). Combine with `--team` (Claude Code only) for team-coordinated dispatch via **Path B enhanced**. Reach for `--enhanced` when the change has plausible security exposure (new endpoint, new input source, authn/authz touch, secret handling) or user-facing surface (new UI / CLI flag / API response shape / error path). Skip it for purely internal refactors where no new threat surface or user touchpoint is introduced.
 
-- **`/plan --enhanced <request>`** — Auto-promotes to team mode and dispatches the 5-persona team. Best for medium-complexity features where a 3-persona plan would miss security or UX considerations.
+- **`/plan --enhanced <request>`** — Fans out 5 standalone parallel sub-agents (Path C). Works in every bundle. Best for medium-complexity features where a 3-persona plan would miss security or UX considerations and you don't need the team coordination overhead.
+- **`/plan --enhanced --team <request>`** — Same 5-persona roster but dispatched as a opencode agent team with shared `the todo tracker` and coordinated shutdown. Use when you want team observability across the 5 perspectives.
 - **`/plan --enhanced --parallel <request>`** — 5-persona plan formatted for parallel execution (Batches section, `Depends on` annotations).
 - **`/plan --enhanced --dry-run <request>`** — Print the 5-persona roster without spawning anyone. Useful to confirm the team shape before paying the dispatch cost.
 - **`/prp-plan --enhanced <request>`** — The heavier sibling: 7 researchers, artifact-producing. Use when you want the enhanced perspectives _and_ a saved plan file, not just an in-conversation plan.
