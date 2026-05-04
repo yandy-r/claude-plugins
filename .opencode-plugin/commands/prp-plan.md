@@ -4,7 +4,8 @@ description: 'Create a single-pass implementation plan from a feature descriptio
   docs/prps/plans/{name}.plan.md. Pass --parallel to fan out research and emit a dependency-batched
   plan. Pass --team (Claude Code only) to run the same fan-out as a coordinated agent
   team with shared the todo tracker. Pass --worktree to annotate the plan with a Usage:
-  [--parallel | --team] [--no-worktree] [--dry-run] <feature description | path/to/prd.md>'
+  [--parallel | --team] [--enhanced] [--no-worktree] [--dry-run] <feature description
+  | path/to/prd.md>'
 ---
 
 # PRP Plan Command
@@ -21,6 +22,7 @@ The skill detects whether the argument is a PRD file (selects the next pending p
 - `--team` — (Claude Code only) Fan out the same 3 researchers as **teammates** under a shared `spawn coordinated subagents`/`the todo tracker` with coordinated shutdown via `send follow-up instructions`. Same plan output as `--parallel`, but with shared task-graph observability. Cursor and Codex bundles lack team tools; use `--parallel` there instead.
 - `--worktree` — (legacy — now default; pass `--no-worktree` to opt out) Worktree annotations are emitted by default. This flag is accepted as a silent no-op so existing pipelines continue to work.
 - `--no-worktree` — Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.
+- `--enhanced` — Enhanced research mode. Grows the research fan-out from 3 to 7 specialized researchers (api / business / tech / ux / security / practices / recommendations — same coverage as `feature-research`). Output remains a single PRP-compliant plan file at `docs/prps/plans/{name}.plan.md`. Composes orthogonally with `--parallel`, `--team`, and `--no-worktree`. When passed alone, defaults to standalone sub-agent dispatch (Path B at width 7); combine with `--team` (Claude Code only) for team-coordinated dispatch.
 - `--dry-run` — Only valid with `--team`. Prints the team name and teammate roster, then exits without spawning any teammates.
 
 `--parallel` and `--team` are **mutually exclusive** — pick one. `--no-worktree` is orthogonal and may be combined with either.
@@ -37,6 +39,9 @@ Examples:
   /prp-plan --parallel --no-worktree add rate limiting to the API gateway  # parallel research, no worktree annotations
   /prp-plan --team --no-worktree "add JWT refresh flow"                    # team research, no worktree annotations
   /prp-plan --parallel docs/prps/prds/notifications.prd.md
+  /prp-plan --enhanced "add JWT refresh flow"
+  /prp-plan --enhanced --team docs/prps/prds/notifications.prd.md
+  /prp-plan --enhanced --no-worktree "add rate limiting"
 
 Next step after plan is written:
   /prp-implement docs/prps/plans/{name}.plan.md              # sequential execution

@@ -1,7 +1,7 @@
 ---
 name: prp-plan
-description: Create a comprehensive, self-contained feature implementation plan with codebase pattern extraction and optional external research. Detects whether the input is a PRD (selects next pending phase) or a free-form description, runs deep codebase discovery via prp-researcher, and writes a single-pass-ready plan to docs/prps/plans/{name}.plan.md. Pass `--parallel` to fan out research across 3 standalone researcher sub-agents and emit a dependency-batched task list ready for parallel execution by prp-implement. Pass `--team` (Claude Code only) to run the same 3 researchers under a shared TeamCreate/TaskList with coordinated shutdown — heavier but with a shared task graph and observable progress. Pass `--worktree` to annotate the emitted plan with a `## Worktree Setup` section and per-parallel-task `**Worktree**:` fields for git-isolated execution. `--parallel` and `--team` are mutually exclusive; `--worktree` combines freely with either. Use when the user asks for a "PRP plan", "implementation plan from PRD", "feature plan with patterns to mirror", "parallel PRP plan", "team PRP plan", or says "/prp-plan". Adapted from PRPs-agentic-eng by Wirasm.
-argument-hint: '[--parallel | --team] [--no-worktree] [--dry-run] <feature description | path/to/prd.md>'
+description: Create a comprehensive, self-contained feature implementation plan with codebase pattern extraction and optional external research. Detects whether the input is a PRD (selects next pending phase) or a free-form description, runs deep codebase discovery via prp-researcher, and writes a single-pass-ready plan to docs/prps/plans/{name}.plan.md. Pass `--parallel` to fan out research across 3 standalone researcher sub-agents and emit a dependency-batched task list ready for parallel execution by prp-implement. Pass `--team` (Claude Code only) to run the same 3 researchers under a shared TeamCreate/TaskList with coordinated shutdown — heavier but with a shared task graph and observable progress. Pass `--worktree` to annotate the emitted plan with a `## Worktree Setup` section and per-parallel-task `**Worktree**:` fields for git-isolated execution. `--parallel` and `--team` are mutually exclusive; `--worktree` combines freely with either. Use when the user asks for a "PRP plan", "implementation plan from PRD", "feature plan with patterns to mirror", "parallel PRP plan", "team PRP plan", or says "/prp-plan". Adapted from PRPs-agentic-eng by Wirasm. Pass --enhanced to grow the research fan-out from 3 to 7 specialized researchers (covering the same dimensions as feature-research) while keeping the output as a single PRP-compliant plan file.
+argument-hint: '[--parallel | --team] [--enhanced] [--no-worktree] [--dry-run] <feature description | path/to/prd.md>'
 allowed-tools:
   - Read
   - Grep
@@ -47,13 +47,14 @@ Create a detailed, self-contained implementation plan that captures all codebase
 
 Extract flags from `$ARGUMENTS`:
 
-| Flag            | Effect                                                                                                                                                                                                                                               |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--parallel`    | Fan out research into 3 **standalone sub-agent** researchers; emit tasks with batch/dependency annotations. Works in Claude Code, Cursor, and Codex.                                                                                                 |
-| `--team`        | (Claude Code only) Fan out the same 3 researchers as **teammates** under a shared `TeamCreate`/`TaskList` with coordinated shutdown via `SendMessage`. Same plan output as `--parallel`, but with shared task-graph observability. Heavier dispatch. |
-| `--worktree`    | (legacy — now default; safe to omit) Worktree annotations are emitted by default. Accepted as a silent no-op so existing pipelines continue to work.                                                                                                 |
-| `--no-worktree` | Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.                                                                                                                    |
-| `--dry-run`     | Only valid with `--team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                       |
+| Flag            | Effect                                                                                                                                                                                                                                                                                                                       |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel`    | Fan out research into 3 **standalone sub-agent** researchers; emit tasks with batch/dependency annotations. Works in Claude Code, Cursor, and Codex.                                                                                                                                                                         |
+| `--team`        | (Claude Code only) Fan out the same 3 researchers as **teammates** under a shared `TeamCreate`/`TaskList` with coordinated shutdown via `SendMessage`. Same plan output as `--parallel`, but with shared task-graph observability. Heavier dispatch.                                                                         |
+| `--worktree`    | (legacy — now default; safe to omit) Worktree annotations are emitted by default. Accepted as a silent no-op so existing pipelines continue to work.                                                                                                                                                                         |
+| `--no-worktree` | Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.                                                                                                                                                                                            |
+| `--dry-run`     | Only valid with `--team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                                                                                               |
+| `--enhanced`    | Enhanced research mode: grow the research fan-out from 3 to 7 specialized researchers (api/business/tech/ux/security/practices/recommendations — same coverage as feature-research). Output is still a single PRP-compliant plan file. Composes with --parallel (default), --team (Claude Code only), and --no-worktree. |
 
 Strip the flags. Set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `DRY_RUN=true|false`. Default `WORKTREE_MODE=true`; set `WORKTREE_MODE=false` if `--no-worktree` is present. `--worktree` is accepted as a legacy no-op (matches the default). Remaining text is the feature description or PRD path.
 
@@ -65,6 +66,12 @@ case " $ARGUMENTS " in
 esac
 ARGUMENTS="${ARGUMENTS//--no-worktree/}"
 ARGUMENTS="${ARGUMENTS//--worktree/}"  # legacy no-op
+
+ENHANCED_MODE=false
+case " $ARGUMENTS " in
+  *" --enhanced "*) ENHANCED_MODE=true ;;
+esac
+ARGUMENTS="${ARGUMENTS//--enhanced/}"
 ```
 
 **Validation**:
@@ -72,6 +79,7 @@ ARGUMENTS="${ARGUMENTS//--worktree/}"  # legacy no-op
 - `--parallel` and `--team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --team are mutually exclusive. Pick one.`
 - `--dry-run` requires `--team`. If `DRY_RUN=true` and `AGENT_TEAM_MODE=false` → abort with: `--dry-run requires --team.`
 - `--no-worktree` is **orthogonal** to `--parallel` and `--team` — it may be combined freely with either flag or used alone to suppress annotations.
+- If `--enhanced` is passed without `--parallel` or `--team`, default to standalone sub-agent dispatch (Path B equivalent at width 7). If `--enhanced --team` is invoked from a Cursor or Codex bundle, abort with the same compatibility message used today for plain `--team`. If `--dry-run` is passed, it requires `--team` (same constraint as today); `--enhanced --dry-run` alone is invalid.
 
 **Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools). Use `--parallel` instead.
 
@@ -121,6 +129,8 @@ Gather codebase intelligence across 8 categories and 5 traces.
 
 **5 traces**: Entry Points, Data Flow, State Changes, Contracts, Patterns
 
+When `ENHANCED_MODE=true`, run `${CURSOR_PLUGIN_ROOT}/skills/prp-plan/scripts/preflight-enhanced-agents.sh` and abort with the script's stderr if it exits non-zero. This catches missing agent dependencies before any researcher is dispatched. The script auto-derives the plugin root from its own install location; no argument needed at runtime.
+
 ### Path A — Sequential (default)
 
 Dispatch a single `prp-researcher` agent in codebase mode to cover all 8 categories and 5 traces. Use the discovery table for the plan's Patterns to Mirror section.
@@ -150,6 +160,13 @@ By default (`WORKTREE_MODE=true`), append the following directive to each resear
 
 After all 3 return: merge tables, de-duplicate, verify all 8 categories covered.
 
+#### Path B (enhanced) — when `ENHANCED_MODE=true`
+
+- Replace the 3-row researcher table above with the 7-row roster from `${CURSOR_PLUGIN_ROOT}/skills/prp-plan/references/enhanced-researchers.md`.
+- Dispatch in a **SINGLE message** with **SEVEN `Agent` tool calls** (still standalone — no `team_name`).
+- Each call uses `subagent_type: "prp-researcher"` with the `name` field set to the role name (`api-researcher`, `business-analyzer`, `tech-designer`, `ux-researcher`, `security-researcher`, `practices-researcher`, `recommendations-agent`) and the role-specific prompt copied verbatim from `enhanced-researchers.md`.
+- The 5-line snippet cap and discovery-table-only constraints used in the 3-researcher path apply unchanged.
+
 ### Path C — Agent team (`AGENT_TEAM_MODE=true`, Claude Code only)
 
 > **MANDATORY — AGENT TEAMS REQUIRED**
@@ -178,7 +195,7 @@ Team name: `prpp-<sanitized-feature>`.
 
 #### C.2 Dry-run gate (if `DRY_RUN=true`)
 
-Print:
+Print (when `ENHANCED_MODE=false`):
 
 ```
 Team name:   prpp-<sanitized-feature>
@@ -188,6 +205,22 @@ Teammates:   3
   - infra-research     subagent_type=prp-researcher  task=Configuration, Dependencies | Data Flow
 Batches:     1  (batch 1: patterns-research, quality-research, infra-research)
 Dependencies: none  (flat graph)
+```
+
+Print (when `ENHANCED_MODE=true`):
+
+```
+Team name:      prpp-<sanitized-feature>
+Teammates:      7
+  - api-researcher         subagent_type=prp-researcher  task=External APIs, libraries, integration patterns
+  - business-analyzer      subagent_type=prp-researcher  task=Requirements, user stories, business rules
+  - tech-designer          subagent_type=prp-researcher  task=Architecture, data models, API design
+  - ux-researcher          subagent_type=prp-researcher  task=User experience, workflows, accessibility
+  - security-researcher    subagent_type=prp-researcher  task=Security analysis, dependency risks, secure coding
+  - practices-researcher   subagent_type=prp-researcher  task=Modularity, code reuse, KISS, engineering best practices
+  - recommendations-agent  subagent_type=prp-researcher  task=Ideas, improvements, risks
+Batches:        1  (batch 1: all 7 researchers)
+Dependencies:   none  (flat graph)
 ```
 
 Do **not** call any team/task/agent tools. Exit the skill.
@@ -249,6 +282,15 @@ TeamDelete
 
 Always `TeamDelete` before continuing to Phase 3.
 
+#### Path C (enhanced) — when `ENHANCED_MODE=true`
+
+- Team name stays `prpp-<sanitized-feature>`.
+- Register 7 tasks instead of 3 via `TaskCreate`, using the role names from `${CURSOR_PLUGIN_ROOT}/skills/prp-plan/references/enhanced-researchers.md` (`api-researcher`, `business-analyzer`, `tech-designer`, `ux-researcher`, `security-researcher`, `practices-researcher`, `recommendations-agent`).
+- Spawn 7 teammates in a **single message** with `team_name="prpp-<sanitized-feature>"` and the role name in `name=`, all using `subagent_type: "prp-researcher"` with the role-specific prompt from `enhanced-researchers.md`.
+- Monitor via `TaskList` until all 7 complete.
+- Shutdown all 7 via `SendMessage({type:"shutdown_request"})` before `TeamDelete`.
+- Failure policy: a single teammate failure → continue with a stub note in synthesis ("{role} did not complete — {section} may be incomplete"); ≥4 teammate failures → abort, shutdown survivors, `TeamDelete`, fall back to suggesting the user re-run with `--enhanced --parallel`.
+
 ---
 
 ## Phase 3 — RESEARCH
@@ -293,6 +335,8 @@ mkdir -p docs/prps/plans
 Read the plan template from `${CURSOR_PLUGIN_ROOT}/skills/prp-plan/references/plan-template.md`.
 
 If `PARALLEL_MODE=true` **or** `AGENT_TEAM_MODE=true`, also read `${CURSOR_PLUGIN_ROOT}/skills/prp-plan/references/parallel-additions.md`. Both modes emit the same parallel-capable plan format (Batches section, hierarchical task IDs, `Depends on` annotations) — they only differ in how the research phase was dispatched.
+
+If `ENHANCED_MODE=true`, also read `${CURSOR_PLUGIN_ROOT}/skills/prp-plan/references/synthesis-map.md` and use it to route each researcher's findings into the correct plan section. The plan template is unchanged. Enhanced mode produces a richer plan because each section gets dedicated researcher input, not because new sections are added. Avoid section bloat — if a researcher returns no findings for a section, leave the existing N/A language in place or omit fully optional sections.
 
 ### Step 2: Write the plan in chunks
 
@@ -382,7 +426,7 @@ Update the phase status from `pending` to `in-progress` and add the plan file pa
 - **External Research**: [topics or "none needed"]
 - **Risks**: [top risk or "none identified"]
 - **Confidence Score**: [1-10]
-- **Research Dispatch**: [Sequential | Parallel sub-agents | Agent team]
+- **Research Dispatch**: [Sequential | Parallel sub-agents | Agent team | Enhanced (7 researchers)]
 - **Execution Mode**: [Sequential | Parallel (N batches, max width X)]
 - **Worktree Mode**: [Enabled (default) — plan includes ## Worktree Setup (single feature worktree — **Parent**: line only) | Disabled via --no-worktree]
 

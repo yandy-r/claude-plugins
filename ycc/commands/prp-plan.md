@@ -1,6 +1,6 @@
 ---
-description: Create a single-pass implementation plan from a feature description or PRD. Runs codebase pattern extraction and optional external research, then writes docs/prps/plans/{name}.plan.md. Pass --parallel to fan out research and emit a dependency-batched plan. Pass --team (Claude Code only) to run the same fan-out as a coordinated agent team with shared TaskList. Pass --worktree to annotate the plan with a ## Worktree Setup section and per-task git isolation paths.
-argument-hint: '[--parallel | --team] [--no-worktree] [--dry-run] <feature description | path/to/prd.md>'
+description: Create a single-pass implementation plan from a feature description or PRD. Runs codebase pattern extraction and optional external research, then writes docs/prps/plans/{name}.plan.md. Pass --parallel to fan out research and emit a dependency-batched plan. Pass --team (Claude Code only) to run the same fan-out as a coordinated agent team with shared TaskList. Pass --worktree to annotate the plan with a ## Worktree Setup section and per-task git isolation paths. Pass --enhanced to grow the research fan-out from 3 to 7 specialized researchers covering the same dimensions as ycc:feature-research, while keeping the output as a single PRP-compliant plan file.
+argument-hint: '[--parallel | --team] [--enhanced] [--no-worktree] [--dry-run] <feature description | path/to/prd.md>'
 allowed-tools:
   - Read
   - Grep
@@ -40,6 +40,7 @@ The skill detects whether the argument is a PRD file (selects the next pending p
 - `--team` — (Claude Code only) Fan out the same 3 researchers as **teammates** under a shared `TeamCreate`/`TaskList` with coordinated shutdown via `SendMessage`. Same plan output as `--parallel`, but with shared task-graph observability. Cursor and Codex bundles lack team tools; use `--parallel` there instead.
 - `--worktree` — (legacy — now default; pass `--no-worktree` to opt out) Worktree annotations are emitted by default. This flag is accepted as a silent no-op so existing pipelines continue to work.
 - `--no-worktree` — Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.
+- `--enhanced` — Enhanced research mode. Grows the research fan-out from 3 to 7 specialized researchers (api / business / tech / ux / security / practices / recommendations — same coverage as `ycc:feature-research`). Output remains a single PRP-compliant plan file at `docs/prps/plans/{name}.plan.md`. Composes orthogonally with `--parallel`, `--team`, and `--no-worktree`. When passed alone, defaults to standalone sub-agent dispatch (Path B at width 7); combine with `--team` (Claude Code only) for team-coordinated dispatch.
 - `--dry-run` — Only valid with `--team`. Prints the team name and teammate roster, then exits without spawning any teammates.
 
 `--parallel` and `--team` are **mutually exclusive** — pick one. `--no-worktree` is orthogonal and may be combined with either.
@@ -56,6 +57,9 @@ Examples:
   /ycc:prp-plan --parallel --no-worktree add rate limiting to the API gateway  # parallel research, no worktree annotations
   /ycc:prp-plan --team --no-worktree "add JWT refresh flow"                    # team research, no worktree annotations
   /ycc:prp-plan --parallel docs/prps/prds/notifications.prd.md
+  /ycc:prp-plan --enhanced "add JWT refresh flow"
+  /ycc:prp-plan --enhanced --team docs/prps/prds/notifications.prd.md
+  /ycc:prp-plan --enhanced --no-worktree "add rate limiting"
 
 Next step after plan is written:
   /ycc:prp-implement docs/prps/plans/{name}.plan.md              # sequential execution
