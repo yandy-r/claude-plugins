@@ -7,11 +7,11 @@ description: Lightweight conversational planner that dispatches the planner agen
   the planner to shape its output for parallel execution (Batches summary section,
   hierarchical step IDs, explicit Depends on annotations). Pass `--team` to spawn
   a 3-persona team (architect / risk-analyst / test-strategist) and merge their outputs
-  into a richer plan. Flags are independent and combinable. Use for quick planning
-  on a new feature, architectural change, or complex refactor when you do NOT need
-  the heavier parallel-agent plan-workflow or the PRD-driven prp-plan. Use when the
-  user asks to "plan this", "outline an approach", "break this down before I code",
-  "parallel plan", "multi-perspective plan", or says "/plan".
+  into a richer plan. Pass `--enhanced` to grow the team from 3 to 5 personas, adding
+  security-reviewer and ux-reviewer for explicit security and user-facing perspectives
+  (auto-promotes to team mode). Flags are independent and combinable. Use for quick
+  planning on a new feature, architectural change, or complex refactor when you do
+  NOT need the heavier parallel-agent plan-workflow or the PRD-driven prp-plan.
 ---
 
 # Plan Skill
@@ -24,26 +24,30 @@ Create a comprehensive implementation plan before writing any code. This is the 
 
 ## What This Skill Does
 
-1. **Parse flags and the request** — Extract `--parallel`, `--team`, `--dry-run`, then read the user input and any referenced files
-2. **Dispatch planner(s)** — Either dispatch a single `planner` (default) or deploy a 3-persona agent team (`--team`). In parallel mode, augment the prompt(s) with output-shape directives
-3. **Merge and relay the plan** — For the single-agent path, relay verbatim. For the team path, merge the 3 teammate outputs into one unified plan
+1. **Parse flags and the request** — Extract `--parallel`, `--team`, `--enhanced`, `--dry-run`, then read the user input and any referenced files
+2. **Dispatch planner(s)** — Either dispatch a single `planner` (default) or deploy a 3-persona team (`--team`) or 5-persona team (`--enhanced`, auto-promotes to team mode). In parallel mode, augment the prompt(s) with output-shape directives
+3. **Merge and relay the plan** — For the single-agent path, relay verbatim. For the team path, merge teammate outputs into one unified plan
 4. **Wait for confirmation** — MUST receive explicit user approval before proceeding
 
 ## Flags
 
-| Flag            | Effect                                                                                                                                                                                                                                                                                                                                           |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--parallel`    | Instruct the planner(s) to emit a parallel-capable plan: a `Batches` summary section at the top, hierarchical step IDs (`1.1`, `1.2`, `2.1`), and explicit `Depends on [...]` annotations on every step. Enables in-conversation parallel implementation via `implementor` agents, or file-based handoff to `$prp-implement --parallel`. |
-| `--team`        | Dispatch a 3-persona planning team (architect / risk-analyst / test-strategist) under a shared `create an agent group`/`the task tracker` with coordinated shutdown. Produces a richer plan by merging structural, risk, and testing perspectives. Heavier than the default single-agent path.                                                                      |
-| `--dry-run`     | Only valid with `--team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                                                                                                                   |
-| `--worktree`    | (legacy — now default; safe to omit) Previously required to emit worktree annotations; the annotations are now emitted by default. Accepted as a silent no-op so existing pipelines continue to work.                                                                                                                                            |
-| `--no-worktree` | Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.                                                                                                                                                                                                                |
+| Flag            | Effect                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--parallel`    | Instruct the planner(s) to emit a parallel-capable plan: a `Batches` summary section at the top, hierarchical step IDs (`1.1`, `1.2`, `2.1`), and explicit `Depends on [...]` annotations on every step. Enables in-conversation parallel implementation via `implementor` agents, or file-based handoff to `$prp-implement --parallel`.                                                                                                    |
+| `--team`        | Dispatch a 3-persona planning team (architect / risk-analyst / test-strategist) under a shared `create an agent group`/`the task tracker` with coordinated shutdown. Produces a richer plan by merging structural, risk, and testing perspectives. Heavier than the default single-agent path.                                                                                                                                                                         |
+| `--enhanced`    | (Codex runtime only; not available in bundle invocations) Grow the team from 3 to **5** personas, adding `security-reviewer` (threat model, input validation, authn/authz, secrets, dependency risk) and `ux-reviewer` (user-facing impact — UI, CLI, API responses, error messages). Auto-promotes to team mode when passed alone. Composes with `--parallel` and `--no-worktree`. Lighter than `$prp-plan --enhanced` (which fans out to 7 researchers and writes an artifact file). |
+| `--dry-run`     | Only valid with `--team` or `--enhanced`. Prints the team name and teammate roster (3 baseline or 5 enhanced), then exits without spawning any teammates.                                                                                                                                                                                                                                                                                           |
+| `--worktree`    | (legacy — now default; safe to omit) Previously required to emit worktree annotations; the annotations are now emitted by default. Accepted as a silent no-op so existing pipelines continue to work.                                                                                                                                                                                                                                               |
+| `--no-worktree` | Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.                                                                                                                                                                                                                                                                                                                   |
 
 **Flag interaction**:
 
 - `--parallel` and `--team` are **independent and combinable**. `--parallel` shapes the plan's _output format_; `--team` switches the _dispatch mechanism_. Pass both for a multi-perspective plan formatted for parallel execution.
-- `--dry-run` requires `--team` (the single-agent path has nothing to dry-run).
+- `--enhanced` shapes the _team roster_ (3 → 5 personas). It only meaningfully applies to the team path, so `--enhanced` alone auto-promotes to `--enhanced --team` with a one-line notice. Combine freely with `--parallel` and `--no-worktree`.
+- `--dry-run` requires `--team` (or `--enhanced`, which auto-promotes). The single-agent path has nothing to dry-run.
 - `--no-worktree` opts out of all worktree annotations. When omitted (the default), the plan emits a `## Worktree Setup` section naming the one feature worktree; all tasks (parallel and sequential) share that single path.
+
+**Compatibility note**: `--team` and `--enhanced` both depend on team tools (`create an agent group`, `send follow-up instructions`, etc.) which only Codex ships. In Cursor or Codex bundles, both flags abort with a compatibility message — use `--parallel` instead.
 
 **Note**: `--parallel` on `$plan` shapes the _output_, not the research phase. For research fan-out on larger features, use `$prp-plan --parallel` (sub-agent fan-out) or `$prp-plan --team` (Codex runtime only; not available in bundle invocations; shared-task-list coordination).
 
@@ -63,7 +67,7 @@ Use this skill when:
 
 ### Step 1 — Parse flags and the user's request
 
-**Flag parsing**: Extract `--parallel`, `--team`, `--dry-run`, `--no-worktree`, and `--worktree` from `$ARGUMENTS` before processing. Strip them out. Set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `DRY_RUN=true|false`. Default `WORKTREE_MODE=true`; set `WORKTREE_MODE=false` if `--no-worktree` is present. `--worktree` is accepted as a legacy no-op (matches the default). The remaining text is the user's request.
+**Flag parsing**: Extract `--parallel`, `--team`, `--enhanced`, `--dry-run`, `--no-worktree`, and `--worktree` from `$ARGUMENTS` before processing. Strip them out. Set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `ENHANCED_MODE=true|false`, `DRY_RUN=true|false`. Default `WORKTREE_MODE=true`; set `WORKTREE_MODE=false` if `--no-worktree` is present. `--worktree` is accepted as a legacy no-op (matches the default). The remaining text is the user's request.
 
 ```bash
 # Default ON; pass --no-worktree to opt out. --worktree accepted as legacy no-op.
@@ -73,20 +77,29 @@ case " $ARGUMENTS " in
 esac
 ARGUMENTS="${ARGUMENTS//--no-worktree/}"
 ARGUMENTS="${ARGUMENTS//--worktree/}"  # legacy no-op
+
+ENHANCED_MODE=false
+case " $ARGUMENTS " in
+  *" --enhanced "*) ENHANCED_MODE=true ;;
+esac
+ARGUMENTS="${ARGUMENTS//--enhanced/}"
 ```
 
 **Validation**:
 
-- If `DRY_RUN=true` and `AGENT_TEAM_MODE=false` → abort with: `--dry-run requires --team (no-op for the single-agent path).`
+- If `ENHANCED_MODE=true` and `AGENT_TEAM_MODE=false` → **auto-promote** to team mode (`AGENT_TEAM_MODE=true`) and print one line: `--enhanced implies --team for $plan; promoting dispatch.` `--enhanced` only shapes the team roster, so the single-agent path has nothing to enhance.
+- If `DRY_RUN=true` and `AGENT_TEAM_MODE=false` (after the auto-promote check above) → abort with: `--dry-run requires --team or --enhanced (no-op for the single-agent path).`
+- If `--enhanced` (or `--team`) is invoked from a Cursor or Codex bundle, abort with: `--enhanced requires team tools, which Cursor/Codex bundles do not ship. Use --parallel instead.` (For plain `--team` the existing compatibility message stands.)
 
 Read the stripped `$ARGUMENTS`. If it references a file path, read that file for context. If the request is ambiguous, ask a single focused clarifying question **before** dispatching.
 
 ### Step 2 — Dispatch
 
-Choose dispatch path based on `AGENT_TEAM_MODE`:
+Choose dispatch path based on `AGENT_TEAM_MODE` and `ENHANCED_MODE`:
 
 - **`AGENT_TEAM_MODE=false`** (default) → **Path A**: single `planner` agent.
-- **`AGENT_TEAM_MODE=true`** → **Path B**: 3-persona planning team.
+- **`AGENT_TEAM_MODE=true`, `ENHANCED_MODE=false`** → **Path B**: 3-persona planning team.
+- **`AGENT_TEAM_MODE=true`, `ENHANCED_MODE=true`** → **Path B (enhanced)**: 5-persona planning team (3 baseline + `security-reviewer` + `ux-reviewer`). All Path B steps below apply with the wider roster.
 
 ---
 
@@ -217,7 +230,7 @@ Team name: `plan-<sanitized-request>`.
 
 #### B.2 Dry-run gate (if `DRY_RUN=true`)
 
-Print:
+Print (when `ENHANCED_MODE=false`):
 
 ```
 Team name:   plan-<sanitized-request>
@@ -227,6 +240,20 @@ Teammates:   3
   - test-strategist subagent_type=test-strategy-planner      task=Testing strategy, validation commands, acceptance criteria
 Batches:     1  (batch 1: architect, risk-analyst, test-strategist)
 Dependencies: none  (flat graph)
+```
+
+Print (when `ENHANCED_MODE=true`):
+
+```
+Team name:        plan-<sanitized-request>
+Teammates:        5
+  - architect         subagent_type=planner                    task=Structural plan, phases, file layout, dependencies
+  - risk-analyst      subagent_type=codebase-research-analyst  task=Risks, edge cases, rollback, migration concerns
+  - test-strategist   subagent_type=test-strategy-planner      task=Testing strategy, validation commands, acceptance criteria
+  - security-reviewer subagent_type=research-specialist        task=Threat model, input validation, authn/authz, secrets, dependency risk
+  - ux-reviewer       subagent_type=research-specialist        task=User-facing impact (UI, CLI, API responses, error messages); skip if internal-only
+Batches:          1  (batch 1: all 5 teammates)
+Dependencies:     none  (flat graph)
 ```
 
 Do **not** call `create an agent group` or any team/task/agent tools. Exit the skill.
@@ -241,15 +268,20 @@ On failure, abort.
 
 #### B.4 Register subtasks
 
-Create 3 tasks in the shared task list (flat graph — no dependencies):
+Create one task per teammate in the shared task list (flat graph — no dependencies). When `ENHANCED_MODE=false`, register **3** tasks; when `ENHANCED_MODE=true`, register **5** tasks (the 3 baseline plus `security-reviewer` and `ux-reviewer`):
 
 ```
 record the task: subject="architect: structural plan for <user request>", description="..."
 record the task: subject="risk-analyst: risks and edge cases for <user request>", description="..."
 record the task: subject="test-strategist: testing strategy for <user request>", description="..."
+# When ENHANCED_MODE=true, also:
+record the task: subject="security-reviewer: threat model for <user request>", description="..."
+record the task: subject="ux-reviewer: user-facing impact for <user request>",  description="..."
 ```
 
-#### B.5 Spawn the 3 teammates (single message, three Agent calls)
+#### B.5 Spawn the teammates (single message, N Agent calls)
+
+When `ENHANCED_MODE=false` (default — 3 personas):
 
 | Teammate name     | `subagent_type`                 | Role focus                                                 |
 | ----------------- | ------------------------------- | ---------------------------------------------------------- |
@@ -257,10 +289,20 @@ record the task: subject="test-strategist: testing strategy for <user request>",
 | `risk-analyst`    | `codebase-research-analyst` | Risks, edge cases, rollback, migration concerns            |
 | `test-strategist` | `test-strategy-planner`     | Testing strategy, validation commands, acceptance criteria |
 
-Spawn all three in **ONE message** with **THREE `Agent` tool calls**, each with
+When `ENHANCED_MODE=true` (5 personas):
+
+| Teammate name       | `subagent_type`                 | Role focus                                                                         |
+| ------------------- | ------------------------------- | ---------------------------------------------------------------------------------- |
+| `architect`         | `planner`                   | Structural plan, phases, file layout, dependencies                                 |
+| `risk-analyst`      | `codebase-research-analyst` | Risks, edge cases, rollback, migration concerns                                    |
+| `test-strategist`   | `test-strategy-planner`     | Testing strategy, validation commands, acceptance criteria                         |
+| `security-reviewer` | `research-specialist`       | Threat model, input validation, authn/authz, secrets handling, dependency risk     |
+| `ux-reviewer`       | `research-specialist`       | User-facing impact (UI, CLI, API responses, error messages); skip if internal-only |
+
+Spawn all teammates in **ONE message** with **N `Agent` tool calls** (N=3 or N=5), each with
 `team_name="plan-<sanitized-request>"` and the role-specific `name` above.
 
-Each teammate's prompt MUST include:
+For the 3 baseline personas, each teammate's prompt MUST include:
 
 - The user's original request (verbatim)
 - Any file paths or context they referenced
@@ -276,18 +318,22 @@ Each teammate's prompt MUST include:
   (section "Worktree prompt") — teammates share the single feature worktree and must
   not emit per-task child paths. Omit when `--no-worktree` was passed.
 
+For `security-reviewer` and `ux-reviewer` (when `ENHANCED_MODE=true`), copy the role-specific prompt verbatim from `~/.codex/plugins/ycc/skills/plan/references/enhanced-personas.md`. Append the same `PARALLEL_MODE` and `WORKTREE_MODE` directives as above so all 5 teammates emit consistent output.
+
 #### B.6 Monitor and collect results
 
-Use `the task tracker` to confirm all 3 tasks are `completed` before merging. If any teammate
+Use `the task tracker` to confirm all teammate tasks (3 or 5) are `completed` before merging. If any teammate
 errors, record the failure in `the task tracker` and decide per severity:
 
 - `architect` failure → critical; abort with error, shut down remaining teammates, `close the agent group`.
 - `risk-analyst` or `test-strategist` failure → record "partial plan — {role} did not
-  complete" and proceed with a 2-persona merge, noting the gap in the relayed plan.
+  complete" and proceed with a reduced merge, noting the gap in the relayed plan.
+- `security-reviewer` or `ux-reviewer` failure (enhanced only) → non-critical; record the gap
+  ("partial plan — {role} did not complete; security/UX coverage may be incomplete") and proceed.
 
 #### B.7 Merge outputs
 
-Synthesize the 3 teammate outputs into a single unified plan following the standard
+Synthesize the teammate outputs (3 or 5) into a single unified plan following the standard
 `planner` Plan Format. Merging rules:
 
 - **Overview / Summary**: use `architect`'s framing.
@@ -297,17 +343,23 @@ Mitigations` section.
 - **Testing Strategy / Success Criteria**: use `test-strategist`'s content verbatim.
 - **Batches section** (if `PARALLEL_MODE=true`): use `architect`'s numbering; re-index
   if `risk-analyst` or `test-strategist` added follow-on steps.
+- When `ENHANCED_MODE=true`, also fold in:
+  - **`security-reviewer`** → add a top-level `## Security Considerations` section listing the threat-model findings and validation requirements. If specific steps need callouts (e.g., "input must be validated against …"), also annotate the matching `architect` step with `> **Security**: …`. If `security-reviewer` returned no significant findings, omit the section entirely (do not write "N/A").
+  - **`ux-reviewer`** → add a top-level `## UX Impact` section with Before / After / Interaction Changes. If `ux-reviewer` returned "Internal change — no user-facing UX impact", omit the section entirely.
 - End with the standard confirmation prompt: `**WAITING FOR CONFIRMATION**: Proceed
 with this plan? (yes / no / modify)`
 
 #### B.8 Shutdown and cleanup
 
-After merging (success or partial):
+After merging (success or partial), shut down every teammate that was spawned (3 or 5), then `close the agent group`:
 
 ```
-send follow-up instructions(to="architect",       message={type:"shutdown_request"})
-send follow-up instructions(to="risk-analyst",    message={type:"shutdown_request"})
-send follow-up instructions(to="test-strategist", message={type:"shutdown_request"})
+send follow-up instructions(to="architect",         message={type:"shutdown_request"})
+send follow-up instructions(to="risk-analyst",      message={type:"shutdown_request"})
+send follow-up instructions(to="test-strategist",   message={type:"shutdown_request"})
+# When ENHANCED_MODE=true, also:
+send follow-up instructions(to="security-reviewer", message={type:"shutdown_request"})
+send follow-up instructions(to="ux-reviewer",       message={type:"shutdown_request"})
 close the agent group
 ```
 
@@ -359,11 +411,14 @@ If any are missing, re-dispatch the planner (or `architect` teammate, if in Path
 
 #### Check 4: Agent-team merge integrity (`AGENT_TEAM_MODE=true` only)
 
-After Path B merge, verify the unified plan reflects all three perspectives:
+After Path B merge, verify the unified plan reflects every spawned perspective:
 
 - `architect` slice: `## Implementation Steps` (or equivalent) is present and non-empty
 - `risk-analyst` slice: a `## Risks` / `## Risks & Mitigations` section OR per-step risk callouts are present
 - `test-strategist` slice: `## Testing Strategy` is present and non-empty
+- When `ENHANCED_MODE=true`, also verify:
+  - `security-reviewer` slice: `## Security Considerations` is present **OR** the merged plan documents that no significant security risks were found (e.g., a one-line note in `## Risks` such as "Security-reviewer: no significant risks identified"). Per-step `> **Security**:` callouts also satisfy this check.
+  - `ux-reviewer` slice: `## UX Impact` is present **OR** the merged plan documents "Internal change — no user-facing UX impact". Both forms count as covered.
 
 If the merge dropped a slice (e.g., because a teammate errored), append a visible note:
 
@@ -438,13 +493,13 @@ Use Option 1 for small features and quick iterations. Use Option 2 when the user
 
 ## Comparison with other ycc planning tracks
 
-| Track                  | When to use                                                                                                                                             |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `$plan` (this one) | Quick conversational plan via `planner` agent. No artifact file. Add `--parallel` to shape the output for parallel execution (no research fan-out). |
-| `$prp-plan`        | Artifact-producing plan with codebase pattern extraction. Single-pass. Add `--parallel` for 3-researcher fan-out + batched plan.                        |
-| `$prp-prd`         | Interactive PRD first, then prp-plan. Problem-first hypothesis workflow.                                                                                |
-| `$plan-workflow`   | Heavyweight parallel-agent planning. Multi-task features. Artifact output.                                                                              |
-| `$parallel-plan`   | Lower-level component of `$plan-workflow` for dependency-aware plans.                                                                               |
+| Track                  | When to use                                                                                                                                                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `$plan` (this one) | Quick conversational plan via `planner` agent. No artifact file. Add `--parallel` to shape the output for parallel execution (no research fan-out). Add `--enhanced` to grow the team to 5 personas (security + UX). |
+| `$prp-plan`        | Artifact-producing plan with codebase pattern extraction. Single-pass. Add `--parallel` for 3-researcher fan-out + batched plan. Add `--enhanced` for the full 7-researcher fan-out.                                     |
+| `$prp-prd`         | Interactive PRD first, then prp-plan. Problem-first hypothesis workflow.                                                                                                                                                 |
+| `$plan-workflow`   | Heavyweight parallel-agent planning. Multi-task features. Artifact output.                                                                                                                                               |
+| `$parallel-plan`   | Lower-level component of `$plan-workflow` for dependency-aware plans.                                                                                                                                                |
 
 ### Which `--parallel` should I use?
 
@@ -462,6 +517,20 @@ there has no effect — use `--parallel` instead.
 - **`$plan --parallel --team`** — Same as above, but the merged plan is also formatted for parallel implementation (Batches section, `Depends on` annotations).
 - **`$prp-plan --team`** — Team-coordinated research with shared the task tracker for medium/large features that will produce an artifact file.
 - **`$prp-implement --team`** — Team-coordinated execution with shared the task tracker across all batches. Best for implementation runs where you want coordinated inter-batch shutdown and a single shared task graph.
+
+### When to use `--enhanced`
+
+`--enhanced` is also **Codex runtime only; not available in bundle invocations** (it relies on team tools). It grows the team
+from 3 to **5** personas, adding `security-reviewer` and `ux-reviewer`. Reach for it
+when the change has plausible security exposure (new endpoint, new input source,
+authn/authz touch, secret handling) or user-facing surface (new UI / CLI flag /
+API response shape / error path). Skip it for purely internal refactors where no new
+threat surface or user touchpoint is introduced.
+
+- **`$plan --enhanced <request>`** — Auto-promotes to team mode and dispatches the 5-persona team. Best for medium-complexity features where a 3-persona plan would miss security or UX considerations.
+- **`$plan --enhanced --parallel <request>`** — 5-persona plan formatted for parallel execution (Batches section, `Depends on` annotations).
+- **`$plan --enhanced --dry-run <request>`** — Print the 5-persona roster without spawning anyone. Useful to confirm the team shape before paying the dispatch cost.
+- **`$prp-plan --enhanced <request>`** — The heavier sibling: 7 researchers, artifact-producing. Use when you want the enhanced perspectives _and_ a saved plan file, not just an in-conversation plan.
 
 ### When to use `--no-worktree`
 
