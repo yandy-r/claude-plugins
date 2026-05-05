@@ -1,6 +1,6 @@
 ---
 description: Git commit and documentation workflow manager. Analyzes changes, determines commit strategy (direct vs agents), writes conventional commit messages, coordinates documentation updates, and creates pull requests. Use when completing features, making commits, pushing changes, creating PRs, or when the user says "It's time to push commits."
-argument-hint: '[--commit] [--push] [--pr] [--dry-run] [--no-docs] [--draft]'
+argument-hint: '[--commit] [--push] [--pr] [--dry-run] [--no-docs] [--draft] [--ci] [--ci-max-pushes=N] [--ci-max-same-failure=N] [--ci-timeout-min=N] [--ci-yes]'
 allowed-tools:
   - Read
   - Grep
@@ -16,6 +16,7 @@ allowed-tools:
   - Bash(cat:*)
   - Bash(test:*)
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/scripts/*.sh:*)'
+  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
 ---
 
 # Git Workflow Command
@@ -41,6 +42,11 @@ $ARGUMENTS
    - **--dry-run**: Show analysis and plan without making changes
    - **--no-docs**: Skip documentation updates (commits only)
    - **--draft**: Create PR as draft (requires `--pr`)
+   - **--ci**: After `--pr`, monitor CI and auto-fix until green (or until a bail condition fires). Requires `--pr`. Incompatible with `--dry-run`.
+   - **--ci-max-pushes=N**: Cap on auto-pushes per invocation (default 5)
+   - **--ci-max-same-failure=N**: Bail if the same failure recurs N times (default 3)
+   - **--ci-timeout-min=N**: Wall-clock cap from first iteration in minutes (default 30)
+   - **--ci-yes**: Skip the one-time auth prompt (non-interactive)
 
 3. **Follow the skill workflow** through all phases:
    - Phase 0: Analyze changes (git status, categorize files)
@@ -55,7 +61,7 @@ $ARGUMENTS
 If no action flag (`--commit`, `--push`, or `--pr`) is provided, the skill prompts with a numbered menu (commit / commit & push / commit, push & PR). Modifier flags (`--dry-run`, `--no-docs`, `--draft`) do not satisfy this requirement on their own.
 
 ```
-Usage: /ycc:git-workflow [--commit] [--push] [--pr] [--dry-run] [--no-docs] [--draft]
+Usage: /ycc:git-workflow [--commit] [--push] [--pr] [--dry-run] [--no-docs] [--draft] [--ci] [--ci-max-pushes=N] [--ci-max-same-failure=N] [--ci-timeout-min=N] [--ci-yes]
 
 Action flags (at least one required, or pick from the interactive prompt):
   --commit                                Commit only
@@ -66,6 +72,12 @@ Action flags (at least one required, or pick from the interactive prompt):
 Modifier flags:
   --dry-run                               Show analysis and plan without making changes
   --no-docs                               Skip documentation updates
+  --draft                                 Create PR as draft (requires --pr)
+  --ci                                    After --pr, monitor CI and auto-fix until green (or until a bail condition fires). Requires --pr. Incompatible with --dry-run.
+  --ci-max-pushes=N                       Cap on auto-pushes per invocation (default 5)
+  --ci-max-same-failure=N                 Bail if the same failure recurs N times (default 3)
+  --ci-timeout-min=N                      Wall-clock cap from first iteration in minutes (default 30)
+  --ci-yes                                Skip the one-time auth prompt (non-interactive)
 
 Examples:
   /ycc:git-workflow                       # Prompts: commit / push / PR?
@@ -75,4 +87,6 @@ Examples:
   /ycc:git-workflow --pr --draft          # ... as a draft
   /ycc:git-workflow --commit --dry-run    # Show commit plan, no changes
   /ycc:git-workflow --push --no-docs      # Skip docs, commit and push
+  /ycc:git-workflow --pr --ci             # Commit, push, create PR, then monitor CI and auto-fix
+  /ycc:git-workflow --pr --ci --ci-max-pushes=3 --ci-yes  # CI monitor, cap 3 pushes, non-interactive
 ```
