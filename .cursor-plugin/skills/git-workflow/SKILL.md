@@ -24,6 +24,11 @@ Parse arguments. **At least one action flag is required**; if none are provided,
 - **--dry-run**: Show analysis and plan without making changes
 - **--no-docs**: Skip documentation updates (commits only)
 - **--draft**: Create PR as draft (requires `--pr`)
+- **--ci**: After PR creation, monitor CI and auto-fix until green or a bail condition. Requires `--pr`. Incompatible with `--dry-run`.
+- **--ci-max-pushes=N**: Cap on auto-pushes per invocation (default 5).
+- **--ci-max-same-failure=N**: Bail if the same failure signature recurs N times (default 3).
+- **--ci-timeout-min=N**: Wall-clock cap from first iteration (default 30).
+- **--ci-yes**: Skip the one-time auth prompt (non-interactive).
 
 Flag order does not matter — only presence matters. If no action flag is provided, proceed to Phase 0.5 to resolve the action set interactively.
 
@@ -157,6 +162,8 @@ Before proceeding to Phase 1, determine which actions the user requested. The ac
 
 4. Validate flag combinations:
    - If `--draft` is present and `pr ∉ actions`, stop with the error: "`--draft` requires `--pr`. Re-run with `--pr --draft`, or omit `--draft`."
+   - If `--ci ∈ flags AND pr ∉ actions`, hard-stop with: `--ci requires --pr (CI monitoring runs only after a PR is opened). Re-run with --pr --ci, or omit --ci.`
+   - If `--ci ∈ flags AND --dry-run ∈ flags`, hard-stop with: `--ci is incompatible with --dry-run; the loop performs real pushes.`
 5. Record the resolved action set; later phases gate on it.
 
 **Note**: `--dry-run` is honored regardless of the resolved action set — it applies to whichever action(s) the user picked. `--no-docs` likewise applies regardless.
@@ -856,6 +863,84 @@ If repository has `.github/PULL_REQUEST_TEMPLATE.md`:
 - Read the template
 - Ensure generated description follows template structure
 - Fill in any template-specific sections
+
+---
+
+## Phase 6: CI Monitoring (Optional, `--ci` flag)
+
+**Trigger:** This phase runs ONLY when `--ci ∈ flags` AND Phase 5 successfully created a PR. Skip silently otherwise.
+
+### Step 32: Verify PR was actually created
+
+Confirm the PR number was captured in Phase 5. If not (Phase 5 was skipped or failed), hard-stop with: `--ci was passed but no PR was created; nothing to monitor.`
+
+### Step 33: Load policy reference
+
+Read `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/ci-monitoring.md` to load the failure-classification table, termination policy, audit log schema, and loop protocol. Treat that file as authoritative — do not duplicate its content here.
+
+### Step 34: One-time authorization prompt
+
+Skip if `--ci-yes`. Otherwise display:
+
+```
+CI auto-fix loop authorization
+==============================
+PR:                 #<pr_number> (<head_branch> → <base_branch>)
+Max auto-pushes:    <resolved --ci-max-pushes>
+Max same failure:   <resolved --ci-max-same-failure>
+Wall-clock timeout: <resolved --ci-timeout-min> minutes
+Audit log:          ~/.cursor/session-data/ci-watch/<pr>-<timestamp>.log
+
+Safety constraints (non-toggleable):
+  - Never `git push --force`
+  - Never `--no-verify`
+  - Only push to PR head branch
+  - Refuse if head equals default branch
+
+Proceed? (yes/no):
+```
+
+On `no`, exit cleanly with `CI monitoring declined; PR was created but not monitored.`
+
+### Step 35: Initialize audit log
+
+Create directory `~/.cursor/session-data/ci-watch/` if absent. Compute log path `~/.cursor/session-data/ci-watch/<pr>-<utc-iso-timestamp>.log` and remember it for the loop.
+
+### Step 36: Loop iteration
+
+Invoke the script:
+
+```
+${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/ci-monitor.sh \
+  --pr <pr_number> \
+  --branch <head_branch> \
+  --base <base_branch> \
+  --max-pushes <N> \
+  --max-same-failure <N> \
+  --timeout-min <N> \
+  --log-file <audit_log_path>
+```
+
+Branch on stdout `RESULT=...` per the **Loop Protocol** section of `ci-monitoring.md`:
+
+- `green` → Render success block (CI passed); end Phase 6.
+- `handoff` → Read `RUN_ID`, `WORKFLOW`, `JOB`, `CATEGORY`, `SIGNATURE`, `LOG_EXCERPT_FILE`, `SUGGESTED_COMMIT_TYPE`, `SUGGESTED_COMMIT_SCOPE` from stdout. Apply fix per the Failure Classification table for `CATEGORY` (which lives in `ci-monitoring.md`). Use the same direct-vs-agents decision tree from Phase 1 of THIS skill (constrained to the failure scope). Stage the fix, validate the commit message via `${CURSOR_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh`, commit, then push to head branch (NEVER `--force`, NEVER `--no-verify`). Goto Step 36.
+- `rerun-pending` → Flake-suspected; the script already triggered `gh run rerun --failed`. Do NOT apply any fix. Sleep 30 seconds (`sleep 30`), then goto Step 36.
+- `bail-recurrence` / `bail-nonfixable` / `bail-pushes` / `bail-timeout` → Render a diagnosis block citing the audit log path, the `RESULT=` value, the `REASON=` line if present, and the cap that fired. End Phase 6 (do NOT push further).
+- `pr-not-found` / `refused-default-branch` → Surface the error directly; do not retry.
+
+### Step 37: Final report
+
+On `green`, print:
+
+```
+✓ CI green for PR #<pr> after <iterations> iteration(s), <pushes> auto-push(es).
+  Audit log: <path>
+```
+
+On any bail, print the diagnosis with the same audit log path so the user can inspect.
+
+See `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/ci-monitoring.md` for the full policy (classification, termination, schema).
 
 ---
 

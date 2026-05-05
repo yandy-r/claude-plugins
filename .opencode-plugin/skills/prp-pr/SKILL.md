@@ -17,7 +17,13 @@ This is the lightweight counterpart to `/git-workflow --pr`. Use it when you jus
 
 **Parse `$ARGUMENTS`**:
 
-- Extract any recognized flags (`--draft`)
+- Extract any recognized flags:
+  - `--draft` — create the PR as a draft
+  - `--ci` — after PR creation, enter the bounded CI auto-fix loop (Phase 7)
+  - `--ci-max-pushes=N` — hard cap on autonomous pushes per invocation (default: 5)
+  - `--ci-max-same-failure=N` — bail after the same failure signature recurs N times (default: 3)
+  - `--ci-timeout-min=N` — wall-clock cap in minutes from the first CI iteration (default: 30)
+  - `--ci-yes` — skip the one-time authorization prompt (for non-interactive callers)
 - Treat remaining non-flag text as the base branch name
 - Default base branch to `main` if none specified
 
@@ -39,6 +45,16 @@ git log origin/<base>..HEAD --oneline
 | Clean working directory | No uncommitted changes                              | Warn: "You have uncommitted changes. Commit or stash first. Use `/prp-commit` to commit." |
 | Has commits ahead       | `git log origin/<base>..HEAD` not empty             | Stop: "No commits ahead of `<base>`. Nothing to PR."                                          |
 | No existing PR          | `gh pr list --head <branch> --json number` is empty | Stop: "PR already exists: #<number>. Use `gh pr view <number> --web` to open it."             |
+
+If any check that stops execution fires and `--ci` was passed, append to the stop
+message: `--ci will not run because no PR will be created.`
+
+**PR already exists — `--ci` continuation:** If `gh pr list --head <branch>` finds
+an existing open PR and `--ci` was passed, instead of stopping, prompt:
+`PR #<num> already exists. Run --ci against it? (yes/no)`. On `yes`, record the
+existing PR number and skip Phases 2–4 (no new PR is created), then proceed
+directly to Phase 5 (VERIFY) and Phase 7 (CI Monitoring). On `no`, exit cleanly
+with: `CI monitoring declined; PR already exists and was not monitored.`
 
 If all checks pass, proceed.
 
@@ -191,6 +207,95 @@ Next steps:
 
 ---
 
+## Phase 7: CI Monitoring (Optional, `--ci` flag)
+
+**Trigger:** Runs ONLY when `--ci` was passed AND a PR is in scope (created in
+Phase 4, or an existing PR confirmed for monitoring per the Phase 1 modification
+above). Skip silently otherwise.
+
+**Step 1 — Verify PR is monitorable:** Confirm a PR number is in scope. If not,
+hard-stop: `--ci was passed but no PR is in scope to monitor.`
+
+**Step 2 — Load policy reference:** Read
+`~/.config/opencode/shared/references/ci-monitoring.md` to load the
+failure classification table, termination policy, audit log schema, and loop
+protocol. That file is authoritative — do not restate its contents here.
+
+**Step 3 — One-time authorization prompt** (skip if `--ci-yes`):
+
+```
+CI auto-fix loop authorization
+==============================
+PR:                 #<pr_number> (<head_branch> → <base_branch>)
+Max auto-pushes:    <resolved --ci-max-pushes>
+Max same failure:   <resolved --ci-max-same-failure>
+Wall-clock timeout: <resolved --ci-timeout-min> minutes
+Audit log:          ~/.config/opencode/session-data/ci-watch/<pr>-<timestamp>.log
+
+Safety constraints (non-toggleable):
+  - Never `git push --force`
+  - Never `--no-verify`
+  - Only push to PR head branch
+  - Refuse if head equals default branch
+
+Proceed? (yes/no):
+```
+
+On `no`: `CI monitoring declined; PR was created but not monitored.` Exit cleanly.
+
+**Step 4 — Initialize audit log:** Create `~/.config/opencode/session-data/ci-watch/` if
+absent. Compute log path `~/.config/opencode/session-data/ci-watch/<pr>-<utc-iso-timestamp>.log`.
+Reuse this path for every iteration in the session.
+
+**Step 5 — Loop iteration:** Invoke:
+
+```bash
+~/.config/opencode/shared/scripts/ci-monitor.sh \
+  --pr <pr_number> \
+  --branch <head_branch> \
+  --base <base_branch> \
+  --max-pushes <N> \
+  --max-same-failure <N> \
+  --timeout-min <N> \
+  --log-file <audit_log_path>
+```
+
+Branch on stdout `RESULT=...` per the Loop Protocol in `ci-monitoring.md`:
+
+- `green` → Go to Step 6 (success).
+- `handoff` → Read `RUN_ID`, `WORKFLOW`, `JOB`, `CATEGORY`, `SIGNATURE`,
+  `LOG_EXCERPT_FILE`, `SUGGESTED_COMMIT_TYPE`, `SUGGESTED_COMMIT_SCOPE`. Apply
+  fix per the Failure Classification table for `CATEGORY` (defined in
+  `ci-monitoring.md`). Validate commit message via
+  `~/.config/opencode/skills/git-workflow/scripts/validate-commit.sh`. Commit
+  and push to head branch (NEVER `--force`, NEVER `--no-verify`). Goto Step 5.
+- `rerun-pending` → Flake-suspected; script already triggered rerun. Sleep 30s,
+  goto Step 5 (do NOT apply any fix).
+- `bail-*` → Go to Step 6 (diagnosis). Do not push further.
+- `pr-not-found` / `refused-default-branch` → Surface the error; do not retry.
+
+**Step 6 — Final report:**
+
+On `green`:
+
+```
+✓ CI green for PR #<pr> after <iterations> iteration(s), <pushes> auto-push(es).
+  Audit log: <path>
+```
+
+On bail:
+
+```
+✗ CI monitoring ended: <RESULT> — <REASON>
+  Cap fired: <which cap or constraint>
+  Audit log: <path>
+```
+
+See `~/.config/opencode/shared/references/ci-monitoring.md` for the
+full policy.
+
+---
+
 ## Edge Cases
 
 - **No `gh` CLI**: Stop with: "GitHub CLI (`gh`) is required. Install: <https://cli.github.com/>"
@@ -208,3 +313,4 @@ Next steps:
 | Your commits are already in place | You want to commit and PR in one flow              |
 | You want a focused PR-only tool   | You want documentation agents to update docs first |
 | You want minimal orchestration    | You have many files touching docs + code           |
+| `--ci` needed (identical support) | `--ci` needed (identical support)                  |
