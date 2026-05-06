@@ -37,6 +37,7 @@ allowed-tools:
   - Bash(go:*)
   - Bash(make:*)
   - Bash(curl:*)
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
 ---
 
 # PRP Implement
@@ -199,14 +200,16 @@ git status --porcelain
 
 ### Branch Decision
 
-| Current State                      | Action                                                    |
-| ---------------------------------- | --------------------------------------------------------- |
-| On feature branch                  | Use current branch                                        |
-| On main, clean working tree        | Create feature branch: `git checkout -b feat/{plan-name}` |
-| On main, dirty working tree        | **STOP** — Ask user to stash or commit first              |
-| In a git worktree for this feature | Use the worktree (see WORKTREE_ACTIVE logic below)        |
+Run the shared branch-prep helper **before any agent dispatch** so implementor agents inherit the right branch instead of `main`:
 
-When `WORKTREE_ACTIVE=true`, the branch decision above applies to the **main repo** (from which the parent worktree branches). After resolving the branch, also run the worktree setup step below.
+```bash
+FEATURE_BRANCH=$(bash ${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/prepare-feature-branch.sh \
+  "${WT_FEATURE_SLUG}")
+```
+
+The script exits non-zero on failure and echoes the prepared branch name on success. **Do not skip it** — narrative-only branch instructions are how the original `--no-worktree` bug allowed agents to commit to `main`. See `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/branch-prep.md` for the helper's behavior and exit-code contract.
+
+When `WORKTREE_ACTIVE=true`, run the helper first against the **main repo** (so `feat/<slug>` exists locally), then run the worktree setup step below — `setup-worktree.sh parent` will adopt the existing branch.
 
 ### Parent Worktree Setup (when `WORKTREE_ACTIVE=true`)
 

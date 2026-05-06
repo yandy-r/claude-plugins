@@ -22,6 +22,7 @@ allowed-tools:
   - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/orchestrate/scripts/*.sh:*)'
   - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/setup-worktree.sh:*)'
   - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/list-worktrees.sh:*)'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/prepare-feature-branch.sh:*)'
 ---
 
 # Multi-Agent Orchestration Skill
@@ -249,9 +250,19 @@ The decision follows a strict precedence order:
 
 `--worktree` is accepted as a silent no-op and matches the new default; it has no additional effect. Note: this skill does not auto-detect `## Worktree Setup` annotations from a plan (it creates its own decomposition), so the only opt-out is `--no-worktree`.
 
-Skip this phase entirely when `WORKTREE_MODE=false`.
+### Branch Preparation
 
-When `WORKTREE_MODE=true` and `DRY_RUN=false` and `PLAN_ONLY=false`:
+When `DRY_RUN=false` and `PLAN_ONLY=false`, **always prepare the feature branch** before any worktree setup or agent dispatches. Without this, agents inherit whatever branch the orchestrator started on (typically `main`) and commit there:
+
+```bash
+FEATURE_BRANCH=$(bash ${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/prepare-feature-branch.sh "${FEATURE_SLUG}")
+```
+
+See `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/branch-prep.md` for the helper's behavior and exit-code contract. Skip both this call and the worktree setup below when `DRY_RUN=true` or `PLAN_ONLY=true`.
+
+When `WORKTREE_MODE=false` (`--no-worktree`), skip parent worktree setup after branch preparation.
+
+### When `WORKTREE_MODE=true` and `DRY_RUN=false` and `PLAN_ONLY=false`
 
 Determine the repository name from the current directory (`basename $(git rev-parse --show-toplevel)`). Use the `FEATURE_SLUG` derived during flag parsing.
 

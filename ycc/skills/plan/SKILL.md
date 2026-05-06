@@ -20,6 +20,7 @@ allowed-tools:
   - Bash(cat:*)
   - Bash(test:*)
   - Bash(git:*)
+  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/prepare-feature-branch.sh:*)'
 ---
 
 # Plan Skill
@@ -568,7 +569,18 @@ If the plan was produced with `--parallel` (has a `Batches` section and `Depends
 
 **Option 1 — In-conversation parallel execution (lightweight)**
 
-Process batches sequentially. Within each batch, dispatch one `ycc:implementor` agent per step in a SINGLE message with MULTIPLE `Agent` tool calls. Between batches, run the project's type-check and unit-test commands. On failure, stop and ask the user how to proceed.
+Before dispatching any `ycc:implementor` agents, prepare the feature branch so agents do not commit on `main`:
+
+- **`WORKTREE_MODE=true` (default)** — the plan already names the parent worktree at `~/.claude-worktrees/<repo>-<feature>/` (branch `feat/<feature>`). Run `setup-worktree.sh parent <repo> <feature>` once, then dispatch agents with `Working directory: <parent path>`.
+- **`WORKTREE_MODE=false` (`--no-worktree`)** — derive `FEATURE_SLUG` from the user's request using the same sanitization as Path B §B.1 (lowercase, non-`[a-z0-9-]` → `-`, collapse runs, truncate to 20 chars, fallback `untitled`), then run:
+
+  ```bash
+  FEATURE_BRANCH=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/prepare-feature-branch.sh "${FEATURE_SLUG}")
+  ```
+
+  The script is idempotent on `feat/${FEATURE_SLUG}`, creates it from a trunk branch, exits 1 on unrelated dirty tree, and exits 2 on a different feature branch (re-run with `--allow-existing-feature-branch` after user confirmation). **Do not skip this step** — it is what prevents implementor agents from committing to `main`.
+
+Then process batches sequentially. Within each batch, dispatch one `ycc:implementor` agent per step in a SINGLE message with MULTIPLE `Agent` tool calls. Between batches, run the project's type-check and unit-test commands. On failure, stop and ask the user how to proceed.
 
 This keeps everything in the current conversation — no file artifact needed.
 

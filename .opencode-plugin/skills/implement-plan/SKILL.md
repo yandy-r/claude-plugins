@@ -223,7 +223,13 @@ Before creating a worktree or branch, inspect `GIT_STATUS`.
 
 ### Step 6.6: Prepare the execution tree
 
-When `WORKTREE_ACTIVE=true`, create the parent worktree **once** before Batch 1. The worktree owns `FEATURE_BRANCH`; do not check out that branch in the main checkout:
+Prepare the feature branch directly in the current checkout **before** any worktree setup or implementor-agent dispatch. The helper exits non-zero on failure and echoes the prepared branch name on success. **Do not skip it** — narrative-only branch instructions are how the original `--no-worktree` bug allowed agents to commit to `main`. See `~/.config/opencode/shared/references/branch-prep.md` for the helper's behavior and exit-code contract.
+
+```bash
+FEATURE_BRANCH=$(bash ~/.config/opencode/shared/scripts/prepare-feature-branch.sh "${WT_FEATURE_SLUG}")
+```
+
+When `WORKTREE_ACTIVE=true`, create the parent worktree **once** before Batch 1. The worktree adopts the prepared `FEATURE_BRANCH`:
 
 ```bash
 WT_PARENT_PATH=$(bash ~/.config/opencode/shared/scripts/setup-worktree.sh parent "${WT_REPO_NAME}" "${WT_FEATURE_SLUG}")
@@ -237,15 +243,7 @@ Store the echoed path as `WT_PARENT_PATH` (overrides any deduced value).
 All agents in every batch — parallel and sequential — operate directly in this
 single feature worktree. No child worktrees are created.
 
-When `WORKTREE_ACTIVE=false` (`--no-worktree`), skip parent-worktree setup and prepare the feature branch directly in the current checkout:
-
-| Current State                                                                | Action                                                      |
-| ---------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| On `FEATURE_BRANCH`                                                          | Use current branch                                          |
-| On another feature branch                                                    | Use current branch only if the user confirms it is intended |
-| On main, clean/plan-only dirty checkout, and `FEATURE_BRANCH` exists         | Switch to it: `git checkout "${FEATURE_BRANCH}"`            |
-| On main, clean/plan-only dirty checkout, and `FEATURE_BRANCH` does not exist | Create it: `git checkout -b "${FEATURE_BRANCH}"`            |
-| On main with unrelated dirty files                                           | **STOP** — ask user to stash or commit first                |
+When `WORKTREE_ACTIVE=false` (`--no-worktree`), skip parent-worktree setup.
 
 After this branch step, all agents in every batch operate in the current checkout. Include `Working directory: ${REPO_ROOT}` in each prompt when `--no-worktree` is active so dispatched agents target the prepared branch consistently.
 
