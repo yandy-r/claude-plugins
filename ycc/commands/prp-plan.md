@@ -1,5 +1,5 @@
 ---
-description: Create a single-pass implementation plan from a feature description or PRD. Runs codebase pattern extraction and optional external research, then writes docs/prps/plans/{name}.plan.md. Pass --parallel to fan out research and emit a dependency-batched plan. Pass --team (Claude Code only) to run the same fan-out as a coordinated agent team with shared TaskList. Pass --worktree to annotate the plan with a ## Worktree Setup section and per-task git isolation paths. Pass --enhanced to grow the research fan-out from 3 to 7 specialized researchers covering the same dimensions as ycc:feature-research, while keeping the output as a single PRP-compliant plan file.
+description: Create a single-pass implementation plan from a feature description or PRD. Runs codebase pattern extraction and optional external research, then writes docs/prps/plans/{name}.plan.md. Use --enhanced to grow research from 3 to 7 specialized researchers (same dimensions as ycc:feature-research) while keeping a single PRP-compliant plan file.
 argument-hint: '[--parallel | --team] [--enhanced] [--no-worktree] [--dry-run] <feature description | path/to/prd.md>'
 allowed-tools:
   - Read

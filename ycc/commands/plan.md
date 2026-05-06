@@ -1,5 +1,5 @@
 ---
-description: Lightweight conversational planner. Restates requirements, identifies risks, outlines phases, then WAITS for explicit user confirmation before touching any code. Pass --parallel to shape the planner's output for parallel execution (Batches section + dependency annotations). Pass --team (Claude Code only) to dispatch a 3-persona planning team (architect / risk-analyst / test-strategist) and merge their outputs into a richer plan. Pass --enhanced to widen the roster to 5 personas, adding security-reviewer and ux-reviewer — dispatched as 5 standalone parallel sub-agents by default; combine with --team (Claude Code only) for team-coordinated dispatch.
+description: Lightweight conversational planner. Restates requirements, identifies risks, outlines phases, then WAITS for explicit confirmation before any code is written. Lighter than /ycc:plan-workflow (parallel research) and /ycc:prp-plan (PRD-driven, artifact-producing).
 argument-hint: '[--parallel] [--team] [--enhanced] [--dry-run] [--no-worktree] <what you want to plan>'
 allowed-tools:
   - Read

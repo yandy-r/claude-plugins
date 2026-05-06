@@ -22,7 +22,7 @@
     },
     {
       "name": "code-review",
-      "description": "Dual-mode code review \u2014 local uncommitted changes OR a GitHub pull request. Both modes write a machine-parseable review artifact (Local \u2192 docs/prps/reviews/local-{timestamp}-review.md, PR \u2192 docs/prps/reviews/pr-{N}-review.md) with sequential finding IDs (F001, F002, ...) and Status fields (Open/Fixed/Failed) so /ycc:review-fix can consume and update them in place. Local mode runs a full security + quality pass on the diff. PR mode fetches the PR, reads each changed file in full, builds context from CLAUDE.md and PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build) for detected stacks, assigns severity, and posts the review to GitHub via gh. For fast, inline, interactive reviews of short uncommitted changes (no file written unless confirmed), use `/ycc:quick-review` directly \u2014 `--quick` here is kept as a thin alias that delegates. Pass `--parallel` to fan out the REVIEW phase across 3 standalone ycc:code-reviewer sub-agents (correctness, security, quality) and merge findings. Pass `--team` (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList, per-reviewer task tracking, and inter-reviewer communication via SendMessage. `--parallel` and `--team` are mutually exclusive. Worktree mode is on by default in PR mode \u2014 pass `--no-worktree` to opt out. Pass `--keep-draft` to skip automatic draft\u2192ready promotion. Pass `--keep-worktree` to skip worktree removal after the review is posted. Use when the user asks to \"review code\", \"review PR\", \"check uncommitted changes\", \"review pr N\", \"parallel review\", \"team review\", or says \"/code-review\". Adapted from PRPs-agentic-eng by Wirasm."
+      "description": "Dual-mode code review \u2014 local uncommitted changes or a GitHub PR. Writes a machine-parseable artifact under docs/prps/reviews/ with finding IDs and Status fields (Open/Fixed/Failed) that /ycc:review-fix consumes in place. PR mode reads changed files, runs validation commands, assigns severity, and posts the review via gh. Use when the user asks to \"review code\", \"review PR\", \"check uncommitted changes\", \"review pr N\", \"parallel review\", \"team review\", or says \"/code-review\"."
     },
     {
       "name": "compatibility-audit",
@@ -70,7 +70,7 @@
     },
     {
       "name": "hooks-workflow",
-      "description": "This skill should be used when the user asks to \"generate hook config\", \"configure Claude hooks from ycc rules\", \"apply ycc hooks\", \"cross-target hook setup\", \"hook matrix for this repo\", \"turn hook guidance into settings.json\", or \"verify my hook config\". It converts existing rule-file hook guidance into real, target-appropriate hook configuration. The skill reads hook recommendations from the resolved language rules file(s), consults the target-capability matrix to determine what is actually supported on the requested target, and emits only the config that the target can execute. Per-target boundaries are enforced explicitly: Claude receives a concrete JSON hooks fragment, Cursor receives rule-embedded advisory guidance where supported, and Codex always receives an advisory-only fragment. The skill never claims parity across targets and never fabricates config for an unsupported target.\n"
+      "description": "Convert rule-file hook guidance into target-appropriate config. Reads hook recommendations from the resolved language rules, consults the target-capability matrix, and emits only config the target can execute (Claude \u2192 JSON; Cursor \u2192 advisory rule embedding where supported; Codex \u2192 advisory-only). Use when the user asks to \"generate hook config\", \"configure Claude hooks from ycc rules\", \"apply ycc hooks\", \"cross-target hook setup\", \"hook matrix for this repo\", or \"verify my hook config\"."
     },
     {
       "name": "implement-plan",
@@ -94,7 +94,7 @@
     },
     {
       "name": "plan",
-      "description": "Lightweight conversational planner that dispatches the ycc:planner agent (or a multi-perspective fan-out of sub-agents) to produce a specific, phased implementation plan with file paths, dependencies, risks, and a testing strategy \u2014 then WAITS for explicit user confirmation before any code is written. Pass `--parallel` to instruct the planner to shape its output for parallel execution (Batches summary section, hierarchical step IDs, explicit Depends on annotations). Pass `--team` to spawn a 3-persona team (architect / risk-analyst / test-strategist) and merge their outputs into a richer plan. Pass `--enhanced` to widen the roster from 3 to 5 personas, adding security-reviewer and ux-reviewer for explicit security and user-facing perspectives \u2014 dispatched as standalone parallel sub-agents by default, or as a 5-persona team when combined with `--team`. Flags are independent and combinable. Use for quick planning on a new feature, architectural change, or complex refactor when you do NOT need the heavier parallel-agent plan-workflow or the PRD-driven prp-plan. Use when the user asks to \"plan this\", \"outline an approach\", \"break this down before I code\", \"parallel plan\", \"multi-perspective plan\", \"enhanced plan\", or says \"/plan\"."
+      "description": "Lightweight conversational planner \u2014 dispatches ycc:planner (or a multi-perspective fan-out) to produce a phased plan with file paths, dependencies, risks, and tests, then WAITS for confirmation. Lighter than plan-workflow or PRD-driven prp-plan. Use when the user asks to \"plan this\", \"outline an approach\", \"break this down before I code\", \"parallel plan\", \"multi-perspective plan\", \"enhanced plan\", or says \"/plan\"."
     },
     {
       "name": "plan-workflow",
@@ -106,11 +106,11 @@
     },
     {
       "name": "prp-implement",
-      "description": "Execute a PRP plan file with continuous validation loops. Detects package manager, prepares git branch, processes tasks with per-task validation, runs all 5 validation levels (static, unit, build, integration, edge cases), writes an implementation report to docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans (those with a Batches section and Depends on annotations) and prompts the user to choose sequential or parallel execution. Pass `--parallel` to skip the prompt and run tasks in parallel via standalone ycc:implementor sub-agents. Pass `--team` (Claude Code only) to run the same per-batch implementor fan-out under a shared TeamCreate/TaskList with up-front dependency wiring (`addBlockedBy`) and coordinated per-batch shutdown via SendMessage. Worktree isolation is ON by default; pass `--no-worktree` to opt out. `--worktree` is accepted as a legacy no-op (matches the default). `--parallel` and `--team` are mutually exclusive. Use when the user asks to \"execute a PRP plan\", \"implement from a plan file\", \"run prp-implement\", \"parallel PRP implement\", \"team PRP implement\", or provides a path to a .plan.md file. Adapted from PRPs-agentic-eng by Wirasm."
+      "description": "Execute a PRP plan file with per-task validation loops. Detects package manager, prepares git branch, runs 5 validation levels (static/unit/build/integration/edge), writes a report to docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans and prompts for sequential or parallel execution. Use when the user asks to \"execute a PRP plan\", \"implement from a plan file\", \"run prp-implement\", \"parallel PRP implement\", \"team PRP implement\", or provides a path to a .plan.md file."
     },
     {
       "name": "prp-plan",
-      "description": "Create a comprehensive, self-contained feature implementation plan with codebase pattern extraction and optional external research. Detects whether the input is a PRD (selects next pending phase) or a free-form description, runs deep codebase discovery via ycc:prp-researcher, and writes a single-pass-ready plan to docs/prps/plans/{name}.plan.md. Pass `--parallel` to fan out research across 3 standalone researcher sub-agents and emit a dependency-batched task list ready for parallel execution by prp-implement. Pass `--team` (Claude Code only) to run the same 3 researchers under a shared TeamCreate/TaskList with coordinated shutdown \u2014 heavier but with a shared task graph and observable progress. Pass `--worktree` to annotate the emitted plan with a `## Worktree Setup` section and per-parallel-task `**Worktree**:` fields for git-isolated execution. `--parallel` and `--team` are mutually exclusive; `--worktree` combines freely with either. Use when the user asks for a \"PRP plan\", \"implementation plan from PRD\", \"feature plan with patterns to mirror\", \"parallel PRP plan\", \"team PRP plan\", or says \"/prp-plan\". Adapted from PRPs-agentic-eng by Wirasm. Pass --enhanced to grow the research fan-out from 3 to 7 specialized researchers (covering the same dimensions as ycc:feature-research) while keeping the output as a single PRP-compliant plan file."
+      "description": "Create a self-contained feature implementation plan with codebase pattern extraction and optional external research. Detects PRD vs free-form input, runs codebase discovery via ycc:prp-researcher, and writes docs/prps/plans/{name}.plan.md ready for /ycc:prp-implement. Use when the user asks for a \"PRP plan\", \"implementation plan from PRD\", \"feature plan with patterns to mirror\", \"parallel PRP plan\", \"team PRP plan\", or says \"/prp-plan\"."
     },
     {
       "name": "prp-pr",
@@ -138,7 +138,7 @@
     },
     {
       "name": "quick-review",
-      "description": "Fast interactive review of uncommitted changes. Prints findings inline and writes nothing by default. On \"Apply fixes\", hands findings directly to /ycc:quick-fix without creating a review artifact. \"Save to file\" writes a docs/prps/reviews artifact and stops. \"Write file and apply fixes\" explicitly writes the artifact and hands off to /ycc:review-fix. Designed for short, low-friction code changes where opening a full /ycc:code-review artifact is overkill. Pass `--parallel` to fan out review across 3 standalone ycc:code-reviewer sub-agents. Pass `--team` (Claude Code only) for the same fan-out as a coordinated agent team. Pass `--yes` to auto-confirm direct Apply fixes, `--save` to save only, or `--write-and-apply` to use the artifact-backed apply path. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to set the minimum fix threshold. Use when the user asks to \"quick review\", \"fast review\", \"review what I have\", \"on-the-fly review\", or says \"/quick-review\". `/ycc:code-review --quick` delegates here."
+      "description": "Fast interactive review of uncommitted changes \u2014 prints findings inline, writes nothing by default. \"Apply fixes\" hands findings to /ycc:quick-fix; \"Save to file\" writes an artifact under docs/prps/reviews; \"Write file and apply fixes\" hands off to /ycc:review-fix. For short changes where a full /ycc:code-review artifact is overkill. Use when the user asks to \"quick review\", \"fast review\", \"review what I have\", \"on-the-fly review\", or says \"/quick-review\"."
     },
     {
       "name": "releaser",
@@ -154,7 +154,7 @@
     },
     {
       "name": "review-fix",
-      "description": "Plan and apply fixes for findings from a code-review artifact produced by /ycc:code-review. Parses the review file (local or PR), filters findings by severity threshold, groups them into dependency-safe batches (same-file findings stay together, different files can run in parallel), dispatches ycc:review-fixer agents to apply each fix, updates the Status field in the source review file in place (Open \u2192 Fixed or Failed), runs validation after changes, and writes a fix report to docs/prps/reviews/fixes/. Pass `--parallel` to fan out independent fixes across parallel standalone review-fixer sub-agents. Pass `--team` (Claude Code only) to run the same per-batch fan-out as a coordinated agent team with up-front TaskCreate, shared TaskList across all batches, and per-batch shutdown via SendMessage. `--parallel` and `--team` are mutually exclusive. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to change the minimum severity threshold (default HIGH). Pass `--dry-run` to preview the fix plan (and team graph, if combined with --team) without applying changes. Worktree mode is on by default \u2014 pass `--no-worktree` to opt out. The `--worktree` flag is still accepted as a no-op. Auto-detected from"
+      "description": "Plan and apply fixes for findings in a /ycc:code-review artifact. Parses the review file, filters by severity, groups same-file findings into dependency-safe batches, dispatches ycc:review-fixer agents, updates Status in place (Open \u2192 Fixed/Failed), runs validation, and writes a fix report under docs/prps/reviews/fixes/. Use when the user asks to \"fix review findings\", \"apply review fixes\", \"review-fix PR 42\", \"fix the code review\", \"team review-fix\", or says \"/review-fix\"."
     },
     {
       "name": "rust-patterns",
@@ -208,7 +208,7 @@
     },
     {
       "name": "code-review",
-      "description": "Code review \u2014 local uncommitted changes or a GitHub PR (pass PR number/URL for PR mode). Runs security + quality checks, executes validation commands, writes an artifact, and posts the review. Pass --parallel to fan out the review phase across 3 specialized reviewer agents (correctness, security, quality) and merge findings. Pass --team (Claude Code only) to run the same 3-reviewer fan-out as a coordinated agent team with shared TaskList and per-reviewer task tracking. Worktree mode is on by default in PR mode \u2014 pass --no-worktree to opt out. Pass --keep-draft to skip automatic draft\u2192ready promotion. Pass --keep-worktree to skip worktree removal after the review is posted. Pass --quick as a thin alias for /ycc:quick-review \u2014 interactive inline review (no file written unless confirmed), prompts for Apply fixes / Save to file / Discard. Compatible with --parallel and --team; mutually exclusive with a PR argument, --approve, and --request-changes. For direct access to --yes, --save, and --severity, invoke /ycc:quick-review instead."
+      "description": "Code review \u2014 local uncommitted changes or a GitHub PR (pass PR number/URL for PR mode). Runs security + quality checks, executes validation commands, writes an artifact under docs/prps/reviews/, and posts the review. Pass --quick as a thin alias for /ycc:quick-review (interactive inline review, no file unless confirmed). For direct access to --yes, --save, or --severity, invoke /ycc:quick-review instead."
     },
     {
       "name": "compatibility-audit",
@@ -216,7 +216,7 @@
     },
     {
       "name": "deep-research",
-      "description": "Conduct strategic multi-perspective research using the Asymmetric Research Squad methodology with 8 specialized personas. Deploys parallel research agents covering historical, contrarian, analogical, systems, journalistic, archaeological, futurist, and negative-space perspectives. Pass --team (Claude Code only) to deploy the 14 research agents as teammates under a shared TeamCreate/TaskList with coordinated shutdown; default is standalone parallel sub-agents. Use for comprehensive research on complex topics requiring diverse viewpoints, competitive analysis, or strategic intelligence gathering."
+      "description": "Conduct strategic multi-perspective research using the Asymmetric Research Squad methodology \u2014 8 specialized personas (historical, contrarian, analogical, systems, journalistic, archaeological, futurist, negative-space) deployed in parallel. For comprehensive research on complex topics requiring diverse viewpoints, competitive analysis, or strategic intelligence gathering."
     },
     {
       "name": "feature-research",
@@ -260,7 +260,7 @@
     },
     {
       "name": "implement-plan",
-      "description": "Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dep wiring. Worktree isolation is ON by default and creates/reuses one feature worktree on a feature branch; pass --no-worktree to opt out and create/use only the current-checkout feature branch. --worktree is accepted as a legacy no-op. Step 3 of the planning workflow, requires parallel-plan.md from plan-workflow."
+      "description": "Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Step 3 of the planning workflow \u2014 requires parallel-plan.md from /ycc:plan-workflow."
     },
     {
       "name": "init",
@@ -276,7 +276,7 @@
     },
     {
       "name": "plan",
-      "description": "Lightweight conversational planner. Restates requirements, identifies risks, outlines phases, then WAITS for explicit user confirmation before touching any code. Pass --parallel to shape the planner's output for parallel execution (Batches section + dependency annotations). Pass --team (Claude Code only) to dispatch a 3-persona planning team (architect / risk-analyst / test-strategist) and merge their outputs into a richer plan. Pass --enhanced to widen the roster to 5 personas, adding security-reviewer and ux-reviewer \u2014 dispatched as 5 standalone parallel sub-agents by default; combine with --team (Claude Code only) for team-coordinated dispatch."
+      "description": "Lightweight conversational planner. Restates requirements, identifies risks, outlines phases, then WAITS for explicit confirmation before any code is written. Lighter than /ycc:plan-workflow (parallel research) and /ycc:prp-plan (PRD-driven, artifact-producing)."
     },
     {
       "name": "plan-workflow",
@@ -288,11 +288,11 @@
     },
     {
       "name": "prp-implement",
-      "description": "Execute a PRP plan file with per-task validation loops. Detects package manager, prepares git branch, runs 5 validation levels, writes docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans and prompts the user; pass --parallel to force standalone sub-agent batch execution, or --team (Claude Code only) to force agent-team batch execution with shared TaskList and up-front dependency wiring. Worktree isolation is ON by default; pass --no-worktree to opt out. --worktree is accepted as a legacy no-op."
+      "description": "Execute a PRP plan file with per-task validation loops. Detects package manager, prepares git branch, runs 5 validation levels, writes a report to docs/prps/reports/, and archives the plan. Auto-detects parallel-capable plans and prompts for sequential or parallel execution."
     },
     {
       "name": "prp-plan",
-      "description": "Create a single-pass implementation plan from a feature description or PRD. Runs codebase pattern extraction and optional external research, then writes docs/prps/plans/{name}.plan.md. Pass --parallel to fan out research and emit a dependency-batched plan. Pass --team (Claude Code only) to run the same fan-out as a coordinated agent team with shared TaskList. Pass --worktree to annotate the plan with a"
+      "description": "Create a single-pass implementation plan from a feature description or PRD. Runs codebase pattern extraction and optional external research, then writes docs/prps/plans/{name}.plan.md. Use --enhanced to grow research from 3 to 7 specialized researchers (same dimensions as ycc:feature-research) while keeping a single PRP-compliant plan file."
     },
     {
       "name": "prp-pr",
@@ -336,7 +336,7 @@
     },
     {
       "name": "review-fix",
-      "description": "Plan and apply fixes for findings from a code-review artifact. Parses the review file, filters by severity, dispatches review-fixer agents to apply each fix, updates Status in place (Open \u2192 Fixed/Failed), and writes a fix report. Pass --parallel for standalone sub-agent batch execution, --team (Claude Code only) for agent-team batch execution with shared TaskList and up-front dependency wiring, --severity <level> to change the threshold (default HIGH), or --dry-run to preview the plan. Worktree mode is on by default \u2014 pass --no-worktree to opt out. The artifact is now read from the PR branch (committed there by /ycc:code-review), not from the main repo."
+      "description": "Plan and apply fixes for findings from a /ycc:code-review artifact. Parses the review file, filters by severity, dispatches review-fixer agents, updates Status in place (Open \u2192 Fixed/Failed), runs validation, and writes a fix report. The artifact is read from the PR branch (committed there by /ycc:code-review)."
     },
     {
       "name": "rust-patterns",

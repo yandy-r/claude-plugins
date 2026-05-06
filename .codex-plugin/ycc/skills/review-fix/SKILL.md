@@ -1,18 +1,11 @@
 ---
 name: review-fix
-description: Plan and apply fixes for findings from a code-review artifact produced
-  by $code-review. Parses the review file (local or PR), filters findings by severity
-  threshold, groups them into dependency-safe batches (same-file findings stay together,
-  different files can run in parallel), dispatches review-fixer agents to apply each
-  fix, updates the Status field in the source review file in place (Open → Fixed or
-  Failed), runs validation after changes, and writes a fix report to docs/prps/reviews/fixes/.
-  Pass `--parallel` to fan out independent fixes across parallel standalone review-fixer
-  sub-agents. Pass `--team` (Codex runtime only; not available in bundle invocations)
-  to run the same per-batch fan-out as a coordinated agent team with up-front record
-  the task, shared the task tracker across all batches, and per-batch shutdown via
-  send follow-up instructions. `--parallel` and `--team` are mutually exclusive. Pass
-  `--severity <CRITICAL|HIGH|MEDIUM|LOW>` to change the minimum severity threshold
-  (default HIGH).
+description: Plan and apply fixes for findings in a $code-review artifact. Parses
+  the review file, filters by severity, groups same-file findings into dependency-safe
+  batches, dispatches review-fixer agents, updates Status in place (Open → Fixed/Failed),
+  runs validation, and writes a fix report under docs/prps/reviews/fixes/. Use when
+  the user asks to "fix review findings", "apply review fixes", "review-fix PR 42",
+  "fix the code review", "team review-fix", or says "/review-fix".
 ---
 
 # Review Fix

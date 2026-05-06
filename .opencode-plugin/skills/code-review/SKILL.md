@@ -1,16 +1,11 @@
 ---
 name: code-review
-description: Dual-mode code review — local uncommitted changes OR a GitHub pull request.
-  Both modes write a machine-parseable review artifact (Local → docs/prps/reviews/local-{timestamp}-review.md,
-  PR → docs/prps/reviews/pr-{N}-review.md) with sequential finding IDs (F001, F002,
-  ...) and Status fields (Open/Fixed/Failed) so /review-fix can consume and update
-  them in place. Local mode runs a full security + quality pass on the diff. PR mode
-  fetches the PR, reads each changed file in full, builds context from AGENTS.md and
-  PRP artifacts, applies a 7-category review checklist, runs validation commands (type-check/lint/test/build)
-  for detected stacks, assigns severity, and posts the review to GitHub via gh. For
-  fast, inline, interactive reviews of short uncommitted changes (no file written
-  unless confirmed), use `/quick-review` directly — `--quick` here is kept as a thin
-  alias that delegates.
+description: Dual-mode code review — local uncommitted changes or a GitHub PR. Writes
+  a machine-parseable artifact under docs/prps/reviews/ with finding IDs and Status
+  fields (Open/Fixed/Failed) that /review-fix consumes in place. PR mode reads changed
+  files, runs validation commands, assigns severity, and posts the review via gh.
+  Use when the user asks to "review code", "review PR", "check uncommitted changes",
+  "review pr N", "parallel review", "team review", or says "/code-review".
 ---
 
 # Code Review

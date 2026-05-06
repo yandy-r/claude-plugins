@@ -1,19 +1,6 @@
 ---
 name: hooks-workflow
-description: >
-  This skill should be used when the user asks to "generate hook config",
-  "configure Claude hooks from ycc rules", "apply ycc hooks", "cross-target
-  hook setup", "hook matrix for this repo", "turn hook guidance into
-  settings.json", or "verify my hook config". It converts existing rule-file
-  hook guidance into real, target-appropriate hook configuration. The skill
-  reads hook recommendations from the resolved language rules file(s), consults
-  the target-capability matrix to determine what is actually supported on the
-  requested target, and emits only the config that the target can execute.
-  Per-target boundaries are enforced explicitly: Claude receives a concrete JSON
-  hooks fragment, Cursor receives rule-embedded advisory guidance where
-  supported, and Codex always receives an advisory-only fragment. The skill
-  never claims parity across targets and never fabricates config for an
-  unsupported target.
+description: Convert rule-file hook guidance into target-appropriate config. Reads hook recommendations from the resolved language rules, consults the target-capability matrix, and emits only config the target can execute (Claude → JSON; Cursor → advisory rule embedding where supported; Codex → advisory-only). Use when the user asks to "generate hook config", "configure Claude hooks from ycc rules", "apply ycc hooks", "cross-target hook setup", "hook matrix for this repo", or "verify my hook config".
 argument-hint: '<language> [--target=claude|cursor|codex] [--event=PreToolUse|PostToolUse|Stop|all] [--out=<path>] [--dry-run] [--verify] [--force]'
 allowed-tools:
   - Read

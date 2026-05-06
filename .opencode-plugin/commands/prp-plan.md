@@ -1,11 +1,10 @@
 ---
 description: 'Create a single-pass implementation plan from a feature description
   or PRD. Runs codebase pattern extraction and optional external research, then writes
-  docs/prps/plans/{name}.plan.md. Pass --parallel to fan out research and emit a dependency-batched
-  plan. Pass --team (Claude Code only) to run the same fan-out as a coordinated agent
-  team with shared the todo tracker. Pass --worktree to annotate the plan with a Usage:
-  [--parallel | --team] [--enhanced] [--no-worktree] [--dry-run] <feature description
-  | path/to/prd.md>'
+  docs/prps/plans/{name}.plan.md. Use --enhanced to grow research from 3 to 7 specialized
+  researchers (same dimensions as feature-research) while keeping a single PRP-compliant
+  plan file. Usage: [--parallel | --team] [--enhanced] [--no-worktree] [--dry-run]
+  <feature description | path/to/prd.md>'
 ---
 
 # PRP Plan Command

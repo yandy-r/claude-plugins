@@ -1,12 +1,9 @@
 ---
 description: 'Execute a PRP plan file with per-task validation loops. Detects package
-  manager, prepares git branch, runs 5 validation levels, writes docs/prps/reports/,
-  and archives the plan. Auto-detects parallel-capable plans and prompts the user;
-  pass --parallel to force standalone sub-agent batch execution, or --team (Claude
-  Code only) to force agent-team batch execution with shared the todo tracker and
-  up-front dependency wiring. Worktree isolation is ON by default; pass --no-worktree
-  to opt out. --worktree is accepted as a legacy no-op. Usage: [--parallel | --team]
-  [--worktree] [--no-worktree] [--dry-run] <path/to/plan.md>'
+  manager, prepares git branch, runs 5 validation levels, writes a report to docs/prps/reports/,
+  and archives the plan. Auto-detects parallel-capable plans and prompts for sequential
+  or parallel execution. Usage: [--parallel | --team] [--worktree] [--no-worktree]
+  [--dry-run] <path/to/plan.md>'
 ---
 
 # PRP Implement Command

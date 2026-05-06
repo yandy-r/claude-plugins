@@ -1,17 +1,11 @@
 ---
 name: quick-review
-description: Fast interactive review of uncommitted changes. Prints findings inline
-  and writes nothing by default. On "Apply fixes", hands findings directly to $quick-fix
-  without creating a review artifact. "Save to file" writes a docs/prps/reviews artifact
-  and stops. "Write file and apply fixes" explicitly writes the artifact and hands
-  off to $review-fix. Designed for short, low-friction code changes where opening
-  a full $code-review artifact is overkill. Pass `--parallel` to fan out review across
-  3 standalone code-reviewer sub-agents. Pass `--team` (Codex runtime only; not available
-  in bundle invocations) for the same fan-out as a coordinated agent team. Pass `--yes`
-  to auto-confirm direct Apply fixes, `--save` to save only, or `--write-and-apply`
-  to use the artifact-backed apply path. Pass `--severity <CRITICAL|HIGH|MEDIUM|LOW>`
-  to set the minimum fix threshold. Use when the user asks to "quick review", "fast
-  review", "review what I have", "on-the-fly review", or says "/quick-review".
+description: Fast interactive review of uncommitted changes — prints findings inline,
+  writes nothing by default. "Apply fixes" hands findings to $quick-fix; "Save to
+  file" writes an artifact under docs/prps/reviews; "Write file and apply fixes" hands
+  off to $review-fix. For short changes where a full $code-review artifact is overkill.
+  Use when the user asks to "quick review", "fast review", "review what I have", "on-the-fly
+  review", or says "/quick-review".
 ---
 
 # Quick Review

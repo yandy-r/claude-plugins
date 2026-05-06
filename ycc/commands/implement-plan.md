@@ -1,5 +1,5 @@
 ---
-description: Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Defaults to standalone sub-agents; pass --team (Claude Code only) to dispatch via an agent team with shared TaskList and up-front dep wiring. Worktree isolation is ON by default and creates/reuses one feature worktree on a feature branch; pass --no-worktree to opt out and create/use only the current-checkout feature branch. --worktree is accepted as a legacy no-op. Step 3 of the planning workflow, requires parallel-plan.md from plan-workflow.
+description: Execute a parallel implementation plan by deploying implementor agents in dependency-resolved batches. Step 3 of the planning workflow — requires parallel-plan.md from /ycc:plan-workflow.
 argument-hint: '[--team] [--dry-run] [--worktree] [--no-worktree] <feature-name>'
 allowed-tools:
   - Read

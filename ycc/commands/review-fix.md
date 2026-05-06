@@ -1,5 +1,5 @@
 ---
-description: Plan and apply fixes for findings from a code-review artifact. Parses the review file, filters by severity, dispatches review-fixer agents to apply each fix, updates Status in place (Open → Fixed/Failed), and writes a fix report. Pass --parallel for standalone sub-agent batch execution, --team (Claude Code only) for agent-team batch execution with shared TaskList and up-front dependency wiring, --severity <level> to change the threshold (default HIGH), or --dry-run to preview the plan. Worktree mode is on by default — pass --no-worktree to opt out. The artifact is now read from the PR branch (committed there by /ycc:code-review), not from the main repo.
+description: Plan and apply fixes for findings from a /ycc:code-review artifact. Parses the review file, filters by severity, dispatches review-fixer agents, updates Status in place (Open → Fixed/Failed), runs validation, and writes a fix report. The artifact is read from the PR branch (committed there by /ycc:code-review).
 argument-hint: '[--parallel | --team] [--severity <level>] [--no-worktree] [--dry-run] <path/to/review.md | pr-number | blank>'
 allowed-tools:
   - Read

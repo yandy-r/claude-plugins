@@ -1,11 +1,8 @@
 ---
 description: 'Conduct strategic multi-perspective research using the Asymmetric Research
-  Squad methodology with 8 specialized personas. Deploys parallel research agents
-  covering historical, contrarian, analogical, systems, journalistic, archaeological,
-  futurist, and negative-space perspectives. Pass --team (Claude Code only) to deploy
-  the 14 research agents as teammates under a shared spawn coordinated subagents/the
-  todo tracker with coordinated shutdown; default is standalone parallel sub-agents.
-  Use for comprehensive research on complex topics requiring diverse viewpoints, competitive
+  Squad methodology — 8 specialized personas (historical, contrarian, analogical,
+  systems, journalistic, archaeological, futurist, negative-space) deployed in parallel.
+  For comprehensive research on complex topics requiring diverse viewpoints, competitive
   analysis, or strategic intelligence gathering. Usage: [--team] [--output-dir "..."]
   [--dry-run] <research-subject>'
 ---

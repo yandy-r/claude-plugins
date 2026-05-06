@@ -1,17 +1,11 @@
 ---
 name: prp-implement
-description: Execute a PRP plan file with continuous validation loops. Detects package
-  manager, prepares git branch, processes tasks with per-task validation, runs all
-  5 validation levels (static, unit, build, integration, edge cases), writes an implementation
-  report to docs/prps/reports/, and archives the plan. Auto-detects parallel-capable
-  plans (those with a Batches section and Depends on annotations) and prompts the
-  user to choose sequential or parallel execution. Pass `--parallel` to skip the prompt
-  and run tasks in parallel via standalone implementor sub-agents. Pass `--team` (Claude
-  Code only) to run the same per-batch implementor fan-out under a shared spawn coordinated
-  subagents/the todo tracker with up-front dependency wiring (`addBlockedBy`) and
-  coordinated per-batch shutdown via send follow-up instructions. Worktree isolation
-  is ON by default; pass `--no-worktree` to opt out. `--worktree` is accepted as a
-  legacy no-op (matches the default). `--parallel` and `--team` are mutually exclusive.
+description: Execute a PRP plan file with per-task validation loops. Detects package
+  manager, prepares git branch, runs 5 validation levels (static/unit/build/integration/edge),
+  writes a report to docs/prps/reports/, and archives the plan. Auto-detects parallel-capable
+  plans and prompts for sequential or parallel execution. Use when the user asks to
+  "execute a PRP plan", "implement from a plan file", "run prp-implement", "parallel
+  PRP implement", "team PRP implement", or provides a path to a .plan.md file.
 ---
 
 # PRP Implement

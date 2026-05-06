@@ -1,17 +1,11 @@
 ---
 name: prp-plan
-description: Create a comprehensive, self-contained feature implementation plan with
-  codebase pattern extraction and optional external research. Detects whether the
-  input is a PRD (selects next pending phase) or a free-form description, runs deep
-  codebase discovery via prp-researcher, and writes a single-pass-ready plan to docs/prps/plans/{name}.plan.md.
-  Pass `--parallel` to fan out research across 3 standalone researcher sub-agents
-  and emit a dependency-batched task list ready for parallel execution by prp-implement.
-  Pass `--team` (Codex runtime only; not available in bundle invocations) to run the
-  same 3 researchers under a shared create an agent group/the task tracker with coordinated
-  shutdown — heavier but with a shared task graph and observable progress. Pass `--worktree`
-  to annotate the emitted plan with a `## Worktree Setup` section and per-parallel-task
-  `**Worktree**:` fields for git-isolated execution. `--parallel` and `--team` are
-  mutually exclusive; `--worktree` combines freely with either.
+description: Create a self-contained feature implementation plan with codebase pattern
+  extraction and optional external research. Detects PRD vs free-form input, runs
+  codebase discovery via prp-researcher, and writes docs/prps/plans/{name}.plan.md
+  ready for $prp-implement. Use when the user asks for a "PRP plan", "implementation
+  plan from PRD", "feature plan with patterns to mirror", "parallel PRP plan", "team
+  PRP plan", or says "/prp-plan".
 ---
 
 # PRP Plan
