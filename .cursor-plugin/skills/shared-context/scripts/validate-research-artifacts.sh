@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
 # Validates research artifact files for shared-context
-# Usage: validate-research-artifacts.sh <feature-dir>
+# Usage: validate-research-artifacts.sh <feature-dir> [--optimized]
 #
-# Checks that all 4 research agent outputs exist, are non-empty,
-# meet minimum size, and contain expected headings.
-# Exits non-zero if any file is missing or invalid.
+# Modes:
+#   default      Standard 4-file research set (research-architecture/patterns/integration/docs.md)
+#   --optimized  plan-workflow --optimized: 5-file unified-analyst set
+#                (analysis-architecture/patterns/integration/docs/tasks.md).
+#                In optimized mode the workflow does not produce research-*.md;
+#                this validator delegates to the same 5-file set as
+#                validate-analysis-artifacts.sh --optimized so Phase 2 has a
+#                meaningful check to run.
+#
+# Checks that all required outputs exist, are non-empty, meet minimum size,
+# and contain expected headings. Exits non-zero if any file is missing or invalid.
 
 set -euo pipefail
 
@@ -61,11 +69,35 @@ require_any_heading() {
 }
 
 if [[ $# -lt 1 ]]; then
-    echo "Usage: $0 <feature-dir>"
+    echo "Usage: $0 <feature-dir> [--optimized]"
     exit 1
 fi
 
-feature_dir="$1"
+feature_dir=""
+optimized="false"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --optimized)
+            optimized="true"
+            shift
+            ;;
+        *)
+            if [[ -z "$feature_dir" ]]; then
+                feature_dir="$1"
+            else
+                echo -e "${RED}ERROR:${NC} unexpected argument: $1" >&2
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [[ -z "$feature_dir" ]]; then
+    echo -e "${RED}ERROR:${NC} feature-dir required" >&2
+    exit 1
+fi
 
 # Always resolve relative paths against PLANS_ROOT (from resolve-plans-dir.sh)
 if [[ "$feature_dir" != /* && -n "${PLANS_ROOT:-}" ]]; then
@@ -77,14 +109,31 @@ if [[ ! -d "$feature_dir" ]]; then
     exit 1
 fi
 
-declare -a files=(
-    "research-architecture.md"
-    "research-patterns.md"
-    "research-integration.md"
-    "research-docs.md"
-)
+declare -a files
+if [[ "$optimized" == "true" ]]; then
+    # Optimized mode: validate the 5 unified analyst outputs instead.
+    files=(
+        "analysis-architecture.md"
+        "analysis-patterns.md"
+        "analysis-integration.md"
+        "analysis-docs.md"
+        "analysis-tasks.md"
+    )
+else
+    files=(
+        "research-architecture.md"
+        "research-patterns.md"
+        "research-integration.md"
+        "research-docs.md"
+    )
+fi
 
-echo "Validating research artifacts in: $feature_dir"
+mode_label="standard"
+if [[ "$optimized" == "true" ]]; then
+    mode_label="optimized"
+fi
+
+echo "Validating research artifacts (${mode_label}) in: $feature_dir"
 echo "=========================================="
 
 for file in "${files[@]}"; do
@@ -131,6 +180,36 @@ for file in "${files[@]}"; do
         research-docs.md)
             require_any_heading "$path" "documentation section" \
                 "## Must-Read Documents" "## Architecture Docs" "## Documentation Gaps"
+            ;;
+        analysis-architecture.md)
+            require_any_heading "$path" "summary section" \
+                "## Executive Summary" "## Summary" "## Overview"
+            require_any_heading "$path" "architecture section" \
+                "## Architecture Context" "## Architecture" "## System Overview" "## Critical Files Reference"
+            ;;
+        analysis-patterns.md)
+            require_any_heading "$path" "summary section" \
+                "## Executive Summary" "## Summary" "## Overview"
+            require_any_heading "$path" "patterns section" \
+                "## Implementation Patterns" "## Architectural Patterns" "## Existing Code Structure" "## Code Conventions"
+            ;;
+        analysis-integration.md)
+            require_any_heading "$path" "summary section" \
+                "## Executive Summary" "## Summary" "## Overview"
+            require_any_heading "$path" "API/database section" \
+                "## API Endpoints" "## Database" "## External Services" "## Integration Points"
+            ;;
+        analysis-docs.md)
+            require_any_heading "$path" "summary section" \
+                "## Executive Summary" "## Summary" "## Overview"
+            require_any_heading "$path" "documentation section" \
+                "## Must-Read Documents" "## Architecture Docs" "## Documentation Gaps" "## Reading List"
+            ;;
+        analysis-tasks.md)
+            require_any_heading "$path" "summary section" \
+                "## Executive Summary" "## Summary" "## Overview"
+            require_any_heading "$path" "phase/task section" \
+                "## Recommended Phase Structure" "## Task Granularity" "## Dependency Analysis"
             ;;
     esac
 done

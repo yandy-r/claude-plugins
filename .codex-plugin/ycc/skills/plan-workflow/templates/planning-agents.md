@@ -60,6 +60,8 @@ Read and analyze all planning documentation:
 
 ## Team Communication
 
+> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `send follow-up instructions`, `update the task tracker`, or `the task tracker`, ignore this section entirely and just write your output file.
+
 You are part of an analysis team. Your teammates are:
 
 - **code-analyzer**: Extracting code patterns from relevant files
@@ -73,6 +75,8 @@ You are part of an analysis team. Your teammates are:
 **Listen for messages from teammates** — `code-analyzer` may share patterns that affect your synthesis.
 
 ## Task Coordination
+
+> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `the task tracker` / `update the task tracker`, ignore this section entirely; the orchestrator gates on the artifact file existing on disk.
 
 1. Check the task tracker for your assigned task
 2. Claim your task with update the task tracker (set status to in_progress, owner to your name)
@@ -166,6 +170,8 @@ actionable patterns and integration points.
 
 ## Team Communication
 
+> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `send follow-up instructions`, `update the task tracker`, or `the task tracker`, ignore this section entirely and just write your output file.
+
 You are part of an analysis team. Your teammates are:
 
 - **context-synthesizer**: Condensing planning documentation
@@ -179,6 +185,8 @@ You are part of an analysis team. Your teammates are:
 **Listen for messages from teammates** — especially from `context-synthesizer` who may point you to critical files.
 
 ## Task Coordination
+
+> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `the task tracker` / `update the task tracker`, ignore this section entirely; the orchestrator gates on the artifact file existing on disk.
 
 1. Check the task tracker for your assigned task
 2. Claim your task with update the task tracker (set status to in_progress, owner to your name)
@@ -234,6 +242,8 @@ task breakdown and phase organization.
 
 ## Team Communication
 
+> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `send follow-up instructions`, `update the task tracker`, or `the task tracker`, ignore this section entirely and just write your output file.
+
 You are part of an analysis team. Your teammates are:
 
 - **context-synthesizer**: Condensing planning documentation
@@ -247,6 +257,8 @@ You are part of an analysis team. Your teammates are:
 **Listen for messages from teammates** — especially from `code-analyzer` for file-to-task mapping insights, and `context-synthesizer` for parallelization opportunities.
 
 ## Task Coordination
+
+> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `the task tracker` / `update the task tracker`, ignore this section entirely; the orchestrator gates on the artifact file existing on disk.
 
 1. Check the task tracker for your assigned task
 2. Claim your task with update the task tracker (set status to in_progress, owner to your name)

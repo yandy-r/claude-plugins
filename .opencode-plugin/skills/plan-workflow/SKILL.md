@@ -253,16 +253,22 @@ After spawning, use `the todo tracker` to confirm all 4 tasks are `completed` be
 
 After all research agents complete, validate all research files:
 
-- **Path A (standalone, default)**: rely on `Task` return values; each sub-agent writes its `research-*.md` artifact before returning.
+- **Path A (standalone, default)**: rely on `Task` return values; each sub-agent writes its `research-*.md` (or, in `--optimized`, `analysis-*.md`) artifact before returning.
 - **Path B (`--team`)**: check via `the todo tracker` that all 4 research tasks are `completed`.
 
 Then run:
 
 ```bash
+# Standard mode (4-file research-*.md set):
 ~/.config/opencode/skills/shared-context/scripts/validate-research-artifacts.sh "${feature_dir}"
+
+# Optimized mode (5-file unified analysis-*.md set):
+~/.config/opencode/skills/shared-context/scripts/validate-research-artifacts.sh "${feature_dir}" --optimized
 ```
 
-If validation fails: in Path B, message the relevant teammate to fix their output; in Path A, re-dispatch a sub-agent. Wait for correction, rerun validation until pass.
+If `--optimized` was passed, you MUST append `--optimized` to this validator. The validator's default file set (`research-*.md`) does not exist in optimized mode.
+
+If validation fails: in Path B, message the relevant teammate to fix their output; in Path A, re-dispatch the failing sub-agent via `Task`. Wait for correction, rerun validation until pass. Do NOT have the orchestrator write the missing file itself from a captured agent summary — that bypasses the contract and produces fragile output.
 
 **Do not proceed to shared.md synthesis until validation passes.**
 
@@ -412,29 +418,41 @@ Spawn all 3 teammates in **ONE message** with **THREE `Agent` tool calls** and t
 After analysis agents complete, validate all analysis files:
 
 - **Path A (standalone, default)**: rely on `Task` return values; each sub-agent writes its `analysis-*.md` artifact before returning.
-- **Path B (`--team`)**: check via `the todo tracker` that all 3 analysis tasks are `completed`.
+- **Path B (`--team`)**: check via `the todo tracker` that all 3 (standard) or 5 (optimized) analysis tasks are `completed`.
 
 Then run:
 
 ```bash
+# Standard mode (3-file set: analysis-context, analysis-code, analysis-tasks):
 ~/.config/opencode/skills/parallel-plan/scripts/validate-analysis-artifacts.sh "${feature_dir}"
+
+# Optimized mode (5-file unified set):
+~/.config/opencode/skills/parallel-plan/scripts/validate-analysis-artifacts.sh "${feature_dir}" --optimized
 ```
 
+If `--optimized` was passed, you MUST append `--optimized` to this validator.
+
 If validation passes → skip to Step 22 (Pre-Generation Gate).
-If validation fails → in Path B, message the relevant teammate; in Path A, re-dispatch a sub-agent. Wait, re-validate.
+If validation fails → in Path B, message the relevant teammate; in Path A, re-dispatch the failing sub-agent via `Task`. Wait, re-validate. Do NOT have the orchestrator write the missing file itself.
 
 ### Step 22: Pre-Generation Gate (MANDATORY — cannot be skipped)
 
 Run the pre-generation gate script:
 
 ```bash
+# Standard mode:
 ~/.config/opencode/skills/parallel-plan/scripts/persist-or-fail.sh "${feature_dir}"
+
+# Optimized mode:
+~/.config/opencode/skills/parallel-plan/scripts/persist-or-fail.sh "${feature_dir}" --optimized
 ```
 
-- **Exit 0** → proceed to Phase 7
-- **Exit 1** → the script prints `MISSING_FILES` and `ACTION_REQUIRED`. Message the failing teammate to re-write, then re-run this gate until it passes (exit 0)
+If `--optimized` was passed, you MUST append `--optimized` to the gate script. Without the flag, the gate looks for the standard 3-file set and will incorrectly fail in optimized mode.
 
-**Do NOT proceed to plan generation until `persist-or-fail.sh` exits 0.**
+- **Exit 0** → proceed to Phase 7
+- **Exit 1** → the script prints `MISSING_FILES` and `ACTION_REQUIRED`. Re-dispatch the failing teammate (Path B) or sub-agent (Path A) to write the missing file(s), then re-run this gate until it passes (exit 0).
+
+**Do NOT proceed to plan generation until `persist-or-fail.sh` exits 0. Do NOT have the orchestrator ad-hoc write the missing files from captured agent summaries — that bypasses the contract and was the root cause of the May 2026 reproducer where 3 of 5 unified-analyst files were missing on disk.**
 
 ### Step 23: Shut Down Analysis Teammates (if `--team`)
 
@@ -697,6 +715,18 @@ Dispatch follows the same Path A / Path B split as standard mode:
 - **Path B (`--team`)**: register 5 unified tasks up front, then spawn 5 teammates in a single message with `team_name="pw-[feature-name]"`.
 
 **Total**: 7 agents instead of 10, 2 stages instead of 3.
+
+### Optimized Mode Validation
+
+Step 11 (research validator), Step 21 (analysis validator), and Step 22 (pre-generation gate) all accept an `--optimized` flag and MUST be invoked with it when `--optimized` was passed to the skill:
+
+```bash
+~/.config/opencode/skills/shared-context/scripts/validate-research-artifacts.sh "${feature_dir}" --optimized
+~/.config/opencode/skills/parallel-plan/scripts/validate-analysis-artifacts.sh "${feature_dir}" --optimized
+~/.config/opencode/skills/parallel-plan/scripts/persist-or-fail.sh "${feature_dir}" --optimized
+```
+
+In optimized mode, the gate's `MISSING_FILES` set is the 5 unified files: `analysis-architecture.md`, `analysis-patterns.md`, `analysis-integration.md`, `analysis-docs.md`, `analysis-tasks.md`. If any are missing, re-dispatch the failing agent — do NOT have the orchestrator write the file itself from a captured summary.
 
 ---
 

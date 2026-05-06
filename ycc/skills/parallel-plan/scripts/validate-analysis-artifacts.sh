@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 # Validates analysis artifact files for parallel-plan
-# Usage: validate-analysis-artifacts.sh <feature-dir>
+# Usage: validate-analysis-artifacts.sh <feature-dir> [--optimized]
 #
-# Checks that all 3 analysis agent outputs exist, are non-empty,
+# Modes:
+#   default      Standard 3-file set:
+#                  analysis-context.md, analysis-code.md, analysis-tasks.md
+#   --optimized  5-file unified-analyst set:
+#                  analysis-architecture.md, analysis-patterns.md,
+#                  analysis-integration.md, analysis-docs.md, analysis-tasks.md
+#
+# Checks that all required analysis agent outputs exist, are non-empty,
 # meet minimum size, and contain expected headings.
 # Exits non-zero if any file is missing or invalid.
 
@@ -61,11 +68,35 @@ require_any_heading() {
 }
 
 if [[ $# -lt 1 ]]; then
-    echo "Usage: $0 <feature-dir>"
+    echo "Usage: $0 <feature-dir> [--optimized]"
     exit 1
 fi
 
-feature_dir="$1"
+feature_dir=""
+optimized="false"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --optimized)
+            optimized="true"
+            shift
+            ;;
+        *)
+            if [[ -z "$feature_dir" ]]; then
+                feature_dir="$1"
+            else
+                echo -e "${RED}ERROR:${NC} unexpected argument: $1" >&2
+                exit 1
+            fi
+            shift
+            ;;
+    esac
+done
+
+if [[ -z "$feature_dir" ]]; then
+    echo -e "${RED}ERROR:${NC} feature-dir required" >&2
+    exit 1
+fi
 
 # Always resolve relative paths against PLANS_ROOT (from resolve-plans-dir.sh)
 if [[ "$feature_dir" != /* && -n "${PLANS_ROOT:-}" ]]; then
@@ -77,13 +108,29 @@ if [[ ! -d "$feature_dir" ]]; then
     exit 1
 fi
 
-declare -a files=(
-    "analysis-context.md"
-    "analysis-code.md"
-    "analysis-tasks.md"
-)
+declare -a files
+if [[ "$optimized" == "true" ]]; then
+    files=(
+        "analysis-architecture.md"
+        "analysis-patterns.md"
+        "analysis-integration.md"
+        "analysis-docs.md"
+        "analysis-tasks.md"
+    )
+else
+    files=(
+        "analysis-context.md"
+        "analysis-code.md"
+        "analysis-tasks.md"
+    )
+fi
 
-echo "Validating analysis artifacts in: $feature_dir"
+mode_label="standard"
+if [[ "$optimized" == "true" ]]; then
+    mode_label="optimized"
+fi
+
+echo "Validating analysis artifacts (${mode_label}) in: $feature_dir"
 echo "=========================================="
 
 for file in "${files[@]}"; do
@@ -130,6 +177,30 @@ for file in "${files[@]}"; do
                 "## Executive Summary" "## Summary" "## Overview"
             require_any_heading "$path" "phase/task section" \
                 "## Recommended Phase Structure" "## Task Granularity" "## Dependency Analysis"
+            ;;
+        analysis-architecture.md)
+            require_any_heading "$path" "summary section" \
+                "## Executive Summary" "## Summary" "## Overview"
+            require_any_heading "$path" "architecture section" \
+                "## Architecture Context" "## Architecture" "## System Overview" "## Critical Files Reference"
+            ;;
+        analysis-patterns.md)
+            require_any_heading "$path" "summary section" \
+                "## Executive Summary" "## Summary" "## Overview"
+            require_any_heading "$path" "patterns section" \
+                "## Implementation Patterns" "## Architectural Patterns" "## Existing Code Structure" "## Code Conventions"
+            ;;
+        analysis-integration.md)
+            require_any_heading "$path" "summary section" \
+                "## Executive Summary" "## Summary" "## Overview"
+            require_any_heading "$path" "API/database section" \
+                "## API Endpoints" "## Database" "## External Services" "## Integration Points"
+            ;;
+        analysis-docs.md)
+            require_any_heading "$path" "summary section" \
+                "## Executive Summary" "## Summary" "## Overview"
+            require_any_heading "$path" "documentation section" \
+                "## Must-Read Documents" "## Architecture Docs" "## Documentation Gaps" "## Reading List"
             ;;
     esac
 done
