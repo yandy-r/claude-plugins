@@ -203,7 +203,7 @@ When `WORKTREE_ACTIVE=true`, run the helper first against the **main repo** (so 
 After the branch decision, create the parent worktree **once** before the first batch:
 
 ```bash
-WT_PARENT_PATH=$(bash "~/.codex/plugins/ycc/shared/scripts/setup-worktree.sh" \
+WT_PARENT_PATH=$(bash ~/.codex/plugins/ycc/shared/scripts/setup-worktree.sh \
   parent "${WT_REPO_NAME}" "${WT_FEATURE_SLUG}")
 ```
 
@@ -214,7 +214,7 @@ This creates `~/.claude-worktrees/${WT_REPO_NAME}-${WT_FEATURE_SLUG}/` on branch
 Plan artifacts written by `prp-plan` are pre-commit and live in the **main checkout** when this skill starts. The first thing to do after the worktree exists is **move** them in — never copy, never sync:
 
 ```bash
-PLAN_PATH=$(bash "~/.codex/plugins/ycc/shared/scripts/move-plan-to-worktree.sh" \
+PLAN_PATH=$(bash ~/.codex/plugins/ycc/shared/scripts/move-plan-to-worktree.sh \
   "$ARGUMENTS" "$WT_PARENT_PATH")
 ```
 
@@ -632,7 +632,7 @@ mv "$PLAN_PATH" "$(dirname -- "$PLAN_PATH")/completed/"
 After archiving the plan, run:
 
 ```bash
-bash "~/.codex/plugins/ycc/shared/scripts/list-worktrees.sh" \
+bash ~/.codex/plugins/ycc/shared/scripts/list-worktrees.sh \
   "${WT_REPO_NAME}" "${WT_FEATURE_SLUG}"
 ```
 

@@ -50,7 +50,7 @@ Parse flags first, then treat the remainder as the task description:
 
 Strip flags from `$ARGUMENTS` and set `TEAM_FLAG=true|false`, `DRY_RUN=true|false`, `PLAN_ONLY=true|false`, `SEQUENTIAL=true|false`, `WORKTREE_MODE=true|false`. Join the remaining non-flag tokens into `TASK_DESCRIPTION`.
 
-**Feature slug derivation** (used when `WORKTREE_MODE=true`): sanitize `TASK_DESCRIPTION` to produce `FEATURE_SLUG` — lowercase, replace `[^a-z0-9-]` with `-`, collapse runs of `-`, trim leading/trailing `-`, truncate to 20 characters. Fall back to `untitled` if empty. This is the same sanitization used for team-name context in `agent-team-dispatch.md` §1.
+**Feature slug derivation**: after `TASK_DESCRIPTION` is set, always sanitize it to produce `FEATURE_SLUG` before any `WORKTREE_MODE` branching — lowercase, replace `[^a-z0-9-]` with `-`, collapse runs of `-`, trim leading/trailing `-`, truncate to 20 characters. Fall back to `untitled` if empty. This is the same sanitization used for team-name context in `agent-team-dispatch.md` §1.
 
 If no task description is provided after stripping flags, abort with usage instructions:
 
