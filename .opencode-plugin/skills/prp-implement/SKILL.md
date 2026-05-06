@@ -177,22 +177,11 @@ git status --porcelain
 Run the shared branch-prep helper **before any agent dispatch** so implementor agents inherit the right branch instead of `main`:
 
 ```bash
-FEATURE_BRANCH=$(bash "~/.config/opencode/shared/scripts/prepare-feature-branch.sh" \
+FEATURE_BRANCH=$(bash ~/.config/opencode/shared/scripts/prepare-feature-branch.sh \
   "${WT_FEATURE_SLUG}")
 ```
 
-The script enforces the matrix below, exits non-zero on failure, and echoes the prepared branch name on success. **Do not skip it** — narrative-only branch instructions are how the original `--no-worktree` bug allowed agents to commit to `main`.
-
-| Current State                                                  | Helper Behavior                                                                            |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| On `feat/<slug>`                                               | Idempotent no-op; echoes branch and exits 0                                                |
-| On main/master/trunk, clean or plan-only dirty, branch exists  | `git checkout feat/<slug>`; echoes branch                                                  |
-| On main/master/trunk, clean or plan-only dirty, branch missing | `git checkout -b feat/<slug>`; echoes branch                                               |
-| On another feature branch                                      | Exits 2 — re-run with `--allow-existing-feature-branch` after confirming with the user     |
-| On main with unrelated dirty files                             | Exits 1 — stop and ask user to stash or commit first                                       |
-| In a git worktree for this feature                             | Use the worktree (see `WORKTREE_ACTIVE` logic below); the helper still resolves the branch |
-
-If the helper exits 2, surface the message to the user, ask whether to reuse the current branch, and re-invoke with `--allow-existing-feature-branch` on confirmation. If it exits 1, stop and have the user clean the tree.
+The script exits non-zero on failure and echoes the prepared branch name on success. **Do not skip it** — narrative-only branch instructions are how the original `--no-worktree` bug allowed agents to commit to `main`. See `~/.config/opencode/shared/references/branch-prep.md` for the helper's behavior and exit-code contract.
 
 When `WORKTREE_ACTIVE=true`, run the helper first against the **main repo** (so `feat/<slug>` exists locally), then run the worktree setup step below — `setup-worktree.sh parent` will adopt the existing branch.
 

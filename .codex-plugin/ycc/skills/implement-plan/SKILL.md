@@ -223,7 +223,13 @@ Before creating a worktree or branch, inspect `GIT_STATUS`.
 
 ### Step 6.6: Prepare the execution tree
 
-When `WORKTREE_ACTIVE=true`, create the parent worktree **once** before Batch 1. The worktree owns `FEATURE_BRANCH`; do not check out that branch in the main checkout:
+Prepare the feature branch directly in the current checkout **before** any worktree setup or implementor-agent dispatch. The helper exits non-zero on failure and echoes the prepared branch name on success. **Do not skip it** — narrative-only branch instructions are how the original `--no-worktree` bug allowed agents to commit to `main`. See `~/.codex/plugins/ycc/shared/references/branch-prep.md` for the helper's behavior and exit-code contract.
+
+```bash
+FEATURE_BRANCH=$(bash ~/.codex/plugins/ycc/shared/scripts/prepare-feature-branch.sh "${WT_FEATURE_SLUG}")
+```
+
+When `WORKTREE_ACTIVE=true`, create the parent worktree **once** before Batch 1. The worktree adopts the prepared `FEATURE_BRANCH`:
 
 ```bash
 WT_PARENT_PATH=$(bash ~/.codex/plugins/ycc/shared/scripts/setup-worktree.sh parent "${WT_REPO_NAME}" "${WT_FEATURE_SLUG}")
@@ -237,23 +243,7 @@ Store the echoed path as `WT_PARENT_PATH` (overrides any deduced value).
 All agents in every batch — parallel and sequential — operate directly in this
 single feature worktree. No child worktrees are created.
 
-When `WORKTREE_ACTIVE=false` (`--no-worktree`), skip parent-worktree setup and prepare the feature branch directly in the current checkout. Run the shared helper **before dispatching any implementor agents** — without this step, agents inherit whatever branch the orchestrator started on (typically `main`) and commit there:
-
-```bash
-FEATURE_BRANCH=$(bash ~/.codex/plugins/ycc/shared/scripts/prepare-feature-branch.sh "${WT_FEATURE_SLUG}")
-```
-
-The script enforces the branch-decision matrix below, exits non-zero on failure, and echoes the prepared branch name on success. **Do not skip it** — narrative-only branch instructions are how the original `--no-worktree` bug allowed agents to commit to `main` (GitHub #TBD).
-
-| Current State                                                            | Helper Behavior                                                                        |
-| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| On `FEATURE_BRANCH`                                                      | Idempotent no-op; echoes `feat/<slug>` and exits 0                                     |
-| On main/master/trunk, clean or plan-only dirty, `FEATURE_BRANCH` exists  | `git checkout feat/<slug>`; echoes branch                                              |
-| On main/master/trunk, clean or plan-only dirty, `FEATURE_BRANCH` missing | `git checkout -b feat/<slug>`; echoes branch                                           |
-| On another feature branch                                                | Exits 2 — re-run with `--allow-existing-feature-branch` after confirming with the user |
-| On main with unrelated dirty files                                       | Exits 1 — ask user to stash or commit first                                            |
-
-If the helper exits 2, surface the message to the user, ask whether to reuse the current branch, and re-invoke with `--allow-existing-feature-branch` on confirmation. If it exits 1, stop and have the user clean the tree.
+When `WORKTREE_ACTIVE=false` (`--no-worktree`), skip parent-worktree setup.
 
 After this branch step, all agents in every batch operate in the current checkout. Include `Working directory: ${REPO_ROOT}` in each prompt when `--no-worktree` is active so dispatched agents target the prepared branch consistently.
 
