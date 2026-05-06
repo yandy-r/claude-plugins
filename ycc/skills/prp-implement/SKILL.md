@@ -37,6 +37,7 @@ allowed-tools:
   - Bash(go:*)
   - Bash(make:*)
   - Bash(curl:*)
+  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
 ---
 
 # PRP Implement
@@ -199,14 +200,27 @@ git status --porcelain
 
 ### Branch Decision
 
-| Current State                      | Action                                                    |
-| ---------------------------------- | --------------------------------------------------------- |
-| On feature branch                  | Use current branch                                        |
-| On main, clean working tree        | Create feature branch: `git checkout -b feat/{plan-name}` |
-| On main, dirty working tree        | **STOP** — Ask user to stash or commit first              |
-| In a git worktree for this feature | Use the worktree (see WORKTREE_ACTIVE logic below)        |
+Run the shared branch-prep helper **before any agent dispatch** so implementor agents inherit the right branch instead of `main`:
 
-When `WORKTREE_ACTIVE=true`, the branch decision above applies to the **main repo** (from which the parent worktree branches). After resolving the branch, also run the worktree setup step below.
+```bash
+FEATURE_BRANCH=$(bash "${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/prepare-feature-branch.sh" \
+  "${WT_FEATURE_SLUG}")
+```
+
+The script enforces the matrix below, exits non-zero on failure, and echoes the prepared branch name on success. **Do not skip it** — narrative-only branch instructions are how the original `--no-worktree` bug allowed agents to commit to `main`.
+
+| Current State                                                  | Helper Behavior                                                                            |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| On `feat/<slug>`                                               | Idempotent no-op; echoes branch and exits 0                                                |
+| On main/master/trunk, clean or plan-only dirty, branch exists  | `git checkout feat/<slug>`; echoes branch                                                  |
+| On main/master/trunk, clean or plan-only dirty, branch missing | `git checkout -b feat/<slug>`; echoes branch                                               |
+| On another feature branch                                      | Exits 2 — re-run with `--allow-existing-feature-branch` after confirming with the user     |
+| On main with unrelated dirty files                             | Exits 1 — stop and ask user to stash or commit first                                       |
+| In a git worktree for this feature                             | Use the worktree (see `WORKTREE_ACTIVE` logic below); the helper still resolves the branch |
+
+If the helper exits 2, surface the message to the user, ask whether to reuse the current branch, and re-invoke with `--allow-existing-feature-branch` on confirmation. If it exits 1, stop and have the user clean the tree.
+
+When `WORKTREE_ACTIVE=true`, run the helper first against the **main repo** (so `feat/<slug>` exists locally), then run the worktree setup step below — `setup-worktree.sh parent` will adopt the existing branch.
 
 ### Parent Worktree Setup (when `WORKTREE_ACTIVE=true`)
 

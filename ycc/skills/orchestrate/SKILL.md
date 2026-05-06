@@ -22,6 +22,7 @@ allowed-tools:
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/orchestrate/scripts/*.sh:*)'
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/setup-worktree.sh:*)'
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/list-worktrees.sh:*)'
+  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/prepare-feature-branch.sh:*)'
 ---
 
 # Multi-Agent Orchestration Skill
@@ -249,9 +250,17 @@ The decision follows a strict precedence order:
 
 `--worktree` is accepted as a silent no-op and matches the new default; it has no additional effect. Note: this skill does not auto-detect `## Worktree Setup` annotations from a plan (it creates its own decomposition), so the only opt-out is `--no-worktree`.
 
-Skip this phase entirely when `WORKTREE_MODE=false`.
+### When `WORKTREE_MODE=false` (`--no-worktree`)
 
-When `WORKTREE_MODE=true` and `DRY_RUN=false` and `PLAN_ONLY=false`:
+Skip parent worktree setup, but **always prepare the feature branch** before any agent dispatches. Without this, agents inherit whatever branch the orchestrator started on (typically `main`) and commit there:
+
+```bash
+FEATURE_BRANCH=$(bash ${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/prepare-feature-branch.sh "${FEATURE_SLUG}")
+```
+
+The script is idempotent on `feat/${FEATURE_SLUG}`, creates it from a trunk branch, exits 1 on unrelated dirty tree, and exits 2 on a different feature branch (re-run with `--allow-existing-feature-branch` after user confirmation). Skip both this call and the worktree setup below when `DRY_RUN=true` or `PLAN_ONLY=true`.
+
+### When `WORKTREE_MODE=true` and `DRY_RUN=false` and `PLAN_ONLY=false`
 
 Determine the repository name from the current directory (`basename $(git rev-parse --show-toplevel)`). Use the `FEATURE_SLUG` derived during flag parsing.
 
