@@ -31,6 +31,10 @@ Apply this contract to every teammate prompt in this file:
 
 You MUST write this file using the Write tool. This is your #1 job. Everything else is secondary.
 
+## DO NOT SKIP THE WRITE
+
+`analysis-context.md` is a REQUIRED PLANNING ARTIFACT, not implementation code or source code. The orchestrator gates on this file existing on disk via `persist-or-fail.sh` and will re-dispatch you if it is missing. You MUST call the Write tool to create the file at the path above. Do not ask for confirmation. Do not return findings as a Task result without writing. The path is fixed and provided — use it as-is.
+
 ---
 
 Synthesize and condense all planning documentation for the "{{FEATURE_NAME}}" feature into an
@@ -156,6 +160,10 @@ Be concise. Each bullet should be information-dense. Aim for 60-80% compression.
 
 You MUST write this file using the Write tool. This is your #1 job. Everything else is secondary.
 
+## DO NOT SKIP THE WRITE
+
+`analysis-code.md` is a REQUIRED PLANNING ARTIFACT, not implementation code or source code. The orchestrator gates on this file existing on disk via `persist-or-fail.sh` and will re-dispatch you if it is missing. You MUST call the Write tool to create the file at the path above. Do not ask for confirmation. Do not return findings as a Task result without writing. The path is fixed and provided — use it as-is.
+
 ---
 
 Analyze the critically relevant code files for implementing "{{FEATURE_NAME}}" and extract
@@ -227,6 +235,10 @@ Focus on patterns that inform implementation. Extract actual code patterns, not 
 **Output File**: {{FEATURE_DIR}}/analysis-tasks.md
 
 You MUST write this file using the Write tool. This is your #1 job. Everything else is secondary.
+
+## DO NOT SKIP THE WRITE
+
+`analysis-tasks.md` is a REQUIRED PLANNING ARTIFACT, not implementation code or source code. The orchestrator gates on this file existing on disk via `persist-or-fail.sh` and will re-dispatch you if it is missing. You MUST call the Write tool to create the file at the path above. Do not ask for confirmation. Do not return findings as a Task result without writing. The path is fixed and provided — use it as-is.
 
 ---
 
