@@ -101,6 +101,10 @@
       "description": "Unified planning workflow - research, analyze, and generate parallel implementation plans in one command. Combines shared-context and parallel-plan with checkpoint support. Default is standalone parallel sub-agents via the Task tool. Pass `--team` (Claude Code only) to orchestrate research, analysis, and validation stages as teammates under a shared TeamCreate/TaskList with coordinated shutdown."
     },
     {
+      "name": "pr-autofix",
+      "description": "Vendor-neutral PR comment auto-fix \u2014 discover every review thread, file-level review comment, and top-level PR comment from any author (bot or human), dispatch per-comment fix agents, resolve threads on success or reply-then-resolve on skip, and optionally enter the bounded CI auto-fix loop (--ci) to drive the PR to green. Sister skill to /ycc:review-fix (which consumes /ycc:code-review artifacts); this one consumes GitHub PR comments directly. Use when the user asks to \"auto-fix PR comments\", \"apply reviewer feedback\", \"fix the PR review\", \"vendor-neutral autofix\", or says \"/pr-autofix\"."
+    },
+    {
       "name": "prp-commit",
       "description": "Lightweight natural-language git commit helper. Interprets the argument as either a glob, a filter phrase (\"except tests\", \"only new files\"), a topic phrase (\"the auth changes\"), or leaves staging alone if the user says \"staged\". Stages the matching files and generates a conventional commit message. Use for quick single-purpose commits; use /ycc:git-workflow instead when you need documentation updates, parallel agents, or full PR orchestration. Adapted from PRPs-agentic-eng by Wirasm."
     },
@@ -281,6 +285,10 @@
     {
       "name": "plan-workflow",
       "description": "Unified planning workflow \u2014 research, analyze, and generate parallel implementation plans in one command. Combines shared-context and parallel-plan with checkpoint support. Defaults to standalone parallel sub-agents via the Task tool; pass --team (Claude Code only) to orchestrate research, analysis, and validation stages as teammates under a shared TeamCreate/TaskList with coordinated shutdown."
+    },
+    {
+      "name": "pr-autofix",
+      "description": "Vendor-neutral PR comment auto-fix \u2014 discover every review thread, file-level review comment, and top-level PR comment from any author, dispatch per-comment fix agents, resolve threads on success or reply-then-resolve on skip, and optionally drive the PR to green via the bounded CI auto-fix loop (--ci)."
     },
     {
       "name": "prp-commit",
@@ -489,6 +497,10 @@
       "description": "Software architect agent for designing implementation plans. Returns step-by-step plans with specific file paths, dependencies, risks, testing strategy, and success criteria. Waits for user confirmation."
     },
     {
+      "name": "pr-comment-fixer",
+      "description": "Implement the fix for a SINGLE GitHub PR review comment (or same-file group of comments) dispatched by ycc:pr-autofix. Applies the smallest safe change that addresses the reviewer's concern \u2014 scope-disciplined, never executes reviewer-provided shell commands, never modifies files outside the comment's anchored path."
+    },
+    {
       "name": "practices-researcher",
       "description": "Evaluate code quality, modularity, reuse, and KISS compliance. Discover existing reusable code, assess build-vs-depend decisions, and review code structure for engineering best practices."
     },
@@ -578,9 +590,9 @@
     }
   ],
   "counts": {
-    "skills": 46,
-    "commands": 45,
-    "agents": 52
+    "skills": 47,
+    "commands": 46,
+    "agents": 53
   },
   "parity": {
     "skills_without_commands": [

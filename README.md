@@ -8,7 +8,7 @@ A single Claude Code plugin (`ycc`) bundling workflow orchestration, parallel pl
 
 <!-- BEGIN:GENERATED-COUNTS -->
 
-The source plugin ships **46 skills**, **45 slash commands** (most skills have a matching command), and **52 agents**.
+The source plugin ships **47 skills**, **46 slash commands** (most skills have a matching command), and **53 agents**.
 
 <!-- END:GENERATED-COUNTS -->
 
@@ -40,6 +40,7 @@ The source plugin ships **46 skills**, **45 slash commands** (most skills have a
 | `/ycc:parallel-plan`       | Generate a detailed parallel implementation plan with task dependencies, file ownership, and batch ordering.                                                                            |
 | `/ycc:plan`                | Lightweight conversational planner.                                                                                                                                                     |
 | `/ycc:plan-workflow`       | Unified planning workflow — research, analyze, and generate parallel implementation plans in one command.                                                                               |
+| `/ycc:pr-autofix`          | Vendor-neutral PR comment auto-fix — discover every review thread, file-level review comment, and top-level PR comment from any author, dispatch per-comment fix agents, resolve thr... |
 | `/ycc:prp-commit`          | Quick natural-language git commit helper — describe what to commit in plain English (blob glob, filter phrase, or topic).                                                               |
 | `/ycc:prp-implement`       | Execute a PRP plan file with per-task validation loops.                                                                                                                                 |
 | `/ycc:prp-plan`            | Create a single-pass implementation plan from a feature description or PRD.                                                                                                             |
@@ -68,13 +69,13 @@ The source plugin ships **46 skills**, **45 slash commands** (most skills have a
 
 <!-- BEGIN:GENERATED-AGENTS -->
 
-The plugin bundles **52** specialized agents covering codebase analysis, language experts (Go, Rust, Python, TypeScript), reviewers, planners, documenters, and infrastructure architects.
+The plugin bundles **53** specialized agents covering codebase analysis, language experts (Go, Rust, Python, TypeScript), reviewers, planners, documenters, and infrastructure architects.
 
 <details>
-<summary>Full agent list (52 agents, grouped by role)</summary>
+<summary>Full agent list (53 agents, grouped by role)</summary>
 
 - **Language experts & implementors** (12): `frontend-ui-developer`, `go-api-architect`, `go-expert-architect`, `nextjs-ux-ui-expert`, `nodejs-backend-architect`, `nodejs-backend-developer`, `python-developer`, `python-expert-architect`, `rust-build-resolver`, `rust-expert-architect`, `typescript-developer`, `typescript-expert-architect`
-- **Code review & quality** (4): `code-reviewer`, `code-simplifier`, `review-fixer`, `rust-reviewer`
+- **Code review & quality** (5): `code-reviewer`, `code-simplifier`, `pr-comment-fixer`, `review-fixer`, `rust-reviewer`
 - **Research & discovery** (10): `code-explorer`, `code-finder`, `code-researcher`, `codebase-advisor`, `feature-researcher`, `library-docs-writer`, `practices-researcher`, `prp-researcher`, `research-specialist`, `root-cause-analyzer`
 - **Architecture & planning** (5): `architect`, `architecture-analyst`, `code-architect`, `planner`, `test-strategy-planner`
 - **Documentation** (7): `api-docs-expert`, `api-documenter`, `code-documenter`, `docs-git-committer`, `documentation-writer`, `feature-writer`, `readme-generator`
