@@ -11,7 +11,7 @@ Intelligent git commit and documentation workflow orchestration. Analyzes change
 
 **Managing git workflow for**: `$ARGUMENTS`
 
-Parse arguments. **At least one action flag is required**; if none are provided, follow the interactive prompt in Phase 0.5.
+Parse arguments. **At least one action flag is required** in normal use; if none are provided, follow the interactive prompt in Phase 0.5. The one exception is bare `--ci`, which is valid on its own and means "monitor CI on the existing PR for this branch."
 
 **Action flags** (cumulative ladder — `--pr` implies `--push` implies `--commit`):
 
@@ -24,13 +24,13 @@ Parse arguments. **At least one action flag is required**; if none are provided,
 - **--dry-run**: Show analysis and plan without making changes
 - **--no-docs**: Skip documentation updates (commits only)
 - **--draft**: Create PR as draft (requires `--pr`)
-- **--ci**: After PR creation, monitor CI and auto-fix until green or a bail condition. Requires `--pr`. Incompatible with `--dry-run`.
+- **--ci**: Monitor CI on the PR for the current branch and auto-fix until green or a bail condition. Works with `--pr` (create-then-monitor), `--push` (push-then-monitor existing PR), or bare (monitor only — no commit, no push). An open PR for the current branch must exist by the time Phase 6 starts. Incompatible with `--dry-run` and with `--commit`-only (since CI runs on remote commits).
 - **--ci-max-pushes=N**: Cap on auto-pushes per invocation (default 5).
 - **--ci-max-same-failure=N**: Bail if the same failure signature recurs N times (default 3).
 - **--ci-timeout-min=N**: Wall-clock cap from first iteration (default 30).
 - **--ci-yes**: Skip the one-time auth prompt (non-interactive).
 
-Flag order does not matter — only presence matters. If no action flag is provided, proceed to Phase 0.5 to resolve the action set interactively.
+Flag order does not matter — only presence matters. If no action flag is provided (and `--ci` is also absent), proceed to Phase 0.5 to resolve the action set interactively.
 
 ---
 
@@ -146,25 +146,27 @@ Before proceeding to Phase 1, determine which actions the user requested. The ac
 2. Apply implications (cumulative ladder):
    - If `pr ∈ actions`, add `push` and `commit`.
    - If `push ∈ actions`, add `commit`.
-3. If `actions` is empty after step 2 (no action flag was provided), present this menu and wait for the user's reply:
+3. If `actions` is empty after step 2:
+   - **If `--ci ∈ flags`**: leave `actions` empty and skip the interactive menu. Bare `--ci` is valid — it means "monitor CI on the existing PR for this branch; do not commit, push, or create a PR." Proceed to step 4.
+   - **Otherwise** (no action flag and no `--ci`): present this menu and wait for the user's reply:
 
-   ```
-   No action flag provided. What do you want to do?
+     ```
+     No action flag provided. What do you want to do?
 
-     1) Commit only
-     2) Commit and push
-     3) Commit, push, and create PR
+       1) Commit only
+       2) Commit and push
+       3) Commit, push, and create PR
 
-   Reply with 1, 2, or 3 (or pass --commit / --push / --pr next time).
-   ```
+     Reply with 1, 2, or 3 (or pass --commit / --push / --pr next time).
+     ```
 
-   Map the reply: `1 → {commit}`, `2 → {commit, push}`, `3 → {commit, push, pr}`. Reject other replies and re-prompt.
+     Map the reply: `1 → {commit}`, `2 → {commit, push}`, `3 → {commit, push, pr}`. Reject other replies and re-prompt.
 
 4. Validate flag combinations:
    - If `--draft` is present and `pr ∉ actions`, stop with the error: "`--draft` requires `--pr`. Re-run with `--pr --draft`, or omit `--draft`."
-   - If `--ci ∈ flags AND pr ∉ actions`, hard-stop with: `--ci requires --pr (CI monitoring runs only after a PR is opened). Re-run with --pr --ci, or omit --ci.`
+   - If `--ci ∈ flags AND actions == {commit}` (commit-only, no push), hard-stop with: `--ci requires --push or --pr (CI runs on the remote, so local-only commits can't be monitored). Pass --ci alone to skip commits and monitor an existing PR.`
    - If `--ci ∈ flags AND --dry-run ∈ flags`, hard-stop with: `--ci is incompatible with --dry-run; the loop performs real pushes.`
-5. Record the resolved action set; later phases gate on it.
+5. Record the resolved action set; later phases gate on it. **Bare `--ci`** (actions empty, `--ci ∈ flags`) is a valid recorded state: Phases 3, 4, and 5 all skip; only Phase 6 runs.
 
 **Note**: `--dry-run` is honored regardless of the resolved action set — it applies to whichever action(s) the user picked. `--no-docs` likewise applies regardless.
 
@@ -586,6 +588,35 @@ If `pr ∈ resolved action set`:
   - If using CLI fallback: `gh` must be installed and authenticated
 - Phase 0.5 guarantees `push` and `commit` are in the action set whenever `pr` is — this step assumes commits exist and the branch has been pushed in Step 12 or Step 21.
 
+### Step 22a: Detect Existing PR
+
+Before generating description or invoking `create-pr.sh`, check whether a PR already exists for the current branch:
+
+```bash
+EXISTING_PR=$(gh pr list --head "$CURRENT_BRANCH" --json number,url --jq '.[0]' 2>/dev/null || echo "")
+```
+
+When MCP tools are available, prefer `mcp__github__list_pull_requests` with `head=<branch>` over the `gh` CLI, per the Tool Preference Strategy.
+
+**If no existing PR is found**, proceed to Step 23 normally (full PR-creation path).
+
+**If an existing PR is found**:
+
+- **If `--ci ∈ flags`**: prompt the user:
+
+  ```
+  PR #<num> already exists for this branch (<url>).
+  Skip PR creation and run --ci against the existing PR? (yes/no):
+  ```
+
+  On `yes`: record `PR_NUMBER=<num>` and `PR_URL=<url>`, skip Steps 23-31 (do **not** call `create-pr.sh`), and fall through to Phase 6.
+
+  On `no`: exit cleanly with `PR already exists; --ci not run. Use 'gh pr view <num>' to inspect.` Do not proceed to Phase 6.
+
+- **If `--ci ∉ flags`**: stop with the existing "PR already exists" message — `PR already exists for this branch: #<num>. View: gh pr view <num>. Edit: gh pr edit <num>.` This preserves today's behavior for users who passed `--pr` and only wanted PR creation.
+
+`create-pr.sh` itself still detects an existing PR and exits 1 as a defensive fallback for any path that reaches it.
+
 ### Step 23: Load PR Template
 
 Read the PR template:
@@ -868,11 +899,23 @@ If repository has `.github/PULL_REQUEST_TEMPLATE.md`:
 
 ## Phase 6: CI Monitoring (Optional, `--ci` flag)
 
-**Trigger:** This phase runs ONLY when `--ci ∈ flags` AND Phase 5 successfully created a PR. Skip silently otherwise.
+**Trigger:** This phase runs ONLY when `--ci ∈ flags`. Skip silently otherwise. Phase 6 does not require Phase 5 to have run — bare `--ci` and `--push --ci` both reach this phase by design.
 
-### Step 32: Verify PR was actually created
+### Step 32: Discover PR for the current branch
 
-Confirm the PR number was captured in Phase 5. If not (Phase 5 was skipped or failed), hard-stop with: `--ci was passed but no PR was created; nothing to monitor.`
+If a `PR_NUMBER` was captured in Phase 5 (either newly created in Steps 23-30 or detected as existing in Step 22a), use it directly and skip ahead to Step 33.
+
+Otherwise (bare `--ci`, `--push --ci`, or any path where Phase 5 didn't run), look up the PR for the current branch:
+
+```bash
+PR_NUMBER=$(gh pr list --head "$CURRENT_BRANCH" --json number --jq '.[0].number' 2>/dev/null || echo "")
+PR_URL=$(gh pr list --head "$CURRENT_BRANCH" --json url --jq '.[0].url' 2>/dev/null || echo "")
+```
+
+When MCP tools are available, prefer `mcp__github__list_pull_requests` with `head=<branch>` over the `gh` CLI, per the Tool Preference Strategy.
+
+- If `PR_NUMBER` is empty: hard-stop with `--ci was passed but no open PR exists for branch '<branch>'. Re-run with --pr to create one, or open a PR manually first.`
+- Otherwise: record `PR_NUMBER` and `PR_URL`, then proceed to Step 33.
 
 ### Step 33: Load policy reference
 
@@ -1190,6 +1233,44 @@ docs(api): update authentication endpoint examples
 # User replies: 2
 # Resolved action set: {commit, push}
 # Workflow proceeds: analyze → commit → push → summary
+```
+
+### Example 8: CI Monitoring on an Existing PR
+
+**Scenario A**: PR is already open; add a commit and watch CI
+
+```bash
+/git-workflow --push --ci
+
+# Workflow:
+# 1. Commits and pushes new work to the PR branch
+# 2. Phase 5 is skipped (pr ∉ actions)
+# 3. Phase 6 discovers the existing PR via `gh pr list --head <branch>`
+# 4. Auth prompt, then bounded auto-fix loop
+```
+
+**Scenario B**: Nothing new to push; just monitor the existing PR
+
+```bash
+/git-workflow --ci
+
+# Bare --ci is valid. Workflow:
+# 1. Phases 3, 4, 5 all skip (actions is empty)
+# 2. Phase 6 discovers the existing PR for the current branch
+# 3. Monitor + auto-fix loop runs against whatever commits are already pushed
+```
+
+**Scenario C**: PR already exists and you passed `--pr --ci` by habit
+
+```bash
+/git-workflow --pr --ci
+
+# Workflow:
+# 1. Commits and pushes
+# 2. Step 22a detects the existing PR and prompts:
+#    "PR #N already exists. Skip PR creation and run --ci against it? (yes/no)"
+# 3. On yes: skip create-pr.sh, proceed to Phase 6 on PR #N
+# 4. On no: exit cleanly, no CI monitoring
 ```
 
 ---
