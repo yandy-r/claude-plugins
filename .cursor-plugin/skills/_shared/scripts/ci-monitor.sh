@@ -193,16 +193,39 @@ pr_state() {
 # ---------------------------------------------------------------------------
 # Wait for checks to register (handles "no checks yet" race)
 # ---------------------------------------------------------------------------
+#
+# Two-strategy probe — older `gh` versions don't expose `--json` on `pr checks`
+# (the flag was added in gh 2.30), and even on newer versions the JSON output
+# of `gh pr checks --json name,status` can return [] while plain
+# `gh pr checks` returns rows. Both paths are checked so a green PR is never
+# misread as "no checks registered".
+
+has_pr_checks() {
+  local pr="$1"
+  local n
+
+  # Strategy 1: gh pr view --json statusCheckRollup — authoritative; same field
+  # GitHub uses to compute the PR's overall status.
+  n="$(gh pr view "$pr" --json statusCheckRollup --jq '.statusCheckRollup | length' 2>/dev/null)"
+  if [[ -n "$n" && "$n" =~ ^[0-9]+$ && "$n" -gt 0 ]]; then
+    return 0
+  fi
+
+  # Strategy 2: plain `gh pr checks` text output (one row per check). Works on
+  # all supported gh versions and survives shape changes in --json.
+  if gh pr checks "$pr" 2>/dev/null | grep -qE '^[^[:space:]]'; then
+    return 0
+  fi
+
+  return 1
+}
 
 wait_for_checks() {
   local pr="$1"
   local backoffs=(1 2 4 8 16 30 30 30)
-  local check_count=0
 
   for delay in "${backoffs[@]}"; do
-    check_count="$(gh pr checks "$pr" --json name,status 2>/dev/null | grep -c '"name"' 2>/dev/null || true)"
-    check_count="${check_count:-0}"
-    if [[ "$check_count" -gt 0 ]]; then
+    if has_pr_checks "$pr"; then
       return 0
     fi
     printf 'ci-monitor.sh: No CI checks registered yet; waiting %ss...\n' "$delay" >&2
@@ -210,13 +233,7 @@ wait_for_checks() {
   done
 
   # Final check after all backoffs
-  check_count="$(gh pr checks "$pr" --json name,status 2>/dev/null | grep -c '"name"' 2>/dev/null || true)"
-  check_count="${check_count:-0}"
-  if [[ "$check_count" -gt 0 ]]; then
-    return 0
-  fi
-
-  return 1
+  has_pr_checks "$pr"
 }
 
 # ---------------------------------------------------------------------------
