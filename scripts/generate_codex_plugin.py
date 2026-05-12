@@ -54,7 +54,7 @@ def build_plugin_manifest() -> dict:
             ),
             "developerName": author.get("name", "yandy-r"),
             "category": "Productivity",
-            "capabilities": ["Read", "Write"],
+            "capabilities": ["Interactive", "Read", "Write"],
             "websiteURL": REPOSITORY_URL,
             "defaultPrompt": [
                 "Use YCC to plan a medium-sized feature before implementation.",
@@ -77,7 +77,7 @@ def build_repo_marketplace() -> dict:
                 "name": "ycc",
                 "source": {
                     "source": "local",
-                    "path": "./.codex-plugin/ycc",
+                    "path": "./plugins/ycc",
                 },
                 "policy": {
                     "installation": "AVAILABLE",

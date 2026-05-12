@@ -14,6 +14,9 @@ The default `base` step generates and validates the Codex bundle, links the
 plugin tree into `~/.codex/plugins/ycc/`, syncs custom agents into
 `~/.codex/agents/`, and registers the bundle in
 `~/.agents/plugins/marketplace.json`.
+It also refreshes the enabled-plugin cache copy at
+`~/.codex/plugins/cache/local-ycc-plugins/ycc`, which is required after clearing
+the Codex plugin cache.
 
 Restart Codex after the install. Open `/plugins` and install `ycc` from the
 registered marketplace if it is not already installed.
@@ -28,11 +31,11 @@ For the full local Codex setup:
 
 Step behavior:
 
-| Step       | Effect                                                                                                                                                                               |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `base`     | Generates and validates the Codex bundle, links `~/.codex/plugins/ycc/` to `.codex-plugin/ycc/`, syncs `.codex-plugin/agents/` to `~/.codex/agents/`, and registers the marketplace. |
-| `settings` | Copies `.codex-plugin/config/config.toml` into `~/.codex/config.toml`.                                                                                                               |
-| `rules`    | Symlinks `.codex-plugin/config/default.rules`, `CLAUDE.md`, and `AGENTS.md` into `~/.codex/`.                                                                                        |
+| Step       | Effect                                                                                                                                                                                                                                                                                                                                       |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `base`     | Generates and validates the Codex bundle, links `~/.codex/plugins/ycc/` and `~/.agents/plugins/ycc` to `.codex-plugin/ycc/`, refreshes the `~/.codex/plugins/cache/local-ycc-plugins/ycc` plugin-root copy, syncs `.codex-plugin/agents/` to `~/.codex/agents/`, and registers the marketplace with the relative local path `./plugins/ycc`. |
+| `settings` | Copies `.codex-plugin/config/config.toml` into `~/.codex/config.toml`.                                                                                                                                                                                                                                                                       |
+| `rules`    | Symlinks `.codex-plugin/config/default.rules`, `CLAUDE.md`, and `AGENTS.md` into `~/.codex/`.                                                                                                                                                                                                                                                |
 
 `--settings` copies config so model, trusted-project, and token edits remain
 local. `--rules` symlinks rules so rule edits stay shared across runtimes.
@@ -49,7 +52,15 @@ In local mode, the installer symlinks:
 
 ```text
 ~/.codex/plugins/ycc/ -> <repo>/.codex-plugin/ycc/
+~/.agents/plugins/ycc -> <repo>/.codex-plugin/ycc/
 ```
+
+It also refreshes `~/.codex/plugins/cache/local-ycc-plugins/ycc` as a real copy
+of the generated bundle, because Codex treats that cache root as the installed
+plugin record. The cache copy includes a compatibility manifest under
+`skills/.codex-plugin/plugin.json` plus a `skills/_skills/` symlink index for
+Codex versions that resolve the plugin root through the manifest's `skills`
+path.
 
 After editing source files under `ycc/`, regenerate the Codex bundle before
 reloading Codex:
@@ -87,17 +98,26 @@ rm -rf ~/.codex/plugins/ycc
 ./install.sh --target codex --only base
 ```
 
+If you clear `~/.codex/plugins/cache/`, rerun the base step to refresh the
+`local-ycc-plugins/ycc` cache root:
+
+```bash
+./install.sh --target codex --only base
+```
+
 ## Codex Desktop
 
 Codex Desktop uses the same installed plugin and custom-agent locations when it
 reads the standard Codex config directories:
 
-| Surface       | Location                             |
-| ------------- | ------------------------------------ |
-| Plugin tree   | `~/.codex/plugins/ycc/`              |
-| Custom agents | `~/.codex/agents/`                   |
-| Config        | `~/.codex/config.toml`               |
-| Marketplace   | `~/.agents/plugins/marketplace.json` |
+| Surface            | Location                                       |
+| ------------------ | ---------------------------------------------- |
+| Plugin tree        | `~/.codex/plugins/ycc/`                        |
+| Marketplace source | `~/.agents/plugins/ycc`                        |
+| Enabled cache      | `~/.codex/plugins/cache/local-ycc-plugins/ycc` |
+| Custom agents      | `~/.codex/agents/`                             |
+| Config             | `~/.codex/config.toml`                         |
+| Marketplace        | `~/.agents/plugins/marketplace.json`           |
 
 Recommended desktop install:
 

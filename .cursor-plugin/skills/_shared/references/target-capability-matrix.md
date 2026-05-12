@@ -104,11 +104,15 @@ Generated bundle lives at `.cursor-plugin/`; consumed by Cursor from the repo ro
 
 **INSTALL_PATH:codex**
 `install.sh --target codex` symlinks `~/.codex/plugins/ycc/` to the repo's
-`.codex-plugin/ycc/`, rsyncs custom agents to `~/.codex/agents/`, and registers
-the absolute repo path as a local marketplace source in
+`.codex-plugin/ycc/`, also symlinks `~/.agents/plugins/ycc` to the same bundle,
+refreshes the `~/.codex/plugins/cache/local-ycc-plugins/ycc` plugin-root copy,
+adds a cache-only compatibility manifest at `skills/.codex-plugin/plugin.json`
+with a `skills/_skills/` symlink index, rsyncs custom agents to
+`~/.codex/agents/`, and registers `./plugins/ycc` as the local marketplace
+source in
 `~/.agents/plugins/marketplace.json`. Edits are live after regenerating the
-bundle via `./scripts/sync.sh --only codex`; no further `install.sh` run is
-needed.
+bundle via `./scripts/sync.sh --only codex`; rerun the base install step after
+clearing `~/.codex/plugins/cache/`.
 
 **INSTALL_PATH:opencode**
 Generated bundle lives at `.opencode-plugin/` (skills, agents, commands, AGENTS.md,

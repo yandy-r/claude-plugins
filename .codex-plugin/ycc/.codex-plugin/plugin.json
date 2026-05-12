@@ -23,6 +23,7 @@
     "developerName": "yandy-r",
     "category": "Productivity",
     "capabilities": [
+      "Interactive",
       "Read",
       "Write"
     ],

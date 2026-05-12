@@ -8,7 +8,7 @@
       "name": "ycc",
       "source": {
         "source": "local",
-        "path": "./.codex-plugin/ycc"
+        "path": "./plugins/ycc"
       },
       "policy": {
         "installation": "AVAILABLE",
