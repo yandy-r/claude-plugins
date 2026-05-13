@@ -146,16 +146,23 @@ EOF
 )
 fi
 
-BODY=$(cat <<EOF
+body_header=$(cat <<EOF
 ## PR Autofix Summary
 
 Applied **${FIXED}** fix(es), encountered **${FAILED}** failure(s), skipped **${SKIPPED}** comment(s), deferred **${DEFERRED}** comment(s).
 
 **Branch**: \`${BRANCH}\`
 **Latest commit**: \`${COMMIT_SHA}\`${ci_section}
+EOF
+)
+
+# Static footer uses a quoted heredoc so the skill marker on the final line
+# stays literal across every bundle target. Without the quote, the Codex bundle
+# (which renders skill references as $skill-name) would crash under set -u.
+body_footer=$(cat <<'EOF'
 
 Thread state:
-  - Threads resolved on Fixed: yes (unless \`--no-resolve\` was set on the run)
+  - Threads resolved on Fixed: yes (unless `--no-resolve` was set on the run)
   - Threads with Failed fixes left open with a reply explaining the blocker
   - Skipped threads replied-then-resolved with the user's reason
 
@@ -164,6 +171,9 @@ This summary was built from local run state only — reviewer prompts and sugges
 — posted by /ycc:pr-autofix
 EOF
 )
+
+BODY="${body_header}
+${body_footer}"
 
 # ---------------------------------------------------------------------------
 # Post (or dry-run)
