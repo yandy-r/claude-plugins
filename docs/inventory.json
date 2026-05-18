@@ -332,7 +332,7 @@
     },
     {
       "name": "releaser",
-      "description": "Prepare and cut a GitHub release for any project \u2014 detects toolchain, drafts changelog, plans platform/arch artifacts, optionally generates or audits release CI. Emits commands; never auto-publishes. External-project counterpart to /ycc:bundle-release."
+      "description": "Prepare and cut a GitHub release for any project \u2014 detects toolchain, drafts changelog, plans platform/arch artifacts, optionally generates or audits release CI, and optionally invokes the publish helper. Emits commands; never auto-publishes without explicit --publish and --confirm. External-project counterpart to /ycc:bundle-release."
     },
     {
       "name": "research-to-issues",
