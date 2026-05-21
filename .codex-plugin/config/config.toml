@@ -1,6 +1,6 @@
 personality = "pragmatic"
 model = "gpt-5.5"
-model_reasoning_effort = "high"
+model_reasoning_effort = "medium"
 model_context_window = 1000000
 model_auto_compact_token_limit = 900000
 plan_mode_reasoning_effort = "xhigh"
@@ -127,7 +127,12 @@ approval_mode = "approve"
 "gpt-5.1-codex-max" = "gpt-5.3-codex"
 
 [tui]
-status_line = ["model-with-reasoning", "context-remaining", "current-dir", "git-branch"]
+status_line = [
+  "model-with-reasoning",
+  "context-remaining",
+  "current-dir",
+  "git-branch",
+]
 
 [features]
 shell_snapshot = true
