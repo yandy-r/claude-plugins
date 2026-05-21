@@ -29,6 +29,15 @@ IFS=$'\n\t'
 VERSION="1.0.0"
 
 # ---------------------------------------------------------------------------
+# Shared classifier (sourced)
+# ---------------------------------------------------------------------------
+# classify_failure, compute_signature, and is_fixable_category live in the
+# shared lib so the PR-mode and release-mode monitors agree on the law.
+
+# shellcheck source=lib/ci-classify.sh
+. "$(dirname "$0")/lib/ci-classify.sh"
+
+# ---------------------------------------------------------------------------
 # Usage
 # ---------------------------------------------------------------------------
 
@@ -237,67 +246,10 @@ wait_for_checks() {
 }
 
 # ---------------------------------------------------------------------------
-# Classify failure from log content
+# Failure classification and signature
 # ---------------------------------------------------------------------------
-
-classify_failure() {
-  local log_content="$1"
-
-  # Fixable categories (pattern-matched in priority order)
-  if printf '%s\n' "$log_content" | grep -qiE '(eslint|pylint|ruff|flake8|rubocop|golangci|lint(ing)?[: ]|linter (error|fail)|SC[0-9]{4})'; then
-    printf 'lint'
-    return
-  fi
-  if printf '%s\n' "$log_content" | grep -qiE '(prettier|black|gofmt|rustfmt|format(ting)?[: ]|autoformat|code style)'; then
-    printf 'format'
-    return
-  fi
-  if printf '%s\n' "$log_content" | grep -qiE '(tsc|mypy|pyright|type.check|type error|TypeScript error|type-check|typecheck)'; then
-    printf 'type-check'
-    return
-  fi
-  if printf '%s\n' "$log_content" | grep -qiE '(jest|pytest|cargo test|go test|rspec|mocha|vitest|unit.test|test (fail|error)|FAIL.*\.test\.)'; then
-    printf 'unit-test'
-    return
-  fi
-  if printf '%s\n' "$log_content" | grep -qiE '(npm (run )?build|cargo build|go build|webpack|vite build|next build|build (fail|error)|compilation failed)'; then
-    printf 'build'
-    return
-  fi
-
-  # Non-fixable categories
-  if printf '%s\n' "$log_content" | grep -qiE '(integration.test|e2e|end.to.end|cypress|playwright)'; then
-    printf 'integration-test'
-    return
-  fi
-  if printf '%s\n' "$log_content" | grep -qiE '(terraform|ansible|kubernetes|k8s|helm|infra(structure)?|deploy(ment)?|provisioning)'; then
-    printf 'infra'
-    return
-  fi
-  if printf '%s\n' "$log_content" | grep -qiE '(secret (not found|missing|undefined)|API.?key (not|missing)|token (not found|missing|expired)|credentials missing|env.*not set)'; then
-    printf 'secret-missing'
-    return
-  fi
-  if printf '%s\n' "$log_content" | grep -qiE '(flake|intermittent|timeout|rate.limit|network error|connection refused|socket hang|ECONNRESET|ETIMEDOUT)'; then
-    printf 'flake-suspected'
-    return
-  fi
-
-  printf 'unknown'
-}
-
-# ---------------------------------------------------------------------------
-# Compute failure signature
-# ---------------------------------------------------------------------------
-
-compute_signature() {
-  local workflow_name="$1"
-  local step_name="$2"
-  # Normalize step name: lowercase, strip whitespace runs
-  local normalized
-  normalized="$(printf '%s' "$step_name" | tr '[:upper:]' '[:lower:]' | tr -s ' \t' ' ' | sed 's/^ //;s/ $//')"
-  printf '%s|%s' "$workflow_name" "$normalized" | sha256sum | cut -c1-16
-}
+# classify_failure() and compute_signature() are sourced from lib/ci-classify.sh
+# above so PR-mode and release-mode monitors stay aligned on the failure law.
 
 # ---------------------------------------------------------------------------
 # Extract first failing step name from gh run log output

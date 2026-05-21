@@ -86,6 +86,7 @@ AGENT_CATEGORIES: list[tuple[str, list[str]]] = [
             "code-reviewer",
             "code-simplifier",
             "pr-comment-fixer",
+            "release-fix-applier",
             "review-fixer",
             "rust-reviewer",
         ],

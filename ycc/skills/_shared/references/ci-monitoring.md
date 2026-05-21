@@ -1,12 +1,24 @@
 # CI Monitoring Reference
 
-Consumed by `ycc:git-workflow` (Phase 6) and `ycc:prp-pr` (Phase 7) when the
-`--ci` flag is passed. This document defines the policy, caps, failure
-classification, termination signals, audit schema, and loop protocol that both
-skills implement. The execution logic lives in
-`${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/ci-monitor.sh`. This document and
-that script are the single source of truth — both skills consume them and must
-not diverge from either.
+Consumed by `ycc:git-workflow` (Phase 6), `ycc:prp-pr` (Phase 7), `ycc:pr-autofix`
+(Phase 7), and `ycc:releaser` (Phase 8.5) when the `--ci` flag is passed. This
+document defines the policy, caps, failure classification, termination signals,
+audit schema, and loop protocol that all four skills implement.
+
+Two execution scripts share the same contract:
+
+- **PR mode** — `${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/ci-monitor.sh`
+  watches checks on a PR head branch (used by `git-workflow`, `prp-pr`,
+  `pr-autofix`).
+- **Release mode** — `${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/release-ci-monitor.sh`
+  watches the release-event workflow run for a published tag (used by
+  `releaser` Phase 8.5). See the "Release mode" section below for the
+  mode-specific contract.
+
+Failure classification and signature computation are shared between both
+scripts via `${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/lib/ci-classify.sh`.
+This document and the scripts are the single source of truth — every consumer
+must not diverge from either.
 
 ---
 
@@ -283,9 +295,99 @@ auto-fixing is not converging.
 
 ---
 
+## Release Mode
+
+Used by `ycc:releaser` Phase 8.5 (`--ci`) **only** after a successful
+`--publish --confirm` has actually created/edited the release on GitHub. The
+loop watches the release-event workflow run for the published tag, not a PR.
+
+### Differences from PR mode
+
+| Aspect                 | PR mode (`ci-monitor.sh`)             | Release mode (`release-ci-monitor.sh`)                                                                                             |
+| ---------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Resource watched       | `gh pr checks <pr>` on PR head branch | `gh run list --event=release --workflow <name>` filtered to tag, or `refs/tags/<tag>`                                              |
+| Required args          | `--pr`, `--branch`, `--base`          | `--tag`                                                                                                                            |
+| Auto-detected args     | (none)                                | `--workflow` from `.github/workflows/*release*.yml`; `--repo` from `gh repo view`                                                  |
+| Re-cut on `handoff`    | `git push` to PR head branch          | `gh workflow run <name> --ref <tag>` (preferred) or destructive `gh release delete` (opt-in)                                       |
+| Default-branch refusal | Refuses if head == default branch     | N/A (release runs are not branch-scoped); but loop still refuses to push fixes to default branch when branch protection forbids it |
+| Audit log key field    | `"pr": <number>`                      | `"tag": "<vX.Y.Z>"`                                                                                                                |
+| Audit log path         | `~/.claude/session-data/ci-watch/`    | `~/.claude/session-data/release-ci-watch/`                                                                                         |
+| Fix-agent type         | `ycc:pr-comment-fixer`                | `ycc:release-fix-applier`                                                                                                          |
+
+All other contract surfaces — exit codes, `RESULT=` values, classification
+categories, signature computation, recurrence/timeout/push caps, JSONL schema
+columns (other than the `pr` vs `tag` key) — are identical.
+
+### Re-cut strategy on `handoff`
+
+The release-mode loop cannot simply `git push` and wait — a release workflow
+run is bound to a tag, not a branch. After committing the fix, the loop must
+re-trigger the workflow. Two paths exist:
+
+1. **Preferred: `workflow_dispatch`.** The release workflow has
+   `on: workflow_dispatch:` in addition to `on: release:` or `on: push: tags:`.
+   The loop calls:
+
+   ```
+   gh workflow run <name> --ref <tag>
+   ```
+
+   Non-destructive; the existing release remains intact while a new workflow
+   run executes.
+
+2. **Fallback: destructive re-cut (requires `--ci-recut=destructive`).** The
+   release workflow has no dispatch trigger. The loop:
+
+   ```
+   gh release delete <tag> --cleanup-tag --yes
+   ${CLAUDE_PLUGIN_ROOT}/skills/releaser/scripts/publish-release.sh \
+     <tag> <notes-path> --mode=create --confirm
+   ```
+
+   The release and tag are deleted, the fix commit is pushed, and the release
+   is re-created — which re-triggers the release event. Destructive; deletes
+   the previously published release notes. **Never** taken without
+   `--ci-recut=destructive` explicitly set by the user.
+
+`ycc:releaser` Phase 8.5.0 inspects the workflow's `on:` block and refuses to
+enter the loop if neither path is available.
+
+### Release-mode safety constraints (additional to PR-mode)
+
+- **Never edit release artifacts**: `CHANGELOG.md`, files under `docs/releases/`,
+  and version manifests (`package.json` version field, `pyproject.toml` version,
+  `Cargo.toml` version) are immutable for the lifetime of the loop. The fix
+  agent (`ycc:release-fix-applier`) refuses these paths.
+- **Never edit `.github/workflows/*.yml`** unless the failed step is itself a
+  workflow-file syntax error.
+- **Branch-protection check before push**: before committing on `main` (or
+  whatever branch the loop is running on), call
+  `gh api repos/<owner>/<name>/branches/<branch>/protection`. If
+  `required_pull_request_reviews` is set, exit with `loop-blocked` and surface
+  a PR-based remediation instead of force-pushing or bypassing protection.
+
+### Release-mode handoff output (extra fields)
+
+`release-ci-monitor.sh` emits the same fields as `ci-monitor.sh` on a handoff
+(`RUN_ID`, `WORKFLOW`, `JOB`, `CATEGORY`, `SIGNATURE`, `LOG_EXCERPT_FILE`,
+`SUGGESTED_COMMIT_TYPE`, `SUGGESTED_COMMIT_SCOPE`), plus:
+
+- `WORKFLOW_FILE` — basename of the resolved workflow file (e.g. `release.yml`),
+  used by the re-cut step.
+- `STEP` — normalized first-failing step name. Useful for the fix agent's
+  reasoning about which file is implicated.
+- `TAG` — the released tag (mirrors the `--tag` input for convenience).
+- `REPO` — `owner/name` resolved at startup.
+
+---
+
 ## References
 
-- `${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/ci-monitor.sh` — loop execution script
-- `${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/SKILL.md` — Phase 6 (CI monitoring loop)
-- `${CLAUDE_PLUGIN_ROOT}/skills/prp-pr/SKILL.md` — Phase 7 (CI monitoring loop)
+- `${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/ci-monitor.sh` — PR-mode execution script
+- `${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/release-ci-monitor.sh` — release-mode execution script
+- `${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/lib/ci-classify.sh` — shared failure classification + signature lib
+- `${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/SKILL.md` — Phase 6 (PR CI monitoring loop)
+- `${CLAUDE_PLUGIN_ROOT}/skills/prp-pr/SKILL.md` — Phase 7 (PR CI monitoring loop)
+- `${CLAUDE_PLUGIN_ROOT}/skills/pr-autofix/SKILL.md` — Phase 7 (PR CI monitoring loop)
+- `${CLAUDE_PLUGIN_ROOT}/skills/releaser/SKILL.md` — Phase 8.5 (release CI monitoring loop)
 - `${CLAUDE_PLUGIN_ROOT}/skills/git-workflow/scripts/validate-commit.sh` — commit message validator

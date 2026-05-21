@@ -1,8 +1,8 @@
 # CI Release-Pipeline Optimization Checklist
 
-Audit criteria used by the `releaser` agent in `--ci=audit` mode, and the default
-quality gate that generated workflows must meet in `--ci=generate` mode. Each item is
-categorized by severity.
+Audit criteria used by the `releaser` agent in `--ci-config=audit` mode, and the
+default quality gate that generated workflows must meet in `--ci-config=generate`
+mode. Each item is categorized by severity.
 
 Findings emitted by the audit agent use this format:
 
@@ -18,12 +18,12 @@ Findings emitted by the audit agent use this format:
 
 ## 1. Triggering
 
-| Check                                                                     | Severity |
-| ------------------------------------------------------------------------- | -------- |
-| Workflow triggers on `push: tags: ['v*']` or an equivalent explicit event | high     |
-| Does NOT trigger on every push to `main` (runs only on tag/release)       | high     |
-| `workflow_dispatch` is included for manual re-runs                        | medium   |
-| Concurrency group set (prevents duplicate releases racing)                | medium   |
+| Check                                                                                                                                                                         | Severity |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| Workflow triggers on `push: tags: ['v*']` or an equivalent explicit event                                                                                                     | high     |
+| Does NOT trigger on every push to `main` (runs only on tag/release)                                                                                                           | high     |
+| `workflow_dispatch` is included for manual re-runs (REQUIRED if the project uses `/releaser --ci` non-destructively; the auto-fix loop re-triggers via `gh workflow run`) | high     |
+| Concurrency group set (prevents duplicate releases racing)                                                                                                                    | medium   |
 
 ## 2. Permissions (Supply-Chain Hardening)
 
@@ -105,7 +105,7 @@ Findings emitted by the audit agent use this format:
 
 ## Generator Quality Gate
 
-When `--ci=generate` writes a new workflow, it MUST satisfy:
+When `--ci-config=generate` writes a new workflow, it MUST satisfy:
 
 - Every **critical** item above.
 - Every **high** item above.
@@ -114,4 +114,21 @@ When `--ci=generate` writes a new workflow, it MUST satisfy:
 
 Medium/low items are opportunistically included but not required for the initial
 scaffold. They appear as inline `# TODO(releaser):` comments in the generated YAML so
-a later `--ci=audit` run can surface them explicitly.
+a later `--ci-config=audit` run can surface them explicitly.
+
+---
+
+## Compatibility with `--ci` (Phase 8.5 auto-fix loop)
+
+The release-CI auto-fix loop driven by `/releaser --ci` needs a way to
+re-trigger the workflow after a fix commit lands. The non-destructive path is
+`gh workflow run <name> --ref <tag>`, which requires the workflow to declare
+`workflow_dispatch:` under `on:`. The audit agent flags this as **high** when
+missing.
+
+If a project chooses NOT to add `workflow_dispatch:` (acceptable in some
+security postures), the user must invoke the auto-fix loop with
+`--ci-recut=destructive`, which falls back to
+`gh release delete <tag> --cleanup-tag --yes` followed by a re-publish. This
+deletes the previously published release; the project should weigh that
+tradeoff.

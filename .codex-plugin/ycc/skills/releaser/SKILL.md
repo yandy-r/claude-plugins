@@ -34,11 +34,13 @@ Parse `$ARGUMENTS`:
   Overrides language defaults.
 - **--os=\<list\>** — comma-separated target operating systems (e.g. `linux,darwin,windows`).
   Overrides language defaults.
-- **--ci** / **--ci=generate** — scaffold a GitHub Actions release workflow under
-  `.github/workflows/release.yml`. Fails if one already exists unless `--ci=audit` is
-  also requested.
-- **--ci=audit** — invoke the `releaser` agent to read the existing release
-  workflow(s) and emit an optimization report. Read-only.
+- **--ci-config** / **--ci-config=generate** — scaffold a GitHub Actions release
+  workflow under `.github/workflows/release.yml`. Fails if one already exists unless
+  `--ci-config=audit` is also requested. (Renamed from `--ci` so the bare `--ci` flag
+  matches the auto-fix-loop family used by `git-workflow`, `prp-pr`, and
+  `pr-autofix`.)
+- **--ci-config=audit** — invoke the `releaser` agent to read the existing
+  release workflow(s) and emit an optimization report. Read-only.
 - **--platform=\<name\>** — explicit toolchain override (`node`, `python`, `go`, `rust`,
   `docker`, `generic`). Skips auto-detection. Useful for monorepos.
 - **--skip-notes** — skip drafting `CHANGELOG` updates and release notes.
@@ -52,6 +54,23 @@ Parse `$ARGUMENTS`:
   intentionally replace an existing release body — this is destructive.
 - **--confirm** — when combined with `--publish`, re-runs the helper with `--confirm` to
   actually execute the `gh` command. The skill NEVER passes `--confirm` automatically.
+- **--ci** — after a successful `--publish --confirm`, enter the bounded **Release CI
+  auto-fix loop** (Phase 8.5): poll the release-event workflow run, classify failures,
+  dispatch a fix agent on implicated files, commit + push, re-cut the release, and
+  loop until green or a bail cap fires. No-op (with warning) if `--publish --confirm`
+  did not succeed in this run. Shares contract with `ci-monitor.sh` / sibling skills.
+- **--ci-max-pushes=N** — hard cap on autonomous fix-and-recut iterations per
+  invocation. Default `5`. Forwarded to `release-ci-monitor.sh`.
+- **--ci-max-same-failure=N** — bail after the same failure signature recurs N
+  times. Default `3`. Forwarded to `release-ci-monitor.sh`.
+- **--ci-timeout-min=N** — wall-clock cap in minutes from the first iteration.
+  Default `30`. Forwarded to `release-ci-monitor.sh`.
+- **--ci-yes** — skip the one-time Phase 8.5 authorization prompt. Use only for
+  non-interactive callers; safety caps remain enforced.
+- **--ci-recut=destructive** — opt in to the destructive re-cut fallback when the
+  detected release workflow has no `workflow_dispatch` trigger. Without this flag,
+  the loop refuses to enter when the only available re-cut path is
+  `gh release delete --cleanup-tag` followed by re-publish.
 
 ## Phase 0: Preflight
 
@@ -60,8 +79,10 @@ Before anything else, verify:
 1. Working directory is a git repo: `git rev-parse --show-toplevel` succeeds.
 2. Working tree is clean: `git status --porcelain` is empty. If dirty, STOP and ask
    whether to stash or abort — never silently move forward with uncommitted changes.
-3. `gh` is installed and authenticated when `--ci` is absent but the user asked for a
-   GitHub release. Surface install/login hints if missing.
+3. `gh` is installed and authenticated when `--ci-config` is absent but the user
+   asked for a GitHub release. Also required when `--ci` is set, since the
+   auto-fix loop calls `gh run list`, `gh workflow run`, and `gh release` under
+   the hood. Surface install/login hints if missing.
 4. If `version` was provided, it matches the regex
    `^v?[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?(\+[A-Za-z0-9.-]+)?$`. Reject malformed
    input with a clear error.
@@ -171,11 +192,13 @@ Edit only the files named in `manifest_files` from Phase 1. Common targets:
 NEVER edit files outside that list. After edits, emit a diff summary and STOP for user
 review before continuing.
 
-## Phase 6: CI pipeline (optional)
+## Phase 6: CI workflow file (optional)
 
-Three modes:
+This phase generates or audits the **release.yml** file itself. It is separate from
+the **Phase 8.5 release-CI auto-fix loop** (which watches a live workflow run after
+publish). Three modes:
 
-### --ci=generate
+### --ci-config=generate
 
 Fails if any file in `existing_ci` looks release-related (matches
 `release|publish|deploy`). Otherwise, write a new `.github/workflows/release.yml` by
@@ -194,17 +217,18 @@ Substitute the Phase 3 matrix and project name into the template. Also emit a sh
 `.github/workflows/README.md` entry documenting the new workflow — required (see
 `references/ci-optimization-checklist.md`, "Documentation" section).
 
-### --ci=audit
+### --ci-config=audit
 
 Delegate to the `releaser` agent. Pass it the list of existing workflow files. The
 agent returns a structured report (Findings → Severity → Fix). The skill summarizes the
 top items and writes the full report to `docs/prps/reviews/ci-release-audit.md` for
 later consumption by `review-fix`.
 
-### No --ci flag
+### No --ci-config flag
 
-Skip Phase 6 entirely. Print a one-line reminder: "Skipped CI. Run with `--ci=generate`
-or `--ci=audit` to include it."
+Skip Phase 6 entirely. Print a one-line reminder: "Skipped CI workflow generation.
+Run with `--ci-config=generate` or `--ci-config=audit` to include it. (This is
+separate from `--ci`, which monitors a live release workflow after publish.)"
 
 ## Phase 7: Dry-run check
 
@@ -238,7 +262,7 @@ gh release create v<new-version> \
 gh release upload v<new-version> <path-to-artifact> [...]
 ```
 
-If `--ci=generate` ran, append:
+If `--ci-config=generate` ran, append:
 
 ```
 # Verify the new workflow in CI by pushing the tag — the release workflow will
@@ -266,6 +290,165 @@ This prints the resolved `gh` command without executing it. Re-run with `--confi
 apply. Use `--mode=edit` only when intentionally replacing an existing release body —
 this is destructive.
 
+## Phase 8.5: Release CI auto-fix loop (--ci)
+
+Runs **only** when ALL of the following hold:
+
+- `--ci` was passed.
+- `--publish` was passed.
+- `--confirm` was passed AND `publish-release.sh --confirm` exited 0 (the release
+  exists on GitHub and the release-event workflow has been triggered).
+
+Otherwise, print a one-line warning — `--ci ignored: no successful publish in this
+run` — and skip to Phase 9. Never enter the loop without a live release to watch.
+
+The contract (exit codes, `RESULT=` signaling, JSONL audit log, failure classification,
+signature dedup, default-branch refusal) mirrors `ci-monitor.sh` verbatim. See
+[`_shared/references/ci-monitoring.md`](../_shared/references/ci-monitoring.md),
+section "Release mode", for the single source of truth.
+
+### 8.5.0 Detect re-cut strategy
+
+Read `.github/workflows/<resolved-release-workflow>.yml` and inspect the `on:`
+triggers:
+
+- If `workflow_dispatch` is present → **preferred path**: re-trigger via
+  `gh workflow run <name> --ref <tag>`. Non-destructive.
+- Else if `--ci-recut=destructive` was passed → **fallback path**:
+  `gh release delete <tag> --cleanup-tag --yes` then re-run
+  `publish-release.sh ... --confirm` to recreate the tag and release.
+- Else → REFUSE to enter the loop. Print: "Release workflow has no
+  `workflow_dispatch` trigger; re-running it requires destroying and recreating the
+  release. Add a `workflow_dispatch:` trigger to your release workflow, or re-run
+  this command with `--ci-recut=destructive` to opt in." Exit Phase 8.5.
+
+### 8.5.1 Authorization gate (skipped if --ci-yes)
+
+Render a one-time block showing:
+
+- Resource: tag `v<new-version>`, workflow `<file>`, repo `<owner/name>`.
+- Resolved caps: `--ci-max-pushes` (default 5), `--ci-max-same-failure` (default 3),
+  `--ci-timeout-min` (default 30).
+- Re-cut strategy detected in 8.5.0: `workflow_dispatch` (preferred) or
+  `delete-release-and-retag` (destructive — only if `--ci-recut=destructive`).
+- Non-toggleable safety constraints:
+  - Never `git push --force` to any branch.
+  - Never `git push --no-verify`.
+  - Never edits files outside the failed workflow step's implicated paths.
+  - Never amends published release notes without an explicit user opt-in.
+
+Wait for `yes`/`no`. Any other input aborts the loop and proceeds to Phase 9 with
+"loop declined" status.
+
+### 8.5.2 Loop protocol
+
+1. Initialize audit log:
+
+   ```
+   mkdir -p ~/.codex/session-data/release-ci-watch/
+   AUDIT_LOG=~/.codex/session-data/release-ci-watch/<tag>-<utc-iso>.log
+   ```
+
+2. Invoke the monitor:
+
+   ```
+   ~/.codex/plugins/ycc/shared/scripts/release-ci-monitor.sh \
+     --tag v<new-version> \
+     --workflow <detected-or-passed> \
+     --repo <owner/name> \
+     --max-pushes <N> \
+     --max-same-failure <N> \
+     --timeout-min <N> \
+     --log-file "$AUDIT_LOG"
+   ```
+
+3. Branch on the exit code (identical contract to `ci-monitor.sh`):
+
+   | Exit | `RESULT=`         | Action                                                |
+   | ---- | ----------------- | ----------------------------------------------------- |
+   | 0    | `green`           | Success. Exit Phase 8.5, continue to Phase 9.         |
+   | 20   | `handoff`         | Step **8.5.3** (fix and re-cut), then loop to step 2. |
+   | 21   | `rerun-pending`   | `sleep 30`, then loop to step 2 (no fix applied).     |
+   | 10   | `bail-recurrence` | Step **8.5.4** (diagnosis), exit Phase 8.5.           |
+   | 11   | `bail-nonfixable` | Step **8.5.4**, exit Phase 8.5.                       |
+   | 12   | `bail-pushes`     | Step **8.5.4**, exit Phase 8.5.                       |
+   | 13   | `bail-timeout`    | Step **8.5.4**, exit Phase 8.5.                       |
+   | 2    | `not-found`       | Step **8.5.4**, exit Phase 8.5.                       |
+
+### 8.5.3 Fix and re-cut on handoff
+
+The monitor wrote one JSONL line to the audit log with the failed run's metadata:
+`run_id`, `workflow_name`, `job_name`, `step_name`, `category`, `signature`,
+`log_excerpt_path`, `implicated_files`.
+
+1. **Dispatch the fix agent** via the parallel agent workflow with
+   `release-fix-applier`. Pass the JSONL line verbatim. The
+   agent edits ONLY the implicated files, returns the proposed commit message
+   (conventional-commit prefix matching the category — `fix`, `ci`, `build`, etc.)
+   and the diff summary.
+
+2. **Validate the commit message**:
+
+   ```
+   ~/.codex/plugins/ycc/skills/git-workflow/scripts/validate-commit.sh "<message>"
+   ```
+
+3. **Pre-push branch-protection check**:
+
+   ```
+   gh api repos/<owner>/<name>/branches/main/protection 2>/dev/null
+   ```
+
+   If `main` has `required_pull_request_reviews`, the loop cannot push directly.
+   Surface: "Direct push to `main` blocked by branch protection — open a PR with
+   the fix, merge it, and re-run with `--ci`." Exit Phase 8.5 with `loop-blocked`
+   status (renders an 8.5.4-style block without retrying).
+
+4. **Commit and push**:
+
+   ```
+   git add <implicated-files>
+   git commit -m "<validated-message>"
+   git push origin HEAD
+   ```
+
+   NEVER `--force`. NEVER `--no-verify`.
+
+5. **Re-trigger the release workflow** per the strategy detected in 8.5.0.
+   - **Preferred** (`workflow_dispatch` available):
+
+     ```
+     gh workflow run <name> --ref v<new-version>
+     ```
+
+   - **Fallback** (only if `--ci-recut=destructive` was set):
+
+     ```
+     gh release delete v<new-version> --cleanup-tag --yes
+     ~/.codex/plugins/ycc/skills/releaser/scripts/publish-release.sh \
+       v<new-version> <notes-path> --mode=create --confirm
+     ```
+
+6. `push_count++`. Loop back to 8.5.2 step 2.
+
+### 8.5.4 Bail diagnosis block
+
+Render to the user:
+
+- **Reason** — one of `recurrence` / `nonfixable` / `pushes` / `timeout` /
+  `not-found` / `loop-blocked`.
+- **Cap that fired** and its resolved value.
+- **Last failure** — `run_id`, `workflow_name`, `job_name`, `step_name`,
+  `category`, `signature`.
+- **Log excerpt path** (from the monitor's `--log-file`).
+- **Audit log path**.
+- **Next steps** — concrete guidance keyed off the bail reason (e.g., for
+  `recurrence`: "The same failure (`<signature>`) recurred. Inspect
+  `<log-excerpt-path>` and apply a manual fix before retrying.").
+
+Always print this block — even on `not-found` — so the user has a single
+post-mortem surface.
+
 ## Phase 9: Final summary
 
 Report to the user:
@@ -274,10 +457,13 @@ Report to the user:
 - Proposed vs. requested version.
 - Target `{os × arch}` matrix.
 - Files modified (changelog, notes, manifests, workflow).
-- CI mode outcome (generate / audit / skipped) and report path if audit ran.
+- CI workflow-file outcome (generate / audit / skipped) and report path if audit ran.
 - Publish mode outcome: whether the release was published (applied with `--confirm`),
   previewed only (print-only via `--publish` without `--confirm`), or emit-only
   (no `--publish` flag).
+- Release CI loop outcome (if `--ci` was set): `green` (final status), `bail-*`
+  (with reason and cap that fired), `loop-blocked`, `declined`, or `skipped` (no
+  successful publish). Include the audit log path so the user can inspect it.
 - The exact command block from Phase 8.
 
 ## Important Notes
@@ -302,9 +488,19 @@ Report to the user:
 - **CI generation is opinionated, not magic.** The templates are starting points; the
   skill calls out which inputs require human configuration (secrets, environments,
   signing keys, provenance) before the workflow will run green.
-- For existing CI, always prefer `--ci=audit` first. Do not overwrite a working
-  workflow without the user's explicit confirmation.
+- For existing CI workflow files, always prefer `--ci-config=audit` first. Do not
+  overwrite a working workflow without the user's explicit confirmation.
+- **`--ci` (Phase 8.5) is opt-in and post-publish.** It enters only after
+  `--publish --confirm` has actually created/edited the release on GitHub. The
+  authorization gate (8.5.1) cannot be bypassed except with `--ci-yes`, and the
+  destructive re-cut fallback cannot be reached except with `--ci-recut=destructive`.
+- **The release-CI loop never edits release notes or manifest files.** It only
+  touches files implicated by the failed workflow step. Notes and manifests are
+  considered immutable for the lifetime of the loop.
 - See `references/project-type-matrix.md` for the full language → toolchain map.
 - See `references/ci-optimization-checklist.md` for the audit criteria used by the
   agent and the default quality gate for generated workflows.
 - See `references/release-notes-template.md` for the drafted notes format.
+- See [`../_shared/references/ci-monitoring.md`](../_shared/references/ci-monitoring.md)
+  ("Release mode" section) for the loop contract, exit-code table, and audit-log
+  schema.

@@ -8,7 +8,7 @@ A single Claude Code plugin (`ycc`) bundling workflow orchestration, parallel pl
 
 <!-- BEGIN:GENERATED-COUNTS -->
 
-The source plugin ships **47 skills**, **46 slash commands** (most skills have a matching command), and **53 agents**.
+The source plugin ships **47 skills**, **46 slash commands** (most skills have a matching command), and **54 agents**.
 
 <!-- END:GENERATED-COUNTS -->
 
@@ -51,7 +51,7 @@ The source plugin ships **47 skills**, **46 slash commands** (most skills have a
 | `/ycc:python-testing`      | Python testing patterns using pytest — TDD methodology, fixtures (function/module/session scopes), parametrization, markers, mocking with unittest.mock, async tests with pytest-asy... |
 | `/ycc:quick-fix`           | Apply fixes from an inline /ycc:quick-review findings block without creating a review artifact.                                                                                         |
 | `/ycc:quick-review`        | Fast interactive review of uncommitted changes.                                                                                                                                         |
-| `/ycc:releaser`            | Prepare and cut a GitHub release for any project — detects toolchain, drafts changelog, plans platform/arch artifacts, optionally generates or audits release CI, and optionally inv... |
+| `/ycc:releaser`            | Prepare and cut a GitHub release for any project — detects toolchain, drafts changelog, plans platform/arch artifacts, optionally generates or audits release CI, optionally invokes... |
 | `/ycc:research-to-issues`  | Convert research, feature specs, and implementation plans into structured GitHub issues with tracking hierarchy, labels, and priority.                                                  |
 | `/ycc:resume-session`      | Load the most recent session file from ~/.claude/session-data/ and resume work with full context.                                                                                       |
 | `/ycc:review-fix`          | Plan and apply fixes for findings from a /ycc:code-review artifact.                                                                                                                     |
@@ -69,13 +69,13 @@ The source plugin ships **47 skills**, **46 slash commands** (most skills have a
 
 <!-- BEGIN:GENERATED-AGENTS -->
 
-The plugin bundles **53** specialized agents covering codebase analysis, language experts (Go, Rust, Python, TypeScript), reviewers, planners, documenters, and infrastructure architects.
+The plugin bundles **54** specialized agents covering codebase analysis, language experts (Go, Rust, Python, TypeScript), reviewers, planners, documenters, and infrastructure architects.
 
 <details>
-<summary>Full agent list (53 agents, grouped by role)</summary>
+<summary>Full agent list (54 agents, grouped by role)</summary>
 
 - **Language experts & implementors** (12): `frontend-ui-developer`, `go-api-architect`, `go-expert-architect`, `nextjs-ux-ui-expert`, `nodejs-backend-architect`, `nodejs-backend-developer`, `python-developer`, `python-expert-architect`, `rust-build-resolver`, `rust-expert-architect`, `typescript-developer`, `typescript-expert-architect`
-- **Code review & quality** (5): `code-reviewer`, `code-simplifier`, `pr-comment-fixer`, `review-fixer`, `rust-reviewer`
+- **Code review & quality** (6): `code-reviewer`, `code-simplifier`, `pr-comment-fixer`, `release-fix-applier`, `review-fixer`, `rust-reviewer`
 - **Research & discovery** (10): `code-explorer`, `code-finder`, `code-researcher`, `codebase-advisor`, `feature-researcher`, `library-docs-writer`, `practices-researcher`, `prp-researcher`, `research-specialist`, `root-cause-analyzer`
 - **Architecture & planning** (5): `architect`, `architecture-analyst`, `code-architect`, `planner`, `test-strategy-planner`
 - **Documentation** (7): `api-docs-expert`, `api-documenter`, `code-documenter`, `docs-git-committer`, `documentation-writer`, `feature-writer`, `readme-generator`

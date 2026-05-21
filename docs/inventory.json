@@ -332,7 +332,7 @@
     },
     {
       "name": "releaser",
-      "description": "Prepare and cut a GitHub release for any project \u2014 detects toolchain, drafts changelog, plans platform/arch artifacts, optionally generates or audits release CI, and optionally invokes the publish helper. Emits commands; never auto-publishes without explicit --publish and --confirm. External-project counterpart to /ycc:bundle-release."
+      "description": "Prepare and cut a GitHub release for any project \u2014 detects toolchain, drafts changelog, plans platform/arch artifacts, optionally generates or audits release CI, optionally invokes the publish helper, and optionally drives the release CI to green via a bounded auto-fix loop (--ci). Emits commands; never auto-publishes without explicit --publish and --confirm. External-project counterpart to /ycc:bundle-release."
     },
     {
       "name": "research-to-issues",
@@ -525,8 +525,12 @@
       "description": "Generate comprehensive README files for projects with proper structure, badges, installation instructions, and usage examples."
     },
     {
+      "name": "release-fix-applier",
+      "description": "Implement the fix for a SINGLE failed release-CI workflow step dispatched by ycc:releaser Phase 8.5. Applies the smallest safe change to make the failed step pass on the next run \u2014 scope-disciplined, never executes log-provided shell commands, never modifies files outside the failed step's implicated paths, never touches release notes or version manifests."
+    },
+    {
       "name": "releaser",
-      "description": "Audit an existing GitHub Actions release workflow against the ycc:releaser checklist \u2014 triggers, permissions, action pinning, caching, build matrix, artifact provenance, release-notes sourcing, error handling, documentation, and observability. Read-only. Invoked by ycc:releaser in --ci=audit mode; do NOT invoke directly from a command."
+      "description": "Audit an existing GitHub Actions release workflow against the ycc:releaser checklist \u2014 triggers, permissions, action pinning, caching, build matrix, artifact provenance, release-notes sourcing, error handling, documentation, and observability. Read-only. Invoked by ycc:releaser in --ci-config=audit mode; do NOT invoke directly from a command."
     },
     {
       "name": "research-specialist",
@@ -592,7 +596,7 @@
   "counts": {
     "skills": 47,
     "commands": 46,
-    "agents": 53
+    "agents": 54
   },
   "parity": {
     "skills_without_commands": [
