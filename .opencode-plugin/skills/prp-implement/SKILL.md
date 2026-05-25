@@ -675,6 +675,18 @@ Report to user:
 > Run `git worktree remove ~/.claude-worktrees/<repo>-<feature>/` after merging and pushing to clean up the parent worktree.
 
 > Next step: Run `/prp-pr` to create a pull request, or `/code-review` to review changes first.
+
+Print every signal verbatim. Use `PASS` only when the criterion in `## Success Criteria` is met; otherwise `FAIL`.
+
+### Goal Signals (machine-readable — printed verbatim for /goal)
+
+TASKS_COMPLETE: PASS
+TYPES_PASS: PASS
+LINT_PASS: PASS
+TESTS_PASS: PASS
+BUILD_PASS: PASS
+REPORT_CREATED: PASS
+PLAN_ARCHIVED: PASS
 ```
 
 ---
@@ -727,6 +739,32 @@ Report to user:
 - **BUILD_PASS**: Build succeeds
 - **REPORT_CREATED**: Implementation report saved
 - **PLAN_ARCHIVED**: Plan moved to `docs/prps/plans/completed/`
+
+These keys are emitted verbatim in the Phase 6 OUTPUT 'Goal Signals' block so a `/goal` evaluator can observe completion from the transcript.
+
+---
+
+## /goal pairing
+
+Pair this skill with the `/goal` session directive for autonomous plan execution across phase CHECKPOINTs. Supply an explicit done condition that references the Phase 6 Goal Signals block rather than file paths.
+
+Recommended condition template:
+
+```
+/goal Implement the plan at docs/prps/plans/<name>.plan.md using the prp-implement
+workflow, continuing through every phase CHECKPOINT without returning control to me.
+Done when the transcript shows the Phase 6 "## Implementation Complete" output followed
+by all seven Goal Signals printed verbatim — TASKS_COMPLETE: PASS, TYPES_PASS: PASS,
+LINT_PASS: PASS, TESTS_PASS: PASS, BUILD_PASS: PASS, REPORT_CREATED: PASS,
+PLAN_ARCHIVED: PASS. If any signal prints FAIL, keep fixing and re-running validation
+until all seven are PASS. Stop after 25 turns if not achieved.
+```
+
+Caveats:
+
+1. **Worktree cwd**: when prp-implement runs in worktree mode (default), report and archived plan are under `~/.claude-worktrees/<repo>-<slug>/docs/prps/...` — don't write conditions pointing at main-repo file paths.
+2. **Interactive failure prompts**: parallel/team batch failures raise ask the user that `/goal` cannot answer; loop stalls. Pair with auto mode but expect manual intervention on batch failures.
+3. **Platform**: `/goal` is not available in Cursor or opencode bundle invocations. Use it only in the Anthropic terminal (v2.1.139+) or Codex CLI (v0.128.0+); accept the trust dialog and keep hooks enabled in those runtimes.
 
 ---
 

@@ -54,7 +54,13 @@ Examples:
   /prp-implement --team --dry-run docs/prps/plans/rate-limiting.plan.md
     # preview team graph (no agents spawned)
 
+  /goal Implement docs/prps/plans/<name>.plan.md via the prp-implement workflow;
+        done when the transcript shows all 7 Goal Signals PASS; stop after 25 turns.
+    # loop to completion across every CHECKPOINT without re-prompting (Anthropic terminal / Codex CLI only)
+
 Next step after implementation completes:
   /prp-pr            # Create a pull request
   /code-review       # Review changes locally first
+
+Tip: for unattended loop-to-completion, pair with /goal — see the skill's ## /goal pairing section for the full condition template and caveats.
 ```
