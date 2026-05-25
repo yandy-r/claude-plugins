@@ -5,7 +5,8 @@ description: 'Code review — local uncommitted changes or a GitHub PR (pass PR 
   alias for /quick-review (interactive inline review, no file unless confirmed). For
   direct access to --yes, --save, or --severity, invoke /quick-review instead. Usage:
   [--quick] [--approve | --request-changes] [--parallel | --team] [--no-worktree]
-  [--keep-draft] [--keep-worktree] [pr-number | pr-url | blank for local review]'
+  [--keep-draft] [--keep-worktree] [--save] [--yes] [pr-number | pr-url | blank for
+  local review]'
 ---
 
 # Code Review Command
