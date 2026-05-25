@@ -760,11 +760,13 @@ PLAN_ARCHIVED: PASS. If any signal prints FAIL, keep fixing and re-running valid
 until all seven are PASS. Stop after 25 turns if not achieved.
 ```
 
-Caveats:
+The transcript-output contract and shared caveats (worktree cwd, interactive failure
+prompts, platform availability) live in the shared reference — read it before relying on a
+`/goal` loop:
 
-1. **Worktree cwd**: when prp-implement runs in worktree mode (default), report and archived plan are under `~/.claude-worktrees/<repo>-<slug>/docs/prps/...` — don't write conditions pointing at main-repo file paths.
-2. **Interactive failure prompts**: parallel/team batch failures raise ask the user that `/goal` cannot answer; loop stalls. Pair with auto mode but expect manual intervention on batch failures.
-3. **Platform**: `/goal` is not available in Cursor or opencode bundle invocations. Use it only in the Anthropic terminal (v2.1.139+) or Codex CLI (v0.128.0+); accept the trust dialog and keep hooks enabled in those runtimes.
+```
+~/.config/opencode/shared/references/goal-pairing.md
+```
 
 ---
 

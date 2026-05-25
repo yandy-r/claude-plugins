@@ -405,8 +405,9 @@ After each batch completes:
 
 1. **Update todos**: Mark completed tasks as `completed`
 2. **Review agent outputs**: Check for errors or issues
-3. **Identify next batch**: Find tasks whose dependencies are now satisfied
-4. **Handle failures**: If a task failed, note it and continue with independent tasks
+3. **Log batch completion** — Print to the transcript: `[done] Batch BN: K tasks — complete` (the same marker Path B emits at B.4 step 5, so a `/goal` loop can observe per-batch progress regardless of dispatch path — see `## /goal pairing`)
+4. **Identify next batch**: Find tasks whose dependencies are now satisfied
+5. **Handle failures**: If a task failed, note it and continue with independent tasks
 
 #### Repeat Until Complete (Path A)
 
@@ -543,7 +544,7 @@ If a teammate fails:
 
 After all tasks complete:
 
-1. **Check for lint errors**: Run linting on all modified files
+1. **Check for lint errors**: Run linting on all modified files and **print the outcome to the transcript** (zero errors, or the list of errors). Step 10's `LINT_PASS` signal is derived from this printed outcome — the `/goal` evaluator only reads transcript text, never the linter's exit state.
 2. **Verify file creation**: Ensure all "Files to Create" exist
 3. **Review changes**: Quick sanity check of modifications
 
@@ -623,7 +624,17 @@ Provide completion summary:
 4. **Optional**: Generate implementation report:
 
 /code-report [feature-name]
+
+## Goal Signals (machine-readable — printed verbatim for /goal)
+
+ALL_BATCHES_DONE: PASS
+FILES_CHANGED_NONEMPTY: PASS
+LINT_PASS: PASS
 ```
+
+Print every signal verbatim as the last lines of the completion summary. Use `PASS` only
+when the matching criterion in `## Success Criteria` is met; otherwise `FAIL` (for example
+`FILES_CHANGED_NONEMPTY: FAIL` when the "Files Changed" section enumerated no files).
 
 ---
 
@@ -718,6 +729,45 @@ Running `/implement-plan feature-a` from anywhere executes `monorepo/docs/plans/
 - **Track progress** — update todos (and in Path B, `the task tracker`) as tasks complete
 - **Handle failures** — continue with independent tasks if one fails (Path A); escalate to the user via `ask the user` (Path B)
 - **Monorepo aware** — automatically resolves correct plans directory
+
+---
+
+## Success Criteria
+
+- **ALL_BATCHES_DONE**: Every batch printed its `[done] Batch BN: K tasks — complete` marker and no batch was left unprocessed.
+- **FILES_CHANGED_NONEMPTY**: The Phase 4 Step 10 "Files Changed" section enumerates at least one created or modified file.
+- **LINT_PASS**: Step 9 linting printed zero errors across all modified files.
+
+These keys are emitted verbatim in the Phase 4 Step 10 "Goal Signals" block so a `/goal`
+evaluator can observe completion from the transcript.
+
+---
+
+## /goal pairing
+
+Pair this skill with the `/goal` session directive to loop the batch executor to completion
+without re-prompting between batches or after the lint pass. Supply an explicit done
+condition that references the Phase 4 Step 10 Goal Signals block rather than file paths.
+
+Recommended condition template:
+
+```
+/goal Execute the parallel plan at docs/plans/<feature>/parallel-plan.md using the
+implement-plan workflow, continuing through every batch and the Phase 4 lint pass
+without returning control to me. Done when the transcript shows the Phase 4
+"# Implementation Complete" output followed by all three Goal Signals printed verbatim —
+ALL_BATCHES_DONE: PASS, FILES_CHANGED_NONEMPTY: PASS, LINT_PASS: PASS. If any signal prints
+FAIL, keep fixing and re-running until all three are PASS. Stop after 25 turns if not
+achieved.
+```
+
+The transcript-output contract and shared caveats (worktree cwd, interactive failure
+prompts, platform availability) live in the shared reference — read it before relying on a
+`/goal` loop:
+
+```
+~/.codex/plugins/ycc/shared/references/goal-pairing.md
+```
 
 ---
 

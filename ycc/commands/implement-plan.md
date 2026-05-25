@@ -62,4 +62,11 @@ Examples:
 
   /ycc:implement-plan --team --no-worktree my-feature
     # agent-team dispatch on the current-checkout feature branch
+
+  /goal Execute docs/plans/<feature>/parallel-plan.md via the ycc:implement-plan workflow;
+        done when the transcript shows ALL_BATCHES_DONE / FILES_CHANGED_NONEMPTY / LINT_PASS
+        all PASS; stop after 25 turns.
+    # loop to completion across every batch without re-prompting (Anthropic terminal / Codex CLI only)
+
+Tip: for unattended loop-to-completion, pair with /goal — see the skill's ## /goal pairing section for the full condition template and caveats.
 ```

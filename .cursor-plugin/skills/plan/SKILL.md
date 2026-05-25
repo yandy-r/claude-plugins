@@ -584,6 +584,8 @@ Then process batches sequentially. Within each batch, dispatch one `implementor`
 
 This keeps everything in the current conversation — no file artifact needed.
 
+For unattended loop-to-completion of a parallel plan, hand off to `/implement-plan` and pair it with the `/goal` session directive — see that skill's `## /goal pairing` section for the recommended done condition (`ALL_BATCHES_DONE`, `FILES_CHANGED_NONEMPTY`, `LINT_PASS`) and the transcript-output contract.
+
 **Option 2 — Save to file and hand off (rigorous)**
 
 Write the plan to `docs/prps/plans/{name}.plan.md` (adapting it to the PRP plan template if needed: add `Patterns to Mirror`, `Files to Change`, `Validation Commands`, etc.), then run `/prp-implement --parallel docs/prps/plans/{name}.plan.md` for the full 5-level validation pipeline.
