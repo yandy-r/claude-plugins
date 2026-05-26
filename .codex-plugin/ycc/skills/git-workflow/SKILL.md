@@ -982,12 +982,100 @@ On `green`, print:
 
 ```
 ✓ CI green for PR #<pr> after <iterations> iteration(s), <pushes> auto-push(es).
+  URL: <url>
   Audit log: <path>
+
+Goal Signals (machine-readable — printed verbatim for /goal)
+PR_IN_SCOPE: PASS
+PR_URL_PRINTED: PASS
+CI_GREEN: PASS
+CI_BAIL_VISIBLE: n/a
 ```
 
-On any bail, print the diagnosis with the same audit log path so the user can inspect.
+On any bail, print:
+
+```
+✗ CI monitoring ended: <RESULT> — <REASON>
+  Cap fired: <which cap or constraint>
+  URL: <url>
+  Audit log: <path>
+
+Goal Signals (machine-readable — printed verbatim for /goal)
+PR_IN_SCOPE: PASS
+PR_URL_PRINTED: PASS
+CI_GREEN: FAIL
+CI_BAIL_VISIBLE: PASS
+```
+
+Print every Goal Signal verbatim, one `KEY: PASS|FAIL|n/a` per line, as the **last lines
+of the run** when `--ci` is set. Use `PASS` only when the matching `## Success Criteria`
+item holds; otherwise use `FAIL`. `CI_BAIL_VISIBLE` is `PASS` only when a terminal
+`bail-*` result and its `REASON=` or equivalent diagnosis were printed; otherwise it is
+`n/a`.
 
 See `~/.codex/plugins/ycc/shared/references/ci-monitoring.md` for the full policy (classification, termination, schema).
+
+---
+
+## Success Criteria
+
+- **PR_IN_SCOPE**: A PR is in scope for this run — either created in Phase 5,
+  detected as existing in Step 22a, or discovered from the current branch in Step 32.
+- **PR_URL_PRINTED**: The final CI report prints the PR URL along with the PR number.
+- **CI_GREEN**: The Phase 6 loop reached `RESULT=green` and the Step 37 report shows
+  `✓ CI green`.
+- **CI_BAIL_VISIBLE**: If the Phase 6 loop bailed, the Step 37 report states the
+  `bail-*` result, the reason, and the cap or constraint that fired. `n/a` when CI
+  reached green.
+
+These keys are emitted verbatim in the Step 37 Goal Signals block so a `/goal` evaluator
+can observe CI-loop completion from the transcript alone.
+
+---
+
+## /goal pairing
+
+Pair this skill with the `/goal` session directive **only in `--ci` mode**. Without
+`--ci`, `$git-workflow` may stop after a local commit, push, or PR creation, and
+there is no long-running loop for `/goal` to drive. In `--ci` mode, Phase 6 enters the
+bounded CI auto-fix loop using the shared `ci-monitor.sh` contract, and `/goal` can keep
+the session moving through every `handoff` fix-and-push and `rerun-pending` flake retry.
+
+The Phase 6 loop's stdout `RESULT=` markers tell the evaluator when to keep looping
+versus when to stop:
+
+- **Keep looping** — `handoff` (apply the fix per the classification table, commit, push
+  to the PR head branch, re-invoke the monitor) and `rerun-pending` (flake suspected;
+  sleep, then re-invoke). These are recoverable progress markers, not endpoints.
+- **Done** — `RESULT=green` (`CI_GREEN: PASS`), with the PR URL printed in the final
+  report.
+- **Stop** — any `bail-*` (`bail-recurrence`, `bail-nonfixable`, `bail-pushes`,
+  `bail-timeout`). All are terminal: `ci-monitor.sh` exhausts recoverable
+  `rerun-pending` retries internally before emitting a bail, so a printed `bail-*` means
+  no further automatic progress is possible. The evaluator distinguishes "loop again"
+  from "stop" by `green` vs `bail-*` in the Step 37 report — never by re-classifying
+  bail codes. See `~/.codex/plugins/ycc/shared/references/ci-monitoring.md` for
+  the authoritative bail taxonomy.
+
+Recommended condition template (`--ci` mode):
+
+```
+/goal Run $git-workflow --ci using the git-workflow workflow, continuing through
+every handoff and rerun-pending iteration of the Phase 6 CI loop without returning control
+to me. Done when the transcript shows the final CI report with the PR number and URL,
+followed by the Goal Signals printed verbatim — PR_IN_SCOPE: PASS, PR_URL_PRINTED: PASS,
+and CI_GREEN: PASS. If CI_GREEN prints FAIL alongside CI_BAIL_VISIBLE: PASS (a terminal
+bail-* fired), stop and report the bail — do not re-run. If any other signal prints FAIL,
+keep fixing and re-running until all are PASS. Stop after 25 turns if not achieved.
+```
+
+The transcript-output contract and shared caveats (worktree cwd, interactive failure
+prompts, platform availability) live in the shared reference — read it before relying on a
+`/goal` loop:
+
+```
+~/.codex/plugins/ycc/shared/references/goal-pairing.md
+```
 
 ---
 
