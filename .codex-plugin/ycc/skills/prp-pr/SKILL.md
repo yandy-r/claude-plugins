@@ -203,7 +203,20 @@ Next steps:
   - gh pr view <number> --web      → open in browser
   - $code-review <number>      → review the PR
   - gh pr merge <number>           → merge when ready
+
+Goal Signals (machine-readable — printed verbatim for /goal)
+PR_IN_SCOPE: <PASS|FAIL>
+PR_URL_PRINTED: <PASS|FAIL>
+CI_GREEN: <PASS|FAIL|n/a>
+CI_BAIL_VISIBLE: <PASS|n/a>
 ```
+
+Print every Goal Signal verbatim, one `KEY: PASS|FAIL` per line, as the **last lines of
+the run**. When `--ci` is set, defer the block to the end of the Phase 7 final report (Step 6) so the CI signals reflect the loop outcome; otherwise emit it here at the end of Phase 6.
+Use `PASS` only when the matching `## Success Criteria` item holds; otherwise `FAIL`. The two
+CI signals are `n/a` when `--ci` was not set; with `--ci`, `CI_GREEN` is `PASS` only when
+Phase 7 reported `green`, and `CI_BAIL_VISIBLE` is `PASS` when a `bail-*` and its `REASON=`
+were printed (otherwise `n/a`).
 
 ---
 
@@ -303,6 +316,47 @@ full policy.
 - **Force push needed**: If remote has diverged and rebase was done, use `git push --force-with-lease` (never `--force`).
 - **Multiple PR templates**: If `.github/PULL_REQUEST_TEMPLATE/` has multiple files, list them and ask user to choose.
 - **Large PR (>20 files)**: Warn about PR size. Suggest splitting if changes are logically separable.
+
+---
+
+## Success Criteria
+
+- **PR_IN_SCOPE**: A PR is in scope for this run — either created in Phase 4, or an existing open PR confirmed for `--ci` monitoring per the Phase 1 continuation.
+- **PR_URL_PRINTED**: The Phase 6 OUTPUT block printed the PR number and URL.
+- **CI_GREEN**: If `--ci` ran, the Phase 7 loop reached `RESULT=green` and the Step 6 report shows `✓ CI green`. `n/a` when `--ci` was not set.
+- **CI_BAIL_VISIBLE**: If `--ci` bailed, the Step 6 report states the `bail-*` code and the cap/constraint that fired. `n/a` when `--ci` reached green or was not set.
+
+These keys are emitted verbatim in the Goal Signals block (end of Phase 6, or end of Phase 7 under `--ci`) so a `/goal` evaluator can observe completion from the transcript alone.
+
+---
+
+## /goal pairing
+
+Pair this skill with the `/goal` session directive **only in `--ci` mode**. Without `--ci`, `$prp-pr` is a one-shot create-PR-and-exit flow with nothing to loop on — a `/goal` directive adds no value there. In `--ci` mode, Phase 7 enters the bounded CI auto-fix loop (sharing the `ci-monitor.sh` contract with `pr-autofix` and `releaser`), and `/goal` drives it through every `handoff` fix-and-push and `rerun-pending` flake retry without returning control between iterations.
+
+The Phase 7 loop's stdout `RESULT=` markers tell the evaluator when to keep looping versus when to stop:
+
+- **Keep looping** — `handoff` (apply the fix per the classification table, commit, push to the PR head branch, re-invoke the monitor) and `rerun-pending` (flake suspected; sleep, then re-invoke). These are recoverable progress markers, not endpoints.
+- **Done** — `RESULT=green` (`CI_GREEN: PASS`), with the Phase 6 PR URL block already printed.
+- **Stop** — any `bail-*` (`bail-recurrence`, `bail-nonfixable`, `bail-pushes`, `bail-timeout`). All are terminal: `ci-monitor.sh` exhausts the recoverable `rerun-pending` retries internally before emitting a bail, so a printed `bail-*` means no further automatic progress is possible. The evaluator distinguishes "loop again" from "stop" by `green` vs `bail-*` in the Step 6 report — never by re-classifying bail codes. See `~/.codex/plugins/ycc/shared/references/ci-monitoring.md` for the authoritative bail taxonomy.
+
+Recommended condition template (`--ci` mode):
+
+```
+/goal Run $prp-pr <base> --ci using the prp-pr workflow, continuing through every
+handoff and rerun-pending iteration of the Phase 7 CI loop without returning control to me.
+Done when the transcript shows the Phase 6 OUTPUT with the PR number and URL, followed by the
+Goal Signals printed verbatim — PR_IN_SCOPE: PASS, PR_URL_PRINTED: PASS, and CI_GREEN: PASS.
+If CI_GREEN prints FAIL alongside CI_BAIL_VISIBLE: PASS (a terminal bail-* fired), stop and
+report the bail — do not re-run. If any other signal prints FAIL, keep fixing and re-running
+until all are PASS. Stop after 25 turns if not achieved.
+```
+
+The transcript-output contract and shared caveats (worktree cwd, interactive failure prompts, platform availability) live in the shared reference — read it before relying on a `/goal` loop:
+
+```
+~/.codex/plugins/ycc/shared/references/goal-pairing.md
+```
 
 ---
 

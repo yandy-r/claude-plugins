@@ -2,9 +2,10 @@
 
 Reference for ycc skills that recommend pairing with the platform `/goal` session
 directive for autonomous, loop-to-completion execution — currently `prp-implement`,
-`implement-plan`, `review-fix`, and `pr-autofix`. Each skill cites this doc so the
-transcript-output contract, the condition-template shape, and the caveats stay
-convergent. Fix them here, not per skill.
+`implement-plan`, `review-fix`, `pr-autofix`, `prp-pr` (`--ci` mode only),
+and `releaser` (the bounded Phase 8.5 release-CI loop only — never the human approval
+gates). Each skill cites this doc so the transcript-output contract, the condition-template
+shape, and the caveats stay convergent. Fix them here, not per skill.
 
 ## Transcript-output contract
 
