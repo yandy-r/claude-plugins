@@ -340,6 +340,23 @@ Render a one-time block showing:
 Wait for `yes`/`no`. Any other input aborts the loop and proceeds to Phase 9 with
 "loop declined" status.
 
+#### `/goal` re-confirmation (safety)
+
+If a `/goal` session directive is active when Phase 8.5 is reached, this gate is the
+one human approval the bounded, destructive-capable loop depends on. Therefore:
+
+- **`--ci-yes` does NOT suppress this gate under an active `/goal`.** When `/goal` is
+  active, always render the 8.5.1 block and wait for an explicit `yes`/`no`, even if
+  `--ci-yes` was passed. `--ci-yes` is honored only when no `/goal` directive is active.
+- A `/goal` evaluator is transcript-only and cannot answer this prompt, so the loop
+  **pauses here until you respond in person**. That pause is intentional: `/goal` may
+  drive the Phase 8.5.2+ fix-and-recut loop to green, but it must never auto-authorize
+  entry into that loop. Print one line making the pause legible:
+  `/goal active — Phase 8.5.1 authorization stays interactive; --ci-yes ignored. Waiting for yes/no.`
+- This guard applies **only** to the post-publish CI loop. The Phase 2 version confirm
+  and the Phase 5 manifest diff review are likewise never auto-approved under `/goal`;
+  see `## /goal pairing` for the full out-of-scope list.
+
 ### 8.5.2 Loop protocol
 
 1. Initialize audit log:
@@ -465,6 +482,66 @@ Report to the user:
   (with reason and cap that fired), `loop-blocked`, `declined`, or `skipped` (no
   successful publish). Include the audit log path so the user can inspect it.
 - The exact command block from Phase 8.
+
+Then, as the **last lines** of the summary, print the Goal Signals block verbatim:
+
+```
+Goal Signals (machine-readable — printed verbatim for /goal)
+RELEASE_PUBLISHED: <PASS|FAIL|n/a>
+GATES_INTERACTIVE: <PASS|FAIL>
+CI_GREEN: <PASS|FAIL|n/a>
+CI_BAIL_VISIBLE: <PASS|n/a>
+AUDIT_LOG_PRINTED: <PASS|FAIL|n/a>
+```
+
+Print one `KEY: PASS|FAIL` per line. Use `PASS` only when the matching `## Success
+Criteria` item holds; otherwise `FAIL`. See `## Success Criteria` for each key's exact
+condition and `n/a` rules.
+
+## Success Criteria
+
+- **RELEASE_PUBLISHED**: `--publish --confirm` ran and `publish-release.sh --confirm` exited 0 (the release exists on GitHub). `n/a` when `--publish` was not set or ran in preview-only mode.
+- **GATES_INTERACTIVE**: Every human gate that applied this run — Phase 2 version confirm, Phase 5 manifest diff review, and the Phase 8.5.1 authorization — was satisfied by explicit user input and **none** was auto-approved or bypassed (including under an active `/goal`). `FAIL` if any applicable gate was skipped without a human `yes`. This is the safety invariant that keeps `/goal` from wrapping the whole skill.
+- **CI_GREEN**: If `--ci` ran, the Phase 8.5 loop reached `RESULT=green` and the Phase 9 summary shows "Release CI loop outcome: `green`". `n/a` when `--ci` was not set or the loop was skipped (no successful publish).
+- **CI_BAIL_VISIBLE**: If `--ci` ended without green, the summary states the terminal outcome (`bail-*`, `loop-blocked`, or `declined`) and the cap/constraint that fired. `n/a` when `--ci` reached green or was not set.
+- **AUDIT_LOG_PRINTED**: If `--ci` ran, the Phase 9 summary printed the audit-log path. `n/a` when `--ci` was not set or the loop was skipped.
+
+These keys are emitted verbatim in the Phase 9 Goal Signals block so a `/goal` evaluator can observe completion from the transcript alone.
+
+## /goal pairing
+
+Pair this skill with the `/goal` session directive **only for the bounded Phase 8.5 release-CI auto-fix loop** — never for the skill as a whole. The full `releaser` flow has three human approval gates that exist specifically to prevent unattended publishing and looping; `/goal` must never auto-satisfy them:
+
+- **Phase 2 — version confirm.** The user must approve the proposed version bump.
+- **Phase 5 — manifest diff review.** The user must approve what changed before any commit.
+- **Phase 8.5.1 — CI authorization gate.** The user must approve before the bounded, destructive-capable loop starts. `--ci-yes` does **not** bypass this gate under an active `/goal` (see the 8.5.1 `/goal` re-confirmation guard).
+
+Because the `/goal` evaluator is transcript-only it cannot answer these prompts, so a `/goal` loop will **pause** at each gate until you respond in person. That is the intended behavior: only after you have published (`--publish --confirm`) and authorized the loop does `/goal` add value — driving Phase 8.5.2+ through every `handoff` fix-and-recut and `rerun-pending` retry to green without returning control between iterations. The `GATES_INTERACTIVE` Goal Signal records that none of the three gates was auto-approved.
+
+The Phase 8.5 loop's `RESULT=` markers (from `release-ci-monitor.sh`, sharing the `ci-monitor.sh` contract with `pr-autofix` and `prp-pr`) tell the evaluator when to keep looping versus when to stop:
+
+- **Keep looping** — `handoff` (8.5.3 fix-and-recut) and `rerun-pending` (8.5.2 wait-and-retry). Recoverable progress markers, not endpoints.
+- **Done** — `RESULT=green`, with the Phase 9 summary showing "Release CI loop outcome: `green`" and the audit-log path (`CI_GREEN: PASS`, `AUDIT_LOG_PRINTED: PASS`).
+- **Stop** — any terminal `bail-*` (`bail-recurrence`, `bail-nonfixable`, `bail-pushes`, `bail-timeout`, `not-found`) or `loop-blocked`. `release-ci-monitor.sh` exhausts recoverable retries internally before emitting a bail, so a printed terminal marker means no further automatic progress is possible. The evaluator distinguishes "loop again" from "stop" by `green` vs `bail-*`/`loop-blocked` in the Phase 9 summary — never by re-classifying bail codes. See [`../_shared/references/ci-monitoring.md`](../_shared/references/ci-monitoring.md) ("Release mode") for the authoritative bail taxonomy.
+
+Recommended condition template (set this **after** you have approved Phases 2 and 5, published with `--publish --confirm`, and authorized the loop at 8.5.1):
+
+```
+/goal Drive the releaser Phase 8.5 release-CI loop to green, continuing through every
+handoff and rerun-pending iteration without returning control to me. Done when the Phase 9
+summary shows "Release CI loop outcome: green", the audit-log path is printed, and the Goal
+Signals print verbatim — GATES_INTERACTIVE: PASS, CI_GREEN: PASS, and AUDIT_LOG_PRINTED:
+PASS. If CI_GREEN prints FAIL alongside CI_BAIL_VISIBLE: PASS (a terminal bail-*, loop-blocked,
+or declined), stop and report it — do not re-run. Never auto-approve the Phase 2 version
+confirm, the Phase 5 manifest review, or the Phase 8.5.1 authorization. Stop after 25 turns
+if not achieved.
+```
+
+The transcript-output contract and shared caveats (worktree cwd, interactive failure prompts, platform availability) live in the shared reference — read it before relying on a `/goal` loop:
+
+```
+~/.config/opencode/shared/references/goal-pairing.md
+```
 
 ## Important Notes
 
