@@ -759,6 +759,7 @@ Report to the user:
 - Fixed:    X
 - Failed:   Y
 - Skipped:  C (below threshold) + D (no suggestion) + E (missing file)
+- Open remaining: <M - X - Y>
 
 ### Source Review File Updated
 The source review at <path> has been updated in place:
@@ -773,7 +774,16 @@ The source review at <path> has been updated in place:
 ### Next Steps
   /code-review <same target>   # re-review to verify fixes landed
   /git-workflow --commit       # commit the fixes when satisfied
+
+### Goal Signals (machine-readable — printed verbatim for /goal)
+PLAN_VALID: <PASS|FAIL>
+REVIEW_UPDATED: <PASS|FAIL>
+REPORT_CREATED: <PASS|FAIL>
+VALIDATION_RUN: <PASS|FAIL>
+REPORT_COMMITTED: <PASS|FAIL|n/a>
 ```
+
+Print every signal verbatim as the last lines of the Phase 7 output, one `KEY: PASS|FAIL` per line. Use `PASS` only when the matching criterion in `## Success Criteria` is met; otherwise `FAIL`. `REPORT_COMMITTED` is `n/a` in `--no-worktree` mode, where the report is written to disk but no automatic commit is made.
 
 ---
 
@@ -813,6 +823,38 @@ The review file is updated incrementally after each agent returns, so if the run
 - **REPORT_CREATED**: A fix report is written to `docs/prps/reviews/fixes/`
 - **VALIDATION_RUN**: Phase 5 type-check + tests completed (even if they failed)
 - **REPORT_COMMITTED**: The fix report is committed and pushed to the PR branch alongside the fix commits (in worktree mode). In `--no-worktree` mode, the report is written to disk; no automatic commit is made.
+
+These keys are emitted verbatim in the Phase 7 OUTPUT 'Goal Signals' block so a `/goal` evaluator can observe completion from the transcript.
+
+---
+
+## /goal pairing
+
+Pair this skill with the `/goal` session directive to drive the fix pipeline to completion — through every batch of fixer agents and the Phase 5 validation pass — without returning control between batches. Supply an explicit done condition that references the Phase 7 Goal Signals block rather than file paths.
+
+The loop driver for `review-fix` is artifact-driven with no CI loop: the done signal is "no Open findings remain", which is observable from the `Open remaining: 0` reconciliation line and the five Goal Signals keys printed in Phase 7. There is no `RESULT=`/`CI_GREEN` marker.
+
+`Failed` findings that the fixer agent already judged unfixable are **terminal** — they are not re-dispatched automatically. When `Open remaining` is non-zero only because of `Failed` findings (i.e. `Fixed + Failed == Eligible`), the pipeline is complete: do not loop again on already-failed findings.
+
+Recommended condition template:
+
+```
+/goal Run /review-fix <review-file-or-pr> using the review-fix workflow,
+continuing through every batch of fixer agents and the Phase 5 validation pass
+without returning control to me. Done when the transcript shows the Phase 7
+"## Review Fixes Complete" output followed by all five Goal Signals printed verbatim —
+PLAN_VALID: PASS, REVIEW_UPDATED: PASS, REPORT_CREATED: PASS, VALIDATION_RUN: PASS,
+and REPORT_COMMITTED: PASS (or n/a in --no-worktree mode) — and the "Open remaining"
+line shows 0 (or all remaining Open findings are accounted for by Failed entries). If
+any non-terminal signal prints FAIL, keep fixing and re-running until resolved. Stop
+after 25 turns if not achieved.
+```
+
+The transcript-output contract and shared caveats (worktree cwd, interactive failure prompts, platform availability) live in the shared reference — read it before relying on a `/goal` loop:
+
+```
+${CURSOR_PLUGIN_ROOT}/skills/_shared/references/goal-pairing.md
+```
 
 ---
 
