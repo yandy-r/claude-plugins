@@ -1,10 +1,10 @@
 # `/goal` Pairing — Shared Contract
 
 Reference for ycc skills that recommend pairing with the platform `/goal` session
-directive for autonomous, loop-to-completion execution — currently `prp-implement`
-and `implement-plan`. Both skills cite this doc so the transcript-output contract,
-the condition-template shape, and the caveats stay convergent. Fix them here, not per
-skill.
+directive for autonomous, loop-to-completion execution — currently `prp-implement`,
+`implement-plan`, and `pr-autofix`. Each skill cites this doc so the
+transcript-output contract, the condition-template shape, and the caveats stay
+convergent. Fix them here, not per skill.
 
 ## Transcript-output contract
 

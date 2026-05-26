@@ -534,7 +534,18 @@ Report:    docs/prps/reports/pr-autofix-<N>-<ts>.md
 ### Next steps
   gh pr view <N> --web    # inspect PR
   /pr-autofix <N>     # re-run after new comments
+
+### Goal Signals (machine-readable — printed verbatim for /goal)
+EVERY_THREAD_HANDLED: <PASS|FAIL>
+NO_FORCE_PUSH: <PASS|FAIL>
+NO_NO_VERIFY: <PASS|FAIL>
+NO_RAW_PROMPTS_OUTBOUND: <PASS|FAIL>
+REPORT_CREATED: <PASS|FAIL>
+CI_GREEN: <PASS|FAIL|n/a>
+CI_BAIL_VISIBLE: <PASS|n/a>
 ```
+
+Print every signal verbatim as the last lines of the Phase 8 output, one `KEY: PASS|FAIL` per line. Use `PASS` only when the matching `## Success criteria` item holds; otherwise `FAIL`. The two CI signals are `n/a` when `--ci` was not set; with `--ci`, `CI_GREEN` is `PASS` only on `Result: green`, and `CI_BAIL_VISIBLE` is `PASS` when a `bail-*` and its `REASON=` were printed (otherwise `n/a`).
 
 ---
 
@@ -573,7 +584,40 @@ We **never** call GitHub's "Apply suggestion" REST endpoint. Always re-derive th
 - **NO_NO_VERIFY**: No `git commit --no-verify` was issued.
 - **NO_RAW_PROMPTS_OUTBOUND**: No reviewer text appears verbatim in any reply, summary, or commit message. All outbound text passes the sanitizer.
 - **REPORT_CREATED**: `docs/prps/reports/pr-autofix-<N>-<ts>.md` exists.
-- **CI_BAIL_VISIBLE**: If `--ci` bailed, the report and stdout state the cap/constraint that fired.
+- **CI_GREEN**: If `--ci` ran, the loop reached `RESULT=green` and Phase 8 stdout shows `Result: green`. `n/a` when `--ci` was not set.
+- **CI_BAIL_VISIBLE**: If `--ci` bailed, the report and stdout state the `bail-*` code and the cap/constraint that fired. `n/a` when `--ci` reached green or was not set.
+
+---
+
+## /goal pairing
+
+Pair this skill with the `/goal` session directive to drive the `--ci` autofix loop to completion — through every `handoff` fix-and-re-push iteration and every `rerun-pending` flake retry — without returning control between iterations. Supply an explicit done condition that references the Phase 8 Goal Signals block rather than the report file.
+
+The CI loop's stdout `RESULT=` markers tell the evaluator when to keep looping versus when to stop:
+
+- **Keep looping** — `handoff` (apply the fix, commit, push, re-invoke the monitor) and `rerun-pending` (flake suspected; wait, then re-invoke). These are recoverable progress markers, not endpoints.
+- **Done** — `RESULT=green` (`CI_GREEN: PASS`).
+- **Stop** — any `bail-*` (`bail-recurrence`, `bail-nonfixable`, `bail-pushes`, `bail-timeout`). All four are terminal: `ci-monitor.sh` exhausts the recoverable retries (`rerun-pending`) internally before emitting a bail, so a printed `bail-*` means no further automatic progress is possible. The evaluator distinguishes "loop again" from "stop" by `Result: green` vs `Result: bail-*` in the Phase 8 output — not by re-classifying bail codes. See `~/.config/opencode/shared/references/ci-monitoring.md` for the authoritative bail taxonomy.
+
+Recommended condition template:
+
+```
+/goal Run /pr-autofix <PR> --ci using the pr-autofix workflow, continuing
+through every handoff and rerun-pending iteration of the Phase 7 CI loop without
+returning control to me. Done when the transcript shows the Phase 8
+"## PR Autofix Complete" output followed by the Goal Signals printed verbatim —
+EVERY_THREAD_HANDLED: PASS, NO_FORCE_PUSH: PASS, NO_NO_VERIFY: PASS,
+NO_RAW_PROMPTS_OUTBOUND: PASS, REPORT_CREATED: PASS, and CI_GREEN: PASS. If CI_GREEN
+prints FAIL alongside CI_BAIL_VISIBLE: PASS (a terminal bail-* fired), stop and report
+the bail — do not re-run. If any other signal prints FAIL, keep fixing and re-running
+until all are PASS. Stop after 25 turns if not achieved.
+```
+
+The transcript-output contract and shared caveats (worktree cwd, interactive failure prompts, platform availability) live in the shared reference — read it before relying on a `/goal` loop:
+
+```
+~/.config/opencode/shared/references/goal-pairing.md
+```
 
 ---
 
@@ -593,6 +637,7 @@ We **never** call GitHub's "Apply suggestion" REST endpoint. Always re-derive th
 
 - `~/.config/opencode/shared/references/ci-monitoring.md` — authoritative CI policy (caps, classification, safety).
 - `~/.config/opencode/shared/scripts/ci-monitor.sh` — single-shot CI checker.
+- `~/.config/opencode/shared/references/goal-pairing.md` — shared `/goal` pairing contract (transcript-output rules, condition skeleton, caveats).
 - `~/.config/opencode/skills/git-workflow/scripts/validate-commit.sh` — commit message validator.
 - `references/comment-sources.md` — GraphQL queries for the three PR comment surfaces.
 - `references/severity-mapping.md` — severity heuristics + bot-login list + in-progress markers.
