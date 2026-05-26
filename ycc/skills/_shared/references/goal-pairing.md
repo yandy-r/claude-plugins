@@ -2,7 +2,7 @@
 
 Reference for ycc skills that recommend pairing with the platform `/goal` session
 directive for autonomous, loop-to-completion execution — currently `ycc:prp-implement`,
-`ycc:implement-plan`, and `ycc:pr-autofix`. Each skill cites this doc so the
+`ycc:implement-plan`, `ycc:review-fix`, and `ycc:pr-autofix`. Each skill cites this doc so the
 transcript-output contract, the condition-template shape, and the caveats stay
 convergent. Fix them here, not per skill.
 
