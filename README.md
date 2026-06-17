@@ -8,7 +8,7 @@ A single Claude Code plugin (`ycc`) bundling workflow orchestration, parallel pl
 
 <!-- BEGIN:GENERATED-COUNTS -->
 
-The source plugin ships **47 skills**, **46 slash commands** (most skills have a matching command), and **54 agents**.
+The source plugin ships **48 skills**, **47 slash commands** (most skills have a matching command), and **54 agents**.
 
 <!-- END:GENERATED-COUNTS -->
 
@@ -17,6 +17,7 @@ The source plugin ships **47 skills**, **46 slash commands** (most skills have a
 | Command / Skill            | Purpose                                                                                                                                                                                 |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/ycc:ask`                 | Ask questions about the codebase without making changes - get guidance, impact analysis, or comparisons                                                                                 |
+| `/ycc:blueprint`           | Whole-project source-of-truth spec generator.                                                                                                                                           |
 | `/ycc:bundle-author`       | Scaffold new source-of-truth content in the ycc bundle (skill, optional matching command and agent)                                                                                     |
 | `/ycc:bundle-release`      | Prepare a ycc bundle release — preflight, bump, regenerate, validate, draft notes (no auto-commit)                                                                                      |
 | `/ycc:clean`               | Orchestrate parallel cleanup agents to find and remove unnecessary project files                                                                                                        |

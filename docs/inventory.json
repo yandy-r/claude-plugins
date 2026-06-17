@@ -5,6 +5,10 @@
       "description": "This skill should be used when the user asks questions about the codebase without requesting changes, such as \"how does X work?\", \"where is Y implemented?\", \"explain this code\", \"walk me through X\", \"what does this do?\", \"what would I need to change for X?\", \"if I change X what breaks?\", \"compare how A and B handle X\", or any exploratory question about code structure, architecture, or implementation. Also triggered by the /ask command."
     },
     {
+      "name": "blueprint",
+      "description": "Interactive, whole-project source-of-truth spec generator. Takes a raw software idea, interrogates it through a multi-gate process (Foundation \u2192 Grounding \u2192 Scope \u2192 Tech Stack \u2192 Architecture \u2192 Generate), and writes a durable project charter at docs/blueprint.md \u2014 vision, users, scope, tech-stack decision, architecture, modules, NFRs, milestones, risks. Its machine-readable Bootstrap section then drives project bootstrap (code init, CI, formatters) by orchestrating /ycc:init and /ycc:formatters. Use when the user asks to \"create a project spec\", \"write a software spec\", \"whole-project spec\", \"source of truth spec\", \"scaffold/bootstrap a new software project from an idea\", \"project charter/blueprint\", or says \"/blueprint\". Sits UPSTREAM of prp-prd/prp-spec \u2014 those are per-feature; this is the whole software."
+    },
+    {
       "name": "bundle-author",
       "description": "This skill should be used when the user asks to \"scaffold a new ycc skill\", \"add a skill to the bundle\", \"extend ycc\", \"create a new command under ycc\", \"add an agent to ycc\", or when the user wants to author new source-of-truth content in the ycc/ bundle (skills, commands, agents). Contributor workflow \u2014 not a generic plugin scaffolder. Respects the source-of-truth / regenerated-bundle split."
     },
@@ -193,6 +197,10 @@
     {
       "name": "ask",
       "description": "Ask questions about the codebase without making changes - get guidance, impact analysis, or comparisons"
+    },
+    {
+      "name": "blueprint",
+      "description": "Whole-project source-of-truth spec generator. Interrogates a raw software idea through a multi-gate process and writes a durable project charter to docs/blueprint.md, then bootstraps the project (init + formatters) from its Bootstrap section. Upstream of prp-prd/prp-spec."
     },
     {
       "name": "bundle-author",
@@ -594,8 +602,8 @@
     }
   ],
   "counts": {
-    "skills": 47,
-    "commands": 46,
+    "skills": 48,
+    "commands": 47,
     "agents": 54
   },
   "parity": {
