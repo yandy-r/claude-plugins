@@ -43,12 +43,13 @@ Parse arguments (flags first, then the feature name):
 - **--dry-run**: Show execution plan without running. With `--team`, also prints the team name and teammate roster.
 - **--worktree**: Optional. (legacy — now default; safe to omit) Worktree annotations are emitted in the generated `parallel-plan.md` by default. Accepted as a silent no-op so existing pipelines continue to work.
 - **--no-worktree**: Optional. Opt out of worktree annotations in the generated `parallel-plan.md`. No effect when `--research-only` is passed (no plan file is generated). Honored with `--plan-only`.
+- **--visual**: Render the finished plan as an Agent-Native visual artifact (MDX) via `visual-plan`; local-files by default, hosted link requires `--share`.
 - **feature-name**: Required. Directory name in `${PLANS_DIR}/`
 
 If no feature name provided, abort with usage instructions:
 
 ```
-Usage: /plan-workflow [--team] [options] [feature-name]
+Usage: /plan-workflow [--team] [options] [--visual] [feature-name]
 
 Options:
   --team            (Claude Code only) Dispatch stages as agent team (default: standalone sub-agents)
@@ -59,6 +60,7 @@ Options:
   --dry-run         Show execution plan without running
   --worktree        (legacy — now default; safe to omit) Worktree annotations emitted by default
   --no-worktree     Opt out of worktree annotations in the generated parallel-plan.md
+  --visual          Render the finished plan as a visual artifact via visual-plan (local-files by default; hosted link requires --share)
 
 Examples:
   /plan-workflow user-authentication
@@ -69,7 +71,26 @@ Examples:
   /plan-workflow --team --dry-run new-feature
   /plan-workflow add-billing-dashboard                 # worktree annotations included by default
   /plan-workflow --no-worktree add-billing-dashboard   # skip worktree annotations
+  /plan-workflow --visual add-billing-dashboard        # render the finished plan as a visual artifact
 ```
+
+---
+
+## Visual mode
+
+See `~/.config/opencode/shared/references/visual-mode.md` for the canonical `--visual` contract shared by all planning skills.
+
+`--visual` is a **terminal decorator step**, not a dispatch mode. It is orthogonal to and composes with `--team`, `--optimized`, and `--no-worktree`, and runs once at the very end.
+
+When `VISUAL_MODE=true` and `--dry-run` is **not** set, after the final phase (the plan has been written and validated) the workflow invokes:
+
+```
+visual-plan <absolute-plan-path>
+```
+
+where `<absolute-plan-path>` is the **actual written plan path** — the feature-dir plan at `${feature_dir}/parallel-plan.md` resolved in Phase 0 — **not** a hardcoded `docs/prps/plans` path. `visual-plan` derives its `visual/` output directory relative to that plan path.
+
+When `--dry-run` is set, `--visual` is **short-circuited**: print `visual generation would run` and do not invoke `visual-plan`. `--research-only` produces no plan file, so `--visual` has nothing to render and does not run.
 
 ---
 
@@ -91,9 +112,16 @@ case " $ARGUMENTS " in
 esac
 ARGUMENTS="${ARGUMENTS//--no-worktree/}"
 ARGUMENTS="${ARGUMENTS//--worktree/}"  # legacy no-op
+
+VISUAL_MODE=false
+case " $ARGUMENTS " in
+  *" --visual "*) VISUAL_MODE=true ;;
+esac
+ARGUMENTS="${ARGUMENTS//--visual/}"
 ```
 
-4. **feature-name**: First non-flag argument (required).
+4. **--visual**: Boolean flag. Set `VISUAL_MODE=true` if present, else `false`. Terminal decorator — see [## Visual mode](#visual-mode).
+5. **feature-name**: First non-flag argument (required).
 
 Validate the feature name:
 
@@ -607,6 +635,26 @@ After validators complete:
 If `AGENT_TEAM_MODE=false`, skip this step — standalone sub-agents return on their own.
 
 Otherwise, send shutdown requests to all validation teammates.
+
+---
+
+## Phase 9.5: Visual Mode (if --visual)
+
+If `VISUAL_MODE=false`, skip this phase entirely.
+
+This step runs only after the plan has been written (Phase 8) and validated (Phases 8–9). It never re-orders, re-runs, or substitutes for any earlier phase. See `~/.config/opencode/shared/references/visual-mode.md`.
+
+### Step 32.5: Render Visual Artifact
+
+- If `--dry-run` is set, print `visual generation would run` and **STOP** this phase (the §2.1 short-circuit — no visual artifacts are produced).
+- If `--research-only` was used, no plan file was generated; skip this phase.
+- Otherwise, invoke `visual-plan` on the **actual written plan path** (the feature-dir plan resolved in Phase 0, not a hardcoded `docs/prps/plans` path):
+
+```
+visual-plan "${feature_dir}/parallel-plan.md"
+```
+
+`visual-plan` derives its `visual/` output directory relative to the supplied plan path and prints the resulting link (hosted URL, localhost preview, or `local files only`). Surface that link in the Phase 10 summary; do not re-derive the path yourself, and do not edit the plan file.
 
 ---
 

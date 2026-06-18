@@ -34,3 +34,8 @@ __pycache__/
 
 # opencode model-alias overrides (per-user, optional)
 scripts/opencode_model_aliases.local.json
+
+# Agent-Native visual-plan/visual-recap local scratch
+plan-blocks.md
+**/plans/*/.plan-serve/
+**/.agent-native/

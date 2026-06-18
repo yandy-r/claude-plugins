@@ -1,6 +1,6 @@
 ---
 description: Generate a detailed parallel implementation plan with task dependencies, file ownership, and batch ordering. Step 2 of the planning workflow — requires shared-context output. Produces parallel-plan.md ready for implement-plan. Defaults to standalone parallel sub-agents via the Task tool; pass --team (Claude Code only) to orchestrate the analysis and validation stages as teammates under a shared TeamCreate/TaskList with coordinated shutdown.
-argument-hint: '[--team] [--no-worktree] [feature-name] [--dry-run]'
+argument-hint: '[--team] [--no-worktree] [--visual] [feature-name] [--dry-run]'
 ---
 
 # Parallel Plan Command
@@ -16,6 +16,7 @@ The skill analyzes the shared context, designs independent task batches with exp
 - `--team` — (Claude Code only) Dispatch the 3 analysis agents and 3 validation agents as teammates under a shared `TeamCreate`/`TaskList` with coordinated shutdown and inter-teammate `SendMessage` coordination. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
 - `--worktree` — (legacy — now default; pass `--no-worktree` to opt out) Worktree annotations are emitted by default. This flag is accepted as a silent no-op so existing pipelines continue to work.
 - `--no-worktree` — Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.
+- `--visual` — Render the finished plan as an Agent-Native visual artifact (MDX) via `ycc:visual-plan`; local-files by default, hosted link requires `--share`. Runs only after the plan is written and validated; `--dry-run` short-circuits it (prints intent only).
 - `--dry-run` — Preview the execution plan without deploying agents. With `--team`, also prints the team name and teammate roster.
 
 **Examples**:
@@ -26,5 +27,6 @@ The skill analyzes the shared context, designs independent task batches with exp
 /ycc:parallel-plan add a billing dashboard                    # worktree annotations included by default
 /ycc:parallel-plan --no-worktree add a billing dashboard      # skip worktree annotations
 /ycc:parallel-plan --team user-authentication                 # team mode with worktree annotations (default)
+/ycc:parallel-plan --visual user-authentication               # also render the plan as a visual artifact
 /ycc:parallel-plan payment-integration --dry-run
 ```

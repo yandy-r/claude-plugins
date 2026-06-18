@@ -34,6 +34,7 @@ Extract flags from `$ARGUMENTS`:
 | `--no-worktree` | Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.                                                                                                                                                                                            |
 | `--dry-run`     | Only valid with `--team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                                                                                               |
 | `--enhanced`    | Enhanced research mode: grow the research fan-out from 3 to 7 specialized researchers (api/business/tech/ux/security/practices/recommendations — same coverage as feature-research). Output is still a single PRP-compliant plan file. Composes with --parallel (default), --team (Claude Code only), and --no-worktree. |
+| `--visual`      | Render the finished plan as an Agent-Native visual artifact (MDX) via `visual-plan`; local-files by default, hosted shareable link requires `--share`.                                                                                                                                                                   |
 
 Strip the flags. Set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `DRY_RUN=true|false`. Default `WORKTREE_MODE=true`; set `WORKTREE_MODE=false` if `--no-worktree` is present. `--worktree` is accepted as a legacy no-op (matches the default). Remaining text is the feature description or PRD path.
 
@@ -51,6 +52,12 @@ case " $ARGUMENTS " in
   *" --enhanced "*) ENHANCED_MODE=true ;;
 esac
 ARGUMENTS="${ARGUMENTS//--enhanced/}"
+
+VISUAL_MODE=false
+case " $ARGUMENTS " in
+  *" --visual "*) VISUAL_MODE=true ;;
+esac
+ARGUMENTS="${ARGUMENTS//--visual/}"
 ```
 
 **Validation**:
@@ -59,6 +66,7 @@ ARGUMENTS="${ARGUMENTS//--enhanced/}"
 - `--dry-run` requires `--team`. If `DRY_RUN=true` and `AGENT_TEAM_MODE=false` → abort with: `--dry-run requires --team.`
 - `--no-worktree` is **orthogonal** to `--parallel` and `--team` — it may be combined freely with either flag or used alone to suppress annotations.
 - If `--enhanced` is passed without `--parallel` or `--team`, default to standalone sub-agent dispatch (Path B equivalent at width 7). If `--enhanced --team` is invoked from a Cursor or Codex bundle, abort with the same compatibility message used today for plain `--team`. If `--dry-run` is passed, it requires `--team` (same constraint as today); `--enhanced --dry-run` alone is invalid.
+- `--visual` is orthogonal — it composes with `--parallel`/`--team`/`--enhanced`/`--no-worktree` and runs after the plan is written and validated. `--dry-run` short-circuits it (prints intent only).
 
 **Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools). Use `--parallel` instead.
 
@@ -385,6 +393,23 @@ Include a brief note in the report: "Plan validated with N warning(s) — see va
 
 ---
 
+## Phase 7 — VISUALIZE (optional)
+
+This step runs after the plan is written (Phase 6) and validated (Phase 6.5), regardless of the dispatch path taken (`--parallel`, `--team`, or sequential):
+
+- If `VISUAL_MODE=true` and `--dry-run` is NOT set, invoke `visual-plan <plan-path>` — passing the absolute path of the just-written `docs/prps/plans/{name}.plan.md` — and capture its printed link.
+- If `--dry-run` is set, print `visual generation would run` and skip the invocation.
+
+---
+
+## Visual mode
+
+This skill exposes the shared `--visual` decorator. The canonical contract lives at `~/.config/opencode/shared/references/visual-mode.md` — follow it for composition, timing, and hand-off rules.
+
+When `VISUAL_MODE` is set and `--dry-run` is NOT, the skill invokes `visual-plan <absolute-plan-path>` AFTER Phase 6, passing the just-written `.plan.md` path (the file written in Phase 6 and validated in Phase 6.5). `visual-plan` derives its own `visual/` output directory from that path and prints the resulting link; the skill surfaces that link in the Report block. When `--dry-run` is set, print `visual generation would run` and skip — no visual artifacts, directories, or links are produced.
+
+---
+
 ## Output
 
 ### Update PRD (if input was a PRD)
@@ -408,6 +433,8 @@ Update the phase status from `pending` to `in-progress` and add the plan file pa
 - **Research Dispatch**: [Sequential | Parallel sub-agents | Agent team | Enhanced (7 researchers)]
 - **Execution Mode**: [Sequential | Parallel (N batches, max width X)]
 - **Worktree Mode**: [Enabled (default) — plan includes ## Worktree Setup (single feature worktree — **Parent**: line only) | Disabled via --no-worktree]
+- **Visual Artifact**: [Generated via visual-plan | n/a (--visual not set)]
+- **Visual Link**: [hosted URL | http://127.0.0.1:PORT/... | local files only | n/a (--visual not set)]
 
 > Next step: Run `/prp-implement docs/prps/plans/{name}.plan.md` to execute this plan.
 ```

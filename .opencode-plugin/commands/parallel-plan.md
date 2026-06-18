@@ -5,7 +5,7 @@ description: 'Generate a detailed parallel implementation plan with task depende
   parallel sub-agents via the opencode `task` tool; pass --team (Claude Code only)
   to orchestrate the analysis and validation stages as teammates under a shared spawn
   coordinated subagents/the todo tracker with coordinated shutdown. Usage: [--team]
-  [--no-worktree] [feature-name] [--dry-run]'
+  [--no-worktree] [--visual] [feature-name] [--dry-run]'
 ---
 
 # Parallel Plan Command
@@ -21,6 +21,7 @@ The skill analyzes the shared context, designs independent task batches with exp
 - `--team` — (Claude Code only) Dispatch the 3 analysis agents and 3 validation agents as teammates under a shared `spawn coordinated subagents`/`the todo tracker` with coordinated shutdown and inter-teammate `send follow-up instructions` coordination. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
 - `--worktree` — (legacy — now default; pass `--no-worktree` to opt out) Worktree annotations are emitted by default. This flag is accepted as a silent no-op so existing pipelines continue to work.
 - `--no-worktree` — Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.
+- `--visual` — Render the finished plan as an Agent-Native visual artifact (MDX) via `visual-plan`; local-files by default, hosted link requires `--share`. Runs only after the plan is written and validated; `--dry-run` short-circuits it (prints intent only).
 - `--dry-run` — Preview the execution plan without deploying agents. With `--team`, also prints the team name and teammate roster.
 
 **Examples**:
@@ -31,5 +32,6 @@ The skill analyzes the shared context, designs independent task batches with exp
 /parallel-plan add a billing dashboard                    # worktree annotations included by default
 /parallel-plan --no-worktree add a billing dashboard      # skip worktree annotations
 /parallel-plan --team user-authentication                 # team mode with worktree annotations (default)
+/parallel-plan --visual user-authentication               # also render the plan as a visual artifact
 /parallel-plan payment-integration --dry-run
 ```
