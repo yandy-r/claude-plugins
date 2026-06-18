@@ -1,7 +1,7 @@
 ---
 name: plan
 description: Lightweight conversational planner — dispatches planner (or a multi-perspective fan-out) to produce a phased plan with file paths, dependencies, risks, and tests, then WAITS for confirmation. Lighter than plan-workflow or PRD-driven prp-plan. Use when the user asks to "plan this", "outline an approach", "break this down before I code", "parallel plan", "multi-perspective plan", "enhanced plan", or says "/plan".
-argument-hint: '[--parallel] [--team] [--enhanced] [--dry-run] [--no-worktree] <what you want to plan>'
+argument-hint: '[--parallel] [--team] [--enhanced] [--dry-run] [--no-worktree] [--visual] <what you want to plan>'
 allowed-tools:
   - Read
   - Grep
@@ -48,6 +48,7 @@ Create a comprehensive implementation plan before writing any code. This is the 
 | `--dry-run`     | Valid with `--team` (prints team-coordinated roster) or `--enhanced` (prints standalone or team roster depending on whether `--team` is also present). Prints the roster, then exits without spawning any agents.                                                                                                                                                                                                                                                                                                                                                                                  |
 | `--worktree`    | (legacy — now default; safe to omit) Previously required to emit worktree annotations; the annotations are now emitted by default. Accepted as a silent no-op so existing pipelines continue to work.                                                                                                                                                                                                                                                                                                                                                                                              |
 | `--no-worktree` | Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `--visual`      | Force-write the plan to a file, then render it as an Agent-Native visual artifact (MDX) via `visual-plan`; local-files by default, hosted link requires `--share`.                                                                                                                                                                                                                                                                                                                                                                                                                             |
 
 **Flag interaction**:
 
@@ -76,7 +77,7 @@ Use this skill when:
 
 ### Step 1 — Parse flags and the user's request
 
-**Flag parsing**: Extract `--parallel`, `--team`, `--enhanced`, `--dry-run`, `--no-worktree`, and `--worktree` from `$ARGUMENTS` before processing. Strip them out. Set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `ENHANCED_MODE=true|false`, `DRY_RUN=true|false`. Default `WORKTREE_MODE=true`; set `WORKTREE_MODE=false` if `--no-worktree` is present. `--worktree` is accepted as a legacy no-op (matches the default). The remaining text is the user's request.
+**Flag parsing**: Extract `--parallel`, `--team`, `--enhanced`, `--dry-run`, `--no-worktree`, `--worktree`, and `--visual` from `$ARGUMENTS` before processing. Strip them out. Set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `ENHANCED_MODE=true|false`, `DRY_RUN=true|false`, `VISUAL_MODE=true|false`. Default `WORKTREE_MODE=true`; set `WORKTREE_MODE=false` if `--no-worktree` is present. `--worktree` is accepted as a legacy no-op (matches the default). The remaining text is the user's request.
 
 ```bash
 # Default ON; pass --no-worktree to opt out. --worktree accepted as legacy no-op.
@@ -92,6 +93,12 @@ case " $ARGUMENTS " in
   *" --enhanced "*) ENHANCED_MODE=true ;;
 esac
 ARGUMENTS="${ARGUMENTS//--enhanced/}"
+
+VISUAL_MODE=false
+case " $ARGUMENTS " in
+  *" --visual "*) VISUAL_MODE=true ;;
+esac
+ARGUMENTS="${ARGUMENTS//--visual/}"
 ```
 
 **Validation**:
@@ -100,6 +107,7 @@ ARGUMENTS="${ARGUMENTS//--enhanced/}"
 - If `DRY_RUN=true` and both `AGENT_TEAM_MODE=false` and `ENHANCED_MODE=false` → abort with: `--dry-run requires --team or --enhanced (no-op for the single-agent path).`
 - If `--team` is invoked from a Cursor or Codex bundle, abort with the existing compatibility message: `--team requires team tools, which Cursor/Codex bundles do not ship. Use --parallel instead.`
 - `--enhanced` alone is supported in every bundle: Path C uses parallel `Agent` calls without team tools. Only the `--enhanced --team` combination requires Claude Code; in Cursor or Codex, abort with: `--enhanced --team requires team tools, which Cursor/Codex bundles do not ship. Drop --team to use the standalone 5-persona path.`
+- `--visual` is orthogonal and runs after the plan is produced. Because `/plan` writes no file by default, `--visual` forces a plan-file write first. `--dry-run` short-circuits it (prints intent only).
 
 Read the stripped `$ARGUMENTS`. If it references a file path, read that file for context. If the request is ambiguous, ask a single focused clarifying question **before** dispatching.
 
@@ -533,6 +541,50 @@ Valid user responses:
 **Team-mode re-dispatch note**: Path B's team is `TeamDelete`d in Step B.8 _before_ the user sees the plan. Any re-dispatch from this step creates a **new** team (same name is fine — the old one no longer exists) with a fresh set of teammates. Do not attempt to send messages to teammates from the prior team.
 
 **Path C re-dispatch note**: Path C never created a team, so there is no teardown to worry about. Any re-dispatch from this step simply fires a fresh batch of 5 parallel `Agent` calls (no `team_name=`).
+
+---
+
+### Step 5 — Visual rendering (if `VISUAL_MODE=true`)
+
+This step runs **only after** the user confirms the plan in Step 4 (it is the terminal decorator step). It never re-orders or substitutes for any earlier phase.
+
+- **If `DRY_RUN=true`**: print `visual generation would run` and skip — do not force any write and do not invoke `visual-plan`. (`--dry-run` already exits earlier at the dispatch gate; this is the no-op contract for the combination.)
+- **Otherwise**:
+  1. **Force-write the plan to a file.** `/plan` keeps the plan in-chat and writes no artifact by default, so there is nothing on disk to visualize. Write the confirmed plan verbatim to a concrete path. Default location: `docs/prps/plans/<slug>.plan.md`, where `<slug>` is the user's request sanitized to kebab-case (same scheme as Path B §B.1: lowercase, non-`[a-z0-9-]` → `-`, collapse runs, trim, truncate to 20 chars, fallback `untitled`). Create the directory first (`mkdir -p docs/prps/plans`). Resolve the path to an **absolute** path.
+  2. **Invoke** `visual-plan <absolute-plan-path>` with the absolute path written in the previous step.
+  3. **Surface the link** that `visual-plan` prints (hosted URL, localhost preview, or `local files only`). Do not re-derive the output directory yourself.
+
+See the canonical contract for the full force-write-first rule and `--dry-run` short-circuit:
+
+```
+${CURSOR_PLUGIN_ROOT}/skills/_shared/references/visual-mode.md
+```
+
+---
+
+## Visual mode
+
+`--visual` is the single, shared visual decorator described in
+`${CURSOR_PLUGIN_ROOT}/skills/_shared/references/visual-mode.md`. It is a
+**terminal decorator step** — it does not change how the plan is researched,
+dispatched, or relayed. It runs once, last, on the confirmed plan.
+
+**FORCE-WRITE-FIRST (mandatory for `/plan`)**: unlike the other planning
+skills, `/plan` writes **no** plan artifact by default — the plan stays
+in-chat. There is therefore nothing on disk to visualize. When `VISUAL_MODE` is
+set (and **not** `--dry-run`), the skill MUST:
+
+1. **Write the otherwise-inline plan to a concrete file path first.** Default:
+   `docs/prps/plans/<slug>.plan.md` (absolute path; directory created if
+   missing). This forced write happens even though it would normally be skipped.
+2. **Then invoke** `visual-plan <absolute-plan-path>` with that absolute
+   path.
+
+Without the forced write there is no input for `visual-plan`, so the
+force-write is required, not optional. Under `--dry-run` this is moot: the
+skill prints `visual generation would run` and forces no write (see §2.1 and §4
+of the canonical reference). `visual-plan` derives its `visual/` output
+directory relative to the plan path it is handed and never edits the plan file.
 
 ---
 

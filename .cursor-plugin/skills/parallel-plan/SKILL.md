@@ -1,7 +1,7 @@
 ---
 name: parallel-plan
 description: Create detailed parallel implementation plans by running analysis and validation stages, then synthesizing dependency-aware tasks into parallel-plan.md. Use after shared-context to prepare implementation-ready planning artifacts. Defaults to standalone parallel sub-agents via Cursor; pass `--team` (Claude Code only) to orchestrate the analysis and validation stages as teammates under a shared TeamCreate/TaskList with coordinated shutdown.
-argument-hint: '[--team] [--no-worktree] [feature-name] [--dry-run]'
+argument-hint: '[--team] [--no-worktree] [--visual] [feature-name] [--dry-run]'
 allowed-tools:
   - Read
   - Grep
@@ -69,13 +69,14 @@ Parse arguments (flags first, then the feature name):
 - **--team**: Optional. (Claude Code only) Deploy the analysis and validation stages as teammates under a shared `TeamCreate`/`TaskList` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
 - **--worktree**: Optional. (legacy — now default; safe to omit) Worktree annotations are emitted by default. Accepted as a silent no-op so existing pipelines continue to work.
 - **--no-worktree**: Optional. Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.
+- **--visual**: Optional. Render the finished plan as an Agent-Native visual artifact (MDX) via `visual-plan`; local-files by default, hosted link requires `--share`.
 - **--dry-run**: Show what would be created without making changes. With `--team`, also prints the team name and teammate roster.
 - **feature-name**: Required. Matches directory name in `${PLANS_DIR}`.
 
 If no feature name provided, abort with usage instructions:
 
 ```
-Usage: /parallel-plan [--team] [--no-worktree] [feature-name] [--dry-run]
+Usage: /parallel-plan [--team] [--no-worktree] [--visual] [feature-name] [--dry-run]
 
 Examples:
   /parallel-plan user-authentication
@@ -84,7 +85,18 @@ Examples:
   /parallel-plan --team --dry-run user-authentication
   /parallel-plan user-authentication                     # worktree annotations included by default
   /parallel-plan --no-worktree user-authentication       # skip worktree annotations
+  /parallel-plan --visual user-authentication            # also render the plan as a visual artifact
 ```
+
+---
+
+## Visual mode
+
+`--visual` follows the canonical contract at `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/visual-mode.md`. It is a **terminal decorator**, not a dispatch mode: it does not change how the plan is researched, dispatched, or written, and composes orthogonally with `--team` and `--no-worktree`.
+
+When `VISUAL_MODE` is set and not `--dry-run`, after the final phase (plan written in Phase 4, validated in Phase 6 Step 21) the skill invokes `visual-plan <absolute-plan-path>` on the **actual written plan path** — the absolute path of `${feature_dir}/parallel-plan.md`. The bootstrap invocation lives in Step 21.5.
+
+When `--dry-run` is also present, `--visual` is short-circuited (see Step 4): the skill prints `visual generation would run` and generates no artifact, directory, or link.
 
 ---
 
@@ -106,7 +118,8 @@ Extract from `$ARGUMENTS`:
 1. **--team**: Boolean flag. Set `AGENT_TEAM_MODE=true` if present, else `false`.
 2. **--dry-run**: Boolean flag. Set `DRY_RUN=true` if present, else `false`.
 3. **--no-worktree / --worktree**: Default `WORKTREE_MODE=true`. Set `WORKTREE_MODE=false` if `--no-worktree` is present. `--worktree` is accepted as a legacy no-op (matches the default).
-4. **feature-name**: First non-flag argument (required).
+4. **--visual**: Boolean flag. Set `VISUAL_MODE=true` if present, else `false`.
+5. **feature-name**: First non-flag argument (required).
 
 ```bash
 # Default ON; pass --no-worktree to opt out. --worktree accepted as legacy no-op.
@@ -116,7 +129,15 @@ case " $ARGUMENTS " in
 esac
 ARGUMENTS="${ARGUMENTS//--no-worktree/}"
 ARGUMENTS="${ARGUMENTS//--worktree/}"  # legacy no-op
+
+VISUAL_MODE=false
+case " $ARGUMENTS " in
+  *" --visual "*) VISUAL_MODE=true ;;
+esac
+ARGUMENTS="${ARGUMENTS//--visual/}"
 ```
+
+`--visual` is orthogonal — it composes with `--team`/`--no-worktree` and runs after the plan is written and validated. `--dry-run` short-circuits it (prints intent only); see Step 4 and the `## Visual mode` section.
 
 **Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools).
 
@@ -202,6 +223,14 @@ Teammates:      6 across 2 batches
 ```
 
 Do **not** call `TeamCreate`, `TaskCreate`, `Agent`, `Task`, `SendMessage`, or `TeamDelete` in dry-run mode.
+
+If `VISUAL_MODE=true`, the `--visual` step is **short-circuited** by `--dry-run`: print intent ONLY and generate no visual artifact (`--dry-run` always wins over `--visual`):
+
+```
+visual generation would run
+```
+
+Do **not** invoke `visual-plan` or create any `visual/` directory or link in dry-run mode.
 
 **STOP HERE** - do not write files or deploy agents.
 
@@ -538,6 +567,21 @@ ${CURSOR_PLUGIN_ROOT}/skills/parallel-plan/scripts/validate-parallel-plan.sh "${
 ```
 
 Report any structural issues found.
+
+### Step 21.5: Visual Artifact (if `--visual`)
+
+If `VISUAL_MODE=false`, skip this step entirely.
+
+This step runs **only after** the plan has been written (Step 14) and validated (Step 21). Follow the canonical contract at `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/visual-mode.md`. `--visual` is a terminal decorator: it never re-runs research, dispatch, or plan generation.
+
+- If `DRY_RUN=true`, this step was already short-circuited in Step 4 (printed `visual generation would run`); do **not** generate anything here.
+- Otherwise, when `VISUAL_MODE=true` and not `--dry-run`, invoke `visual-plan` on the **actual written plan path** (the absolute path of `${feature_dir}/parallel-plan.md`):
+
+```
+visual-plan <absolute-path-to-${feature_dir}/parallel-plan.md>
+```
+
+Surface whatever link `visual-plan` prints (hosted shareable URL with `--share`, localhost preview, or `local files only`). Do not re-derive the output path — `visual-plan` derives `visual/` relative to the plan path and leaves the plan file byte-for-byte intact.
 
 ### Step 22: Clean Up Team (if `--team`)
 

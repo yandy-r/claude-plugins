@@ -3,7 +3,7 @@ description: 'Lightweight conversational planner. Restates requirements, identif
   risks, outlines phases, then WAITS for explicit confirmation before any code is
   written. Lighter than /plan-workflow (parallel research) and /prp-plan (PRD-driven,
   artifact-producing). Usage: [--parallel] [--team] [--enhanced] [--dry-run] [--no-worktree]
-  <what you want to plan>'
+  [--visual] <what you want to plan>'
 ---
 
 # Plan Command
@@ -22,11 +22,12 @@ This is the lightweight planner. For an artifact-producing plan with codebase pa
 - `--dry-run` — Only valid with `--team` or `--enhanced`. Prints the roster (3 baseline or 5 enhanced) and dispatch mode (standalone sub-agents or team), then exits without spawning any agents.
 - `--worktree` — (legacy — now default; pass `--no-worktree` to opt out) Worktree annotations are emitted by default. This flag is accepted as a silent no-op so existing pipelines continue to work.
 - `--no-worktree` — Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.
+- `--visual` — Force-write the plan to a file, then render it as an Agent-Native visual artifact (MDX) via `visual-plan`; local-files by default, hosted link requires `--share`. Because `/plan` writes no file by default, `--visual` forces a plan-file write first. Orthogonal to the dispatch flags; `--dry-run` short-circuits it (prints intent only).
 
 `--parallel`, `--team`, and `--enhanced` are **independent and combinable**. `--parallel` shapes the plan's output format; `--team` switches the dispatch mechanism to a coordinated team; `--enhanced` widens the persona roster (3 → 5). With `--enhanced` alone (no `--team`), the 5 personas run as standalone parallel sub-agents. Pass any combination for a richer or more parallel-ready plan.
 
 ```
-Usage: /plan [--parallel] [--team] [--enhanced] [--dry-run] [--no-worktree] <what you want to plan>
+Usage: /plan [--parallel] [--team] [--enhanced] [--dry-run] [--no-worktree] [--visual] <what you want to plan>
 
 Examples:
   /plan add real-time notifications when a market resolves
@@ -41,6 +42,7 @@ Examples:
   /plan --enhanced --parallel add a public webhook endpoint         # 5 standalone subs + parallel-shaped plan
   /plan --parallel add a billing dashboard                          # worktree annotations included by default
   /plan --no-worktree --parallel add a billing dashboard            # skip worktree annotations
+  /plan --visual add a billing dashboard                            # force-write plan, then render visual artifact
 
 The skill will:
   1. Parse flags and restate requirements in clear terms

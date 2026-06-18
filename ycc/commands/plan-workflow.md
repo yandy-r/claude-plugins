@@ -1,6 +1,6 @@
 ---
 description: Unified planning workflow — research, analyze, and generate parallel implementation plans in one command. Combines shared-context and parallel-plan with checkpoint support. Defaults to standalone parallel sub-agents via the Task tool; pass --team (Claude Code only) to orchestrate research, analysis, and validation stages as teammates under a shared TeamCreate/TaskList with coordinated shutdown.
-argument-hint: '[--team] [--research-only] [--plan-only] [--no-checkpoint] [--optimized] [--dry-run] [--no-worktree] [feature-name]'
+argument-hint: '[--team] [--research-only] [--plan-only] [--no-checkpoint] [--optimized] [--dry-run] [--no-worktree] [--visual] [feature-name]'
 ---
 
 # Plan Workflow Command
@@ -21,6 +21,7 @@ The skill orchestrates research → shared-context → parallel-plan in a single
 - `--dry-run` — Preview the execution plan without deploying agents. With `--team`, also prints the team name and teammate roster.
 - `--worktree` — (legacy — now default; pass `--no-worktree` to opt out) Worktree annotations are emitted by default. This flag is accepted as a silent no-op so existing pipelines continue to work.
 - `--no-worktree` — Opt out of worktree annotations in the generated `parallel-plan.md`. No effect with `--research-only`. Honored with `--plan-only`. See `ycc/skills/_shared/references/worktree-strategy.md`.
+- `--visual` — Render the finished plan as an Agent-Native visual artifact (MDX) via `ycc:visual-plan`; local-files by default, hosted link requires `--share`. Terminal decorator — runs after the plan is written and validated; `--dry-run` short-circuits it. See `ycc/skills/_shared/references/visual-mode.md`.
 
 **Examples**:
 
@@ -29,4 +30,5 @@ The skill orchestrates research → shared-context → parallel-plan in a single
 /ycc:plan-workflow --no-worktree add a billing dashboard         # skip worktree annotations
 /ycc:plan-workflow --team user-authentication                    # team mode with worktree annotations (default)
 /ycc:plan-workflow --team --no-worktree user-authentication      # team mode, no worktree annotations
+/ycc:plan-workflow --visual add a billing dashboard              # render the finished plan as a visual artifact
 ```
