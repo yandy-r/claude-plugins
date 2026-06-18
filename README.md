@@ -97,6 +97,8 @@ The plugin bundles **54** specialized agents covering codebase analysis, languag
 
 **Contributing:** before proposing a new skill, command, or agent, read the Scope & Guardrails policy in [`CONTRIBUTING.md`](CONTRIBUTING.md#scope--guardrails).
 
+- **Credits:** `ycc:visual-plan` and `ycc:visual-recap` are adapted from [BuilderIO/skills](https://github.com/BuilderIO/skills).
+
 ## Installation
 
 For Claude Code, install the published `ycc` plugin from the marketplace:
