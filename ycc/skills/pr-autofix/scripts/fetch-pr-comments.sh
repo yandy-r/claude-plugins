@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # fetch-pr-comments.sh — Fetch all actionable PR comments via GitHub GraphQL
 #
+# GitHub-only. Forgejo/Gitea are unsupported: they expose no GraphQL API, so
+# review-thread harvesting cannot be replicated. On a non-GitHub remote this
+# script emits a uniform unsupported notice and exits 2.
+#
 # Purpose:
 #   Single-source fetcher used by ycc:pr-autofix. Pulls every actionable
 #   comment surface on a PR — review threads (file/line anchored) and
@@ -36,12 +40,21 @@ IFS=$'\n\t'
 
 VERSION="1.0.0"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+FORGE_LIB="${SCRIPT_DIR}/../../_shared/scripts/lib/forge.sh"
+[[ -f "$FORGE_LIB" ]] || FORGE_LIB="${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/lib/forge.sh"
+# shellcheck source=/dev/null
+source "$FORGE_LIB"
+
 usage() {
   cat <<'EOF'
 Usage:
   fetch-pr-comments.sh --pr <number> --out <file> [--owner <owner>] [--repo <repo>]
   fetch-pr-comments.sh --help
   fetch-pr-comments.sh --version
+
+GitHub-only. Forgejo/Gitea are unsupported (no GraphQL API); on a non-GitHub
+remote this script prints an unsupported notice and exits 2.
 
 Options:
   --pr <number>     PR number to fetch comments for (required)
@@ -133,6 +146,18 @@ for dep in gh jq; do
     exit 1
   fi
 done
+
+# ---------------------------------------------------------------------------
+# Forge provider gate (GitHub-only feature)
+# ---------------------------------------------------------------------------
+# Review-thread harvesting uses the GitHub GraphQL API. Forgejo/Gitea have no
+# GraphQL API, so detect the provider before any gh call and degrade gracefully.
+
+PROVIDER="$(forge_detect_provider origin)"
+if [[ "$PROVIDER" != "github" ]]; then
+  forge_unsupported_notice "$PROVIDER" "PR review-comment harvesting"
+  exit 2
+fi
 
 if ! gh auth status >/dev/null 2>&1; then
   printf 'fetch-pr-comments.sh: gh not authenticated. Run `gh auth login`.\n' >&2

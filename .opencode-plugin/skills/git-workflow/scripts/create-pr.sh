@@ -44,24 +44,54 @@ if ! git rev-parse --git-dir > /dev/null 2>&1; then
     exit 1
 fi
 
-# Check if gh CLI is available
-if ! command -v gh &> /dev/null; then
-    echo -e "${RED}Error: GitHub CLI (gh) is not installed${NC}" >&2
+# Detect the forge provider and select the matching CLI (gh / tea / glab).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+FORGE_LIB="${SCRIPT_DIR}/../../../shared/scripts/lib/forge.sh"
+[[ -f "$FORGE_LIB" ]] || FORGE_LIB="~/.config/opencode/shared/scripts/lib/forge.sh"
+# shellcheck source=/dev/null
+source "$FORGE_LIB"
+
+PROVIDER="$(forge_detect_provider origin)"
+FORGE_CLI="$(forge_cli "$PROVIDER")"
+
+case "$PROVIDER" in
+    github|forgejo|gitea) ;;  # supported for PR creation
+    gitlab)
+        echo -e "${RED}Error: GitLab PR creation is not yet supported by this script${NC}" >&2
+        echo "Create the merge request with: glab mr create" >&2
+        exit 1
+        ;;
+    *)
+        echo -e "${RED}Error: Could not determine the forge provider for 'origin'${NC}" >&2
+        echo "origin = $(forge_remote_url origin)" >&2
+        echo "Supported: GitHub (gh), Forgejo/Gitea (tea)." >&2
+        exit 1
+        ;;
+esac
+
+# Check the matching CLI is installed
+if ! command -v "$FORGE_CLI" &> /dev/null; then
+    echo -e "${RED}Error: ${FORGE_CLI} CLI (for ${PROVIDER}) is not installed${NC}" >&2
     echo "" >&2
-    echo "Install with:" >&2
-    echo "  macOS:   brew install gh" >&2
-    echo "  Linux:   See https://github.com/cli/cli/blob/trunk/docs/install_linux.md" >&2
+    case "$PROVIDER" in
+        github) echo "Install gh:  https://github.com/cli/cli#installation" >&2 ;;
+        *)      echo "Install tea: https://gitea.com/gitea/tea#installation" >&2 ;;
+    esac
     exit 1
 fi
 
-# Check if authenticated with gh
-if ! gh auth status &> /dev/null; then
-    echo -e "${RED}Error: Not authenticated with GitHub CLI${NC}" >&2
+# Check authentication for the detected provider
+if ! forge_auth_ok "$PROVIDER"; then
+    echo -e "${RED}Error: Not authenticated with ${FORGE_CLI} (${PROVIDER})${NC}" >&2
     echo "" >&2
-    echo "Authenticate with:" >&2
-    echo "  gh auth login" >&2
+    case "$PROVIDER" in
+        github) echo "Authenticate with: gh auth login" >&2 ;;
+        *)      echo "Authenticate with: tea login add" >&2 ;;
+    esac
     exit 1
 fi
+
+echo -e "${BLUE}Forge provider:${NC} ${PROVIDER} (using ${FORGE_CLI})" >&2
 
 # Get current branch
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
@@ -71,8 +101,8 @@ if [ "$CURRENT_BRANCH" = "HEAD" ]; then
     exit 1
 fi
 
-# Get default branch (usually main or master)
-DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name' 2>/dev/null || echo "main")
+# Get default branch (usually main or master) — provider-neutral
+DEFAULT_BRANCH=$(forge_default_branch "$PROVIDER")
 
 # Check if branch exists on remote
 if ! git ls-remote --exit-code --heads origin "$CURRENT_BRANCH" &> /dev/null; then
@@ -219,8 +249,13 @@ echo ""
 if [ "$MODE" = "analyze" ]; then
     echo -e "${BLUE}=== Analysis Complete ===${NC}\n"
     echo "To create PR:"
-    echo "  Regular: gh pr create --web"
-    echo "  Draft:   gh pr create --draft --web"
+    if [ "$PROVIDER" = "github" ]; then
+        echo "  Regular: gh pr create --web"
+        echo "  Draft:   gh pr create --draft --web"
+    else
+        echo "  Regular: tea pull create --head $CURRENT_BRANCH --base $DEFAULT_BRANCH"
+        echo "  (Forgejo/Gitea: 'tea' has no --draft or --web; open the PR in the web UI to mark it draft)"
+    fi
     exit 0
 fi
 
@@ -228,13 +263,22 @@ fi
 echo -e "${BLUE}=== Creating Pull Request ===${NC}\n"
 
 # Check if PR already exists
-EXISTING_PR=$(gh pr list --head "$CURRENT_BRANCH" --json number --jq '.[0].number' 2>/dev/null || echo "")
+if [ "$PROVIDER" = "github" ]; then
+    EXISTING_PR=$(gh pr list --head "$CURRENT_BRANCH" --json number --jq '.[0].number' 2>/dev/null || echo "")
+else
+    # tea pull list — match the head branch column; best-effort across tea versions
+    EXISTING_PR=$(tea pull list --output simple 2>/dev/null | grep -F "$CURRENT_BRANCH" | grep -oE '^#?[0-9]+' | head -n1 | tr -d '#' || echo "")
+fi
 
 if [ -n "$EXISTING_PR" ]; then
     echo -e "${YELLOW}⚠ PR already exists for this branch: #$EXISTING_PR${NC}"
     echo ""
-    echo "View PR: gh pr view $EXISTING_PR"
-    echo "Edit PR: gh pr edit $EXISTING_PR"
+    if [ "$PROVIDER" = "github" ]; then
+        echo "View PR: gh pr view $EXISTING_PR"
+        echo "Edit PR: gh pr edit $EXISTING_PR"
+    else
+        echo "View PR: tea pull $EXISTING_PR"
+    fi
     exit 1
 fi
 
@@ -309,32 +353,58 @@ Closes #
 echo "Creating PR..."
 echo ""
 
-if [ "$DRAFT" = true ]; then
-    set +e
-    gh pr create \
-        --title "$PR_TITLE" \
-        --body "$PR_DESCRIPTION" \
-        --draft \
-        --web
-    rc=$?
-    set -e
+if [ "$PROVIDER" = "github" ]; then
+    if [ "$DRAFT" = true ]; then
+        set +e
+        gh pr create \
+            --title "$PR_TITLE" \
+            --body "$PR_DESCRIPTION" \
+            --draft \
+            --web
+        rc=$?
+        set -e
 
-    if [ $rc -eq 0 ]; then
-        echo ""
-        echo -e "${GREEN}✓ Draft PR created successfully${NC}"
-        echo ""
-        echo "Mark ready when complete: gh pr ready"
+        if [ $rc -eq 0 ]; then
+            echo ""
+            echo -e "${GREEN}✓ Draft PR created successfully${NC}"
+            echo ""
+            echo "Mark ready when complete: gh pr ready"
+        else
+            echo ""
+            echo -e "${RED}✗ Failed to create PR${NC}"
+            exit 1
+        fi
     else
-        echo ""
-        echo -e "${RED}✗ Failed to create PR${NC}"
-        exit 1
+        set +e
+        gh pr create \
+            --title "$PR_TITLE" \
+            --body "$PR_DESCRIPTION" \
+            --web
+        rc=$?
+        set -e
+
+        if [ $rc -eq 0 ]; then
+            echo ""
+            echo -e "${GREEN}✓ PR created successfully${NC}"
+        else
+            echo ""
+            echo -e "${RED}✗ Failed to create PR${NC}"
+            exit 1
+        fi
     fi
 else
+    # Forgejo / Gitea via tea. No --draft or --web support; create directly.
+    if [ "$DRAFT" = true ]; then
+        echo -e "${YELLOW}⚠ 'tea' does not support draft PRs; creating a normal PR.${NC}" >&2
+        echo "  Mark it draft in the ${PROVIDER} web UI if needed." >&2
+        echo ""
+    fi
     set +e
-    gh pr create \
+    tea pull create \
         --title "$PR_TITLE" \
-        --body "$PR_DESCRIPTION" \
-        --web
+        --description "$PR_DESCRIPTION" \
+        --head "$CURRENT_BRANCH" \
+        --base "$DEFAULT_BRANCH"
     rc=$?
     set -e
 

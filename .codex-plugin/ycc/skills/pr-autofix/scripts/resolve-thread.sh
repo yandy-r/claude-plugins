@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # resolve-thread.sh — Mutate PR review threads and conversation comments
 #
+# GitHub-only. Forgejo/Gitea are unsupported: review-thread resolution and emoji
+# reactions require the GitHub GraphQL API (resolveReviewThread, addReaction),
+# which has no Forgejo/Gitea equivalent. On a non-GitHub remote this script emits
+# a uniform unsupported notice and exits 2.
+#
 # Purpose:
 #   Wraps the four mutations pr-autofix needs to close out comments:
 #     resolve      — resolveReviewThread(threadId) via GraphQL
@@ -35,6 +40,12 @@ IFS=$'\n\t'
 
 VERSION="1.0.0"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+FORGE_LIB="${SCRIPT_DIR}/../../../shared/scripts/lib/forge.sh"
+[[ -f "$FORGE_LIB" ]] || FORGE_LIB="~/.codex/plugins/ycc/shared/scripts/lib/forge.sh"
+# shellcheck source=/dev/null
+source "$FORGE_LIB"
+
 usage() {
   cat <<'EOF'
 Usage:
@@ -45,6 +56,10 @@ Usage:
 
   resolve-thread.sh --help
   resolve-thread.sh --version
+
+GitHub-only. Forgejo/Gitea are unsupported (no GraphQL API for review-thread
+resolution or reactions); on a non-GitHub remote this script prints an
+unsupported notice and exits 2.
 
 Reaction values:
   THUMBS_UP THUMBS_DOWN LAUGH HOORAY CONFUSED HEART ROCKET EYES
@@ -177,6 +192,7 @@ main() {
     exit 1
   fi
 
+  # Handle help/version before any forge or auth checks so they work anywhere.
   case "$1" in
     --help|-h)
       usage
@@ -186,6 +202,28 @@ main() {
       printf 'resolve-thread.sh %s\n' "$VERSION"
       exit 0
       ;;
+  esac
+
+  # -------------------------------------------------------------------------
+  # Forge provider gate (GitHub-only feature)
+  # -------------------------------------------------------------------------
+  # resolveReviewThread/addReaction are GraphQL-only. Forgejo/Gitea have no
+  # GraphQL API, so detect the provider and short-circuit before the gh-auth
+  # check so a non-GitHub remote gets the honest "GitHub-only" message.
+
+  local provider
+  provider="$(forge_detect_provider origin)"
+  if [[ "$provider" != "github" ]]; then
+    forge_unsupported_notice "$provider" "PR review-thread resolution"
+    exit 2
+  fi
+
+  if ! gh auth status >/dev/null 2>&1; then
+    printf 'resolve-thread.sh: gh not authenticated. Run `gh auth login`.\n' >&2
+    exit 2
+  fi
+
+  case "$1" in
     resolve)
       shift
       cmd_resolve "$@"
@@ -209,10 +247,5 @@ main() {
       ;;
   esac
 }
-
-if ! gh auth status >/dev/null 2>&1; then
-  printf 'resolve-thread.sh: gh not authenticated. Run `gh auth login`.\n' >&2
-  exit 2
-fi
 
 main "$@"

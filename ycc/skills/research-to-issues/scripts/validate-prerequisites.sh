@@ -14,13 +14,21 @@ set -euo pipefail
 # Auto-detects type from path/content if --type is not specified.
 #
 # Checks:
-#   1. gh CLI is installed and authenticated
-#   2. Current directory is a git repo with a GitHub remote
+#   1. The forge CLI for the detected provider is installed and authenticated
+#      (gh for GitHub, tea for Forgejo/Gitea)
+#   2. Current directory is a git repo on a supported forge
 #   3. Source path exists and matches expected structure
 #
 # Exit codes:
 #   0 = all prerequisites met
 #   1 = missing prerequisite
+
+# Detect the forge provider and select the matching CLI (gh / tea).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+FORGE_LIB="${SCRIPT_DIR}/../../_shared/scripts/lib/forge.sh"
+[[ -f "$FORGE_LIB" ]] || FORGE_LIB="${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/lib/forge.sh"
+# shellcheck source=/dev/null
+source "$FORGE_LIB"
 
 SOURCE_PATH="${1:-}"
 EXPLICIT_TYPE=""
@@ -41,35 +49,60 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# --- Check gh CLI ---
-if ! command -v gh &>/dev/null; then
-  ERRORS+=("ERROR: GitHub CLI (gh) is not installed. Install: https://cli.github.com/")
-else
-  if ! gh auth status &>/dev/null 2>&1; then
-    ERRORS+=("ERROR: GitHub CLI is not authenticated. Run: gh auth login")
-  else
-    echo "OK: gh CLI installed and authenticated"
-  fi
-fi
-
-# --- Check git repo with GitHub remote ---
+# --- Check git repo and detect forge provider ---
+PROVIDER="unknown"
+FORGE_CLI=""
 if ! git rev-parse --is-inside-work-tree &>/dev/null 2>&1; then
   ERRORS+=("ERROR: Not inside a git repository")
 else
   REMOTE_URL=$(git remote get-url origin 2>/dev/null || echo "")
   if [[ -z "$REMOTE_URL" ]]; then
     ERRORS+=("ERROR: No 'origin' remote configured")
-  elif [[ "$REMOTE_URL" != *"github.com"* && "$REMOTE_URL" != *"github:"* ]]; then
-    ERRORS+=("WARNING: Remote may not be GitHub: $REMOTE_URL")
   else
-    REPO=$(gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || echo "")
-    if [[ -n "$REPO" ]]; then
-      echo "OK: GitHub repo detected: $REPO"
-    else
-      ERRORS+=("ERROR: Could not determine GitHub repo from remote")
-    fi
+    PROVIDER="$(forge_detect_provider origin)"
+    FORGE_CLI="$(forge_cli "$PROVIDER")"
+
+    case "$PROVIDER" in
+      github|forgejo|gitea)
+        echo "OK: Forge provider detected: $PROVIDER (using $FORGE_CLI)"
+        ;;
+      gitlab|unknown)
+        ERRORS+=("ERROR: Issue creation requires GitHub (gh) or Forgejo/Gitea (tea); detected provider '$PROVIDER' (origin: $REMOTE_URL) is not supported")
+        ;;
+    esac
   fi
 fi
+
+# --- Check the matching forge CLI is installed and authenticated ---
+case "$PROVIDER" in
+  github|forgejo|gitea)
+    if ! command -v "$FORGE_CLI" &>/dev/null; then
+      case "$PROVIDER" in
+        github) ERRORS+=("ERROR: GitHub CLI (gh) is not installed. Install: https://cli.github.com/") ;;
+        *)      ERRORS+=("ERROR: tea CLI (for $PROVIDER) is not installed. Install: https://gitea.com/gitea/tea#installation") ;;
+      esac
+    elif ! forge_auth_ok "$PROVIDER"; then
+      case "$PROVIDER" in
+        github) ERRORS+=("ERROR: GitHub CLI is not authenticated. Run: gh auth login") ;;
+        *)      ERRORS+=("ERROR: tea is not authenticated for $PROVIDER. Run: tea login add") ;;
+      esac
+    else
+      echo "OK: $FORGE_CLI CLI installed and authenticated"
+      # GitHub-only: confirm the repo slug resolves via the host API. tea v0.14
+      # has no clean equivalent, so this sub-check is skipped on Forgejo/Gitea.
+      if [[ "$PROVIDER" == "github" ]]; then
+        REPO=$(gh repo view --json nameWithOwner -q '.nameWithOwner' 2>/dev/null || echo "")
+        if [[ -n "$REPO" ]]; then
+          echo "OK: GitHub repo detected: $REPO"
+        else
+          ERRORS+=("ERROR: Could not determine GitHub repo from remote")
+        fi
+      else
+        echo "NOTICE: Skipping repo-slug resolution check (no clean tea equivalent on $PROVIDER)"
+      fi
+    fi
+    ;;
+esac
 
 # --- Check source path ---
 if [[ -z "$SOURCE_PATH" ]]; then

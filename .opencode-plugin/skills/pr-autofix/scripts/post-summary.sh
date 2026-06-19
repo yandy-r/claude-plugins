@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # post-summary.sh — Post a single consolidated summary comment on a PR
 #
+# GitHub-only. Forgejo/Gitea are unsupported: this script is part of the
+# GraphQL-driven pr-autofix flow and posts via `gh`. On a non-GitHub remote it
+# emits a uniform unsupported notice and exits 2 (the --dry-run render still
+# works on any provider).
+#
 # Purpose:
 #   At the end of a pr-autofix run, render and post one summary comment to
 #   the PR conversation. Built only from local counters — never echoes raw
@@ -34,12 +39,22 @@ IFS=$'\n\t'
 
 VERSION="1.0.0"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+FORGE_LIB="${SCRIPT_DIR}/../../../shared/scripts/lib/forge.sh"
+[[ -f "$FORGE_LIB" ]] || FORGE_LIB="~/.config/opencode/shared/scripts/lib/forge.sh"
+# shellcheck source=/dev/null
+source "$FORGE_LIB"
+
 usage() {
   cat <<'EOF'
 Usage:
   post-summary.sh --pr <number> --fixed <N> --failed <N> --skipped <N> --deferred <N> \
                   --commit-sha <sha> --branch <name> \
                   [--ci-result <value>] [--ci-iterations <N>] [--ci-pushes <N>] [--dry-run]
+
+GitHub-only. Forgejo/Gitea are unsupported (part of the GraphQL-driven autofix
+flow); on a non-GitHub remote this script prints an unsupported notice and exits
+2. The --dry-run render works on any provider.
 
 Exit codes:
   0  success (or skipped as no-op)
@@ -182,6 +197,19 @@ ${body_footer}"
 if [[ "$DRY_RUN" == "true" ]]; then
   printf '%s\n' "$BODY"
   exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Forge provider gate (GitHub-only feature)
+# ---------------------------------------------------------------------------
+# This script posts via `gh` as part of the GraphQL-driven pr-autofix flow.
+# Detect the provider before the gh-auth check so a non-GitHub remote gets the
+# honest "GitHub-only" message instead of a confusing auth error.
+
+PROVIDER="$(forge_detect_provider origin)"
+if [[ "$PROVIDER" != "github" ]]; then
+  forge_unsupported_notice "$PROVIDER" "PR summary posting"
+  exit 2
 fi
 
 if ! command -v gh >/dev/null 2>&1; then

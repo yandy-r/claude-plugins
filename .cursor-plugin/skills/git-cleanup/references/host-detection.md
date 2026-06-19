@@ -1,5 +1,14 @@
 # Host Detection and Client Selection
 
+> **Canonical source of truth:** the bundle-wide forge-detection contract lives at
+> [`../../_shared/references/forge-detection.md`](../../_shared/references/forge-detection.md)
+> (provider values `github` / `forgejo` / `gitea` / `gitlab` / `unknown`; CLIs
+> `gh` / `tea` / `glab`; the `forge_detect_provider`, `forge_cli`, `forge_auth_ok`
+> detection law implemented in `_shared/scripts/lib/forge.sh`). Prefer that document
+> and library for detection. This file is the **git-cleanup-specific supplement**:
+> it maps the resolved provider to the concrete read/write cleanup operations this
+> skill performs. When the two disagree on detection, the canonical reference wins.
+
 Reference for Phase 0 of `ycc/skills/git-cleanup/SKILL.md`. Given a repository,
 determine (1) which remote host the audit should query and (2) which client
 library / CLI / MCP server to use for each operation.
@@ -17,6 +26,12 @@ For GitLab repositories, pick the first available:
 1. **`glab` CLI** — authenticated (`glab auth status` returns 0).
 2. **Local-only mode** — skip `--prs` and `--issues` with a loud notice.
 
+For Forgejo / Gitea repositories (provider `forgejo` or `gitea` — same tooling
+family, both driven by `tea`), pick the first available:
+
+1. **`tea` CLI** — a configured login (`tea login list` shows a `://` entry).
+2. **Local-only mode** — skip `--prs` and `--issues` with a loud notice.
+
 Never mix clients within a single audit. Decide once in Phase 0 and log the
 decision in `.git-cleanup/report.md` under "Host-API notes".
 
@@ -24,13 +39,14 @@ decision in `.git-cleanup/report.md` under "Host-API notes".
 
 When `--host=auto` (default), parse `git remote get-url origin`:
 
-| Pattern match                                 | Inferred host |
-| --------------------------------------------- | ------------- |
-| `github.com:`, `github.com/`, `*.github.com/` | GitHub        |
-| `gitlab.com:`, `gitlab.com/`, `/api/v4/`      | GitLab        |
-| Self-hosted GitHub Enterprise (`GHE_HOST`)    | GitHub        |
-| Self-hosted GitLab                            | GitLab        |
-| Anything else                                 | Unknown       |
+| Pattern match                                 | Inferred host   |
+| --------------------------------------------- | --------------- |
+| `github.com:`, `github.com/`, `*.github.com/` | GitHub          |
+| `gitlab.com:`, `gitlab.com/`, `/api/v4/`      | GitLab          |
+| Self-hosted GitHub Enterprise (`GHE_HOST`)    | GitHub          |
+| Self-hosted GitLab                            | GitLab          |
+| Self-hosted Forgejo / Gitea                   | Forgejo / Gitea |
+| Anything else                                 | Unknown         |
 
 Accept SSH, HTTPS, and `git://` URLs. Strip any `.git` suffix before matching.
 
@@ -40,6 +56,12 @@ as GitHub and route `gh` calls to that host.
 
 **Self-hosted GitLab:** `glab` reads its host list from `~/.config/glab-cli/`.
 If the `origin` host matches one of its configured hosts, treat as GitLab.
+
+**Self-hosted Forgejo / Gitea:** `tea` reads its login list from
+`~/.config/tea/`. If the `origin` host matches a configured `tea login list`
+entry, treat as the Gitea family and route `tea` calls to that host. The two are
+the same tooling family (`forge_cli` maps both to `tea`); the canonical reference
+distinguishes `forgejo` from `gitea` only for messaging.
 
 ## Detecting MCP availability
 
@@ -101,6 +123,25 @@ GitLab's "Merge Request" maps to GitHub's "Pull Request" one-for-one for this
 skill's purposes. Both concepts share the same R-rules (see
 `active-code-rules.md`).
 
+### Forgejo / Gitea (`tea` fallbacks)
+
+```bash
+# Open PRs ("pulls") for the current repo
+tea pull list --state open
+
+# Merged/closed PRs (filter the list output for merged state)
+tea pull list --state closed
+
+# Open issues
+tea issues list --state open
+```
+
+`tea` operates on the repo bound to the current directory's `origin` remote (it
+reads `.git/config`); pass `--repo owner/name` only when overriding. Forgejo's
+"Pull Request" maps to GitHub's one-for-one and shares the same R-rules (see
+`active-code-rules.md`). `tea` paginates with `--limit` (alias for page size);
+bound large lists the same way `--limit` bounds `gh` output.
+
 ## Write operations (only with `--apply` + user approval)
 
 ### GitHub
@@ -119,6 +160,15 @@ skill's purposes. Both concepts share the same R-rules (see
 | Close an MR    | `glab mr close <iid>`                 |
 | Close an issue | `glab issue close <iid>`              |
 | Add a label    | `glab issue update <iid> --label ...` |
+
+### Forgejo / Gitea
+
+| Action                 | `tea` command                                     |
+| ---------------------- | ------------------------------------------------- |
+| Close a PR             | `tea pull close <n>`                              |
+| Close an issue         | `tea issues close <n>`                            |
+| Add a label            | `tea issues edit <n> --add-labels ...`            |
+| Delete a remote branch | (n/a — use git) `git push origin --delete <name>` |
 
 ## Rate-limit awareness
 

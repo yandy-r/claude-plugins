@@ -38,6 +38,16 @@ VERSION="1.0.0"
 . "$(dirname "$0")/lib/ci-classify.sh"
 
 # ---------------------------------------------------------------------------
+# Forge provider detection (sourced)
+# ---------------------------------------------------------------------------
+# The CI-autofix loop depends on `gh run view --log-failed` / `gh run rerun`,
+# which have no Forgejo/Gitea equivalent. The loop is GitHub-only; on any other
+# provider this script exits early with RESULT=unsupported-provider.
+
+# shellcheck source=lib/forge.sh
+. "$(dirname "$0")/lib/forge.sh"
+
+# ---------------------------------------------------------------------------
 # Usage
 # ---------------------------------------------------------------------------
 
@@ -383,6 +393,18 @@ main() {
     log_jsonl "$log_file" "$ts" "$iteration" "$pr" "0" "" "success" "" "green" "$push_count" "" '"dry_run":true'
     printf 'RESULT=green\n'
     exit 0
+  fi
+
+  # -------------------------------------------------------------------------
+  # Step 0: Forge provider gate (GitHub-only feature)
+  # -------------------------------------------------------------------------
+
+  local provider
+  provider="$(forge_detect_provider origin)"
+  if [[ "$provider" != "github" ]]; then
+    forge_unsupported_notice "$provider" "the --ci auto-fix loop"
+    printf 'RESULT=unsupported-provider\n'
+    exit 2
   fi
 
   # -------------------------------------------------------------------------

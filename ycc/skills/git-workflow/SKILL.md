@@ -650,6 +650,15 @@ This provides:
 - Documentation changes
 - Suggested PR title and scope
 
+**Forge provider detection**: `create-pr.sh` runs forge detection on `origin`
+first and routes PR creation through the matching CLI — `gh` for `github`,
+`tea` for `forgejo`/`gitea` (`gh pr create` ↔ `tea pull create`). The MCP-first
+path above applies only to `github`; on a `forgejo`/`gitea` remote the script
+drives `tea` directly. See
+[`../_shared/references/forge-detection.md`](../_shared/references/forge-detection.md)
+for the detection algorithm and operation-equivalence map. Log the resolved
+provider + CLI so the user sees which forge the PR targeted.
+
 ### Step 25: Generate PR Title
 
 PR titles **MUST** follow the conventional commit format: `<type>(<scope>): <description>`
@@ -901,6 +910,15 @@ If repository has `.github/PULL_REQUEST_TEMPLATE.md`:
 
 **Trigger:** This phase runs ONLY when `--ci ∈ flags`. Skip silently otherwise. Phase 6 does not require Phase 5 to have run — bare `--ci` and `--push --ci` both reach this phase by design.
 
+**GitHub-only:** The CI auto-fix loop is GitHub-only — it depends on `gh run`
+controls (`gh run view --log-failed`, `gh run rerun`). On a non-GitHub remote
+`ci-monitor.sh` returns `RESULT=unsupported-provider` (exit 2). Treat this like
+`pr-not-found`/`refused-default-branch`: report it directly and **skip the loop
+without erroring**. State that the loop is GitHub-only and why, then end Phase 6
+cleanly. See
+[`../_shared/references/forge-detection.md`](../_shared/references/forge-detection.md)
+and [`../_shared/references/ci-monitoring.md`](../_shared/references/ci-monitoring.md).
+
 ### Step 32: Discover PR for the current branch
 
 If a `PR_NUMBER` was captured in Phase 5 (either newly created in Steps 23-30 or detected as existing in Step 22a), use it directly and skip ahead to Step 33.
@@ -971,6 +989,7 @@ Branch on stdout `RESULT=...` per the **Loop Protocol** section of `ci-monitorin
 - `rerun-pending` → Flake-suspected; the script already triggered `gh run rerun --failed`. Do NOT apply any fix. Sleep 30 seconds (`sleep 30`), then goto Step 36.
 - `bail-recurrence` / `bail-nonfixable` / `bail-pushes` / `bail-timeout` → Render a diagnosis block citing the audit log path, the `RESULT=` value, the `REASON=` line if present, and the cap that fired. End Phase 6 (do NOT push further).
 - `pr-not-found` / `refused-default-branch` → Surface the error directly; do not retry.
+- `unsupported-provider` → Remote is not GitHub; the CI auto-fix loop is GitHub-only. Report that the loop is GitHub-only and skip it cleanly; do not retry and do not treat as an error.
 
 ### Step 37: Final report
 

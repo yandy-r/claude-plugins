@@ -35,6 +35,11 @@ VERSION="1.0.0"
 # shellcheck source=lib/ci-classify.sh
 . "$(dirname "$0")/lib/ci-classify.sh"
 
+# Forge provider detection. The release CI-autofix loop depends on
+# `gh run` controls with no Forgejo/Gitea equivalent — GitHub-only.
+# shellcheck source=lib/forge.sh
+. "$(dirname "$0")/lib/forge.sh"
+
 # ---------------------------------------------------------------------------
 # Usage
 # ---------------------------------------------------------------------------
@@ -417,6 +422,15 @@ main() {
     log_jsonl "$log_file" "$ts" "$iteration" "$tag" "0" "" "success" "" "green" "$push_count" "" '"dry_run":true'
     printf 'RESULT=green\n'
     exit 0
+  fi
+
+  # Forge provider gate (GitHub-only feature).
+  local provider
+  provider="$(forge_detect_provider origin)"
+  if [[ "$provider" != "github" ]]; then
+    forge_unsupported_notice "$provider" "the release --ci auto-fix loop"
+    printf 'RESULT=unsupported-provider\n'
+    exit 2
   fi
 
   # Workflow file must be resolvable in non-dry-run mode.

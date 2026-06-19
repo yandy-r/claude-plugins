@@ -53,13 +53,21 @@ Parse `$ARGUMENTS`:
 1. **Verify working tree is a git repo**: `git rev-parse --git-dir`. Abort if not.
 2. **Determine default branch**: `git symbolic-ref refs/remotes/origin/HEAD` →
    fall back to `main` / `master` if unset.
-3. **Detect host CLIs and MCP tools**. See
-   `${CURSOR_PLUGIN_ROOT}/skills/git-cleanup/references/host-detection.md` for
-   the full decision table. Summary:
+3. **Detect host CLIs and MCP tools**. Detection follows the bundle-wide
+   contract in
+   `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/forge-detection.md`
+   (`forge_detect_provider origin` → `github` / `forgejo` / `gitea` / `gitlab` /
+   `unknown`; `forge_cli` → `gh` / `tea` / `glab`); the git-cleanup-specific
+   operation map lives in
+   `${CURSOR_PLUGIN_ROOT}/skills/git-cleanup/references/host-detection.md`.
+   Summary:
    - Prefer `mcp__github__*` tools if available for GitHub operations.
-   - Else `gh auth status` for GitHub, `glab auth status` for GitLab.
-   - If `--host=auto`, parse `git remote get-url origin`. Unknown hosts skip
-     the remote-domain audits with a loud notice.
+   - Else `gh auth status` for GitHub, `tea login list` for the Forgejo/Gitea
+     family, `glab auth status` for GitLab.
+   - If `--host=auto`, parse `git remote get-url origin` via the shared lib.
+     A Forgejo/Gitea remote (matched against `tea login list`) routes PR/issue
+     cleanup through `tea` (`tea pull list/close`, `tea issues list/close`).
+     Unknown hosts skip the remote-domain audits with a loud notice.
 4. **Check working-tree state**: Capture `git status --porcelain` and
    `git stash list`. Record whether the current branch has unpushed commits.
 5. **Initialize progress tracking** with TodoWrite (one entry per phase).
