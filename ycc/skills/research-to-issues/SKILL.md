@@ -33,6 +33,22 @@ Parse arguments:
 
 ## Tool Preference Strategy
 
+### Step 0a: Detect forge provider
+
+Issue creation is provider-aware. Detect the forge provider on `origin` first
+(`forge_detect_provider origin`) and route through the matching CLI:
+`gh issue create --title --body` for `github`, `tea issues create --title
+--description` for `forgejo`/`gitea`. `validate-prerequisites.sh` runs the same
+detection and gates the per-provider issue prerequisites. See
+[`../_shared/references/forge-detection.md`](../_shared/references/forge-detection.md)
+for the operation-equivalence map. Log the resolved provider + CLI.
+
+**Forgejo/Gitea caveats**: repo-slug resolution (`gh repo view`) and some label
+operations (`gh label create`) are `gh`-only and have no `tea` equivalent — skip
+them on `forgejo`/`gitea` (create labels via the Forgejo/Gitea UI, and bind
+`tea` to the `origin`-bound repo rather than resolving an owner/name slug). The
+GitHub MCP path below applies only to `github`.
+
 ### Step 0: Detect GitHub MCP Server
 
 Check if GitHub MCP tools are available by looking for tools matching `mcp__github__*`.

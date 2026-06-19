@@ -349,6 +349,15 @@ write an artifact here — quick-review owns the artifact lifecycle.
 
 Comprehensive GitHub PR review — fetches diff, reads full files, runs validation, posts review.
 
+**GitHub-only.** PR mode is GitHub-only: it reads and posts on PRs through the
+`gh` PR/review plumbing (`gh pr view`/`gh pr diff`/`gh pr review` + the GitHub
+review-comments API), which has no `tea` equivalent. Detect the forge provider
+on `origin` first (`forge_detect_provider origin`); if it is **not** `github`,
+state that PR mode is GitHub-only and offer **Local Review Mode** instead
+(local-diff review works on any provider). Do not attempt the `gh` PR calls on a
+non-GitHub remote. See
+[`../_shared/references/forge-detection.md`](../_shared/references/forge-detection.md).
+
 Detect whether GitHub MCP tools are available (look for `mcp__github__*`). If they are, prefer those for PR fetch/view/review operations. Otherwise fall back to the `gh` CLI examples shown below.
 
 ### Phase 1 — FETCH

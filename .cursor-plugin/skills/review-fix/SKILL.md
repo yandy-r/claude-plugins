@@ -871,6 +871,16 @@ ${CURSOR_PLUGIN_ROOT}/skills/_shared/references/goal-pairing.md
 
 ## Important Notes
 
+- **PR posting is GitHub-only**: The PR-coupled steps here use `gh` (resolving the
+  PR head via `gh pr view`, and the commit+push to the PR branch in worktree mode).
+  Those depend on GitHub plumbing that has no `tea` equivalent. Detect the forge
+  provider on `origin` (`forge_detect_provider origin`) before any `gh pr` call. On a
+  non-`github` provider, apply the fixes **locally** (Path A/B/C all edit files in the
+  working tree regardless of forge) and **skip the PR-posting step** with a notice:
+  "PR posting is GitHub-only on provider `<provider>`; fixes applied locally — commit
+  and push them yourself." Mark `REPORT_COMMITTED: n/a` in that case. The artifact
+  parse, filter, fix, Status updates, and Phase 5 validation are all provider-neutral.
+  See [`../_shared/references/forge-detection.md`](../_shared/references/forge-detection.md).
 - **In-place Status updates**: The source review file is the source of truth. This skill mutates it in place via `Edit`, updating only the `Status` line of each processed finding. All other content is preserved.
 - **No scope creep**: Each `review-fixer` agent is scope-disciplined — it fixes exactly what the finding specifies. If the fix reveals a larger issue, the agent reports it, but the skill does not chase down related problems.
 - **Resumable**: Re-running on the same review file skips already-processed findings.

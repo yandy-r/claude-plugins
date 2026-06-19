@@ -280,6 +280,17 @@ If `--ci-config=generate` ran, append:
 # build the matrix and attach artifacts to the GitHub release.
 ```
 
+**Forge provider detection**: release creation is provider-aware.
+`publish-release.sh` detects the forge provider on `origin` first and routes
+through the matching CLI — `gh release create` for `github`, `tea release
+create --tag <tag> [--note-file]` for `forgejo`/`gitea` (per the
+operation-equivalence map). The `gh release create`/`gh release upload` commands
+emitted in the Phase 8 block above are the `github` path; on a `forgejo`/`gitea`
+remote the helper drives `tea release create` instead. Log the resolved provider
+
+- CLI. See
+  [`../_shared/references/forge-detection.md`](../_shared/references/forge-detection.md).
+
 When the user passed `--publish[=create|edit|auto]`, after they review the rendered
 notes, run:
 
@@ -317,6 +328,15 @@ The contract (exit codes, `RESULT=` signaling, JSONL audit log, failure classifi
 signature dedup, default-branch refusal) mirrors `ci-monitor.sh` verbatim. See
 [`_shared/references/ci-monitoring.md`](../_shared/references/ci-monitoring.md),
 section "Release mode", for the single source of truth.
+
+**GitHub-only:** the release-CI auto-fix loop is GitHub-only — it depends on
+`gh run list`, `gh workflow run`, and `gh release` controls that have no `tea`
+equivalent. On a non-GitHub remote `release-ci-monitor.sh` returns
+`RESULT=unsupported-provider` (exit 2). Treat it like `not-found`: report that
+the loop is GitHub-only, render an 8.5.4-style diagnosis, and exit Phase 8.5
+cleanly without retrying. (Release _creation_ in Phase 8 remains provider-aware
+via `tea release create`; only this post-publish monitoring loop is gated.) See
+[`../_shared/references/forge-detection.md`](../_shared/references/forge-detection.md).
 
 ### 8.5.0 Detect re-cut strategy
 
@@ -392,16 +412,17 @@ one human approval the bounded, destructive-capable loop depends on. Therefore:
 
 3. Branch on the exit code (identical contract to `ci-monitor.sh`):
 
-   | Exit | `RESULT=`         | Action                                                |
-   | ---- | ----------------- | ----------------------------------------------------- |
-   | 0    | `green`           | Success. Exit Phase 8.5, continue to Phase 9.         |
-   | 20   | `handoff`         | Step **8.5.3** (fix and re-cut), then loop to step 2. |
-   | 21   | `rerun-pending`   | `sleep 30`, then loop to step 2 (no fix applied).     |
-   | 10   | `bail-recurrence` | Step **8.5.4** (diagnosis), exit Phase 8.5.           |
-   | 11   | `bail-nonfixable` | Step **8.5.4**, exit Phase 8.5.                       |
-   | 12   | `bail-pushes`     | Step **8.5.4**, exit Phase 8.5.                       |
-   | 13   | `bail-timeout`    | Step **8.5.4**, exit Phase 8.5.                       |
-   | 2    | `not-found`       | Step **8.5.4**, exit Phase 8.5.                       |
+   | Exit | `RESULT=`              | Action                                                                     |
+   | ---- | ---------------------- | -------------------------------------------------------------------------- |
+   | 0    | `green`                | Success. Exit Phase 8.5, continue to Phase 9.                              |
+   | 20   | `handoff`              | Step **8.5.3** (fix and re-cut), then loop to step 2.                      |
+   | 21   | `rerun-pending`        | `sleep 30`, then loop to step 2 (no fix applied).                          |
+   | 10   | `bail-recurrence`      | Step **8.5.4** (diagnosis), exit Phase 8.5.                                |
+   | 11   | `bail-nonfixable`      | Step **8.5.4**, exit Phase 8.5.                                            |
+   | 12   | `bail-pushes`          | Step **8.5.4**, exit Phase 8.5.                                            |
+   | 13   | `bail-timeout`         | Step **8.5.4**, exit Phase 8.5.                                            |
+   | 2    | `not-found`            | Step **8.5.4**, exit Phase 8.5.                                            |
+   | 2    | `unsupported-provider` | Remote is not GitHub; loop is GitHub-only. Step **8.5.4**, exit Phase 8.5. |
 
 ### 8.5.3 Fix and re-cut on handoff
 

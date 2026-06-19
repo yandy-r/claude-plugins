@@ -44,6 +44,16 @@ Vendor-neutral counterpart to `coderabbit:autofix`. Pulls **every** comment surf
 **Golden rule**: Never mutate a comment body. Reply with the result, then resolve. The audit trail lives in the PR threads, not in this skill's report file.
 
 > Sister skills: `/review-fix` consumes `/code-review` artifacts (review-finding ID + Status fields). `/pr-autofix` (this) consumes GitHub PR comments directly. The two cover different inputs but share the per-finding agent dispatch model and the CI auto-fix loop.
+>
+> **GitHub-only.** This skill is GitHub-only. Forgejo/Gitea expose only the REST
+> v1 API — no GraphQL `resolveReviewThread`, no review-thread resolution, no
+> per-comment harvesting — and the CI loop depends on `gh run` controls. There
+> is no `tea` equivalent for any of these, so the workflow cannot degrade to a
+> partial mode here. Phase 0 detects the provider; on a non-`github` remote it
+> tells the user the skill is GitHub-only and **why**, then stops gracefully.
+> See [`../_shared/references/forge-detection.md`](../_shared/references/forge-detection.md)
+> (capability matrix: "Review-thread resolution", "Per-comment PR autofix
+> harvesting", "CI-autofix loop").
 
 ---
 
@@ -100,10 +110,21 @@ gh pr view "$PR_NUMBER" --json number,headRefName,baseRefName,headRepositoryOwne
 
 Record `HEAD_BRANCH`, `BASE_BRANCH`, `STATE`.
 
+### Provider detection
+
+Before the GitHub checks below, detect the forge provider on `origin` per
+[`../_shared/references/forge-detection.md`](../_shared/references/forge-detection.md)
+(`forge_detect_provider origin`). If the provider is **not** `github`, stop
+gracefully: "`/pr-autofix` is GitHub-only. Provider `<provider>` lacks the
+GraphQL review-thread resolution and per-comment harvesting this skill requires
+(Forgejo/Gitea expose only the REST v1 API). Resolve threads in the `<provider>`
+UI, or use local review tooling." Do not proceed to FETCH.
+
 ### Preflight refusals
 
 | Check                              | Action on failure                                                                                                  |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Provider is `github`               | Stop: GitHub-only (see Provider detection above).                                                                  |
 | `gh auth status` succeeds          | Stop: "Run `gh auth login` first."                                                                                 |
 | `STATE == "OPEN"`                  | Stop: "PR #<N> is <state>; nothing to autofix."                                                                    |
 | `HEAD_BRANCH != $(default-branch)` | Stop: "Refusing: PR head equals the default branch." (Same constraint as `ci-monitor.sh` — never push to default.) |
@@ -385,6 +406,8 @@ Track closure results in the status map: `closed_ok`, `closed_failed`, `reply_on
 **Trigger**: `--ci` was passed AND at least one fixer returned `Fixed` AND the push in Phase 5 succeeded. Skip silently otherwise.
 
 This phase is a thin wrapper over the same loop used by `/prp-pr` Phase 7 and `/git-workflow` Phase 6. **The policy lives in `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/ci-monitoring.md` — do not restate it here.**
+
+The `--ci` loop is GitHub-only (it depends on `gh run` controls); since this entire skill is already gated to `github` in Phase 0, the loop never reaches a non-GitHub remote. If `ci-monitor.sh` ever returns `RESULT=unsupported-provider`, treat it like the other non-loop terminal results below: surface it and exit.
 
 ### Step 1 — Authorization prompt (skip if `--ci-yes`)
 

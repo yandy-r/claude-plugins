@@ -173,12 +173,27 @@ Use this default format:
 
 ### Create the PR
 
+PR creation is provider-aware. Detect the forge provider on `origin` first
+(`forge_detect_provider origin`) and route through the matching CLI: `gh pr
+create` for `github`, `tea pull create --title --description [--head]` for
+`forgejo`/`gitea`. See
+[`../_shared/references/forge-detection.md`](../_shared/references/forge-detection.md)
+for the operation-equivalence map. Log the resolved provider + CLI so the user
+sees which forge the PR targeted.
+
 ```bash
+# github
 gh pr create \
   --title "<PR title>" \
   --base <base-branch> \
   --body "<PR body>"
   # Add --draft if the --draft flag was parsed from $ARGUMENTS
+
+# forgejo / gitea
+tea pull create \
+  --title "<PR title>" \
+  --base <base-branch> \
+  --description "<PR body>"
 ```
 
 ---
@@ -233,6 +248,13 @@ were printed (otherwise `n/a`).
 **Trigger:** Runs ONLY when `--ci` was passed AND a PR is in scope (created in
 Phase 4, or an existing PR confirmed for monitoring per the Phase 1 modification
 above). Skip silently otherwise.
+
+**GitHub-only:** The CI auto-fix loop is GitHub-only (it depends on `gh run`
+controls). On a non-GitHub remote `ci-monitor.sh` returns
+`RESULT=unsupported-provider` (exit 2). Treat this like
+`pr-not-found`/`refused-default-branch`: report that the loop is GitHub-only and
+skip it cleanly — do not retry, do not error. See
+[`../_shared/references/forge-detection.md`](../_shared/references/forge-detection.md).
 
 **Step 1 — Verify PR is monitorable:** Confirm a PR number is in scope. If not,
 hard-stop: `--ci was passed but no PR is in scope to monitor.`
@@ -294,6 +316,7 @@ Branch on stdout `RESULT=...` per the Loop Protocol in `ci-monitoring.md`:
   goto Step 5 (do NOT apply any fix).
 - `bail-*` → Go to Step 6 (diagnosis). Do not push further.
 - `pr-not-found` / `refused-default-branch` → Surface the error; do not retry.
+- `unsupported-provider` → Remote is not GitHub; the CI auto-fix loop is GitHub-only. Report that the loop is GitHub-only and skip it cleanly; do not retry or treat as an error.
 
 **Step 6 — Final report:**
 

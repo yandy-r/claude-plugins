@@ -22,6 +22,27 @@ must not diverge from either.
 
 ---
 
+## Provider Support
+
+The CI-autofix loop is **GitHub-only**. Both `ci-monitor.sh` and
+`release-ci-monitor.sh` depend on `gh` run controls (`gh run view
+--log-failed`, `gh run rerun`, `gh run list`) that have no Forgejo/Gitea (`tea`)
+or GitLab (`glab`) equivalent. Before entering the loop the scripts detect the
+forge provider on the watched remote; on any non-GitHub remote they emit
+`RESULT=unsupported-provider` (exit 2) and do nothing else.
+
+The detection contract — provider values `github` / `forgejo` / `gitea` /
+`gitlab` / `unknown`, the `forge_detect_provider` / `forge_cli` law — lives in
+[`forge-detection.md`](forge-detection.md) (capability matrix: "CI-autofix loop
+(`--ci`)" is GitHub-only).
+
+**Skill loop handling:** treat `RESULT=unsupported-provider` exactly like
+`pr-not-found` / `refused-default-branch` — surface it directly and do **not**
+loop. State that the loop is GitHub-only, skip it cleanly, and never re-invoke
+the monitor. It is a terminal non-loop result, not an error to retry.
+
+---
+
 ## Trust Boundary
 
 `--ci` grants the following standing authorization for the duration of one skill
@@ -109,6 +130,7 @@ corresponding code.
 | `bail-timeout`           | 13        | Wall-clock ≥ `--ci-timeout-min`, or checks never registered              |
 | `pr-not-found`           | 2         | PR does not exist or is unreachable                                      |
 | `refused-default-branch` | 2         | Will not operate when head branch equals the default branch              |
+| `unsupported-provider`   | 2         | Remote is not GitHub; the CI-autofix loop is GitHub-only                 |
 
 Exit code 1 is reserved for argument/usage errors and never appears in the loop.
 
@@ -174,8 +196,10 @@ the skill.
      - The cap or constraint that fired
        Exit phase; do not push further.
 
-   - **`pr-not-found`** / **`refused-default-branch`** — surface the error
-     directly; do not enter the loop.
+   - **`pr-not-found`** / **`refused-default-branch`** / **`unsupported-provider`**
+     — surface the error directly; do not enter the loop. For
+     `unsupported-provider`, state that the CI-autofix loop is GitHub-only (see
+     the Provider Support section above) and skip it cleanly.
 
 ---
 
