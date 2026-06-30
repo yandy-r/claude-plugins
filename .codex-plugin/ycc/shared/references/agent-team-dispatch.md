@@ -131,6 +131,10 @@ workspace.
 If an implementation spawns an agent without `team_name`, it's a bug. Fix before
 continuing.
 
+`Agent`+`team_name` (this file) and `Task` (standalone fan-out) are mutually exclusive
+primitives — never mix them within the same dispatch. See
+[standalone-dispatch.md](./standalone-dispatch.md) for the `Task` contract.
+
 ---
 
 ## 4. Failure Policy

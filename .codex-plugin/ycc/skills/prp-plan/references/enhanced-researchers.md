@@ -1,6 +1,6 @@
 # Enhanced Researcher Prompts (7-agent fan-out for prp-plan --enhanced)
 
-> **Contract**: Each of these 7 researchers feeds the `prp-plan` synthesizer in Phase 6. They DO NOT write any files. They return findings inline as structured rows that map directly to a section of the PRP plan template at `~/.codex/plugins/ycc/skills/prp-plan/references/plan-template.md`. All 7 use `prp-researcher`, distinguished only by `name=` and the role-specific prompt below.
+> **Contract**: Each of these 7 researchers feeds the `prp-plan` synthesizer in Phase 6. They are dispatched standalone via the blocking `Task` tool (see `~/.codex/plugins/ycc/shared/references/standalone-dispatch.md`). Each researcher returns its findings inline as structured rows that map directly to a section of the PRP plan template at `~/.codex/plugins/ycc/skills/prp-plan/references/plan-template.md`, **AND** additionally writes the same discovery table to a backstop file at `docs/prps/plans/.prp-research/<feature-slug>/<role-name>.md` using the `Write` tool, so the findings are never lost even if the inline return is interrupted or truncated. All 7 use `prp-researcher`, distinguished only by `name=` and the role-specific prompt below.
 
 ## Roster
 
@@ -19,8 +19,9 @@
 ## Prompt: api-researcher
 
 ```
-You are feeding the `prp-plan` synthesizer. Do NOT write any files. Return
-findings inline as structured rows that map to the named plan section(s) below.
+You are feeding the `prp-plan` synthesizer. Return findings inline as
+structured rows that map to the named plan section(s) below, AND write the
+same content to the backstop file named in Constraints below.
 
 Target plan sections:
 - External Documentation
@@ -60,7 +61,7 @@ If no external APIs are needed, return: "No external research needed for this fe
 Constraints:
 - Code snippets: 5 lines max per finding
 - Discovery table format only — no prose summaries
-- Do NOT write any files
+- Write your full output to the backstop file `docs/prps/plans/.prp-research/<feature-slug>/api-researcher.md` using the Write tool, AND also return the same content inline in your final response.
 - Do NOT reference send follow-up instructions or inter-teammate coordination
 ```
 
@@ -69,8 +70,9 @@ Constraints:
 ## Prompt: business-analyzer
 
 ```
-You are feeding the `prp-plan` synthesizer. Do NOT write any files. Return
-findings inline as structured rows that map to the named plan section(s) below.
+You are feeding the `prp-plan` synthesizer. Return findings inline as
+structured rows that map to the named plan section(s) below, AND write the
+same content to the backstop file named in Constraints below.
 
 Target plan sections:
 - User Story
@@ -107,7 +109,7 @@ As a [actor], I want [capability], so that [benefit].
 Constraints:
 - Code snippets: 5 lines max per finding (cite file:line for any codebase evidence)
 - Discovery table format only — no prose summaries
-- Do NOT write any files
+- Write your full output to the backstop file `docs/prps/plans/.prp-research/<feature-slug>/business-analyzer.md` using the Write tool, AND also return the same content inline in your final response.
 - Do NOT reference send follow-up instructions or inter-teammate coordination
 ```
 
@@ -116,8 +118,9 @@ Constraints:
 ## Prompt: tech-designer
 
 ```
-You are feeding the `prp-plan` synthesizer. Do NOT write any files. Return
-findings inline as structured rows that map to the named plan section(s) below.
+You are feeding the `prp-plan` synthesizer. Return findings inline as
+structured rows that map to the named plan section(s) below, AND write the
+same content to the backstop file named in Constraints below.
 
 Target plan sections:
 - Patterns to Mirror → SERVICE_PATTERN, REPOSITORY_PATTERN
@@ -165,7 +168,7 @@ Output format — discovery table only, no prose summaries:
 Constraints:
 - Code snippets: 5 lines max per finding
 - Discovery table format only — no prose summaries
-- Do NOT write any files
+- Write your full output to the backstop file `docs/prps/plans/.prp-research/<feature-slug>/tech-designer.md` using the Write tool, AND also return the same content inline in your final response.
 - Do NOT reference send follow-up instructions or inter-teammate coordination
 ```
 
@@ -174,8 +177,9 @@ Constraints:
 ## Prompt: ux-researcher
 
 ```
-You are feeding the `prp-plan` synthesizer. Do NOT write any files. Return
-findings inline as structured rows that map to the named plan section(s) below.
+You are feeding the `prp-plan` synthesizer. Return findings inline as
+structured rows that map to the named plan section(s) below, AND write the
+same content to the backstop file named in Constraints below.
 
 Target plan sections:
 - UX Design → Before / After / Interaction Changes
@@ -217,7 +221,7 @@ any codebase evidence; ≤10 lines total]
 Constraints:
 - Code snippets: 5 lines max per finding
 - Discovery table format only — no prose summaries
-- Do NOT write any files
+- Write your full output to the backstop file `docs/prps/plans/.prp-research/<feature-slug>/ux-researcher.md` using the Write tool, AND also return the same content inline in your final response.
 - Do NOT reference send follow-up instructions or inter-teammate coordination
 ```
 
@@ -226,8 +230,9 @@ Constraints:
 ## Prompt: security-researcher
 
 ```
-You are feeding the `prp-plan` synthesizer. Do NOT write any files. Return
-findings inline as structured rows that map to the named plan section(s) below.
+You are feeding the `prp-plan` synthesizer. Return findings inline as
+structured rows that map to the named plan section(s) below, AND write the
+same content to the backstop file named in Constraints below.
 
 Target plan sections:
 - Risks
@@ -274,7 +279,7 @@ identified for this feature."
 Constraints:
 - Code snippets: 5 lines max per finding
 - Discovery table format only — no prose summaries
-- Do NOT write any files
+- Write your full output to the backstop file `docs/prps/plans/.prp-research/<feature-slug>/security-researcher.md` using the Write tool, AND also return the same content inline in your final response.
 - Do NOT reference send follow-up instructions or inter-teammate coordination
 ```
 
@@ -283,8 +288,9 @@ Constraints:
 ## Prompt: practices-researcher
 
 ```
-You are feeding the `prp-plan` synthesizer. Do NOT write any files. Return
-findings inline as structured rows that map to the named plan section(s) below.
+You are feeding the `prp-plan` synthesizer. Return findings inline as
+structured rows that map to the named plan section(s) below, AND write the
+same content to the backstop file named in Constraints below.
 
 Target plan sections:
 - Patterns to Mirror → NAMING_CONVENTION, TEST_STRUCTURE
@@ -335,7 +341,7 @@ Output format — discovery table only, no prose summaries:
 Constraints:
 - Code snippets: 5 lines max per finding
 - Discovery table format only — no prose summaries
-- Do NOT write any files
+- Write your full output to the backstop file `docs/prps/plans/.prp-research/<feature-slug>/practices-researcher.md` using the Write tool, AND also return the same content inline in your final response.
 - Do NOT reference send follow-up instructions or inter-teammate coordination
 ```
 
@@ -344,8 +350,9 @@ Constraints:
 ## Prompt: recommendations-agent
 
 ```
-You are feeding the `prp-plan` synthesizer. Do NOT write any files. Return
-findings inline as structured rows that map to the named plan section(s) below.
+You are feeding the `prp-plan` synthesizer. Return findings inline as
+structured rows that map to the named plan section(s) below, AND write the
+same content to the backstop file named in Constraints below.
 
 Target plan sections:
 - Notes
@@ -402,6 +409,6 @@ Output format — discovery table only, no prose summaries:
 Constraints:
 - Code snippets: 5 lines max per finding (cite file:line for any codebase evidence)
 - Discovery table format only — no prose summaries
-- Do NOT write any files
+- Write your full output to the backstop file `docs/prps/plans/.prp-research/<feature-slug>/recommendations-agent.md` using the Write tool, AND also return the same content inline in your final response.
 - Do NOT reference send follow-up instructions or inter-teammate coordination
 ```

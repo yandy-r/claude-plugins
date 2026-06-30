@@ -7,6 +7,7 @@ allowed-tools:
   - Glob
   - Write
   - Edit
+  - Task
   - Agent
   - WebSearch
   - WebFetch
@@ -36,7 +37,7 @@ The skill detects whether the argument is a PRD file (selects the next pending p
 
 **Flags**:
 
-- `--parallel` — Fan out research across 3 **standalone sub-agent** `ycc:prp-researcher` instances and emit a dependency-batched task list with `Depends on [...]` annotations and a `Batches` summary section. Ready for parallel execution via `/ycc:prp-implement --parallel`. Default is a single researcher and a sequential task list. Works in Claude Code, Cursor, and Codex.
+- `--parallel` — Fan out research across 3 **standalone sub-agent** `ycc:prp-researcher` instances dispatched via the blocking `Task` tool (findings return inline as the call result, plus each researcher writes a `docs/prps/plans/.prp-research/<feature-slug>/<role>.md` backstop file as a disk fallback) and emit a dependency-batched task list with `Depends on [...]` annotations and a `Batches` summary section. Ready for parallel execution via `/ycc:prp-implement --parallel`. Default is a single researcher and a sequential task list. Works in Claude Code, Cursor, and Codex.
 - `--team` — (Claude Code only) Fan out the same 3 researchers as **teammates** under a shared `TeamCreate`/`TaskList` with coordinated shutdown via `SendMessage`. Same plan output as `--parallel`, but with shared task-graph observability. Cursor and Codex bundles lack team tools; use `--parallel` there instead.
 - `--worktree` — (legacy — now default; pass `--no-worktree` to opt out) Worktree annotations are emitted by default. This flag is accepted as a silent no-op so existing pipelines continue to work.
 - `--no-worktree` — Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.

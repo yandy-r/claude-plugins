@@ -7,7 +7,7 @@ allowed-tools:
   - Glob
   - Edit
   - MultiEdit
-  - Agent
+  - Task
   - TodoWrite
   - Bash(ls:*)
   - Bash(cat:*)

@@ -16,7 +16,7 @@ You are an orchestration expert coordinating multiple specialized agents to acco
 
 Parallelism is the baseline of this skill — every batch's tasks dispatch concurrently. The only choice is **how** the implementor agents are dispatched:
 
-- **Standalone sub-agents** (default) — plain `Agent` calls per batch, no shared task list. Works in Claude Code, Cursor, and Codex.
+- **Standalone sub-agents** (default) — plain `Task` calls per batch, no shared task list. Works in Claude Code, Cursor, and Codex.
 - **Agent team** (`--team`, Codex runtime only; not available in bundle invocations) — single `create an agent group` with all subtasks registered up front (`record the task` + `addBlockedBy` for dependency wiring), per-batch teammate spawn, coordinated inter-batch shutdown via `send follow-up instructions`, and `close the agent group` at the end. Adds shared task-graph observability across all batches.
 
 ## Current Task
@@ -379,38 +379,37 @@ Branch on `TEAM_FLAG`:
 
 #### Path A — Standalone Sub-Agent Batches (default)
 
+See `~/.codex/plugins/ycc/shared/references/standalone-dispatch.md` for the full `Task`-vs-`Agent` dispatch contract and anti-patterns this path follows.
+
 For each batch, do the following **in order**:
 
 **1. Build the per-batch agent list** — determine each subtask's name, agent type, focus, and deliverables.
 
-**2. Spawn ALL batch agents in a SINGLE message** using MULTIPLE `Agent` tool calls. **No `team_name`, no `name`, no `record the task`** — standalone sub-agent semantics. Each prompt must use the **Path A coordination block** from `agent-prompts.md` (standalone implementor — no inter-agent coordination).
+**2. Spawn ALL batch agents in a SINGLE message** using MULTIPLE `Task` tool calls. **No `team_name`, no `name`, no `record the task`** — standalone sub-agent semantics. Each prompt must use the **Path A coordination block** from `agent-prompts.md` (standalone implementor — no inter-agent coordination).
 
-When `WORKTREE_MODE=true`, each Agent call includes `Working directory: <PARENT_WORKTREE_PATH>` in the prompt. Do **not** pass `isolation: "worktree"` here: that creates a distinct harness worktree per agent and breaks the single-worktree contract. Add a coordination note: `All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.`:
+When `WORKTREE_MODE=true`, each Task call includes `Working directory: <PARENT_WORKTREE_PATH>` in the prompt. Do **not** pass `isolation: "worktree"` here: that creates a distinct harness worktree per agent and breaks the single-worktree contract. Add a coordination note: `All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.`:
 
 ```
-Agent(
+Task(
   subagent_type = "nodejs-backend-architect",
   description = "Implement auth system",
-  isolation = "worktree",
   prompt = "Working directory: ~/.claude-worktrees/<repo>-<FEATURE_SLUG>/\nAll parallel agents in this batch share this path; batching guarantees no two agents touch the same file.\n\n[substituted template with Path A coordination block]"
 )
-Agent(
+Task(
   subagent_type = "test-strategy-planner",
   description = "Create auth test plan",
-  isolation = "worktree",
   prompt = "Working directory: ~/.claude-worktrees/<repo>-<FEATURE_SLUG>/\nAll parallel agents in this batch share this path; batching guarantees no two agents touch the same file.\n\n[substituted template with Path A coordination block]"
 )
-Agent(
+Task(
   subagent_type = "documentation-writer",
   description = "Document auth API",
-  isolation = "worktree",
   prompt = "Working directory: ~/.claude-worktrees/<repo>-<FEATURE_SLUG>/\nAll parallel agents in this batch share this path; batching guarantees no two agents touch the same file.\n\n[substituted template with Path A coordination block]"
 )
 ```
 
-When `WORKTREE_MODE=false` (--no-worktree), omit `isolation` and the `Working directory:` line — standard Path A semantics.
+When `WORKTREE_MODE=false` (--no-worktree), omit the `Working directory:` line — standard Path A semantics.
 
-**4. Wait for batch completion** — `Agent` calls block until each sub-agent returns. Completion is implicit when all parallel calls in the single message return.
+**4. Wait for batch completion** — `Task` calls block until each sub-agent returns. Completion is implicit when all parallel calls in the single message return.
 
 **5. Process results** — review each returned summary. Update the corresponding `the task tracker` items to `completed`.
 

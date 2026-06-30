@@ -8,7 +8,7 @@ allowed-tools:
   - Glob
   - Edit
   - MultiEdit
-  - Agent
+  - Task
   - TodoWrite
   - Bash(ls:*)
   - Bash(cat:*)
@@ -227,7 +227,7 @@ artifact status lines.
 ### Parallel mode
 
 Process one batch containing all same-file groups. Dispatch all groups in a
-single message with multiple `Agent` calls, one call per file group:
+single message with multiple `Task` calls, one call per file group:
 
 - `subagent_type`: `review-fixer`
 - `description`: `Quick-fix <ids> in <file>`

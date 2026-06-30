@@ -10,6 +10,7 @@ allowed-tools:
   - Edit
   - MultiEdit
   - Agent
+  - Task
   - AskUserQuestion
   - TodoWrite
   - TeamCreate
@@ -286,7 +287,7 @@ For each batch `B1, B2, ... BN` in order (from the plan's `Batches` table):
 
 1. **Identify batch tasks** — Extract all tasks with `BATCH: BN` from the Step-by-Step Tasks section.
 
-2. **Dispatch implementor agents in parallel** — Use a **SINGLE message** with **MULTIPLE `Agent` tool calls**, one per task in the batch. Each call:
+2. **Dispatch implementor agents in parallel** — Use a **SINGLE message** with **MULTIPLE `Task` tool calls**, one per task in the batch. Each call:
    - `subagent_type`: `"ycc:implementor"`
    - `description`: The task title (e.g., `"Task 1.1: add rate limiter middleware"`)
    - `prompt`: The complete task spec (ACTION, IMPLEMENT, MIRROR, IMPORTS, GOTCHA, VALIDATE) plus the relevant excerpt from the plan's **Patterns to Mirror** section. Include a directive that the agent must read the MIRROR source file before writing code and must run its own type-check on modified files before reporting complete.

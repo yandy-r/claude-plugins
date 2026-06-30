@@ -118,6 +118,8 @@ Gather codebase intelligence across 8 categories and 5 traces.
 
 When `ENHANCED_MODE=true`, run `~/.config/opencode/skills/prp-plan/scripts/preflight-enhanced-agents.sh` and abort with the script's stderr if it exits non-zero. This catches missing agent dependencies before any researcher is dispatched. The script auto-derives the plugin root from its own install location; no argument needed at runtime.
 
+> **Standalone dispatch rule (Path B / Path B-enhanced)**: Standalone research sub-agents are dispatched via the blocking `Task` tool, never via `Agent` without a `team_name`. NEVER background a `Task` call, NEVER poll it with a `sleep` loop, and NEVER rely on a "finished" completion notification to retrieve a researcher's output — the `Task` call blocks the turn and its return value IS the report, delivered inline. See `~/.config/opencode/shared/references/standalone-dispatch.md` for the full contract and anti-patterns.
+
 ### Path A — Sequential (default)
 
 Dispatch a single `prp-researcher` agent in codebase mode to cover all 8 categories and 5 traces. Use the discovery table for the plan's Patterns to Mirror section.
@@ -131,13 +133,15 @@ By default (`WORKTREE_MODE=true`), append the following directive to the researc
 ### Path B — Parallel sub-agents (`PARALLEL_MODE=true`)
 
 Dispatch **3 `prp-researcher` agents in a SINGLE message** as **standalone
-sub-agents** (no `team_name`):
+sub-agents** using the **`Task`** tool (no `team_name`):
 
 | Researcher          | Categories                             | Traces                  |
 | ------------------- | -------------------------------------- | ----------------------- |
 | `patterns-research` | Similar Implementations, Naming, Types | Entry Points, Contracts |
 | `quality-research`  | Error Handling, Logging, Tests         | State Changes, Patterns |
 | `infra-research`    | Configuration, Dependencies            | Data Flow               |
+
+`Task` is **blocking**: each call's return value IS the researcher's report, delivered inline in the same turn — there is no notification to wait for. In addition to the inline return, instruct each researcher to write its discovery table to a backstop file at `docs/prps/plans/.prp-research/<feature-slug>/<role>.md` (`patterns-research.md`, `quality-research.md`, `infra-research.md`) using the `Write` tool, mirroring the phrasing `feature-research`'s researcher prompts use ("Write your findings to: ..."). The backstop guarantees the findings survive even if the inline return is interrupted or truncated. See `~/.config/opencode/shared/references/standalone-dispatch.md` for the full contract.
 
 **IMPORTANT — Researcher prompt constraints**: Tell each researcher to keep code snippets to **5 lines max** per finding and limit the total response to the discovery table format only — no prose summaries.
 
@@ -150,8 +154,8 @@ After all 3 return: merge tables, de-duplicate, verify all 8 categories covered.
 #### Path B (enhanced) — when `ENHANCED_MODE=true`
 
 - Replace the 3-row researcher table above with the 7-row roster from `~/.config/opencode/skills/prp-plan/references/enhanced-researchers.md`.
-- Dispatch in a **SINGLE message** with **SEVEN `Agent` tool calls** (still standalone — no `team_name`).
-- Each call uses `@prp-researcher` with the `name` field set to the role name (`api-researcher`, `business-analyzer`, `tech-designer`, `ux-researcher`, `security-researcher`, `practices-researcher`, `recommendations-agent`) and the role-specific prompt copied verbatim from `enhanced-researchers.md`.
+- Dispatch in a **SINGLE message** with **SEVEN `Task` tool calls** (still standalone — no `team_name`). Each `Task` call blocks and returns the researcher's report inline as its return value.
+- Each call uses `@prp-researcher` with the `name` field set to the role name (`api-researcher`, `business-analyzer`, `tech-designer`, `ux-researcher`, `security-researcher`, `practices-researcher`, `recommendations-agent`) and the role-specific prompt copied verbatim from `enhanced-researchers.md`. Per `enhanced-researchers.md`, each role-specific prompt also instructs the researcher to write a backstop file at `docs/prps/plans/.prp-research/<feature-slug>/<role-name>.md` (`api-researcher.md`, `business-analyzer.md`, `tech-designer.md`, `ux-researcher.md`, `security-researcher.md`, `practices-researcher.md`, `recommendations-agent.md`) in addition to returning the same content inline.
 - The 5-line snippet cap and discovery-table-only constraints used in the 3-researcher path apply unchanged.
 
 ### Path C — Agent team (`AGENT_TEAM_MODE=true`, Claude Code only)
@@ -322,6 +326,8 @@ mkdir -p docs/prps/plans
 Read the plan template from `~/.config/opencode/skills/prp-plan/references/plan-template.md`.
 
 If `PARALLEL_MODE=true` **or** `AGENT_TEAM_MODE=true`, also read `~/.config/opencode/skills/prp-plan/references/parallel-additions.md`. Both modes emit the same parallel-capable plan format (Batches section, hierarchical task IDs, `Depends on` annotations) — they only differ in how the research phase was dispatched.
+
+If `ENHANCED_MODE=true` or `PARALLEL_MODE=true` was used for research dispatch (Path B / Path B-enhanced via `Task`), **before merging researcher findings** verify each researcher's backstop file exists at `docs/prps/plans/.prp-research/<feature-slug>/<role>.md`. If a `Task` call's inline return was empty, truncated, or otherwise unusable, re-read that researcher's backstop file from disk and treat its contents as the source of truth before concluding the researcher's findings are a gap. Only record a missing-researcher gap in the plan if both the inline return AND the backstop file are absent.
 
 If `ENHANCED_MODE=true`, also read `~/.config/opencode/skills/prp-plan/references/synthesis-map.md` and use it to route each researcher's findings into the correct plan section. The plan template is unchanged. Enhanced mode produces a richer plan because each section gets dedicated researcher input, not because new sections are added. Avoid section bloat — if a researcher returns no findings for a section, leave the existing N/A language in place or omit fully optional sections.
 

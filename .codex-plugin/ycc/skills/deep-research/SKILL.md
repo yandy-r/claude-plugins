@@ -332,7 +332,11 @@ Use the prompts from `persona-prompts.md` with variables substituted:
 
 #### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
 
-**CRITICAL**: Deploy all 8 persona agents in a **SINGLE message** with **MULTIPLE `Agent` tool calls**. Omit `team_name=` for standalone dispatch (keep per-agent `name=` where relevant).
+See `~/.codex/plugins/ycc/shared/references/standalone-dispatch.md` for the full standalone-dispatch contract (Task vs Agent+team, anti-patterns, backstop policy).
+
+**CRITICAL**: Deploy all 8 persona agents in a **SINGLE message** with **MULTIPLE `Task` tool calls**. `Task` is the blocking standalone-dispatch primitive — no team coordination, no `team_name`.
+
+If a `Task` call's inline return is empty or truncated, re-read the corresponding `persona-findings/*.md` artifact from disk as the source of truth before treating it as a failure.
 
 #### Path B — Agent team (`AGENT_TEAM_MODE=true`)
 
@@ -431,7 +435,9 @@ Both agents receive:
 
 #### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
 
-**CRITICAL**: Deploy both analysis agents in a **SINGLE message** with **MULTIPLE `Agent` tool calls**. Omit `team_name=` for standalone dispatch (keep per-agent `name=` where relevant).
+**CRITICAL**: Deploy both analysis agents in a **SINGLE message** with **MULTIPLE `Task` tool calls**. `Task` is the blocking standalone-dispatch primitive — no team coordination, no `team_name`.
+
+If a `Task` call's inline return is empty or truncated, re-read the corresponding `synthesis/crucible-analysis.md` or `synthesis/contradiction-mapping.md` artifact from disk as the source of truth before treating it as a failure.
 
 #### Path B — Agent team (`AGENT_TEAM_MODE=true`)
 
@@ -524,7 +530,9 @@ All agents receive:
 
 #### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
 
-**CRITICAL**: Deploy all 4 strategic analysis agents in a **SINGLE message** with **MULTIPLE `Agent` tool calls**. Omit `team_name=` for standalone dispatch (keep per-agent `name=` where relevant).
+**CRITICAL**: Deploy all 4 strategic analysis agents in a **SINGLE message** with **MULTIPLE `Task` tool calls**. `Task` is the blocking standalone-dispatch primitive — no team coordination, no `team_name`.
+
+If a `Task` call's inline return is empty or truncated, re-read the corresponding `synthesis/tension-mapping.md`, `synthesis/pattern-recognition.md`, `synthesis/negative-space.md`, or `synthesis/innovation.md` artifact from disk as the source of truth before treating it as a failure.
 
 #### Path B — Agent team (`AGENT_TEAM_MODE=true`)
 

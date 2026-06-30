@@ -10,6 +10,7 @@ allowed-tools:
   - Edit
   - MultiEdit
   - Agent
+  - Task
   - AskUserQuestion
   - TodoWrite
   - TeamCreate
@@ -439,7 +440,7 @@ Process batches sequentially; within each batch, dispatch all review-fixer agent
 
 For each batch:
 
-1. **Dispatch review-fixer agents in parallel** — Use a **SINGLE message** with **MULTIPLE `Agent` tool calls**, one per finding or same-file group in the batch:
+1. **Dispatch review-fixer agents in parallel** — Use a **SINGLE message** with **MULTIPLE `Task` tool calls**, one per finding or same-file group in the batch:
    - `subagent_type`: `"ycc:review-fixer"`
    - `description`: e.g., `"Fix F042: missing null check in payments.ts"`
    - `prompt`: The Finding spec (Shape A or Shape B) plus `SOURCE REVIEW FILE` and `PROJECT TYPE-CHECK COMMAND`
