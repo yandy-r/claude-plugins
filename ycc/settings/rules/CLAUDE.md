@@ -297,3 +297,22 @@ Confirm output matches expectations — do not rely solely on "it compiled".
 - Use environment variables for configuration.
 - Validate and sanitize all user inputs.
 - Follow security best practices for the technology stack.
+
+## Claude Code Plugin Install Model
+
+A plugin installed from a **`directory`-source marketplace** (`source: directory`
+in `~/.claude/plugins/known_marketplaces.json`) is loaded **in place** from its
+source repo — Claude Code never copies it into `~/.claude/plugins/cache/`. So a
+missing `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/` is **expected,
+not breakage**, and the `installPath` recorded in `installed_plugins.json` is a
+nominal record for directory sources, not a populated cache. Confirm install health
+by whether the plugin's skills/agents/commands are **available in-session**, not by
+cache presence.
+
+When an agent needs to read a directory-source plugin's content, read the **source of
+truth in its repo** (e.g. `<repo>/<plugin>/skills/{skill}/SKILL.md`) — not the cache,
+and not any generated compatibility mirror. `${CLAUDE_PLUGIN_ROOT}` resolves to the
+plugin's source directory at runtime. Because loading is in-place, the live content is
+always the repo's current HEAD even when `installed_plugins.json`'s `gitCommitSha` is
+stale; `claude plugin update` is version-gated, so it won't re-pin a stale SHA when the
+version string is unchanged.

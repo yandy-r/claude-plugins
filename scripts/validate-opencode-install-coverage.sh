@@ -67,6 +67,7 @@ ALLOWLIST_ROOTS = {
     "file-templates",   # user-maintained doc templates (~/.claude/file-templates rewritten to ~/.config/opencode/file-templates)
     "sessions",         # runtime session state
     "session-data",     # runtime session state
+    "plugins",          # opencode's own plugin install/cache location (read at runtime, not bundle-shipped)
 }
 # Top-level files installed directly (bypassing the managed_units
 # rsync). These exist at .opencode-plugin/<file> as plain top-level

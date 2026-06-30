@@ -115,6 +115,18 @@ it (cross-contamination, descriptor pollution, fragility-cliff proximity),
 split into a sibling repo rather than accumulate plugins here. See
 `CONTRIBUTING.md` → Scope & Guardrails for the full decision gate.
 
+### Local install model (directory-source, in-place)
+
+This repo's `ycc` marketplace is registered as a **`directory` source**, so Claude
+Code loads it **in place** from the repo — it never copies the plugin into
+`~/.claude/plugins/cache/`. A missing `~/.claude/plugins/cache/ycc/ycc/<version>` is
+**expected, not breakage**; the `installPath` in `installed_plugins.json` is a nominal
+record for directory sources. Install health is proven by `ycc:` skills/agents/commands
+being available in-session, not by cache presence. When an agent needs to read plugin
+content, read the source of truth at `ycc/skills/{skill}/SKILL.md` (and `ycc/agents/`,
+`ycc/commands/`) — **not** the cache and **not** the generated `.opencode-plugin/`
+mirror. `${CLAUDE_PLUGIN_ROOT}` resolves to `…/claude-plugins/ycc` at runtime.
+
 ## Generated Compatibility Targets
 
 - `ycc/skills/` is the source of truth for Cursor, Codex, and opencode skill generation.
