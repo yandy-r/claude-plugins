@@ -63,6 +63,7 @@ ARGUMENTS="${ARGUMENTS//--visual/}"
 **Validation**:
 
 - `--parallel` and `--team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --team are mutually exclusive. Pick one.`
+- If `--team` is passed and `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment, abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Use --parallel instead, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your opencode settings if you intentionally want agent-team dispatch.`
 - `--dry-run` requires `--team`. If `DRY_RUN=true` and `AGENT_TEAM_MODE=false` → abort with: `--dry-run requires --team.`
 - `--no-worktree` is **orthogonal** to `--parallel` and `--team` — it may be combined freely with either flag or used alone to suppress annotations.
 - If `--enhanced` is passed without `--parallel` or `--team`, default to standalone sub-agent dispatch (Path B equivalent at width 7). If `--enhanced --team` is invoked from a Cursor or Codex bundle, abort with the same compatibility message used today for plain `--team`. If `--dry-run` is passed, it requires `--team` (same constraint as today); `--enhanced --dry-run` alone is invalid.
@@ -118,7 +119,7 @@ Gather codebase intelligence across 8 categories and 5 traces.
 
 When `ENHANCED_MODE=true`, run `~/.config/opencode/skills/prp-plan/scripts/preflight-enhanced-agents.sh` and abort with the script's stderr if it exits non-zero. This catches missing agent dependencies before any researcher is dispatched. The script auto-derives the plugin root from its own install location; no argument needed at runtime.
 
-> **Standalone dispatch rule (Path A / Path B / Path B-enhanced)**: Standalone research sub-agents — whether a single researcher (Path A) or a parallel fan-out (Path B / Path B-enhanced) — are dispatched via the blocking `Task` tool, never via `Agent` without a `team_name`. NEVER background a `Task` call, NEVER poll it with a `sleep` loop, and NEVER rely on a "finished" completion notification to retrieve a researcher's output — the `Task` call blocks the turn and its return value IS the report, delivered inline. See `~/.config/opencode/shared/references/standalone-dispatch.md` for the full contract and anti-patterns.
+> **Standalone dispatch rule (Path A / Path B / Path B-enhanced)**: Standalone research sub-agents — whether a single researcher (Path A) or a parallel fan-out (Path B / Path B-enhanced) — are dispatched via the blocking `Task` tool in ONE message, never via `Agent`, and never with `name`, `team_name`, or `run_in_background` set. In the normal case `Task` blocks the turn and its return value IS the report, delivered inline. If a batch doesn't return inline (async fallback), don't background it or `sleep`-loop/poll waiting on it — yield/end the turn so the completion notification can flush, then resume merging. See `~/.config/opencode/shared/references/standalone-dispatch.md` for the full contract and anti-patterns.
 
 ### Path A — Sequential (default)
 
@@ -141,7 +142,7 @@ sub-agents** using the **`Task`** tool (no `team_name`):
 | `quality-research`  | Error Handling, Logging, Tests         | State Changes, Patterns |
 | `infra-research`    | Configuration, Dependencies            | Data Flow               |
 
-`Task` is **blocking**: each call's return value IS the researcher's report, delivered inline in the same turn — there is no notification to wait for. In addition to the inline return, instruct each researcher to write its discovery table to a backstop file at `docs/prps/plans/.prp-research/<feature-slug>/<role>.md` (`patterns-research.md`, `quality-research.md`, `infra-research.md`) using the `Write` tool, mirroring the phrasing `feature-research`'s researcher prompts use ("Write your findings to: ..."). The backstop guarantees the findings survive even if the inline return is interrupted or truncated. See `~/.config/opencode/shared/references/standalone-dispatch.md` for the full contract.
+In the normal case `Task` **blocks**: each call's return value IS the researcher's report, delivered inline in the same turn. If a batch doesn't return inline (async fallback), don't `sleep`-loop or poll waiting on it — yield/end the turn so the completion notification can flush, then resume. In addition to the inline return, instruct each researcher to write its discovery table to a backstop file at `docs/prps/plans/.prp-research/<feature-slug>/<role>.md` (`patterns-research.md`, `quality-research.md`, `infra-research.md`) using the `Write` tool, mirroring the phrasing `feature-research`'s researcher prompts use ("Write your findings to: ..."). The backstop guarantees the findings survive even if the inline return is interrupted or truncated. See `~/.config/opencode/shared/references/standalone-dispatch.md` for the full contract.
 
 **IMPORTANT — Researcher prompt constraints**: Tell each researcher to keep code snippets to **5 lines max** per finding and limit the total response to the discovery table format only — no prose summaries.
 

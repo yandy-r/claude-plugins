@@ -5,6 +5,20 @@ when the `--team` flag is passed. This file documents the universal TeamCreate �
 TaskList → SendMessage → TeamDelete lifecycle. Individual skills own their teammate
 roster and prompt templates; only the mechanism lives here.
 
+> **`--team` is opt-in.** It requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` to be set
+> in the user's Claude Code environment. Skills that reference this document validate
+> that at flag-parse time and abort with guidance to use `--parallel` instead when the
+> flag isn't set.
+>
+> **Implicit-team model note.** Recent Claude Code versions removed the `TeamCreate`/`TeamDelete`
+> tools in favor of an implicit team model: every session already has one team when the
+> experimental flag is set, teammates are spawned directly via the `Agent` tool's `name`
+> parameter, and `team_name` is accepted but ignored. A full rewrite of this document's
+> lifecycle (Steps 1-6) to match the implicit-team model is a follow-up, not done in this
+> pass — for now, `TeamCreate`/`TaskCreate`/`TeamDelete` calls in this doc's lifecycle
+> remain as documented, and skills should continue to call them where their target CLI
+> still supports them, but this may need revisiting.
+
 ---
 
 ## 1. Team Name Sanitization

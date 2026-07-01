@@ -50,6 +50,7 @@ Strip the flags from `$ARGUMENTS` and set `TEAM_FLAG=true|false`, `DRY_RUN=true|
 **Validation**:
 
 - `--worktree` and `--no-worktree` together → abort with: `--worktree and --no-worktree are mutually exclusive. Use --no-worktree to opt out of the default.`
+- If `--team` is passed and `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment, abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Use --parallel instead, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your opencode settings if you intentionally want agent-team dispatch.`
 
 If no feature name is provided after stripping flags, abort with usage instructions:
 
@@ -360,7 +361,7 @@ For each task in the batch, deploy an implementor with:
 | description   | "Implement [Task ID]: [Title]"             |
 | prompt        | Use template with task details substituted |
 
-No `team_name`, no `name`, no `track the task` — standalone `Task` semantics. The call blocks and returns the implementor's full report inline; there is no separate notification to wait for.
+No `team_name`, no `name`, no `run_in_background`, no `track the task` — standalone `Task` semantics. In the normal case the call blocks and returns the implementor's full report inline. If a batch doesn't return inline (async fallback), don't `sleep`-loop or poll waiting on it — yield/end the turn so the completion notification can flush, then resume.
 
 **When `WORKTREE_ACTIVE=true`**, include in the `prompt` for every task in the batch (parallel and sequential):
 

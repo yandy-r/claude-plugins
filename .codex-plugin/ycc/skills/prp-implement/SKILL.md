@@ -39,6 +39,7 @@ Strip the flags from `$ARGUMENTS` and set `PARALLEL_FLAG=true|false`, `AGENT_TEA
 **Validation**:
 
 - `--parallel` and `--team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --team are mutually exclusive. Pick one.`
+- If `--team` is passed and `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment, abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Use --parallel instead, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your Codex settings if you intentionally want agent-team dispatch.`
 - `--dry-run` requires `--team`. If `DRY_RUN=true` and `AGENT_TEAM_FLAG=false` → abort with: `--dry-run requires --team.`
 - `--no-worktree` combines freely with `--parallel` and `--team`. No exclusivity rules.
 - `--worktree` and `--no-worktree` together → abort with: `--worktree and --no-worktree are mutually exclusive. Use --no-worktree to opt out of the default.`

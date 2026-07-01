@@ -38,6 +38,7 @@ Strip these from `$ARGUMENTS` and set `QUICK_MODE=true|false`, `PARALLEL_MODE=tr
 
 - `--parallel` and `--team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --team are mutually exclusive. Pick one.`
 - If `--team` is set during a bundle invocation (Cursor/Codex), abort with: `--team is not supported in bundle invocations; use --parallel instead.`
+- If `--team` is passed and `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment, abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Use --parallel instead, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your opencode settings if you intentionally want agent-team dispatch.`
 - `--quick` with a PR number/URL is **not allowed**. If both are passed → abort with: `--quick only reviews uncommitted local changes; remove the PR argument or drop --quick.`
 - `--quick` with `--approve` or `--request-changes` is **not allowed**. Quick mode does not publish a GitHub review, so these flags have no meaning. Abort with: `--approve / --request-changes have no meaning in quick mode (no GitHub review is posted). Drop the flag or use PR mode.`
 - `--quick` with `--no-worktree`, `--keep-draft`, or `--keep-worktree` is accepted as a **no-op** (quick mode never creates a worktree or touches GitHub). Emit a note: `<flag> has no effect in quick mode.`
@@ -159,10 +160,12 @@ variable for the Phase 3 review filename (`local-<TIMESTAMP>-review.md`) — one
 canonical timestamp per invocation. Set `run-id = local-<TIMESTAMP>`.
 
 > **Standalone dispatch rule**: Dispatch the 3 reviewers via the blocking
-> `Task` tool — never the async `Agent` tool. `Task` blocks the turn and its
-> return value IS each reviewer's findings, delivered inline in the same turn;
-> there is no notification to wait for. NEVER background a `Task` call, NEVER
-> poll or `sleep`-loop waiting for one to "finish". See
+> `Task` tool in ONE message — never the async `Agent` tool, and never with
+> `name`, `team_name`, or `run_in_background` set. In the normal case `Task`
+> blocks and its return value IS each reviewer's findings, delivered inline in
+> the same turn. If a batch doesn't return inline (async fallback), don't
+> `sleep`-loop or poll — yield/end the turn so the completion notification can
+> flush, then resume. See
 > [standalone-dispatch.md](~/.config/opencode/shared/references/standalone-dispatch.md)
 > for the full contract.
 
@@ -425,10 +428,12 @@ Maintainability) and the **Severity Rubric** from:
 Set `run-id = pr-<NUMBER>` (PR numbers are unique, so no timestamp is needed).
 
 > **Standalone dispatch rule**: Dispatch the 3 reviewers via the blocking
-> `Task` tool — never the async `Agent` tool. `Task` blocks the turn and its
-> return value IS each reviewer's findings, delivered inline in the same turn;
-> there is no notification to wait for. NEVER background a `Task` call, NEVER
-> poll or `sleep`-loop waiting for one to "finish". See
+> `Task` tool in ONE message — never the async `Agent` tool, and never with
+> `name`, `team_name`, or `run_in_background` set. In the normal case `Task`
+> blocks and its return value IS each reviewer's findings, delivered inline in
+> the same turn. If a batch doesn't return inline (async fallback), don't
+> `sleep`-loop or poll — yield/end the turn so the completion notification can
+> flush, then resume. See
 > [standalone-dispatch.md](~/.config/opencode/shared/references/standalone-dispatch.md)
 > for the full contract.
 

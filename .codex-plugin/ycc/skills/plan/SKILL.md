@@ -90,6 +90,7 @@ ARGUMENTS="${ARGUMENTS//--visual/}"
 - `--enhanced` does **not** auto-promote to team mode. When `ENHANCED_MODE=true` and `AGENT_TEAM_MODE=false`, dispatch via the new **Path C** below: a 5-persona roster spawned as standalone parallel sub-agents with no `create an agent group`. Add `--team` explicitly to opt in to team-coordinated dispatch (Path B enhanced).
 - If `DRY_RUN=true` and both `AGENT_TEAM_MODE=false` and `ENHANCED_MODE=false` → abort with: `--dry-run requires --team or --enhanced (no-op for the single-agent path).`
 - If `--team` is invoked from a Cursor or Codex bundle, abort with the existing compatibility message: `--team requires team tools, which Cursor/Codex bundles do not ship. Use --parallel instead.`
+- If `--team` is passed and `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment, abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Use --parallel instead, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your Codex settings if you intentionally want agent-team dispatch.`
 - `--enhanced` alone is supported in every bundle: Path C uses parallel `Task` calls without team tools. Only the `--enhanced --team` combination requires Codex; in Cursor or Codex, abort with: `--enhanced --team requires team tools, which Cursor/Codex bundles do not ship. Drop --team to use the standalone 5-persona path.`
 - `--visual` is orthogonal and runs after the plan is produced. Because `$plan` writes no file by default, `--visual` forces a plan-file write first. `--dry-run` short-circuits it (prints intent only).
 

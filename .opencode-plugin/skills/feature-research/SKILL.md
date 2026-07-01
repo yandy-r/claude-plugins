@@ -90,6 +90,8 @@ Validate the feature name: must be kebab-case, no special characters except hyph
 
 **Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools).
 
+**Team opt-in note**: If `--team` is passed and `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment, abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Use --parallel instead, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your opencode settings if you intentionally want agent-team dispatch.`
+
 ### Step 2: Create Directory
 
 **CRITICAL**: Output goes to `docs/plans/[feature-name]/` — NEVER to `docs/prps/` or any other directory, regardless of the user's current working directory. If the user invokes this skill from inside `docs/prps/` or any subdirectory, still resolve the output path from the repository root as `docs/plans/[feature-name]/`.

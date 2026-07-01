@@ -48,6 +48,7 @@ Error: /quick-review takes no positional argument (only flags).
 - `--parallel` and `--team` mutually exclusive -> abort with: `--parallel and --team are mutually exclusive. Pick one.`
 - More than one of `--yes`, `--save`, `--write-and-apply` present -> abort with: `--yes, --save, and --write-and-apply are mutually exclusive. Pick one.`
 - `--team` in a Cursor/Codex bundle (no `spawn coordinated subagents` tool) -> abort with: `--team is not supported in bundle invocations; use --parallel instead.`
+- `--team` passed while `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment -> abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Use --parallel instead, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your opencode settings if you intentionally want agent-team dispatch.`
 - `--severity` value not one of `CRITICAL|HIGH|MEDIUM|LOW` -> abort with: `Invalid --severity value. Use CRITICAL, HIGH, MEDIUM, or LOW.`
 
 ---
@@ -96,10 +97,12 @@ uses for its team name when that path runs instead). Set
 `run-id = quick-<TIMESTAMP>`.
 
 > **Standalone dispatch rule**: Dispatch the 3 reviewers via the blocking
-> `Task` tool — never the async `Agent` tool. `Task` blocks the turn and its
-> return value IS each reviewer's findings, delivered inline in the same turn;
-> there is no notification to wait for. NEVER background a `Task` call, NEVER
-> poll or `sleep`-loop waiting for one to "finish". See
+> `Task` tool in ONE message — never the async `Agent` tool, and never with
+> `name`, `team_name`, or `run_in_background` set. In the normal case `Task`
+> blocks and its return value IS each reviewer's findings, delivered inline in
+> the same turn. If a batch doesn't return inline (async fallback), don't
+> `sleep`-loop or poll — yield/end the turn so the completion notification can
+> flush, then resume. See
 > [standalone-dispatch.md](~/.config/opencode/shared/references/standalone-dispatch.md)
 > for the full contract.
 

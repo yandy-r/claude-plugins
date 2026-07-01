@@ -44,8 +44,14 @@ Task(subagent_type="<type>", description="<short title>", prompt="<full task pro
 Task(subagent_type="<type>", description="<short title>", prompt="<full task prompt>")
 ```
 
-- Do **not** pass `team_name` or `name` — those fields are exclusive to `Agent`+team
-  dispatch and have no meaning for `Task`.
+- The call must **not** pass `name`, `team_name`, or `run_in_background`. Those
+  parameters are exclusive to `Agent`+team dispatch (or async background execution) and
+  have no meaning for a standalone `Task` call. Passing any of them — especially when the
+  experimental `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` flag is enabled, which makes every
+  session an implicit team — can silently convert what should be a blocking, inline
+  `Task` dispatch into an async background teammate. That conversion is exactly the bug
+  this document exists to prevent: it replaces the inline return with a "finished"
+  notification, and orchestrators that expect the former end up sleep-looping (see §3-4).
 - Do **not** call `TaskCreate`, `TaskList`, or `SendMessage` for standalone sub-agents —
   there is no shared task list backing a `Task` batch; those tools exist only for the
   `--team`/Agent-team lifecycle in `agent-team-dispatch.md`.
@@ -56,18 +62,30 @@ Task(subagent_type="<type>", description="<short title>", prompt="<full task pro
 
 ## 3. Blocking / Inline-Return Semantics
 
-`Task` calls **block** the orchestrator until every sub-agent in the batch returns. Each
-sub-agent's full report is delivered as that `Task` call's return value, in the **same
-turn** the batch was dispatched — there is no separate notification step to wait for.
+In the normal case, `Task` calls **block** the orchestrator until every sub-agent in the
+batch returns, and each sub-agent's full report is delivered as that `Task` call's return
+value, in the **same turn** the batch was dispatched. Read that return value directly —
+this is the expected, common-case contract, and the vast majority of `Task` batches
+resolve this way.
 
-The orchestrator must **read the return value directly**. Never:
+**Defensive fallback**: if the runtime ran the batch asynchronously (for example, a
+runtime bug or a flag like `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` reshaping the dispatch —
+see §2) and the results are not yet in hand at the point where you would normally read
+them, do **not** sleep-loop or poll waiting for them. Instead, **yield — end your turn**
+(stop generating; do not call `sleep`, `echo`, or any other busywork tool "to wait") so
+that any queued completion notification can flush. Resume merging results into the
+skill's workflow once you are notified that the batch has completed.
+
+The orchestrator must never:
 
 - Poll for completion.
-- `sleep` in a loop waiting for a `Task` call to "finish" — it has already finished by the
-  time control returns to you.
-- Treat the absence of a notification as a signal of anything — `Task` has none.
+- `sleep` in a loop waiting for a `Task` call to "finish."
+- Treat the absence of a notification, on its own, as proof that nothing returned — check
+  the actual return value first; only fall back to yielding (above) if it is genuinely
+  empty/missing at read time.
 
-If a batch of `Task` calls returns, the work is done and every report is already in hand.
+If a batch of `Task` calls returns inline, the work is done and every report is already in
+hand — proceed directly to merging, no waiting required.
 
 ---
 
@@ -77,14 +95,22 @@ These mirror the Failure Policy intent of [agent-team-dispatch.md](./agent-team-
 §4, but for the standalone path. Each of the following is a bug, not a stylistic
 preference:
 
-- **Do NOT** dispatch standalone fan-out via `Agent`. `Agent` without `team_name` produces
-  a background teammate whose output is never returned inline — exactly the failure mode
-  this document exists to prevent.
+- **Do NOT** dispatch standalone fan-out via `Agent`, or via `Task` with `name`,
+  `team_name`, or `run_in_background` set (see §2). Any of these can produce a background
+  teammate whose output is never returned inline — exactly the failure mode this document
+  exists to prevent.
 - **Do NOT** background a `Task` dispatch or otherwise detach from it.
-- **Do NOT** `sleep`-loop or poll waiting for a `Task` call to complete. `Task` blocks; the
-  result is already available when the call returns.
-- **Do NOT** rely on "finished" notifications to retrieve standalone sub-agent output —
-  `Task` does not emit one; the return value **is** the output.
+- **Do NOT** `sleep`-loop or poll waiting for a `Task` call to complete. In the normal
+  case `Task` blocks; the result is already available when the call returns.
+- **Do NOT** keep the turn alive with `sleep`, `echo`, or any other busywork "waiting" for
+  sub-agents to finish — including in the async-fallback case described in §3. In current
+  Claude Code versions, a live turn blocks completion-notification delivery, so busywork
+  "waiting" deadlocks the session until the user manually presses ESC. If there is nothing
+  productive to do while waiting, end the turn.
+- **Do NOT** rely on "finished" notifications as the primary way to retrieve standalone
+  sub-agent output — the inline return value is. Only fall back to waiting on a
+  notification (by yielding, per §3) if the inline return is genuinely empty/missing at
+  read time.
 - **Do NOT** call `SendMessage` or `TaskList` for standalone sub-agents. No shared task
   list exists for a `Task` batch; those tools only operate against an active
   `Agent`-team.
