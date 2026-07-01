@@ -88,8 +88,23 @@ Single-Pass Checklist** and **Severity Rubric** from:
 
 ### Path B — Parallel Sub-Agent Review (`PARALLEL_MODE=true`)
 
+Generate `TIMESTAMP=$(date +%Y%m%d-%H%M%S)` once, here, and reuse the same
+variable for the scratch run-id below and, if the user later selects an
+artifact-writing path in Phase 5, for the `quick-<TIMESTAMP>-review.md`
+filename — one canonical timestamp per invocation (the same pattern Path C
+uses for its team name when that path runs instead). Set
+`run-id = quick-<TIMESTAMP>`.
+
+> **Standalone dispatch rule**: Dispatch the 3 reviewers via the blocking
+> `Task` tool — never the async `Agent` tool. `Task` blocks the turn and its
+> return value IS each reviewer's findings, delivered inline in the same turn;
+> there is no notification to wait for. NEVER background a `Task` call, NEVER
+> poll or `sleep`-loop waiting for one to "finish". See
+> [standalone-dispatch.md](~/.codex/plugins/ycc/shared/references/standalone-dispatch.md)
+> for the full contract.
+
 Dispatch **3 standalone `code-reviewer` sub-agents in parallel** in a SINGLE
-message with MULTIPLE `Agent` tool calls. Use the **Local / Quick Mode Roster**
+message with MULTIPLE `Task` tool calls. Use the **Local / Quick Mode Roster**
 and **Standard Findings Format** from:
 
 ```
@@ -102,9 +117,22 @@ Each reviewer prompt must include:
 2. Its assigned focus and checklist items (from the roster table)
 3. The severity rubric
 4. A directive to return findings in the Standard Findings Format
+5. Its own scratch backstop path — `docs/prps/reviews/.review-scratch/quick-<TIMESTAMP>/<reviewer-name>.md`
+   — per the scratch-backstop contract in that reference
 
-Apply the **Merge Procedure** defined in the reference to produce a single
-combined findings list for Phase 3.
+After all 3 `Task` calls return: for any reviewer whose inline return is
+empty, missing, or malformed, re-read its scratch file at that path before
+merging. Apply the **Merge Procedure** defined in the reference to produce a
+single combined findings list for Phase 3.
+
+**Scratch cleanup is unconditional**: unlike the permanent review artifact
+(only written on "Save to file" / "Write file and apply fixes"), the scratch
+directory `docs/prps/reviews/.review-scratch/quick-<TIMESTAMP>/` is always
+removed at the end of Phase 5 (HAND-OFF) — even on "Discard" or "Apply
+fixes", which never write a permanent artifact. This is the one ephemeral
+exception to quick-review's artifact-free guarantee: the scratch file exists
+only transiently during this Path B dispatch and is gone before the skill
+returns control to the user.
 
 ### Path C — Agent Team Review (`AGENT_TEAM_MODE=true`, Codex runtime only; not available in bundle invocations)
 
@@ -323,7 +351,10 @@ the user's next message. Parse their reply case-insensitively:
 
 ## Phase 5 — HAND-OFF
 
-Branch on the user's selection (or auto-confirm flag).
+Branch on the user's selection (or auto-confirm flag). If `PARALLEL_MODE=true`
+(Path B was used), remove the `docs/prps/reviews/.review-scratch/quick-<TIMESTAMP>/`
+scratch directory before exiting — **regardless of which branch below is
+taken**, including "Discard" and "Apply fixes".
 
 ### Selection: "Discard"
 
@@ -412,6 +443,13 @@ fix phase has its own execution decision.
 
 - **Apply fixes is artifact-free**: direct apply MUST route to `$quick-fix`
   without writing `docs/prps/reviews/quick-*.md`.
+- **Scratch is the one ephemeral exception**: when Path B (`--parallel`) is
+  used, a transient scratch backstop file exists per reviewer at
+  `docs/prps/reviews/.review-scratch/quick-<TIMESTAMP>/<reviewer-name>.md`
+  during the `Task` dispatch in Phase 2. It is always deleted at the end of
+  Phase 5 before the skill returns control to the user — including on
+  "Discard" and "Apply fixes" — so the "no file written" guarantee still
+  holds for anything the user can observe afterward.
 - **Large reviews are advisory**: `5+` findings or `3+` finding files adds a
   "Write file and apply fixes" choice. It does not force artifact creation.
 - **Explicit artifact-backed apply**: only `--write-and-apply` or the matching

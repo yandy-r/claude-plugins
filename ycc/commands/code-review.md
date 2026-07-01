@@ -8,6 +8,7 @@ allowed-tools:
   - Write
   - Skill
   - Agent
+  - Task
   - TeamCreate
   - TeamDelete
   - TaskCreate

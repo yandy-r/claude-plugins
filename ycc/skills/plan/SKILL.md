@@ -7,6 +7,7 @@ allowed-tools:
   - Grep
   - Glob
   - Agent
+  - Task
   - TodoWrite
   - AskUserQuestion
   - TeamCreate
@@ -57,7 +58,7 @@ Create a comprehensive implementation plan before writing any code. This is the 
 - `--dry-run` requires `--team` or `--enhanced` (or both). The single-agent path has nothing to dry-run.
 - `--no-worktree` opts out of all worktree annotations. When omitted (the default), the plan emits a `## Worktree Setup` section naming the one feature worktree; all tasks (parallel and sequential) share that single path.
 
-**Compatibility note**: `--team` depends on team tools (`TeamCreate`, `SendMessage`, etc.) which only Claude Code ships — in Cursor or Codex bundles `--team` aborts with a compatibility message. `--enhanced` alone runs in every bundle (Path C uses parallel `Agent` calls without team tools). Only the combination `--enhanced --team` requires Claude Code; in Cursor or Codex, drop `--team` and `--enhanced` will dispatch via Path C.
+**Compatibility note**: `--team` depends on team tools (`TeamCreate`, `SendMessage`, etc.) which only Claude Code ships — in Cursor or Codex bundles `--team` aborts with a compatibility message. `--enhanced` alone runs in every bundle (Path C uses parallel `Task` calls without team tools). Only the combination `--enhanced --team` requires Claude Code; in Cursor or Codex, drop `--team` and `--enhanced` will dispatch via Path C.
 
 **Note**: `--parallel` on `/ycc:plan` shapes the _output_, not the research phase. For research fan-out on larger features, use `/ycc:prp-plan --parallel` (sub-agent fan-out) or `/ycc:prp-plan --team` (Claude Code only; shared-task-list coordination).
 
@@ -106,7 +107,7 @@ ARGUMENTS="${ARGUMENTS//--visual/}"
 - `--enhanced` does **not** auto-promote to team mode. When `ENHANCED_MODE=true` and `AGENT_TEAM_MODE=false`, dispatch via the new **Path C** below: a 5-persona roster spawned as standalone parallel sub-agents with no `TeamCreate`. Add `--team` explicitly to opt in to team-coordinated dispatch (Path B enhanced).
 - If `DRY_RUN=true` and both `AGENT_TEAM_MODE=false` and `ENHANCED_MODE=false` → abort with: `--dry-run requires --team or --enhanced (no-op for the single-agent path).`
 - If `--team` is invoked from a Cursor or Codex bundle, abort with the existing compatibility message: `--team requires team tools, which Cursor/Codex bundles do not ship. Use --parallel instead.`
-- `--enhanced` alone is supported in every bundle: Path C uses parallel `Agent` calls without team tools. Only the `--enhanced --team` combination requires Claude Code; in Cursor or Codex, abort with: `--enhanced --team requires team tools, which Cursor/Codex bundles do not ship. Drop --team to use the standalone 5-persona path.`
+- `--enhanced` alone is supported in every bundle: Path C uses parallel `Task` calls without team tools. Only the `--enhanced --team` combination requires Claude Code; in Cursor or Codex, abort with: `--enhanced --team requires team tools, which Cursor/Codex bundles do not ship. Drop --team to use the standalone 5-persona path.`
 - `--visual` is orthogonal and runs after the plan is produced. Because `/ycc:plan` writes no file by default, `--visual` forces a plan-file write first. `--dry-run` short-circuits it (prints intent only).
 
 Read the stripped `$ARGUMENTS`. If it references a file path, read that file for context. If the request is ambiguous, ask a single focused clarifying question **before** dispatching.
@@ -222,17 +223,20 @@ canonical single-worktree contract.
 
 ### Path C — Parallel sub-agent dispatch (`--enhanced` without `--team`)
 
+See `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/standalone-dispatch.md` for the full standalone-dispatch contract (`Task` vs `Agent`+team, anti-patterns, backstop policy).
+
 > **MANDATORY — STANDALONE SUB-AGENTS, NO TEAM**
 >
 > Path C dispatches the same 5-persona roster as Path B (enhanced) but **without** any
 > team tooling. Do NOT call `TeamCreate`, `TaskCreate`, `SendMessage`, or `TeamDelete`.
-> Every `Agent` call below MUST omit `team_name=` and use `name=` purely as a
-> human-readable label for the merge step. This path mirrors the standalone fan-out
-> pattern in `ycc:prp-plan`.
+> Every dispatch below uses the blocking `Task` tool with `subagent_type=` and a
+> human-readable `description=` label for the merge step — never `Agent` (which spawns a
+> background teammate whose output is not returned inline). This path mirrors the
+> standalone fan-out pattern in `ycc:prp-plan`.
 >
 > 1. **No team lifecycle** — no `TeamCreate`, no shared `TaskList`, no shutdown messages
-> 2. `Agent` with `subagent_type=` and `name=` — **one message, FIVE Agent calls**, fired in parallel
-> 3. Wait for all 5 sub-agent responses to return (they return inline as Agent tool results)
+> 2. `Task` with `subagent_type=` and `description=` — **one message, FIVE `Task` calls**, fired in parallel
+> 3. Wait for all 5 sub-agent responses to return (they return inline as `Task` tool results — `Task` blocks until each sub-agent completes)
 > 4. Merge outputs per Path B §B.7 — same Markdown sections, same omission rules
 
 #### C.1 Persona roster
@@ -259,17 +263,17 @@ Sub-agents:  5
   - test-strategist   subagent_type=ycc:test-strategy-planner      task=Testing strategy, validation commands, acceptance criteria
   - security-reviewer subagent_type=ycc:research-specialist        task=Threat model, input validation, authn/authz, secrets, dependency risk
   - ux-reviewer       subagent_type=ycc:research-specialist        task=User-facing impact (UI, CLI, API responses, error messages); skip if internal-only
-Batches:     1  (single message, 5 parallel Agent calls)
+Batches:     1  (single message, 5 parallel Task calls)
 ```
 
 Do **not** spawn any agents. Exit the skill.
 
-#### C.3 Spawn the sub-agents (single message, 5 Agent calls)
+#### C.3 Spawn the sub-agents (single message, 5 Task calls)
 
-In ONE assistant message, issue 5 `Agent` tool calls in parallel. Each call:
+In ONE assistant message, issue 5 `Task` tool calls in parallel. Each call:
 
-- Sets `subagent_type` and `name` per the C.1 roster
-- Does **NOT** set `team_name=`
+- Sets `subagent_type` and `description` per the C.1 roster
+- Does **NOT** set `team_name=` or `name=` — those fields are exclusive to `Agent`+team dispatch
 - Uses the same role-specific prompt content as Path B §B.5, with the following adjustment for the 3 baseline personas: **omit** the "coordinate via `SendMessage` if you discover work overlapping another teammate's scope" line — there is no team channel in Path C. Each prompt MUST still include:
   - The user's original request (verbatim)
   - Any file paths or context they referenced
@@ -282,7 +286,7 @@ For `security-reviewer` and `ux-reviewer`, copy the role-specific prompt verbati
 
 #### C.4 Collect results
 
-Sub-agents return inline as Agent tool results. There is no shared `TaskList` to poll —
+Sub-agents return inline as `Task` tool results. There is no shared `TaskList` to poll —
 gather the 5 outputs directly from the tool-result block.
 
 Failure handling (no shutdown calls needed since no team was created):
@@ -540,7 +544,7 @@ Valid user responses:
 
 **Team-mode re-dispatch note**: Path B's team is `TeamDelete`d in Step B.8 _before_ the user sees the plan. Any re-dispatch from this step creates a **new** team (same name is fine — the old one no longer exists) with a fresh set of teammates. Do not attempt to send messages to teammates from the prior team.
 
-**Path C re-dispatch note**: Path C never created a team, so there is no teardown to worry about. Any re-dispatch from this step simply fires a fresh batch of 5 parallel `Agent` calls (no `team_name=`).
+**Path C re-dispatch note**: Path C never created a team, so there is no teardown to worry about. Any re-dispatch from this step simply fires a fresh batch of 5 parallel `Task` calls (no `team_name=`).
 
 ---
 
@@ -632,7 +636,7 @@ Before dispatching any `ycc:implementor` agents, prepare the feature branch so a
 
   The script is idempotent on `feat/${FEATURE_SLUG}`, creates it from a trunk branch, exits 1 on unrelated dirty tree, and exits 2 on a different feature branch (re-run with `--allow-existing-feature-branch` after user confirmation). **Do not skip this step** — it is what prevents implementor agents from committing to `main`.
 
-Then process batches sequentially. Within each batch, dispatch one `ycc:implementor` agent per step in a SINGLE message with MULTIPLE `Agent` tool calls. Between batches, run the project's type-check and unit-test commands. On failure, stop and ask the user how to proceed.
+Then process batches sequentially. Within each batch, dispatch one `ycc:implementor` agent per step in a SINGLE message with MULTIPLE `Task` tool calls (standalone dispatch — see `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/standalone-dispatch.md`). Between batches, run the project's type-check and unit-test commands. On failure, stop and ask the user how to proceed.
 
 This keeps everything in the current conversation — no file artifact needed.
 

@@ -15,7 +15,7 @@ Execute a parallel implementation plan by deploying implementor agents in depend
 
 Parallelism is the baseline of this skill — every batch's tasks dispatch concurrently. The only choice is **how** the implementor agents are dispatched:
 
-- **Standalone sub-agents** (default) — plain `Agent` calls per batch, no shared task list. Works in opencode, Cursor, and Codex.
+- **Standalone sub-agents** (default) — plain `Task` calls per batch, no shared task list. Works in opencode, Cursor, and Codex.
 - **Agent team** (`--team`, Claude Code only) — single `spawn coordinated subagents` with all tasks registered up front (`track the task` + `addBlockedBy` for dependency wiring), per-batch teammate spawn, coordinated inter-batch shutdown via `send follow-up instructions`, and `end the coordinated run` at the end. Adds shared task-graph observability across all batches.
 
 ## Workflow Integration
@@ -327,7 +327,7 @@ Per-batch teammate roster:
   ...
 ```
 
-Do **not** call `spawn coordinated subagents`, `track the task`, `Agent`, `send follow-up instructions`, or `end the coordinated run` in dry-run mode. **STOP HERE**.
+Do **not** call `spawn coordinated subagents`, `track the task`, `Agent`, `Task`, `send follow-up instructions`, or `end the coordinated run` in dry-run mode. **STOP HERE**.
 
 ### Step 8: Branch on `TEAM_FLAG`
 
@@ -338,6 +338,8 @@ Do **not** call `spawn coordinated subagents`, `track the task`, `Agent`, `send 
 
 ### Path A — Standalone Sub-Agent Batches (default)
 
+See `~/.config/opencode/shared/references/standalone-dispatch.md` for the full standalone-dispatch contract (`Task` vs `Agent`+team, anti-patterns, backstop policy). Standalone batches dispatch via the blocking `Task` tool — never background, poll, or sleep waiting on a result; the sub-agent's report is already in hand when the `Task` call returns.
+
 Read the agent task prompt template once before the loop:
 
 ```bash
@@ -346,9 +348,9 @@ cat ~/.config/opencode/skills/implement-plan/templates/agent-task-prompt.md
 
 For each batch of ready tasks, in order:
 
-**CRITICAL**: Deploy all agents in the batch in a **SINGLE message** with **MULTIPLE `Agent` tool calls**.
+**CRITICAL**: Deploy all agents in the batch in a **SINGLE message** with **MULTIPLE `Task` tool calls**.
 
-#### Path A — Agent spawn
+#### Path A — Task spawn
 
 For each task in the batch, deploy an implementor with:
 
@@ -358,7 +360,7 @@ For each task in the batch, deploy an implementor with:
 | description   | "Implement [Task ID]: [Title]"             |
 | prompt        | Use template with task details substituted |
 
-No `team_name`, no `name`, no `track the task` — standalone sub-agent semantics.
+No `team_name`, no `name`, no `track the task` — standalone `Task` semantics. The call blocks and returns the implementor's full report inline; there is no separate notification to wait for.
 
 **When `WORKTREE_ACTIVE=true`**, include in the `prompt` for every task in the batch (parallel and sequential):
 
@@ -376,7 +378,7 @@ All parallel agents in this batch share the current feature branch; batching gua
 
 Do **not** pass `isolation: "worktree"` here. Tool-side worktree isolation creates a distinct harness worktree per agent, which is exactly the behavior this migration is removing. Use the shared `Working directory:` line only. On **Codex / opencode**, that prompt line is likewise sufficient. On **Cursor**, emit a warning and print the `git worktree add` command for the user to run; do not auto-create.
 
-#### Agent Task Requirements (Path A)
+#### Task Requirements (Path A)
 
 Each implementor agent must:
 
@@ -414,7 +416,7 @@ After each batch completes:
 ```
 While tasks remain:
   1. Find tasks where all dependencies are completed
-  2. Deploy agents for those tasks in parallel (single message, multiple Agent calls)
+  2. Deploy agents for those tasks in parallel (single message, multiple Task calls)
   3. Wait for batch to complete
   4. Validate in the execution tree: `$WT_PARENT_PATH` when `WORKTREE_ACTIVE=true`, otherwise the prepared current-checkout feature branch
   5. Update task status
@@ -644,7 +646,7 @@ when the matching criterion in `## Success Criteria` is met; otherwise `FAIL` (f
 
 Each batch must:
 
-- [ ] Deploy all ready tasks in parallel (single message, multiple `Agent` calls)
+- [ ] Deploy all ready tasks in parallel (single message, multiple `Task` calls in Path A; multiple `Agent` calls with `team_name=` in Path B)
 - [ ] Wait for all agents to complete before next batch
 - [ ] Update todo (and in Path B, the todo tracker) status after completion
 - [ ] Handle failures gracefully
@@ -724,7 +726,7 @@ Running `/implement-plan feature-a` from anywhere executes `monorepo/docs/plans/
 - **You are the orchestrator** — coordinate agents, don't implement yourself
 - **Parallelism is the baseline** — every batch dispatches concurrently regardless of path
 - **Default dispatch is standalone sub-agents** — `--team` is an opt-in for shared task-graph observability in opencode
-- **Deploy in batches** — single message with multiple `Agent` calls per batch
+- **Deploy in batches** — single message with multiple `Task` calls per batch (Path A) or `Agent` calls with `team_name=` per batch (Path B)
 - **Respect dependencies** — never start a task before its dependencies complete
 - **Track progress** — update todos (and in Path B, `the todo tracker`) as tasks complete
 - **Handle failures** — continue with independent tasks if one fails (Path A); escalate to the user via `ask the user` (Path B)

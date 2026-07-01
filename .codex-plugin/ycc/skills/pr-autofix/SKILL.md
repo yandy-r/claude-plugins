@@ -263,7 +263,7 @@ For each group in order, dispatch one `pr-comment-fixer` agent. Wait for its `ST
 
 ### Parallel dispatch (`--parallel`)
 
-Per batch, dispatch all fixers in a **single message with multiple `Agent` tool calls**. Wait for all to return before moving to the next batch.
+Per batch, dispatch all fixers in a **single message with multiple `Task` tool calls** (blocking, standalone dispatch — see `~/.codex/plugins/ycc/shared/references/standalone-dispatch.md`). Wait for all to return before moving to the next batch.
 
 ### Fixer agent input (Shape A — single comment)
 
@@ -512,12 +512,12 @@ Write a fix report to `$(git rev-parse --show-toplevel)/docs/prps/reports/pr-aut
 
 ## CI Result (if --ci)
 
-| Metric       | Value  |
+| Metric | Value |
 | ------------ | ------ | -------- |
-| Final result | green  | bail-... |
-| Iterations   | <N>    |
-| Auto-pushes  | <M>    |
-| Audit log    | <path> |
+| Final result | green | bail-... |
+| Iterations | <N> |
+| Auto-pushes | <M> |
+| Audit log | <path> |
 
 ## Failures
 

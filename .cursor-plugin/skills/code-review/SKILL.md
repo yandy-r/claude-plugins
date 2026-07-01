@@ -9,6 +9,7 @@ allowed-tools:
   - Write
   - Skill
   - Agent
+  - Task
   - TeamCreate
   - TeamDelete
   - TaskCreate
@@ -182,8 +183,20 @@ ${CURSOR_PLUGIN_ROOT}/skills/_shared/references/review-checklist.md
 
 #### Path B — Parallel Sub-Agent Review (`PARALLEL_MODE=true`)
 
+Generate `TIMESTAMP=$(date +%Y%m%d-%H%M%S)` once, here, and reuse the same
+variable for the Phase 3 review filename (`local-<TIMESTAMP>-review.md`) — one
+canonical timestamp per invocation. Set `run-id = local-<TIMESTAMP>`.
+
+> **Standalone dispatch rule**: Dispatch the 3 reviewers via the blocking
+> `Task` tool — never the async `Agent` tool. `Task` blocks the turn and its
+> return value IS each reviewer's findings, delivered inline in the same turn;
+> there is no notification to wait for. NEVER background a `Task` call, NEVER
+> poll or `sleep`-loop waiting for one to "finish". See
+> [standalone-dispatch.md](${CURSOR_PLUGIN_ROOT}/skills/_shared/references/standalone-dispatch.md)
+> for the full contract.
+
 Dispatch **3 standalone `code-reviewer` sub-agents in parallel** in a SINGLE
-message with MULTIPLE `Agent` tool calls. Use the **Local / Quick Mode Roster**
+message with MULTIPLE `Task` tool calls. Use the **Local / Quick Mode Roster**
 (`correctness-reviewer`, `security-reviewer`, `quality-reviewer`) and
 **Standard Findings Format** from:
 
@@ -191,10 +204,17 @@ message with MULTIPLE `Agent` tool calls. Use the **Local / Quick Mode Roster**
 ${CURSOR_PLUGIN_ROOT}/skills/_shared/references/review-checklist.md
 ```
 
-The reviewer-prompt contract (changed files, focus + checklist items, severity
-rubric, findings format directive) and the **Merge Procedure** are defined
-in that reference. Pass the merged findings to Phase 3 (REPORT) as if they
-came from a single-pass review.
+Per the scratch-backstop contract in that reference, also pass each reviewer
+its own scratch path — `docs/prps/reviews/.review-scratch/local-<TIMESTAMP>/<reviewer-name>.md`
+(e.g. `.../correctness-reviewer.md`) — alongside the changed files, its focus +
+checklist items, the severity rubric, and the findings-format directive.
+
+After all 3 `Task` calls return: for any reviewer whose inline return is
+empty, missing, or malformed, re-read its scratch file at that path before
+merging (Merge Procedure in the reference). Pass the merged findings to
+Phase 3 (REPORT) as if they came from a single-pass review. Phase 3 removes
+the `docs/prps/reviews/.review-scratch/local-<TIMESTAMP>/` directory once the
+review artifact has been written successfully.
 
 #### Path C — Agent Team Review (`AGENT_TEAM_MODE=true`, Claude Code only)
 
@@ -297,6 +317,10 @@ Use the **Review Artifact Format** defined at the bottom of this skill. Include:
 - Suggested fix
 
 **Always write the file**, even if there are no findings (empty sections are acceptable — they give `/review-fix` a consistent target and preserve history).
+
+If `PARALLEL_MODE=true` (Path B was used), remove the
+`docs/prps/reviews/.review-scratch/local-<TIMESTAMP>/` scratch directory now
+that the artifact has been written successfully.
 
 Print a concise summary to stdout with the file path and a hint to run fixes:
 
@@ -427,8 +451,18 @@ ${CURSOR_PLUGIN_ROOT}/skills/_shared/references/review-checklist.md
 
 #### Path B — Parallel Sub-Agent Review (`PARALLEL_MODE=true`)
 
+Set `run-id = pr-<NUMBER>` (PR numbers are unique, so no timestamp is needed).
+
+> **Standalone dispatch rule**: Dispatch the 3 reviewers via the blocking
+> `Task` tool — never the async `Agent` tool. `Task` blocks the turn and its
+> return value IS each reviewer's findings, delivered inline in the same turn;
+> there is no notification to wait for. NEVER background a `Task` call, NEVER
+> poll or `sleep`-loop waiting for one to "finish". See
+> [standalone-dispatch.md](${CURSOR_PLUGIN_ROOT}/skills/_shared/references/standalone-dispatch.md)
+> for the full contract.
+
 Dispatch **3 standalone `code-reviewer` sub-agents in parallel** in a SINGLE
-message with MULTIPLE `Agent` tool calls. Use the **PR Mode Roster**
+message with MULTIPLE `Task` tool calls. Use the **PR Mode Roster**
 (`correctness-reviewer`, `security-reviewer`, `quality-reviewer`) and
 **Standard Findings Format** from:
 
@@ -440,11 +474,17 @@ Each reviewer prompt must additionally include:
 
 1. The PR number, head revision, and the list of changed files
 2. Relevant context from Phase 2 (CLAUDE.md rules, PRP artifacts, PR description)
+3. Its own scratch backstop path — `docs/prps/reviews/.review-scratch/pr-<NUMBER>/<reviewer-name>.md`
+   — per the scratch-backstop contract in that reference
 
 The reviewer-prompt contract (focus + categories, severity rubric, findings
 format directive) and the **Merge Procedure** are defined in that reference.
-Pass the merged findings to Phase 4 (VALIDATE) and downstream phases as if
-they came from a single-pass review.
+After all 3 `Task` calls return: for any reviewer whose inline return is
+empty, missing, or malformed, re-read its scratch file at that path before
+merging. Pass the merged findings to Phase 4 (VALIDATE) and downstream phases
+as if they came from a single-pass review. Phase 6 removes the
+`docs/prps/reviews/.review-scratch/pr-<NUMBER>/` directory once the review
+artifact has been written and (when applicable) committed successfully.
 
 **Note**: Validation commands (Phase 4) still run sequentially in the main
 skill — parallelization here only applies to the review pass.
@@ -645,6 +685,11 @@ if [[ "$WORKTREE_ACTIVE" == "true" ]]; then
   popd >/dev/null
 fi
 ```
+
+If `PARALLEL_MODE=true` (Path B was used), remove the
+`docs/prps/reviews/.review-scratch/pr-<NUMBER>/` scratch directory now that
+the artifact has been written (and, when `WORKTREE_ACTIVE=true`, committed
+and pushed) successfully.
 
 Example of the Findings section:
 

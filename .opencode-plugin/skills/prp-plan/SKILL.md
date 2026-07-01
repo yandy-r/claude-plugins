@@ -118,11 +118,11 @@ Gather codebase intelligence across 8 categories and 5 traces.
 
 When `ENHANCED_MODE=true`, run `~/.config/opencode/skills/prp-plan/scripts/preflight-enhanced-agents.sh` and abort with the script's stderr if it exits non-zero. This catches missing agent dependencies before any researcher is dispatched. The script auto-derives the plugin root from its own install location; no argument needed at runtime.
 
-> **Standalone dispatch rule (Path B / Path B-enhanced)**: Standalone research sub-agents are dispatched via the blocking `Task` tool, never via `Agent` without a `team_name`. NEVER background a `Task` call, NEVER poll it with a `sleep` loop, and NEVER rely on a "finished" completion notification to retrieve a researcher's output — the `Task` call blocks the turn and its return value IS the report, delivered inline. See `~/.config/opencode/shared/references/standalone-dispatch.md` for the full contract and anti-patterns.
+> **Standalone dispatch rule (Path A / Path B / Path B-enhanced)**: Standalone research sub-agents — whether a single researcher (Path A) or a parallel fan-out (Path B / Path B-enhanced) — are dispatched via the blocking `Task` tool, never via `Agent` without a `team_name`. NEVER background a `Task` call, NEVER poll it with a `sleep` loop, and NEVER rely on a "finished" completion notification to retrieve a researcher's output — the `Task` call blocks the turn and its return value IS the report, delivered inline. See `~/.config/opencode/shared/references/standalone-dispatch.md` for the full contract and anti-patterns.
 
 ### Path A — Sequential (default)
 
-Dispatch a single `prp-researcher` agent in codebase mode to cover all 8 categories and 5 traces. Use the discovery table for the plan's Patterns to Mirror section.
+Dispatch a single `prp-researcher` agent via the blocking `Task` tool, in codebase mode, to cover all 8 categories and 5 traces. Use the discovery table for the plan's Patterns to Mirror section.
 
 **IMPORTANT — Researcher prompt constraints**: Tell the researcher to keep code snippets to **5 lines max** per finding and limit the total response to the discovery table format only — no prose summaries.
 

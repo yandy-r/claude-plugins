@@ -9,6 +9,7 @@ allowed-tools:
   - Edit
   - MultiEdit
   - Agent
+  - Task
   - AskUserQuestion
   - TodoWrite
   - Bash(ls:*)

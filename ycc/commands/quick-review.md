@@ -9,6 +9,7 @@ allowed-tools:
   - Edit
   - Skill
   - Agent
+  - Task
   - AskUserQuestion
   - TeamCreate
   - TeamDelete

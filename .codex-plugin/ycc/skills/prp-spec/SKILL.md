@@ -115,12 +115,12 @@ Derive a kebab-case `{name}` from the input:
 
 **If skipped**: Report "Generating spec from provided context only — use `--ground` for researcher-backed discovery."
 
-**If running**: Dispatch a single `prp-researcher` agent in dual mode (codebase + market):
+**If running**: Dispatch a single `prp-researcher` agent via the blocking `Task` tool, in dual mode (codebase + market):
 
 - Codebase side: similar implementations, relevant types, existing patterns, integration points already in place
 - Market side: competitor approaches, library options, API documentation, known gotchas
 
-Instruct the researcher to return the compact discovery table format (codebase) and KEY_INSIGHT format (market) — do NOT ask for recommendations or opinions.
+Instruct the researcher to return the compact discovery table format (codebase) and KEY_INSIGHT format (market) — do NOT ask for recommendations or opinions. This is a standalone single-researcher dispatch — see `~/.codex/plugins/ycc/shared/references/standalone-dispatch.md` for the `Task` spawn/return contract (never `Agent` without a `team_name`).
 
 **Summarize findings to the user before generating**:
 

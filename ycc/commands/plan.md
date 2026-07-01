@@ -6,6 +6,7 @@ allowed-tools:
   - Grep
   - Glob
   - Agent
+  - Task
   - TodoWrite
   - AskUserQuestion
   - TeamCreate

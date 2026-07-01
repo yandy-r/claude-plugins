@@ -72,9 +72,13 @@ a single finding may touch several.
 
 ## Parallel Reviewer Roster (Path B / Path C)
 
-Three standalone `code-reviewer` sub-agents (Path B) or agent-team teammates
-(Path C). The **focus split** differs between local/quick and PR modes because
-local mode has a narrower category set.
+Three standalone `code-reviewer` sub-agents, dispatched via the blocking `Task`
+tool — never the async `Agent` tool (Path B), or agent-team teammates spawned via
+`Agent`+`team_name` (Path C). See
+[standalone-dispatch.md](~/.config/opencode/shared/references/standalone-dispatch.md)
+for the full `Task` spawn/return contract that Path B MUST follow. The **focus
+split** differs between local/quick and PR modes because local mode has a
+narrower category set.
 
 ### Local / Quick Mode Roster
 
@@ -101,6 +105,15 @@ Each reviewer prompt MUST include:
    above).
 4. The severity rubric.
 5. A directive to return findings in the **Standard Findings Format** below.
+6. (Path B only) A directive that the reviewer is dispatched via the blocking
+   `Task` tool and MUST return its findings inline as that `Task` call's
+   result — never background, poll, or sleep-wait for it (see
+   [standalone-dispatch.md](~/.config/opencode/shared/references/standalone-dispatch.md)).
+7. (Path B only) A directive that the reviewer must ALSO write its Standard
+   Findings Format block to a scratch backstop file before returning, at
+   `docs/prps/reviews/.review-scratch/<run-id>/<reviewer-name>.md`, where
+   `<run-id>` is supplied by the caller: `local-<YYYYMMDD-HHMMSS>` for local
+   mode, `pr-<NUMBER>` for PR mode, `quick-<YYYYMMDD-HHMMSS>` for quick mode.
 
 ---
 
@@ -137,17 +150,28 @@ split already implies a category).
 
 ## Merge Procedure (Path B / Path C)
 
-After all 3 reviewers return:
+After all 3 reviewers return (Path B only — see
+[standalone-dispatch.md](~/.config/opencode/shared/references/standalone-dispatch.md)
+for the blocking `Task` semantics this relies on):
 
-1. Combine by severity (CRITICAL first, then HIGH, MEDIUM, LOW).
-2. De-duplicate findings at the same `file:line` (if two reviewers flagged the
+1. For any reviewer whose `Task` return was empty, missing, or malformed,
+   re-read its scratch backstop file at
+   `docs/prps/reviews/.review-scratch/<run-id>/<reviewer-name>.md` before
+   merging. If both the inline return and the scratch file are unavailable,
+   treat that reviewer as a failure for that role (do not fabricate findings
+   for it).
+2. Combine by severity (CRITICAL first, then HIGH, MEDIUM, LOW).
+3. De-duplicate findings at the same `file:line` (if two reviewers flagged the
    same issue, keep the more severe one and annotate which reviewers concurred).
-3. Sort within each severity by file path.
-4. Attach the reviewer source to each finding (`[correctness]`, `[security]`,
+4. Sort within each severity by file path.
+5. Attach the reviewer source to each finding (`[correctness]`, `[security]`,
    `[quality]`) for traceability.
 
 Pass the merged findings to the REPORT phase as if they came from a single-pass
 review.
+
+**Cleanup**: after a successful merge, the calling skill should remove the
+`docs/prps/reviews/.review-scratch/<run-id>/` directory.
 
 ---
 

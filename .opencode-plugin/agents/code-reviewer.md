@@ -8,6 +8,7 @@ tools:
   grep: true
   glob: true
   bash: true
+  write: true
 ---
 
 You are a senior code reviewer ensuring high standards of code quality and security.
@@ -183,6 +184,12 @@ const usersWithPosts = await db.query(`
 ## Review Output Format
 
 Organize findings by severity. For each issue:
+
+**Scratch-backstop mode**: if the dispatching prompt provides a scratch file
+path (`docs/prps/reviews/.review-scratch/<run-id>/<reviewer-name>.md`), write
+the findings block to that path via `Write` in addition to returning it as
+your final response — this gives the orchestrator a backstop if the inline
+`Task` return is ever lost.
 
 ```
 [CRITICAL] Hardcoded API key in source

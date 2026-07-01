@@ -8,7 +8,7 @@ allowed-tools:
   - Glob
   - Write
   - Edit
-  - Agent
+  - Task
   - WebSearch
   - WebFetch
   - AskUserQuestion
@@ -121,7 +121,7 @@ Ask (present all at once):
 
 ## Phase 3: GROUNDING — Market & Context
 
-Dispatch **`prp-researcher`** in **dual (market + codebase) mode** to investigate:
+Dispatch **`prp-researcher`** via the blocking **`Task`** tool, in **dual (market + codebase) mode**, to investigate:
 
 - Comparable products/systems and how they're typically built (their stacks are useful
   priors for the Tech Stack phase)
@@ -130,7 +130,9 @@ Dispatch **`prp-researcher`** in **dual (market + codebase) mode** to investigat
 - If a codebase exists: relevant existing functionality, reusable patterns, constraints
 
 Instruct the researcher to return URL citations for market findings and `file:line`
-references for codebase findings.
+references for codebase findings. This is a standalone single-researcher dispatch — see
+`${CURSOR_PLUGIN_ROOT}/skills/_shared/references/standalone-dispatch.md` for the `Task`
+spawn/return contract (never `Agent` without a `team_name`).
 
 **Summarize to the user:**
 

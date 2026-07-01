@@ -7,7 +7,7 @@ allowed-tools:
   - Glob
   - Write
   - Edit
-  - Agent
+  - Task
   - WebSearch
   - WebFetch
   - AskUserQuestion
