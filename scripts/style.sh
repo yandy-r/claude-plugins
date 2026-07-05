@@ -117,30 +117,16 @@ path_prefix_for() {
   fi
 }
 
-project_has_paths() {
-  local base_dir="$1"
-  shift
-
-  local prefix
-  prefix="$(path_prefix_for "$base_dir")"
-
-  local first_path=''
-  first_path="$(list_repo_paths "$prefix" "$@" | head -n 1 || true)"
-  [[ -n "$first_path" ]]
-}
-
 directory_has_suffixes() {
   local target_dir="$1"
   shift
 
-  local suffix
-  for suffix in "$@"; do
-    if find "$target_dir" -type f ! -path '*/.git/*' -name "*${suffix}" -print -quit | grep -q .; then
-      return 0
-    fi
-  done
-
-  return 1
+  # Ignore-aware detection: enumerate the same set the linter operates on
+  # (git ls-files honoring .gitignore, or a find fallback for non-git dirs) and
+  # skip STYLE_EXCLUDES, so a stray source file inside node_modules/dist/vendor
+  # no longer flips a detect_*_project result. dir_has_source_suffix is provided
+  # by excludes.sh, sourced transitively via modified-files.sh above.
+  dir_has_source_suffix "$target_dir" "$@"
 }
 
 detect_docs_project() {
@@ -897,7 +883,7 @@ EOF
 
 init_usage() {
   cat <<'EOF'
-Usage: style.sh init [--copy|--sync] [--docs] [--rust] [--ts|--ts-node] [--python] [--go] [--all] [--target DIR] [--force] [--yes] [--dry-run] [DIR]
+Usage: style.sh init [--copy|--sync] [--docs] [--rust] [--ts|--ts-node] [--python] [--go] [--shell] [--all] [--target DIR] [--force] [--yes] [--dry-run] [DIR]
 
 Initialize formatter/linter config files for the current project root or a target directory.
 

@@ -27,23 +27,45 @@ fi
 project_root="$(cd "$target" && pwd)"
 
 # ---------------------------------------------------------------------------
+# Shared ignore-aware detection helpers (path_is_excluded / dir_has_source_suffix).
+# Resolve this script's real directory through symlinks so the source works no
+# matter how the profiler was invoked, then load the bundle's excludes lib.
+# ---------------------------------------------------------------------------
+_pf_src="${BASH_SOURCE[0]}"
+while [[ -L "$_pf_src" ]]; do
+    _pf_dir="$(cd -P "$(dirname "$_pf_src")" >/dev/null 2>&1 && pwd)"
+    _pf_src="$(readlink "$_pf_src")"
+    [[ "$_pf_src" != /* ]] && _pf_src="${_pf_dir}/${_pf_src}"
+done
+_pf_script_dir="$(cd -P "$(dirname "$_pf_src")" >/dev/null 2>&1 && pwd)"
+_pf_excludes="${_pf_script_dir}/bundle/lib/excludes.sh"
+if [[ -f "$_pf_excludes" ]]; then
+    # shellcheck source=bundle/lib/excludes.sh
+    . "$_pf_excludes"
+else
+    echo "[profile-style] WARN: excludes helper not found at ${_pf_excludes}; detection falls back to an unfiltered scan" >&2
+fi
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 file_exists() { [[ -f "${project_root}/${1}" ]]; }
 dir_exists()  { [[ -d "${project_root}/${1}" ]]; }
 
-glob_exists_root() {
-    local pattern="$1"
-    local match
-    match=$(find "$project_root" -maxdepth 1 -name "$pattern" -type f 2>/dev/null | head -n 1)
-    [[ -n "$match" ]]
-}
-
-# True if any file under $project_root ends with any of the suffixes given.
+# True if any non-ignored, non-excluded file under $project_root ends with any of
+# the given suffixes. Delegates to the shared ignore-aware helper when it could be
+# sourced (honors .gitignore + STYLE_EXCLUDES); otherwise falls back to a raw scan
+# that at least prunes the common vendor dirs so a broken install still runs.
 any_file_with_suffix() {
+    if declare -F dir_has_source_suffix >/dev/null 2>&1; then
+        dir_has_source_suffix "$project_root" "$@"
+        return
+    fi
     local suffix
     for suffix in "$@"; do
-        if find "$project_root" -type f ! -path '*/.git/*' -name "*${suffix}" -print -quit 2>/dev/null | grep -q .; then
+        if find "$project_root" -type f ! -path '*/.git/*' \
+            ! -path '*/node_modules/*' ! -path '*/vendor/*' ! -path '*/.venv/*' \
+            -name "*${suffix}" -print -quit 2>/dev/null | grep -q .; then
             return 0
         fi
     done

@@ -50,6 +50,14 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# The non-git fixtures below rely on tmp_root NOT living inside a git work tree
+# (otherwise profile-style.sh would enumerate via the parent repo's git index).
+# Fail loudly rather than silently mis-test if TMPDIR points inside a repo.
+if git -C "$tmp_root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  echo "validate-formatters-bundle: TMPDIR ($tmp_root) is inside a git work tree; set TMPDIR to a non-repo path." >&2
+  exit 1
+fi
+
 python3 - "${REPO_ROOT}/scripts/style.sh" "${BUNDLE_ROOT}/style.sh" <<'PY'
 import re, sys
 
@@ -161,5 +169,39 @@ if ! printf '%s\n' "${template_paths}" | grep -Fq "${templates_dir}/scripts/temp
   echo "validate-formatters-bundle: scripts/templates/readme.md should remain lintable when user-authored" >&2
   exit 1
 fi
+
+# --- git-mode detection is ignore-aware: stray source under gitignored / nested
+#     vendored dirs must NOT flip detect_* (the reported false-positive bug). ---
+git_vendored_dir="${tmp_root}/git-vendored"
+mkdir -p "${git_vendored_dir}/src" \
+  "${git_vendored_dir}/node_modules/pkg" \
+  "${git_vendored_dir}/dist/dev" \
+  "${git_vendored_dir}/packages/app/node_modules"
+git -C "${git_vendored_dir}" init -q
+printf 'node_modules/\ndist/\n' > "${git_vendored_dir}/.gitignore"
+printf 'export const v = 1;\n' > "${git_vendored_dir}/src/main.ts"
+printf 'fn main() {}\n' > "${git_vendored_dir}/node_modules/pkg/fixture.rs"
+printf 'print(1)\n' > "${git_vendored_dir}/dist/dev/gen.py"
+printf 'print(2)\n' > "${git_vendored_dir}/packages/app/node_modules/dep.py"
+printf '{ "name": "git-vendored", "private": true }\n' > "${git_vendored_dir}/package.json"
+git -C "${git_vendored_dir}" add -A >/dev/null 2>&1
+
+git_vendored_profile="${tmp_root}/git-vendored.profile"
+"${PROFILE_SCRIPT}" "${git_vendored_dir}" > "${git_vendored_profile}"
+assert_eq "$(read_profile_value "${git_vendored_profile}" detect_ts)" "true" "git-vendored detect_ts"
+assert_eq "$(read_profile_value "${git_vendored_profile}" detect_rust)" "false" "git-vendored detect_rust (node_modules/*.rs must not count)"
+assert_eq "$(read_profile_value "${git_vendored_profile}" detect_python)" "false" "git-vendored detect_python (gitignored + nested node_modules/*.py must not count)"
+
+# --- git-mode: generic-word dirs (env/) match root-relative only, so a tracked
+#     NESTED env/ source dir is still detected (no over-exclusion regression). ---
+git_env_dir="${tmp_root}/git-env"
+mkdir -p "${git_env_dir}/src/env"
+git -C "${git_env_dir}" init -q
+printf 'ENV = 1\n' > "${git_env_dir}/src/env/settings.py"
+git -C "${git_env_dir}" add -A >/dev/null 2>&1
+
+git_env_profile="${tmp_root}/git-env.profile"
+"${PROFILE_SCRIPT}" "${git_env_dir}" > "${git_env_profile}"
+assert_eq "$(read_profile_value "${git_env_profile}" detect_python)" "true" "git-env detect_python (tracked nested env/*.py must still count)"
 
 echo "OK: formatter bundle smoke checks passed."
