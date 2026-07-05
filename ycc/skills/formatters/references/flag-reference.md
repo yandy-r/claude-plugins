@@ -139,7 +139,10 @@ ycc:formatters --target=~/projects/new-app
 
 ### `--profile=<lang>`
 
-Skip detection entirely and force a stack set. Useful when auto-detection picks up vendored files.
+Skip detection entirely and force a stack set. Auto-detection already ignores
+gitignored files and well-known vendored/build directories (`node_modules`,
+`dist`, `vendor`, `.venv`, …), so this is mainly needed to force a specific stack
+or to exclude a vendored tree that is **committed and not gitignored**.
 
 ```
 ycc:formatters --profile=rust

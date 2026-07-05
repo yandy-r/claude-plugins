@@ -15,7 +15,29 @@ How `profile-style.sh` decides which language tracks and configs apply to a targ
 | Docs   | any `.markdownlint*` or `.prettierrc*` exists **OR** any `*.md/.mdx/.yaml/.yml` **OR** `*.json/.jsonc` when TS/JS is not detected | Docs track yields JSON/JSONC to Biome in TS/JS repos |
 | Shell  | any `*.sh` file                                                                                                                   | Always attempted when shellcheck is on the PATH      |
 
-`directory_has_suffixes` is used for the suffix-based checks; `.git/` is excluded.
+### Ignore-aware enumeration
+
+The suffix-based checks go through `directory_has_suffixes` — a thin wrapper over
+`dir_has_source_suffix` in `bundle/lib/excludes.sh`. Detection enumerates only
+**project source**, i.e. the same set the linter operates on:
+
+- **Git worktree** → `git ls-files --cached --others --exclude-standard`, so
+  `.gitignore` is honored (tracked + brand-new untracked files, minus ignored ones).
+- **Non-git dir** → a `find` fallback that prunes `.git/`.
+
+Both then drop `STYLE_EXCLUDES` paths (`node_modules`, `dist`, `build`, `out`,
+`vendor`, `.venv`, `__pycache__`, the tool caches, generated bundle dirs, …).
+The unambiguous dependency/cache dirs listed in `STYLE_EXCLUDES_ANY_DEPTH`
+(`node_modules`, `vendor`, `.venv`, `venv`, `__pycache__`, `.mypy_cache`,
+`.pytest_cache`, `.ruff_cache`) are pruned at **any** depth; every other entry —
+including generic words like `env`, `build`, `out` — matches **root-relative only**
+so a legitimately-tracked nested source dir is never silently dropped.
+
+Net effect: a stray `*.rs`/`*.py` inside `node_modules/`, a build-output dir, or
+any gitignored/vendored tree no longer flips `detect_*` to `true`. `profile-style.sh`
+and `style.sh` share this one enumeration, so detection and linting can never
+disagree about what counts as source. (A committed-and-not-gitignored vendored
+tree is still seen as source — override it with an explicit `--<stack>` flag.)
 
 ---
 

@@ -137,19 +137,13 @@ filter_repo_paths() {
   local prefix="$2"
   shift 2
 
-  local path_value suffix exclude skip
+  local path_value suffix
   while IFS= read -r path_value; do
     [[ -n "$prefix" && "$path_value" != "$prefix"* ]] && continue
 
-    # Drop paths under any well-known excluded directory (STYLE_EXCLUDES from excludes.sh).
-    skip=0
-    for exclude in "${STYLE_EXCLUDES[@]}"; do
-      if [[ "$path_value" == "$exclude" || "$path_value" == "$exclude"/* ]]; then
-        skip=1
-        break
-      fi
-    done
-    (( skip )) && continue
+    # Drop paths under any well-known excluded directory. Shared with detection
+    # (path_is_excluded, from excludes.sh) so linting and detection agree.
+    path_is_excluded "$path_value" && continue
 
     if (( $# == 0 )); then
       printf '%s/%s\n' "$root_dir" "$path_value"
