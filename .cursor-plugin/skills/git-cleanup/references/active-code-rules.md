@@ -203,9 +203,10 @@ branch. Additionally, a worktree is **active** if any of:
   prune is a safe cleanup, not a destructive action).
 - The attached branch is `[gone]` — upstream deleted. Surface as Ambiguous:
   safe to remove IF R2 (unpushed commits) does not fire.
-- The worktree sits under `<repo>/.cursor/worktrees/` instead of the
-  preferred `~/.claude-worktrees/` parent. Report and offer relocation;
-  do not delete without explicit approval.
+- The worktree sits under the legacy global ycc root (`~/.claude-worktrees/`)
+  instead of the preferred repo-local parent
+  (`<repo-root>/.cursor/worktrees/`). Report and offer relocation; do not delete
+  without explicit approval.
 
 ## PR / Issue–specific notes
 

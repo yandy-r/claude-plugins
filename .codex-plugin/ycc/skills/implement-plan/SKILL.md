@@ -152,7 +152,7 @@ The decision follows a strict precedence order:
   - `WT_REPO_NAME` = basename of git repo root (run `git -C . rev-parse --show-toplevel | xargs basename`)
   - `WT_FEATURE_SLUG` = parsed plan annotation slug if present; otherwise the `<feature-name>` argument (same as `${feature_dir}` basename)
   - `FEATURE_BRANCH` = `feat/${WT_FEATURE_SLUG}`
-- If `WORKTREE_ACTIVE=true` and the plan had no annotations (the default-on fallback), also set `WT_PARENT_PATH` = `~/.claude-worktrees/${WT_REPO_NAME}-${WT_FEATURE_SLUG}/`.
+- If `WORKTREE_ACTIVE=true` and the plan had no annotations (the default-on fallback), also set `WT_PARENT_PATH` = `<repo-root>/.codex/worktrees/${WT_REPO_NAME}-${WT_FEATURE_SLUG}/`.
 - If `WORKTREE_MODE=false` (`--no-worktree`) → no feature worktree; set `WORKTREE_ACTIVE=false`.
 
 ### Step 4: Build Dependency Graph
@@ -533,7 +533,7 @@ If a teammate fails:
 - **Do NOT skip the failing batch** — tasks in later batches may depend on it.
 - Use `ask the user` to ask the user: _"Batch {BN} had failures. Choose: (1) fix manually and resume, (2) switch to sequential standalone sub-agents for remaining batches, (3) abort."_
 - If the user chooses (2) or (3), send `send follow-up instructions(shutdown)` to all active teammates, then `close the agent group` before proceeding.
-- If `WORKTREE_ACTIVE=true` and the run aborts mid-batch, the feature worktree at `~/.claude-worktrees/<repo>-<feature>/` survives and can be inspected or cleaned up manually.
+- If `WORKTREE_ACTIVE=true` and the run aborts mid-batch, the feature worktree at `<repo-root>/.codex/worktrees/<repo>-<feature>/` survives and can be inspected or cleaned up manually.
 
 #### B.6 After all batches complete
 
@@ -613,10 +613,10 @@ Provide completion summary:
 
 [Output of list-worktrees.sh]
 
-> The parent worktree at `~/.claude-worktrees/[repo]-[feature]/` survives for inspection
+> The parent worktree at `<repo-root>/.codex/worktrees/[repo]-[feature]/` survives for inspection
 > and PR creation. When you are done, run:
 >
-> git worktree remove ~/.claude-worktrees/[repo]-[feature]/
+> git worktree remove <repo-root>/.codex/worktrees/[repo]-[feature]/
 > git branch -d feat/[feature]
 
 ## Next Steps

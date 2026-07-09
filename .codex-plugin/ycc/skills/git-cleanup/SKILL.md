@@ -70,8 +70,9 @@ flags that emit machine-readable output.
 - **Remote-tracking prune candidates**: `git remote prune <remote> --dry-run`
   for each remote from `git remote`.
 - **Worktrees**: `git worktree list --porcelain`. Flag entries whose `worktree`
-  path no longer exists, whose branch is `[gone]`, or which sit inside a repo
-  (`<repo>/.codex/worktrees/`) instead of `~/.claude-worktrees/`.
+  path no longer exists, whose branch is `[gone]`, or which sit under a legacy
+  global ycc root (`~/.claude-worktrees/`) instead of the repo-local managed root
+  (`<repo-root>/.codex/worktrees/`).
 - **Stashes**: `git stash list --date=iso`. Parse the date from each entry.
 - **Tags**: `git for-each-ref refs/tags/ --format='%(refname:short)|%(creatordate:iso8601)|%(objectname)'`
   then `git ls-remote --tags <remote>` to find local-only tags.
@@ -201,9 +202,9 @@ Phases 4-6.
   approval.
 - **Never touch the default branch, protected branches, or open-PR bases.**
 - **Never `git branch -D`** without explicit per-item confirmation.
-- **Worktrees under `~/.claude-worktrees/`** are fair game per this repo's
-  convention; worktrees inside a repo at `<repo>/.codex/worktrees/` should
-  also be reported and, if the user confirms, relocated or removed.
+- **Worktrees under `<repo-root>/.codex/worktrees/`** are fair game per this repo's
+  convention. Legacy worktrees under `~/.claude-worktrees/` should be reported
+  and, if the user confirms, relocated or removed.
 - **Respect the repo's label taxonomy**. Do not invent stale/wontfix labels.
 - **No secrets**. Do not log tokens or API responses containing credentials.
 - **Ambiguous items are always surfaced**, never auto-deleted.

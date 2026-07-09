@@ -210,7 +210,7 @@ to a non-team mode — in both cases, `send follow-up instructions(shutdown)` + 
 Worktree mode is **on by default** for the 9 worktree-aware skills; pass `--no-worktree`
 to opt out. The legacy `--worktree` flag is accepted as a silent no-op (it matches the
 new default). When worktree mode is active (default), all teammates — parallel and
-sequential — share **one** feature worktree: `~/.claude-worktrees/<repo>-<feature>/`
+sequential — share **one** feature worktree: `<repo-root>/.codex/worktrees/<repo>-<feature>/`
 (see [worktree-strategy.md](./worktree-strategy.md)). Parallel safety comes from
 per-skill batching and prompts (e.g. different files, or exclusive sections), not from
 separate per-task worktrees. The `setup-worktree.sh child` + `merge-children.sh` fan-in
@@ -254,7 +254,7 @@ in one message; it does **not** mean a different worktree. Everyone uses
 suppress) may add a line to the existing dry-run output (§5), e.g.:
 
 ```
-Worktree:   feature=~/.claude-worktrees/<repo>-<feature>/  (all teammates)
+Worktree:   feature=<repo-root>/.codex/worktrees/<repo>-<feature>/  (all teammates)
 ```
 
 No `setup-worktree.sh` or `merge-children.sh` calls are made in dry-run mode.

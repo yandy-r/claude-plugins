@@ -3,7 +3,7 @@
 # Usage: list-worktrees.sh <repo-name> <feature-slug>
 #
 # Runs `git worktree list --porcelain` and filters results to worktrees whose
-# path contains ~/.claude-worktrees/<repo-name>-<feature-slug>.
+# path contains <repo-root>/.codex/worktrees/<repo-name>-<feature-slug>.
 #
 # Output:
 #   A markdown table of matching worktrees (path, branch, status) followed by
@@ -29,11 +29,15 @@ Examples:
   list-worktrees.sh claude-plugins worktree-flag
 
 Output:
-  Markdown table of matching worktrees under ~/.claude-worktrees/<repo>-<feature>/
+  Markdown table of matching worktrees under <repo-root>/.codex/worktrees/<repo>-<feature>/
   followed by cleanup commands.
 EOF
   exit 1
 }
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=worktree-paths.sh
+source "${SCRIPT_DIR}/worktree-paths.sh"
 
 # Collapse $HOME prefix back to ~ for human-readable display
 _collapse_home() {
@@ -63,7 +67,11 @@ main() {
 
   # ── Build the prefix we are looking for ───────────────────────────────────
   # Absolute path prefix (for matching against git output)
-  local abs_prefix="${HOME}/.claude-worktrees/${repo_name}-${feature_slug}"
+  local repo_root
+  repo_root="$(ycc_repo_root)"
+
+  local abs_prefix
+  abs_prefix="$(ycc_feature_worktree_path "$repo_root" "$repo_name" "$feature_slug")"
 
   # ── Parse `git worktree list --porcelain` ─────────────────────────────────
   # Each stanza looks like:

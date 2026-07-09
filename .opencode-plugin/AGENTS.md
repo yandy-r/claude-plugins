@@ -221,20 +221,20 @@ a failed attempt (`git worktree remove`). Use the main checkout only when the
 task is a one-liner, requires observing the current working tree state, or
 worktree creation is blocked.
 
-The opencode harness defaults to creating worktrees inside the current repo at
-`<repo>/.config/opencode/worktrees/`. That location pollutes the working tree, shows up in
-`git status` of unrelated repos, and is easy to forget and hard to reap.
+The opencode harness creates worktrees inside the current repo at
+`<repo-root>/.config/opencode/worktrees/`. That repo-local parent is also the path Claude
+Code allows when entering managed worktrees, so do not redirect harness-created
+worktrees outside the repository.
 
-- **Preferred parent**: `~/.claude-worktrees/` for all agent-managed worktrees,
-  named `<repo>-<branch>/`. Keeps them outside every repo and trivially bulk-clean.
+- **Preferred parent**: `<repo-root>/.config/opencode/worktrees/` for all agent-managed worktrees,
+  named `<repo>-<branch>/`. Generated target bundles use their corresponding
+  agent-local roots (`.codex`, `.cursor`, or `.config/opencode`).
 - **Manual creation**: when invoking `git worktree add` yourself, target
-  `~/.claude-worktrees/<repo>-<branch>/` — never a path inside the current repo.
+  `<repo-root>/.config/opencode/worktrees/<repo>-<branch>/`.
 - **Harness-created worktrees** (`isolation: "worktree"`, `EnterWorktree`): the
-  only way to relocate these is a `WorktreeCreate` hook in
-  `~/.config/opencode/settings.json`. No environment variable or settings key controls the
-  parent directory directly — the hook receives the intended path and returns a
-  replacement path.
-- **Repo hygiene**: if the harness has already created `<repo>/.config/opencode/worktrees/`,
+  `WorktreeCreate` hook replaces opencode's default git behavior, so the hook
+  must create the worktree itself and print the created absolute path on stdout.
+- **Repo hygiene**: if the harness has already created `<repo-root>/.config/opencode/worktrees/`,
   add `.claude/worktrees/` to `.gitignore` before committing.
 
 ## GitHub Workflow
@@ -318,3 +318,8 @@ plugin's source directory at runtime. Because loading is in-place, the live cont
 always the repo's current HEAD even when `installed_plugins.json`'s `gitCommitSha` is
 stale; `claude plugin update` is version-gated, so it won't re-pin a stale SHA when the
 version string is unchanged.
+
+# graphify
+
+- **graphify** - any input to knowledge graph. Trigger: `/graphify`
+  When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.

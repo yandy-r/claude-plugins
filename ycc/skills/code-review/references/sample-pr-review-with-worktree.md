@@ -25,7 +25,7 @@ Rules for the `## Worktree Setup` block:
 
 ## Worktree Setup
 
-- **Parent**: ~/.claude-worktrees/myrepo-pr-42/ (branch: feat/add-widget-rendering)
+- **Parent**: <repo-root>/.claude/worktrees/myrepo-pr-42/ (branch: feat/add-widget-rendering)
 
 ## Summary
 

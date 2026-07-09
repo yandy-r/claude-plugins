@@ -127,7 +127,7 @@ grep -c "^\- \*\*Worktree\*\*:" "$PLAN_PATH" || echo 0
 **If `## Worktree Setup` is present**, extract:
 
 - `WT_PARENT_PATH` — from the `**Parent**:` line inside that section (the path before any whitespace/comment)
-- `WT_FEATURE_SLUG` — the segment after `<repo>-` in the parent path (e.g. `add-widget` from `~/.claude-worktrees/my-repo-add-widget/`)
+- `WT_FEATURE_SLUG` — the segment after `<repo>-` in the parent path (e.g. `add-widget` from `<repo-root>/.config/opencode/worktrees/my-repo-add-widget/`)
 
 Set `WORKTREE_ACTIVE=true` if the plan contains the `## Worktree Setup` section **OR** `WORKTREE_MODE=true` (default or explicitly passed).
 
@@ -135,7 +135,7 @@ Set `WORKTREE_ACTIVE=true` if the plan contains the `## Worktree Setup` section 
 
 - `WT_REPO_NAME` = `basename` of the git repository root (`git rev-parse --show-toplevel | xargs basename`)
 - `WT_FEATURE_SLUG` = sanitized plan basename (strip `.plan.md`, lowercase, replace `[^a-z0-9-]` with `-`, collapse runs, truncate to 40 chars — same rules as the team-name sanitization but without the prefix and with a longer cap)
-- `WT_PARENT_PATH` = `~/.claude-worktrees/${WT_REPO_NAME}-${WT_FEATURE_SLUG}/`
+- `WT_PARENT_PATH` = `<repo-root>/.config/opencode/worktrees/${WT_REPO_NAME}-${WT_FEATURE_SLUG}/`
 
 > Note: `WORKTREE_ACTIVE` only applies to parallel tasks. Sequential tasks always run in the parent worktree and are not affected by this flag.
 
@@ -191,7 +191,7 @@ WT_PARENT_PATH=$(bash ~/.config/opencode/shared/scripts/setup-worktree.sh \
   parent "${WT_REPO_NAME}" "${WT_FEATURE_SLUG}")
 ```
 
-This creates `~/.claude-worktrees/${WT_REPO_NAME}-${WT_FEATURE_SLUG}/` on branch `feat/${WT_FEATURE_SLUG}`, branching from the current HEAD. The call is idempotent — if the parent already exists on the expected branch it echoes the path and exits 0.
+This creates `<repo-root>/.config/opencode/worktrees/${WT_REPO_NAME}-${WT_FEATURE_SLUG}/` on branch `feat/${WT_FEATURE_SLUG}`, branching from the current HEAD. The call is idempotent — if the parent already exists on the expected branch it echoes the path and exits 0.
 
 ### Move Plan Into Worktree (when `WORKTREE_ACTIVE=true`)
 
@@ -673,7 +673,7 @@ Report to user:
 
 [Output of `list-worktrees.sh <repo> <feature>` — surviving parent worktree path, branch, and cleanup commands]
 
-> Run `git worktree remove ~/.claude-worktrees/<repo>-<feature>/` after merging and pushing to clean up the parent worktree.
+> Run `git worktree remove <repo-root>/.config/opencode/worktrees/<repo>-<feature>/` after merging and pushing to clean up the parent worktree.
 
 > Next step: Run `/prp-pr` to create a pull request, or `/code-review` to review changes first.
 

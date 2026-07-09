@@ -211,7 +211,7 @@ In your emitted plan:
 
    ## Worktree Setup
 
-   - **Parent**: ~/.claude-worktrees/<repo>-<feature>/ (branch: feat/<feature>)
+   - **Parent**: <repo-root>/.cursor/worktrees/<repo>-<feature>/ (branch: feat/<feature>)
 
    All tasks — parallel and sequential — share this one path. Do NOT add a
    `**Children**:` list and do NOT add per-task `**Worktree**:` annotations.
@@ -628,7 +628,7 @@ If the plan was produced with `--parallel` (has a `Batches` section and `Depends
 
 Before dispatching any `implementor` agents, prepare the feature branch so agents do not commit on `main`:
 
-- **`WORKTREE_MODE=true` (default)** — the plan already names the parent worktree at `~/.claude-worktrees/<repo>-<feature>/` (branch `feat/<feature>`). Run `setup-worktree.sh parent <repo> <feature>` once, then dispatch agents with `Working directory: <parent path>`.
+- **`WORKTREE_MODE=true` (default)** — the plan already names the parent worktree at `<repo-root>/.cursor/worktrees/<repo>-<feature>/` (branch `feat/<feature>`). Run `setup-worktree.sh parent <repo> <feature>` once, then dispatch agents with `Working directory: <parent path>`.
 - **`WORKTREE_MODE=false` (`--no-worktree`)** — derive `FEATURE_SLUG` from the user's request using the same sanitization as Path B §B.1 (lowercase, non-`[a-z0-9-]` → `-`, collapse runs, truncate to 20 chars, fallback `untitled`), then run:
 
   ```bash

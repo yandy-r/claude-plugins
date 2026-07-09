@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Shared path helpers for ycc feature worktrees.
+#
+# Source this file from other scripts. It intentionally does not enable
+# set -euo pipefail so callers keep control of shell options.
+
+ycc_repo_root() {
+  local root
+  if root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+    printf '%s\n' "$root"
+    return 0
+  fi
+  pwd -P
+}
+
+ycc_expand_worktree_root() {
+  local repo_root="$1"
+  local raw_root="$2"
+
+  case "$raw_root" in
+    "")
+      printf '%s/.claude/worktrees\n' "$repo_root"
+      ;;
+    ~)
+      printf '%s\n' "$HOME"
+      ;;
+    ~/*)
+      printf '%s/%s\n' "$HOME" "${raw_root#~/}"
+      ;;
+    /*)
+      printf '%s\n' "$raw_root"
+      ;;
+    *)
+      printf '%s/%s\n' "$repo_root" "$raw_root"
+      ;;
+  esac
+}
+
+ycc_worktree_root() {
+  local repo_root="${1:-}"
+  if [[ -z "$repo_root" ]]; then
+    repo_root="$(ycc_repo_root)"
+  fi
+
+  ycc_expand_worktree_root "$repo_root" "${YCC_WORKTREE_ROOT:-}"
+}
+
+ycc_feature_worktree_path() {
+  local repo_root="$1"
+  local repo_name="$2"
+  local feature_slug="$3"
+  local root
+
+  root="$(ycc_worktree_root "$repo_root")"
+  printf '%s/%s-%s\n' "$root" "$repo_name" "$feature_slug"
+}

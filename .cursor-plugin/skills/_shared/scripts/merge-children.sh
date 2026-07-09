@@ -42,6 +42,10 @@ feature_worktree_status() {
   return 1
 }
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=worktree-paths.sh
+source "${SCRIPT_DIR}/worktree-paths.sh"
+
 main() {
   if [[ $# -ne 3 ]]; then
     echo "ERROR: expected 3 arguments, got $#" >&2
@@ -57,7 +61,11 @@ main() {
     usage
   fi
 
-  local parent_path="${HOME}/.claude-worktrees/${repo_name}-${feature_slug}"
+  local repo_root
+  repo_root="$(ycc_repo_root)"
+
+  local parent_path
+  parent_path="$(ycc_feature_worktree_path "$repo_root" "$repo_name" "$feature_slug")"
 
   echo "merge-children.sh: DEPRECATED: no-op (single worktree contract). Task IDs ignored: ${_raw_task_ids}" >&2
   echo "merge-children.sh: Do not rely on child worktrees or fan-in merge. Use only: ${parent_path}" >&2

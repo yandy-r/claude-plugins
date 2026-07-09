@@ -449,7 +449,7 @@ and overview, before the first phase heading:
 ```markdown
 ## Worktree Setup
 
-- **Parent**: ~/.claude-worktrees/<repo>-<feature-slug>/ (branch: feat/<feature-slug>)
+- **Parent**: <repo-root>/.codex/worktrees/<repo>-<feature-slug>/ (branch: feat/<feature-slug>)
 ```
 
 All tasks — parallel and sequential — run inside this one feature worktree. No

@@ -73,7 +73,7 @@ Every worktree-enabled run uses **exactly one** git worktree for isolated work
 
 | Property   | Value                                                                 |
 | ---------- | --------------------------------------------------------------------- |
-| Path       | `~/.claude-worktrees/<repo>-<feature>/`                               |
+| Path       | `<repo-root>/.claude/worktrees/<repo>-<feature>/`                     |
 | Branch     | `feat/<feature>` (default) or `<base-ref>` (see below)                |
 | Created    | Once, before the first batch or task (via `setup-worktree.sh parent`) |
 | Lifetime   | Survives to end of run; used for the final PR                         |
@@ -85,6 +85,15 @@ same path with coordination rules in their prompt (`Working directory: <path>`)
 so concurrent writers do not corrupt the tree (e.g. file-level batching, no
 two agents on the same file, or serial execution for conflicting edits — see
 per-skill rules).
+
+The source contract uses the repo-local root
+`<repo-root>/.claude/worktrees/` so each runtime stays inside the managed
+worktree parent it is willing to enter. Generated target bundles rewrite this
+root to the target equivalent (`<repo-root>/.codex/worktrees/`,
+`<repo-root>/.cursor/worktrees/`, or
+`<repo-root>/.config/opencode/worktrees/`). The shared `setup-worktree.sh`
+helper also honors `YCC_WORKTREE_ROOT` for explicit overrides; relative
+override values are resolved against the active repo root.
 
 #### Checking out an existing branch (`--base-ref`)
 
@@ -128,7 +137,7 @@ Placed at the top of the plan, after frontmatter and before the first batch or s
 ```markdown
 ## Worktree Setup
 
-- **Parent**: ~/.claude-worktrees/<repo>-<feature>/ (branch: feat/<feature>)
+- **Parent**: <repo-root>/.claude/worktrees/<repo>-<feature>/ (branch: feat/<feature>)
 ```
 
 The `**Parent**:` line names the one feature worktree path. Do **not** add a
@@ -189,13 +198,13 @@ per-target table.
 
 ## 5. End-of-Run Cleanup
 
-The feature worktree remains at `~/.claude-worktrees/<repo>-<feature>/` after the
+The feature worktree remains at `<repo-root>/.claude/worktrees/<repo>-<feature>/` after the
 run completes. Skills do not auto-remove it.
 
 `list-worktrees.sh` can report the path, branch, and manual cleanup:
 
 ```bash
-git worktree remove ~/.claude-worktrees/<repo>-<feature>/
+git worktree remove <repo-root>/.claude/worktrees/<repo>-<feature>/
 # If you created feat/<feature> and it is fully merged:
 git branch -d feat/<feature>
 ```

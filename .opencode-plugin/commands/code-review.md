@@ -33,7 +33,7 @@ Run a code review in either local or PR mode.
 
 - `--team` — (Claude Code only) Same 3-reviewer fan-out as `--parallel`, but dispatched under a single `spawn coordinated subagents` with each reviewer registered as a task in the shared `the todo tracker` up front. Provides task-graph observability, inter-reviewer coordination via `send follow-up instructions`, and coordinated shutdown before the merge. Heavier dispatch, better communication — pick this when reviews may overlap (e.g., a security finding that implies a correctness bug) and you want reviewers to cross-reference each other. Cursor and Codex bundles lack the team tools — use `--parallel` there instead.
 
-- `--worktree` — (legacy — now default; pass `--no-worktree` to opt out) Check out the PR head branch into an isolated worktree at `~/.claude-worktrees/<repo>-pr-<N>/` before reading files.
+- `--worktree` — (legacy — now default; pass `--no-worktree` to opt out) Check out the PR head branch into an isolated worktree at `<repo-root>/.config/opencode/worktrees/<repo>-pr-<N>/` before reading files.
 
 - `--no-worktree` — Opt out of worktree isolation in PR mode. Skip worktree creation, artifact commit+push, and cleanup. Files are read directly from the main checkout (the previous default behavior).
 

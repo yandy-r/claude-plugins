@@ -55,7 +55,7 @@ Before selecting mode, extract flags from `$ARGUMENTS`:
 | `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `--parallel`        | Fan out the REVIEW phase across 3 **standalone** `ycc:code-reviewer` sub-agents (correctness, security, quality) dispatched in parallel and merge findings. Works in Claude Code, Cursor, and Codex.                                                                                                                                                                                                                                                                                                   |
 | `--team`            | (Claude Code only) Fan out the REVIEW phase across the same 3 `ycc:code-reviewer` reviewers, but dispatched as an **agent team** with up-front `TaskCreate`, shared `TaskList` observability, inter-reviewer coordination via `SendMessage`, and coordinated shutdown before merge. Heavier dispatch, richer communication.                                                                                                                                                                            |
-| `--worktree`        | (legacy / now default; safe to omit) Check out the PR head branch into an isolated worktree at `~/.claude-worktrees/<repo>-pr-<N>/`. Worktree mode is on by default in PR mode; pass `--no-worktree` to opt out.                                                                                                                                                                                                                                                                                       |
+| `--worktree`        | (legacy / now default; safe to omit) Check out the PR head branch into an isolated worktree at `<repo-root>/.claude/worktrees/<repo>-pr-<N>/`. Worktree mode is on by default in PR mode; pass `--no-worktree` to opt out.                                                                                                                                                                                                                                                                             |
 | `--no-worktree`     | Opt out of worktree isolation in PR mode. Skip worktree creation, artifact commit+push, and cleanup. Files are read directly from the main checkout.                                                                                                                                                                                                                                                                                                                                                   |
 | `--keep-draft`      | Skip the automatic draft→ready promotion in PR mode. Default: PR is promoted to Ready for Review before posting the review.                                                                                                                                                                                                                                                                                                                                                                            |
 | `--keep-worktree`   | Skip removal of the PR worktree after the review is posted. The artifact is still committed and pushed to the PR branch. Default: worktree is removed via `git worktree remove <path>` after a clean review post.                                                                                                                                                                                                                                                                                      |
@@ -659,7 +659,7 @@ fi
 
 #### Artifact Write
 
-Write the artifact to `$(git rev-parse --show-toplevel)/docs/prps/reviews/pr-<N>-review.md`. When `WORKTREE_ACTIVE=true` this resolves to the worktree top-level (e.g., `~/.claude-worktrees/<repo>-pr-<N>/docs/prps/reviews/pr-<N>-review.md`); when `--no-worktree` is in effect, it resolves to the main repo. The artifact intentionally lives **with the PR branch** so it travels with the review history.
+Write the artifact to `$(git rev-parse --show-toplevel)/docs/prps/reviews/pr-<N>-review.md`. When `WORKTREE_ACTIVE=true` this resolves to the worktree top-level (e.g., `<repo-root>/.claude/worktrees/<repo>-pr-<N>/docs/prps/reviews/pr-<N>-review.md`); when `--no-worktree` is in effect, it resolves to the main repo. The artifact intentionally lives **with the PR branch** so it travels with the review history.
 
 ```bash
 mkdir -p "$(git rev-parse --show-toplevel)/docs/prps/reviews"
@@ -667,7 +667,7 @@ mkdir -p "$(git rev-parse --show-toplevel)/docs/prps/reviews"
 
 Use the **Review Artifact Format** defined at the bottom of this skill. The artifact must include finding IDs and `Status: Open` on every finding so that `/ycc:review-fix` can later update the file in place.
 
-- Write the artifact to `$(git rev-parse --show-toplevel)/docs/prps/reviews/pr-<N>-review.md`. When `WORKTREE_ACTIVE=true` this resolves to the worktree top-level (e.g., `~/.claude-worktrees/<repo>-pr-<N>/docs/prps/reviews/pr-<N>-review.md`); when `--no-worktree` is in effect, it resolves to the main repo. The artifact intentionally lives **with the PR branch** so it travels with the review history.
+- Write the artifact to `$(git rev-parse --show-toplevel)/docs/prps/reviews/pr-<N>-review.md`. When `WORKTREE_ACTIVE=true` this resolves to the worktree top-level (e.g., `<repo-root>/.claude/worktrees/<repo>-pr-<N>/docs/prps/reviews/pr-<N>-review.md`); when `--no-worktree` is in effect, it resolves to the main repo. The artifact intentionally lives **with the PR branch** so it travels with the review history.
 - **Note**: the artifact will be committed to the PR branch (see commit step below). If you do not want the review record on the PR branch, add `docs/prps/reviews/` to `.gitignore` — the skill detects this and skips the commit.
 
 #### Artifact Commit + Push
@@ -841,7 +841,7 @@ Both Local Review Mode and PR Review Mode write an artifact using this exact for
 
 <!-- Only emitted when WORKTREE_ACTIVE=true. Lists only the feature worktree; fixers run inside this path. -->
 
-- **Parent**: ~/.claude-worktrees/<repo>-pr-<N>/ (branch: <pr-head-branch>)
+- **Parent**: <repo-root>/.claude/worktrees/<repo>-pr-<N>/ (branch: <pr-head-branch>)
 
 ## Summary
 

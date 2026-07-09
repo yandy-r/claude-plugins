@@ -29,7 +29,7 @@ as your repo root for ALL file operations. Specifically:
   are distinct git checkouts; mixing them corrupts the single-worktree setup the
   orchestrating skill selected.
 - In the current contract, the working directory is usually the shared feature
-  worktree (`~/.claude-worktrees/<repo>-<feature>/`) used by every task in the run.
+  worktree (`<repo-root>/.claude/worktrees/<repo>-<feature>/`) used by every task in the run.
   Do not assume a task-specific branch or a later merge-back step unless the prompt
   explicitly says otherwise.
 - If the path starts with `~`, expand it to `$HOME` (or the absolute user home

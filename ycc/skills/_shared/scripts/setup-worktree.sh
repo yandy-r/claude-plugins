@@ -7,8 +7,8 @@
 #   setup-worktree.sh child  <repo-name> <feature-slug> <task-id>   [DEPRECATED]
 #
 # Modes:
-#   parent  Creates ~/.claude-worktrees/<repo>-<feature>/.  This is the only
-#           supported worktree-creation path for the shared contract.
+#   parent  Creates <repo-root>/.claude/worktrees/<repo>-<feature>/.  This is the
+#           only supported worktree-creation path for the shared contract.
 #
 #           Default base ref: HEAD of the current branch; new branch feat/<feature>.
 #           With --base-ref: checks out the existing branch (e.g. PR head). If the
@@ -45,7 +45,10 @@ Arguments:
                     worktree instead of creating a new feat/<feature> branch.
 
 Worktree (single contract):
-  feature  ~/.claude-worktrees/<repo>-<feature>/
+  feature  <repo-root>/.claude/worktrees/<repo>-<feature>/
+
+Set YCC_WORKTREE_ROOT to override the root. Relative overrides are resolved
+against the current repository root.
 
 'child' mode is deprecated: it echoes the feature worktree path if present; it does
 not create separate child worktrees. See worktree-strategy.md.
@@ -59,6 +62,10 @@ EOF
 _error() {
   echo "setup-worktree.sh: error: $*" >&2
 }
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=worktree-paths.sh
+source "${SCRIPT_DIR}/worktree-paths.sh"
 
 # Replace every '.' with '-' in a task-id string.
 normalize_task_id() {
@@ -91,8 +98,14 @@ setup_parent() {
     exit 1
   fi
 
-  local worktrees_dir="${HOME}/.claude-worktrees"
-  local parent_path="${worktrees_dir}/${repo_name}-${feature_slug}"
+  local repo_root
+  repo_root="$(ycc_repo_root)"
+
+  local worktrees_dir
+  worktrees_dir="$(ycc_worktree_root "$repo_root")"
+
+  local parent_path
+  parent_path="$(ycc_feature_worktree_path "$repo_root" "$repo_name" "$feature_slug")"
 
   local branch
   if [[ -n "$base_ref" ]]; then
@@ -153,8 +166,11 @@ setup_child() {
   local _task_id
   _task_id="$(normalize_task_id "$raw_task_id")"
 
-  local worktrees_dir="${HOME}/.claude-worktrees"
-  local feature_path="${worktrees_dir}/${repo_name}-${feature_slug}"
+  local repo_root
+  repo_root="$(ycc_repo_root)"
+
+  local feature_path
+  feature_path="$(ycc_feature_worktree_path "$repo_root" "$repo_name" "$feature_slug")"
 
   echo "setup-worktree.sh: DEPRECATED: 'child' does not create a per-task worktree (task-id=${_task_id}). Use a single feature worktree; all agents share: ${feature_path}" >&2
 
