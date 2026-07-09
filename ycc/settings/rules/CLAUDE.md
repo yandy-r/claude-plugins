@@ -316,3 +316,8 @@ plugin's source directory at runtime. Because loading is in-place, the live cont
 always the repo's current HEAD even when `installed_plugins.json`'s `gitCommitSha` is
 stale; `claude plugin update` is version-gated, so it won't re-pin a stale SHA when the
 version string is unchanged.
+
+# graphify
+
+- **graphify** (`~/.claude/skills/graphify/SKILL.md`) - any input to knowledge graph. Trigger: `/graphify`
+  When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
