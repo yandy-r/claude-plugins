@@ -23,9 +23,11 @@ hosted shareable URL when `--share` is passed.
 
 - `--share` — Opt in to hosted egress (destination `plan.agent-native.com`).
   Hosted upload is OFF by default and consent-gated: without `--share` the skill
-  runs in local-files mode and nothing leaves the machine. Egress is routed
-  through the shared `visual-egress-guard.sh`, which scans for secrets, refuses
-  non-public remotes, and requires a consent token naming the destination.
+  runs in local-files mode and no plan content is uploaded to hosted storage.
+  The schema-only catalog request and browser UI shell may still contact the
+  configured Plan app. Hosted content egress is routed through the shared
+  `visual-egress-guard.sh`, which scans for secrets, refuses non-public remotes,
+  and requires a consent token naming the destination.
 
 ```
 Usage: /visual-plan [--share] <path/to/plan.md>

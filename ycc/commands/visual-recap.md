@@ -1,11 +1,12 @@
 ---
-description: Turn a finished change (git range, branch, or working-tree diff) into a LOCAL-ONLY interactive visual recap — annotated split diffs, file map, schema/API deltas, diagrams, and wireframes — written under docs/prps/reviews/visual/ and previewed in the browser via the 127.0.0.1 localhost bridge. Never uploads code; remote-agnostic across the public GitHub remote and the private Forgejo origin.
+description: Turn a finished change (git range, branch, or tracked working-tree diff) into a LOCAL-ONLY interactive visual recap — annotated split diffs, file map, schema/API deltas, diagrams, and wireframes — written under docs/prps/reviews/visual/ and previewed in the browser via the 127.0.0.1 localhost bridge. Never uploads code; remote-agnostic across the public GitHub remote and the private Forgejo origin.
 argument-hint: '[base..head | branch]'
 allowed-tools:
   - Read
   - Write
+  - Bash(env:*)
+  - Bash(mktemp:*)
   - Bash(npx:*)
-  - Bash(plan:*)
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/visual-recap-collect.sh:*)'
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/visual-egress-guard.sh:*)'
 ---
@@ -27,12 +28,12 @@ live block catalog, and authors MDX (`data-model`, `api-endpoint`, `file-tree`, 
 - No hosted publish, no shareable hosted link, no Plan database write.
 - No hosted recap-create / publish tool — `AGENT_NATIVE_PLANS_MODE=local-files` is always set.
 - No PR comment and no GitHub/Forgejo Action.
-- The only permitted network call is the schema-only `get-plan-blocks` catalog lookup
-  (offline fallback `plan blocks --out`).
+- The only permitted Plan application request is the schema-only catalog lookup via
+  `env AGENT_NATIVE_PLANS_MODE=local-files npx -y @agent-native/core@0.59.1 plan blocks --out <path>`.
 
 **Arguments**:
 
-- _(none)_ — Recap the working-tree diff against `HEAD`.
+- _(none)_ — Recap the tracked working-tree diff against `HEAD`.
 - `<base>..<head>` — Recap an explicit two-endpoint range.
 - `<branch>` — Treat `<branch>` as head; the base is computed via `git merge-base`
   against the tracked upstream (never a hardcoded trunk).
@@ -41,7 +42,7 @@ live block catalog, and authors MDX (`data-model`, `api-endpoint`, `file-tree`, 
 Usage: /ycc:visual-recap [base..head | branch]
 
 Examples:
-  /ycc:visual-recap                       # working-tree diff vs HEAD
+  /ycc:visual-recap                       # tracked working-tree diff vs HEAD
   /ycc:visual-recap feat/rate-limiting    # branch vs merge-base(upstream)
   /ycc:visual-recap main..HEAD            # explicit range
   /ycc:visual-recap v1.2.0..v1.3.0        # release-to-release recap

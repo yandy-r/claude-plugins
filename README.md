@@ -63,7 +63,7 @@ The source plugin ships **50 skills**, **49 slash commands** (most skills have a
 | `/ycc:ts-patterns`         | Idiomatic TypeScript patterns — strict type system, discriminated unions, generic inference, `satisfies`, branded types, errors as values, ESM/CJS modules with `exports` maps, Prom... |
 | `/ycc:ts-testing`          | TypeScript testing patterns using Vitest as the primary runner — TDD workflow, unit tests, integration tests, async tests with fake timers, parameterized tests via `test.each`, pro... |
 | `/ycc:visual-plan`         | Turn an existing text plan into a rich, interactive visual plan — diagrams, file maps, annotated code, open questions, and an optional UI/prototype review surface.                     |
-| `/ycc:visual-recap`        | Turn a finished change (git range, branch, or working-tree diff) into a LOCAL-ONLY interactive visual recap — annotated split diffs, file map, schema/API deltas, diagrams, and wire... |
+| `/ycc:visual-recap`        | Turn a finished change (git range, branch, or tracked working-tree diff) into a LOCAL-ONLY interactive visual recap — annotated split diffs, file map, schema/API deltas, diagrams,...  |
 | `/ycc:write-docs`          | Orchestrate 5 specialized documentation agents in parallel to analyze codebase and create comprehensive documentation.                                                                  |
 
 <!-- END:GENERATED-COMMANDS -->

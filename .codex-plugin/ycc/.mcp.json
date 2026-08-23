@@ -4,13 +4,6 @@
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-github"],
       "envFile": "${userHome}/.config/env/github-env-mcp"
-    },
-    "plan": {
-      "command": "npx",
-      "args": ["-y", "@agent-native/core@0.59.1", "mcp"],
-      "env": {
-        "AGENT_NATIVE_PLANS_MODE": "local-files"
-      }
     }
   }
 }

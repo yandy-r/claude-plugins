@@ -25,10 +25,11 @@ npx -y @agent-native/core@0.59.1 skills add <skill>
   between releases, so an unpinned install can silently change behavior. Pin, verify, then bump
   deliberately.
 
-## Reconnect / auth (one-time per client)
+## Reconnect / auth (hosted mode only)
 
 Authorize the runtime against the hosted Plans origin once per client. This is a one-time
-step per machine/client, not per skill run:
+step per machine/client, not per skill run. Local-files mode does not register an MCP server
+and does not use this flow:
 
 ```
 npx -y @agent-native/core@0.59.1 reconnect https://plan.agent-native.com --client [claude-code|codex|all]
@@ -37,37 +38,42 @@ npx -y @agent-native/core@0.59.1 reconnect https://plan.agent-native.com --clien
 - `--client all` reconnects every detected client at once.
 - Re-run only when credentials are revoked or the client is reinstalled.
 
-## MCP connector
+## MCP connector (hosted or self-hosted mode)
 
 The runtime exposes an MCP connector named **`plan`**. The legacy alias **`agent-native-plans`**
 still resolves to the same connector — accept either name when detecting an existing
-connection, but prefer `plan` in new guidance.
+connection, but prefer `plan` in new guidance. Do not register either connector for
+local-files mode; the Agent-Native installer intentionally skips MCP registration in that
+mode.
 
 ## Local-only operation
 
-For local-only operation (no hosted calls, no auth required), set:
+For local-only plan storage (no hosted writes and no auth required), prefix each
+runtime command explicitly:
 
 ```
-AGENT_NATIVE_PLANS_MODE=local-files
+env AGENT_NATIVE_PLANS_MODE=local-files npx -y @agent-native/core@0.59.1 plan <subcommand>
 ```
 
-In this mode the runtime reads and writes plans on the local filesystem only; it does not
-contact `plan.agent-native.com`.
+In this mode plan content is read and written on the local filesystem only. The
+schema-only block-catalog request and the browser UI shell used by the localhost bridge may
+contact the configured Plan app, but neither writes plan content to its database. Use the
+pinned CLI commands below instead of a startup MCP server.
 
 ## Localhost bridge
 
-To preview a plan locally, use the `plan local` bridge commands against the plan directory:
+To preview a plan locally, use the pinned Agent-Native CLI against the plan directory:
 
 ```
-plan local check --dir plans/<slug>
-plan local serve --dir plans/<slug> --open
+env AGENT_NATIVE_PLANS_MODE=local-files npx -y @agent-native/core@0.59.1 plan local check --dir plans/<slug>
+env AGENT_NATIVE_PLANS_MODE=local-files npx -y @agent-native/core@0.59.1 plan local serve --dir plans/<slug> --open
 ```
 
 - `check` validates the plan files under `plans/<slug>` without serving.
 - `serve` binds **127.0.0.1** on an **ephemeral, CLI-chosen port** and opens the preview with
   `--open`.
-- The bridge performs **no DB writes** and sends **nothing to any server** — it is a purely
-  local render of the on-disk plan.
+- The bridge performs **no hosted DB writes**. The browser may load the hosted Plan UI shell,
+  but it reads plan MDX from 127.0.0.1 and does not upload that content to hosted storage.
 
 ## Block vocabulary (resolve at USE TIME)
 
@@ -77,7 +83,9 @@ plan local serve --dir plans/<slug> --open
 At the runtime-author step (use time, not authoring time), fetch the live block catalog:
 
 - Hosted/connected: call the **`get-plan-blocks`** MCP tool.
-- Offline / `local-files` fallback: run `plan blocks --out <path>` to dump the current catalog.
+- `local-files`: run
+  `env AGENT_NATIVE_PLANS_MODE=local-files npx -y @agent-native/core@0.59.1 plan blocks --out <path>`
+  to dump the current catalog.
 
 Always render plan MDX against the freshly-fetched block list, never a list memorized in a
 skill.

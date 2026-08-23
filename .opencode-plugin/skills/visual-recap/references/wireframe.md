@@ -127,9 +127,10 @@ renderer drops borders, sketch, and color into the skeleton register automatical
 Never escape to a `custom-html` document block to fake a loader.
 
 **Editing an existing mockup.** Because this skill is LOCAL-ONLY, edit the MDX source
-file directly (no hosted patch tool), then rerun `plan local serve` to re-render. Read
-the current `html` first so each replacement targets a unique snippet; the result is
-re-sanitized on reload.
+file directly (no hosted patch tool), then rerun
+`env AGENT_NATIVE_PLANS_MODE=local-files npx -y @agent-native/core@0.59.1 plan local serve --dir <resolved-bundle-path> --kind recap --open`
+to re-render. Read the current `html` first so each replacement targets a unique
+snippet; the result is re-sanitized on reload.
 
 **Treat the wireframe border as part of the visible design.** Always wrap HTML wireframe
 content in a root container with real inner padding before drawing cards, fields, pills,

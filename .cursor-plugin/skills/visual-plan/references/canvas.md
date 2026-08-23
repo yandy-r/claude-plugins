@@ -4,7 +4,7 @@ The canonical guide for how the visual-plan canvas works: artboard placement,
 lane layout, annotations, patching, and emitted files. Read it in full before
 authoring or editing any canvas/artboard content; do not author canvas layouts
 from memory. Resolve exact block/component tag names against the live catalog
-(`get-plan-blocks` or the offline `plan blocks` dump).
+(`get-plan-blocks` for hosted sharing or the pinned local-files CLI catalog).
 
 ---
 

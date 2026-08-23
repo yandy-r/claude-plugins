@@ -1,12 +1,13 @@
 ---
 name: visual-recap
-description: Turn a finished change — a git range, branch, or working-tree diff — into a LOCAL-ONLY interactive visual recap (annotated diffs, file map, schema/API deltas, diagrams, wireframes) under docs/prps/reviews/visual/, previewed in the browser via the localhost bridge. Use when the user asks to "recap this branch", "show what changed visually", "visual recap", "review the diff visually", or says "/visual-recap". Never uploads code to a hosted service; remote-agnostic (identical on the public GitHub remote and the private Forgejo origin).
+description: Turn a finished change — a git range, branch, or tracked working-tree diff — into a LOCAL-ONLY interactive visual recap (annotated diffs, file map, schema/API deltas, diagrams, wireframes) under docs/prps/reviews/visual/, previewed in the browser via the localhost bridge. Use when the user asks to "recap this branch", "show what changed visually", "visual recap", "review the diff visually", or says "/visual-recap". Never uploads code to a hosted service; remote-agnostic (identical on the public GitHub remote and the private Forgejo origin).
 argument-hint: '[base..head | branch]'
 allowed-tools:
   - Read
   - Write
+  - Bash(env:*)
+  - Bash(mktemp:*)
   - Bash(npx:*)
-  - Bash(plan:*)
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/visual-recap-collect.sh:*)'
   - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/visual-egress-guard.sh:*)'
 ---
@@ -31,27 +32,30 @@ of the change before spending attention on the literal lines.
 
 Hard rules for this skill:
 
-- **`AGENT_NATIVE_PLANS_MODE=local-files` is always set.** Export it before running
-  any runtime command. The recap never writes to the hosted Plan database.
+- **`AGENT_NATIVE_PLANS_MODE=local-files` prefixes every Agent-Native runtime
+  command.** Do not rely on a process-wide export. The recap never writes to the
+  hosted Plan database.
 - **NEVER call a hosted Plan create/publish tool.** The hosted recap-create tool,
   `create-visual-plan`, `import-visual-plan-source`, `update-visual-plan`,
   `patch-visual-plan-source`, `get-plan-feedback`, `export-visual-plan`, and
   `set-resource-visibility` are all **disabled** in this skill. They are listed only
   to be explicitly excluded — do not invoke them.
-- **The ONLY permitted network call is `get-plan-blocks`** (schema-only block catalog;
-  offline fallback `plan blocks --out`). It carries no recap content. Everything else
-  stays on this machine.
+- **The ONLY permitted Plan application request is the pinned block-catalog CLI command**
+  (`env AGENT_NATIVE_PLANS_MODE=local-files npx -y @agent-native/core@0.59.1 plan blocks --out <path>`).
+  It carries no recap content. Do not call the `get-plan-blocks` MCP tool; local-files
+  mode does not register an MCP server. `npx` may contact the npm registry to resolve
+  that exact package version, but it must never send plan or recap content.
 - **The deliverable is local MDX** under `docs/prps/reviews/visual/<slug>/`, served via
-  the localhost bridge (`plan local serve --open`, 127.0.0.1, ephemeral port). There is
-  no hosted link and no shareable URL.
+  the localhost bridge
+  (`env AGENT_NATIVE_PLANS_MODE=local-files npx -y @agent-native/core@0.59.1 plan local serve --open`,
+  127.0.0.1, ephemeral port). There is no hosted link and no shareable URL.
 - **Diffs are sourced through the shared collector**
   `${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/visual-recap-collect.sh`, which uses
   local git refs only — so it behaves identically against the public `github` remote and
   the private Forgejo `origin` (no vendor PR API, no hardcoded host or trunk branch).
 
-For the pinned `@agent-native/*` install, the `plan` MCP connector (legacy alias
-`agent-native-plans`), the localhost-bridge command surface, and the hosted-egress
-policy, read — do not duplicate —
+For the pinned `@agent-native/*` install, the localhost-bridge command surface,
+the hosted-only MCP connector, and the hosted-egress policy, read — do not duplicate —
 `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/agent-native-setup.md`.
 
 ## When to use
@@ -59,20 +63,20 @@ policy, read — do not duplicate —
 Build a recap when a change is large, multi-file, or touches schema, API contracts,
 or architecture, and a reviewer would benefit from seeing the change mapped to
 structured blocks before reading the raw diff. Skip it for small, single-file, or
-obvious diffs — a recap is review overhead, and a tiny change reviews faster as plain
-diff.
+obvious diffs when choosing proactively — a recap is review overhead, and a tiny
+change reviews faster as plain diff. An explicit `ycc:visual-recap` or
+`/visual-recap` invocation overrides this heuristic; honor the request.
 
 ## Phase 0 — Collect the diff (remote-agnostic, local refs only)
 
-Set local-files mode, then drive the shared collector with `$ARGUMENTS`:
+Drive the shared collector with `$ARGUMENTS`. Invoke it directly, then retain the
+absolute path printed on stdout as the resolved bundle path:
 
 ```bash
-export AGENT_NATIVE_PLANS_MODE=local-files
-
-# (none)         → working-tree diff vs HEAD
+# (none)         → tracked working-tree diff vs HEAD
 # <base>..<head> → explicit range
 # <branch>       → branch as head; base = merge-base against tracked upstream
-BUNDLE_DIR="$(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/visual-recap-collect.sh $ARGUMENTS)"
+${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/visual-recap-collect.sh $ARGUMENTS
 ```
 
 The collector writes a bundle under `docs/prps/reviews/visual/<slug>/`:
@@ -82,10 +86,12 @@ The collector writes a bundle under `docs/prps/reviews/visual/<slug>/`:
 - `metadata.txt` — range / base / head / remote provenance (every remote URL via
   `git remote get-url`, never a hardcoded host)
 
-`$BUNDLE_DIR` (printed on stdout) is the slug directory the recap MDX is written into.
+The printed path is the slug directory the recap MDX is written into.
 Read `diff.patch` and `files.txt` to ground every block. **Print the resolved
 range and remote provenance from `metadata.txt` before authoring** so it is obvious
-which refs the recap covers.
+which refs the recap covers. If both `diff.patch` and `files.txt` are empty, stop
+and report that there are no tracked changes to recap; do not author an empty
+artifact.
 
 ## Phase 1 — Scope the work unit
 
@@ -104,21 +110,26 @@ with a block or intentionally omit it as tiny/redundant/not-user-visible.
 > GOTCHA: The MDX block vocabulary drifts upstream between releases. Do NOT author
 > from memorized JSX tags — they silently produce wrong tags that error on import.
 
-Before writing any structured MDX, fetch the live block catalog:
+Before writing any structured MDX, invoke `mktemp` and retain the absolute path
+printed on stdout. Substitute that resolved temp path in the catalog command;
+do not rely on shell-variable persistence across tool calls:
 
-- Connected: call `get-plan-blocks` on the `plan` MCP connector (schema-only; no recap
-  content leaves the machine).
-- Offline / `local-files` fallback: run `plan blocks --out plan-blocks.md` and read it
-  first (calls the public no-auth `get-plan-blocks` route; sends no recap content).
+```bash
+env AGENT_NATIVE_PLANS_MODE=local-files npx -y @agent-native/core@0.59.1 plan blocks --out <resolved-temp-path>
+```
 
-Author every block against the tags and schemas that call returns. The scratch
-`plan-blocks.md` is git-ignored — do not commit it.
+Read that file first. The command calls the public no-auth block-catalog route and
+sends no recap content. If the pinned package is unavailable from cache or the
+registry, stop with the setup error; do not guess tags or register a fallback MCP.
+
+Author every block against the tags and schemas that call returns. The catalog is
+temporary runtime data, not part of the recap bundle; do not commit it.
 
 ## Phase 3 — Map the diff to blocks
 
 Derive every structured block mechanically from the real diff (real paths, real fields,
 real method/path, real before/after text). The names below are CONCEPTUAL block types;
-resolve each to its exact tag + props via `get-plan-blocks`.
+resolve each to its exact tag + props via the fetched temporary catalog.
 
 - **Schema / migration change** → `data-model` for the resulting entities, fields, and
   relations. Flag each field/entity with `change: "added" | "modified" | "removed" |
@@ -190,18 +201,21 @@ Write the recap as a local MDX folder inside the collected bundle directory:
 Validate, then serve via the localhost bridge:
 
 ```bash
-plan local check --dir docs/prps/reviews/visual/<slug>
-plan local serve --dir docs/prps/reviews/visual/<slug> --kind recap --open
+env AGENT_NATIVE_PLANS_MODE=local-files npx -y @agent-native/core@0.59.1 plan local check --dir <resolved-bundle-path>
+env AGENT_NATIVE_PLANS_MODE=local-files npx -y @agent-native/core@0.59.1 plan local serve --dir <resolved-bundle-path> --kind recap --open
 ```
 
-`serve` binds **127.0.0.1** on an ephemeral CLI-chosen port and opens the preview. It
-performs **no DB writes and sends nothing to any server** — it is a purely local render
-of the on-disk MDX. Report the local bridge URL from stdout (or `<slug>/.plan-url`, a
-local token file — do not commit it). The URL is not shareable across machines.
+Run `serve` with the host's long-running-process support, capture its first localhost
+URL, and keep the bridge process alive without relaying incidental CLI logs as result
+output. It binds **127.0.0.1** on an ephemeral CLI-chosen port, performs **no DB writes
+and sends no recap content to any server**, and renders the on-disk MDX through the
+localhost bridge. Report the URL from stdout (or `<slug>/.plan-url`, a local token file —
+do not commit it). The URL is not shareable across machines.
 
 Treat review feedback as file/chat feedback: edit the MDX directly, rerun
-`plan local serve`, and report the new local bridge URL. Hosted comments, sharing,
-screenshots, and PR sticky-comment publishing are intentionally unavailable.
+the pinned local check and serve commands above, and report the new local bridge URL.
+Hosted comments, sharing, screenshots, and PR sticky-comment publishing are
+intentionally unavailable.
 
 ## Grounding & security
 

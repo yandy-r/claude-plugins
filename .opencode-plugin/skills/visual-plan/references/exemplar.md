@@ -3,7 +3,8 @@
 The canonical worked example of a great plan (and the anti-patterns to avoid).
 Read it alongside `document-quality.md` and `canvas.md` before authoring a plan;
 it is the bar these plans must clear. Resolve exact block tags against the live
-catalog (`get-plan-blocks` / offline `plan blocks` dump) before emitting MDX.
+catalog (`get-plan-blocks` for hosted sharing or the pinned local-files CLI catalog)
+before emitting MDX.
 
 ---
 

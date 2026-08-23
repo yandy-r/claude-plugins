@@ -201,7 +201,7 @@ fi
 # Collect the diff (LOCAL refs only — identical on GitHub and Forgejo)
 # ---------------------------------------------------------------------------
 
-OUT_DIR="docs/prps/reviews/visual/${SLUG}"
+OUT_DIR="${REPO_ROOT}/docs/prps/reviews/visual/${SLUG}"
 mkdir -p "$OUT_DIR"
 
 DIFF_FILE="${OUT_DIR}/diff.patch"

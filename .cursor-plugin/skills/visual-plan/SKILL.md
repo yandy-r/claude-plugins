@@ -10,8 +10,9 @@ allowed-tools:
   - Bash(test:*)
   - Bash(mkdir:*)
   - Bash(dirname:*)
+  - Bash(env:*)
+  - Bash(mktemp:*)
   - Bash(npx:*)
-  - Bash(plan:*)
   - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/visual-plan/scripts/*.sh:*)'
   - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
 ---
@@ -27,9 +28,10 @@ plans start with the top canvas/prototype.
 
 `visual-plan` is the packaged entry point (slash command `/visual-plan`). It
 **consumes an existing plan** handed to it — it does not research, dispatch, or
-re-plan. The runtime is the Agent-Native Plans CLI/MCP connector; its install
-pin, auth/reconnect flow, connector names, localhost bridge, block-catalog
-lookup, and egress policy are defined ONCE in
+re-plan. Local-files mode uses the pinned Agent-Native Plans CLI and never
+registers an MCP server; hosted sharing uses the Plan MCP connector only after
+explicit consent. The install pin, auth/reconnect flow, connector names,
+localhost bridge, block-catalog lookup, and egress policy are defined ONCE in
 `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/agent-native-setup.md`. Read
 that file for any setup/auth/serve/egress detail rather than memorizing it here.
 
@@ -58,8 +60,8 @@ Parse `$ARGUMENTS`:
   to the source plan. Read it; derive `visual/` from its directory.
 - **`--share`** (optional, **consent flag**) — the explicit, named opt-in to
   hosted egress (destination `plan.agent-native.com`). Without it, the skill
-  runs in **local-files** mode and nothing leaves the machine. See **Egress &
-  consent** below.
+  runs in **local-files** mode and no plan content is uploaded to hosted storage.
+  See **Egress & consent** below.
 
 ## Mode selection (auto)
 
@@ -79,6 +81,10 @@ chrome by default:
   top canvas; inline `diagram` blocks sit next to the relevant prose
   (`create-visual-plan`).
 
+The create-tool names above apply only to the consent-gated `--share` branch.
+Default local-files mode uses the same surface choice to author portable MDX
+directly and MUST NOT call an MCP tool.
+
 When the source plan is already a Codex / Claude Code / Markdown / pasted plan,
 use it as `planText` and build the review surface from it instead of starting
 over. Preserve its useful intent and codebase facts; publish a clean standalone
@@ -92,8 +98,11 @@ proposal (no "this revision changes…" framing).
 At author time (use time), fetch the live block catalog FIRST:
 
 - Hosted / connected: call the **`get-plan-blocks`** MCP tool.
-- Offline / `local-files`: run `plan blocks --out <path>` (per
-  `agent-native-setup.md`) and read that file.
+- `local-files`: run
+  `env AGENT_NATIVE_PLANS_MODE=local-files npx -y @agent-native/core@0.59.1 plan blocks --out <path>`
+  (per `agent-native-setup.md`) and read that file. Do not call the MCP tool in
+  this branch. If the pinned package is unavailable from cache or the registry,
+  stop with the setup error; do not guess tags or switch to hosted tools.
 
 Render plan MDX against the freshly-fetched list. The references in this skill
 describe block _families_ and quality bars; the catalog is the authority on
@@ -103,39 +112,49 @@ exact tag names, required fields, and prop shapes.
 
 1. **Read the source plan.** Read the file at the given path (read-only). Derive
    the output dir with the thin helper (it computes the `visual/` sibling per the
-   contract and never hardcodes a location):
+   contract and never hardcodes a location). Invoke it directly, then capture its
+   stdout as `OUT`:
 
    ```
-   OUT="$(${CURSOR_PLUGIN_ROOT}/skills/visual-plan/scripts/derive-visual-dir.sh <plan> --mkdir)"
+   ${CURSOR_PLUGIN_ROOT}/skills/visual-plan/scripts/derive-visual-dir.sh <plan> --mkdir
    ```
 
    Gather the plan's exact text — do not invent source content.
 
-2. **Resolve blocks.** Call `get-plan-blocks` (or the offline `plan blocks`
-   fallback) for the authoritative catalog before authoring any MDX.
-3. **Create the plan** with the mode-matched create tool (see Mode selection),
-   passing the source as `planText`. For UI/product plans, compose the top canvas
-   first with the primary wireframes and annotated states, then write the
-   document body with native blocks. For non-visual plans, skip the top surface
-   and place `diagram` / `code` / `annotated-code` / `table` blocks next to the
-   relevant prose.
-4. **Emit files** into the derived `visual/` dir: `plan.mdx` plus, when a canvas
-   is used, `canvas.mdx` (and `prototype.mdx` for prototype plans). These are the
-   portable source artifacts (per `visual-mode.md`).
-5. **Surface the link.** Print exactly one link to stdout (see Contract). In
-   local-files mode this is the localhost bridge URL from `plan local serve`
-   (127.0.0.1, ephemeral port) or `local files only` if no server is available.
-   With `--share`, it is the hosted shareable URL returned by the create tool.
-6. **Read feedback** with `get-plan-feedback` before editing, after review, and
-   before the final response. Treat anchor details and resolver intent as the
-   source of truth for what each comment points at.
-7. **Apply changes** with `update-visual-plan`, preferring targeted
-   `contentPatches`: `patch-wireframe-html`, `patch-diagram-html`, `update-block`,
-   `replace-blocks`, `update-rich-text`, plus `read-visual-plan-source` /
-   `patch-visual-plan-source` for source-control-friendly MDX edits. Treat the
-   top-level `content` payload as a full replacement, never a partial merge — if a
-   full replacement is unavoidable, read the complete source first and carry
-   forward every existing block and surface.
+2. **Resolve blocks by mode.** With `--share`, call `get-plan-blocks`. In the
+   default local-files branch, invoke `mktemp`, capture its stdout as `BLOCKS`,
+   then run
+   `env AGENT_NATIVE_PLANS_MODE=local-files npx -y @agent-native/core@0.59.1 plan blocks --out <BLOCKS>`
+   and read that temporary catalog. Never call an MCP tool in the local branch
+   or write the catalog into the portable plan directory.
+3. **Author portable files locally.** Use the chosen surface to write `plan.mdx`
+   into the derived `visual/` dir, plus `canvas.mdx` for a canvas and
+   `prototype.mdx` for a prototype. For UI/product plans, compose the top canvas
+   first with the primary wireframes and annotated states. For non-visual plans,
+   skip the top surface and place native document blocks next to the relevant
+   prose.
+4. **Validate locally.** Run
+   `env AGENT_NATIVE_PLANS_MODE=local-files npx -y @agent-native/core@0.59.1 plan local check --dir <OUT>`.
+   In default local-files mode, this direct MDX authoring path is the complete
+   creation flow; do not call a create, feedback, import, export, or update MCP
+   tool.
+5. **Publish only with explicit consent.** When `--share` is present, run the
+   egress guard against `<OUT>` first. Only after it passes, call the
+   mode-matched hosted create tool from Mode selection, passing the source plan
+   and authored content in the shape that tool requires. Use its returned URL.
+6. **Surface the link.** Without `--share`, run
+   `env AGENT_NATIVE_PLANS_MODE=local-files npx -y @agent-native/core@0.59.1 plan local serve --dir <OUT> --open`
+   using the host's long-running-process support. Capture the first localhost
+   URL and keep the bridge process alive; do not relay incidental CLI logs as
+   result output. Print that one URL, or `local files only` if serving is
+   unavailable. With `--share`, print the hosted URL returned by the create
+   tool.
+7. **Review and revise by mode.** In local-files mode, treat file/chat feedback
+   as authoritative, edit the MDX directly, and rerun the pinned local check and
+   serve commands from steps 4 and 6. With `--share`, read hosted comments using
+   `get-plan-feedback` and apply targeted `update-visual-plan` content patches;
+   when a full replacement is unavoidable, read and preserve the complete source
+   and every surface first.
 
 ## Quality references — read before authoring
 
@@ -165,10 +184,12 @@ in `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/agent-native-setup.md`;
 the operational rules for this skill:
 
 - **Default = `local-files`.** Set `AGENT_NATIVE_PLANS_MODE=local-files`. In this
-  mode the runtime reads/writes plan files locally and never contacts
-  `plan.agent-native.com`. Preview via the localhost bridge
-  (`plan local serve --dir <OUT> --open`), which binds 127.0.0.1 on an ephemeral
-  port, performs no DB writes, and sends nothing remote — this is **not** egress.
+  mode the runtime reads/writes plan files locally and never uploads them to the
+  hosted Plan database. The schema-only catalog request and browser UI shell may
+  contact the configured Plan app. Preview via the localhost bridge
+  (`env AGENT_NATIVE_PLANS_MODE=local-files npx -y @agent-native/core@0.59.1 plan local serve --dir <OUT> --open`),
+  which binds 127.0.0.1 on an ephemeral port and performs no hosted DB writes;
+  the UI reads MDX from localhost rather than hosted storage.
 - **`--share` is the only opt-in.** It names the destination host
   `plan.agent-native.com`. Only when the operator passes `--share` may any plan
   content leave the machine.
@@ -187,14 +208,14 @@ the operational rules for this skill:
 
 ## Setup, auth, and the localhost bridge
 
-Do not duplicate install/reconnect/serve commands here. For the pinned install
-version, the one-time per-client reconnect, the `plan` MCP connector (legacy
-alias `agent-native-plans`), local-files mode, and the localhost bridge
-(`plan local check` / `plan local serve`), read
+For the pinned install version, the one-time per-client reconnect, the hosted
+`plan` MCP connector (legacy alias `agent-native-plans`), local-files mode, and
+the localhost bridge, read
 `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/agent-native-setup.md`. If a
-Plans tool returns `needs auth` / `Unauthorized` / `Session terminated`, stop and
-give the user the reconnect step from that reference — never reinstall from
-scratch to fix auth, and never fall back to inline chat-only plan output.
+hosted Plans tool returns `needs auth` / `Unauthorized` / `Session terminated`
+in the `--share` branch, stop and give the user the reconnect step from that
+reference — never reinstall from scratch to fix auth, and never use hosted tools
+as a fallback for local-files mode.
 
 ## Output
 

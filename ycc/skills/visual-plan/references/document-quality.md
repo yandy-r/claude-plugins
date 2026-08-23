@@ -3,9 +3,9 @@
 The canonical quality bar for the plan document below the canvas: how it reads,
 which block families to use, how open questions are surfaced, and the pre-handoff
 check. Read it in full before authoring the plan document. Resolve exact tag
-names and field shapes against the live catalog (`get-plan-blocks`, or the
-offline `plan blocks` dump) — the families below are the bar, the catalog is the
-authority.
+names and field shapes against the live catalog (`get-plan-blocks` for hosted
+sharing or the pinned local-files CLI catalog) — the families below are the bar,
+the catalog is the authority.
 
 ---
 
