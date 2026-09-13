@@ -1,0 +1,4 @@
+{
+  "name": "ycc claude-plugins",
+  "install": "./.cursor/install.sh"
+}
