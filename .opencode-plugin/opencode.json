@@ -22,6 +22,34 @@
         "-y",
         "@modelcontextprotocol/server-github"
       ]
+    },
+    "stripe": {
+      "type": "remote",
+      "url": "https://mcp.stripe.com"
+    },
+    "xero": {
+      "type": "local",
+      "command": [
+        "npx",
+        "-y",
+        "@xeroapi/xero-mcp-server@latest"
+      ],
+      "environment": {
+        "XERO_CLIENT_ID": "{env:XERO_CLIENT_ID}",
+        "XERO_CLIENT_SECRET": "{env:XERO_CLIENT_SECRET}"
+      }
+    },
+    "linear": {
+      "type": "remote",
+      "url": "https://mcp.linear.app/mcp"
+    },
+    "vercel": {
+      "type": "remote",
+      "url": "https://mcp.vercel.com"
+    },
+    "railway": {
+      "type": "remote",
+      "url": "https://mcp.railway.com"
     }
   }
 }

@@ -4,6 +4,26 @@
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-github"],
       "envFile": "${userHome}/.config/env/github-env-mcp"
+    },
+    "stripe": {
+      "url": "https://mcp.stripe.com"
+    },
+    "xero": {
+      "command": "npx",
+      "args": ["-y", "@xeroapi/xero-mcp-server@latest"],
+      "env": {
+        "XERO_CLIENT_ID": "${XERO_CLIENT_ID}",
+        "XERO_CLIENT_SECRET": "${XERO_CLIENT_SECRET}"
+      }
+    },
+    "linear": {
+      "url": "https://mcp.linear.app/mcp"
+    },
+    "vercel": {
+      "url": "https://mcp.vercel.com"
+    },
+    "railway": {
+      "url": "https://mcp.railway.com"
     }
   }
 }
