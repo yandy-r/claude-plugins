@@ -13,6 +13,7 @@ opencode.json contents:
 - `instructions`: ["AGENTS.md"] so opencode pulls in the bundle's rules
 - `provider.openai.models["gpt-5.5"]`: reasoningEffort=high, textVerbosity=low
   (per the plan §6; high-reasoning default for coding-agent work)
+- `plugins`: shared OpenCode V2 plugins loaded by server/runtime
 - `mcp`: translated from mcp-configs/mcp.json (Claude Code shape → opencode shape)
 
 AGENTS.md is derived from ycc/settings/rules/CLAUDE.md (the user-global
@@ -53,6 +54,10 @@ from generate_opencode_common import (
 SOURCE_RULES_PATH = REPO_ROOT / "ycc" / "settings" / "rules" / "CLAUDE.md"
 
 DEFAULT_MODEL = "openai/gpt-5.5"
+# OpenCode V2 `plugins` entries (npm package specifiers). The goal plugin adds
+# Codex-style goal mode: /goal commands, persistent goal state, and the goal
+# tools the user-global AGENTS.md policy references.
+DEFAULT_PLUGINS: list[str] = ["@prevalentware/opencode-goal-plugin"]
 DEFAULT_PROVIDER_CONFIG: dict[str, object] = {
     "openai": {
         "models": {
@@ -127,6 +132,7 @@ def build_opencode_config() -> dict[str, object]:
         "$schema": "https://opencode.ai/config.json",
         "model": DEFAULT_MODEL,
         "instructions": ["AGENTS.md"],
+        "plugins": DEFAULT_PLUGINS,
         "provider": DEFAULT_PROVIDER_CONFIG,
     }
     mcp_block = load_mcp_block()

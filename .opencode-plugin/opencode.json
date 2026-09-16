@@ -4,6 +4,9 @@
   "instructions": [
     "AGENTS.md"
   ],
+  "plugins": [
+    "@prevalentware/opencode-goal-plugin"
+  ],
   "provider": {
     "openai": {
       "models": {

@@ -29,6 +29,12 @@ if "instructions" not in data or not isinstance(data["instructions"], list):
 elif "AGENTS.md" not in data["instructions"]:
     errors.append("instructions must include 'AGENTS.md'")
 
+plugins = data.get("plugins")
+if not isinstance(plugins, list):
+    errors.append("plugins must be a list")
+elif "@prevalentware/opencode-goal-plugin" not in plugins:
+    errors.append("plugins must include '@prevalentware/opencode-goal-plugin'")
+
 mcp = data.get("mcp")
 if mcp is not None:
     if not isinstance(mcp, dict):

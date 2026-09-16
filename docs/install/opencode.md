@@ -35,6 +35,29 @@ Step behavior:
 opencode reads MCP configuration from `opencode.json`; there is no separate
 `mcp` step for this target.
 
+## Plugins
+
+The generated `opencode.json` declares the bundle's shared OpenCode V2 plugins in
+`plugins`:
+
+| Plugin                                | Purpose                                                                      |
+| ------------------------------------- | ---------------------------------------------------------------------------- |
+| `@prevalentware/opencode-goal-plugin` | Goal mode — `/goal` commands, persistent goal state, and the goal tool suite |
+
+`--settings` installs the server-side half. The TUI half (sidebar goal indicator
+and command-palette entry) is read from the global `~/.config/opencode/cli.json`,
+which this repository does not manage. Install both halves on a new machine with:
+
+```bash
+./install.sh --target opencode --settings --rules
+opencode2 plugin add @prevalentware/opencode-goal-plugin
+```
+
+`opencode2 plugin add` writes the package into `~/.config/opencode/opencode.json`
+and `~/.config/opencode/cli.json`, and is idempotent. Verify with
+`opencode2 plugin list`. Use `opencode` instead of `opencode2` when the V2 binary
+is installed under that name.
+
 ## Selective Steps
 
 Use `--only` to run exactly the listed steps:
