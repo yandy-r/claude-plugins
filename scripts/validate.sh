@@ -81,6 +81,8 @@ run_target() {
             "${REPO_ROOT}/scripts/validate-ycc-commands.sh" || fail "validate-ycc-commands.sh"
             echo "== validate: formatter bundle smoke =="
             "${REPO_ROOT}/scripts/validate-formatters-bundle.sh" || fail "validate-formatters-bundle.sh"
+            echo "== validate: style.sh Node CLI resolution =="
+            "${REPO_ROOT}/scripts/validate-style-node-tools.sh" || fail "validate-style-node-tools.sh"
             ;;
         cursor)
             echo "== validate: cursor agents =="

@@ -7,6 +7,12 @@ BUNDLE_ROOT="${REPO_ROOT}/ycc/skills/formatters/scripts/bundle"
 PROFILE_SCRIPT="${REPO_ROOT}/ycc/skills/formatters/scripts/profile-style.sh"
 STYLE_SCRIPT="${BUNDLE_ROOT}/style.sh"
 
+# Git hooks (pre-push) export GIT_DIR / GIT_WORK_TREE / GIT_INDEX_FILE. Every
+# fixture below is a throwaway directory that must be judged on its own — with
+# those inherited, git resolves them against the host repository instead, so the
+# non-git fixtures look like work trees and enumerate the wrong file list.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_PREFIX
+
 assert_eq() {
   local actual="$1"
   local expected="$2"

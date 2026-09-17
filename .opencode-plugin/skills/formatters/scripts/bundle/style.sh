@@ -77,6 +77,70 @@ require_command() {
   fi
 }
 
+# Node CLIs must come from the project's own node_modules so the version the
+# lockfile pins is the version that runs. A bare `npx <tool>` silently falls back
+# to a registry download or a stale ~/.npm/_npx cache entry whenever node_modules
+# is missing, which lints against an arbitrary version and disagrees with CI.
+resolve_node_bin() {
+  local start_dir="$1"
+  local bin_name="$2"
+  local package_name="$3"
+
+  local search_dir="$start_dir"
+  local previous_dir=''
+  while [[ -n "$search_dir" && "$search_dir" != "$previous_dir" ]]; do
+    if [[ -x "$search_dir/node_modules/.bin/$bin_name" ]]; then
+      printf '%s\n' "$search_dir/node_modules/.bin/$bin_name"
+      return 0
+    fi
+
+    previous_dir="$search_dir"
+    search_dir="$(dirname "$search_dir")"
+  done
+
+  echo "Missing local ${bin_name} (package ${package_name}): no node_modules/.bin/${bin_name} in ${start_dir} or any parent directory." >&2
+  echo "Run your package manager's install (for example 'pnpm install') so lint and format use the lockfile-pinned version." >&2
+  echo "Refusing to fall back to 'npx', which resolves an arbitrary version and disagrees with CI." >&2
+  return 1
+}
+
+# Run a Node CLI out of the project's node_modules/.bin, with that project as cwd.
+run_node_tool() {
+  local project_dir="$1"
+  local bin_name="$2"
+  local package_name="$3"
+  shift 3
+
+  local tool_bin
+  tool_bin="$(resolve_node_bin "$project_dir" "$bin_name" "$package_name")" || return 1
+
+  (cd "$project_dir" && "$tool_bin" "$@")
+}
+
+run_biome() {
+  local project_dir="$1"
+  shift
+  run_node_tool "$project_dir" biome "@biomejs/biome" "$@"
+}
+
+run_prettier() {
+  local project_dir="$1"
+  shift
+  run_node_tool "$project_dir" prettier prettier "$@"
+}
+
+run_markdownlint() {
+  local project_dir="$1"
+  shift
+  run_node_tool "$project_dir" markdownlint markdownlint-cli "$@"
+}
+
+run_tsc() {
+  local project_dir="$1"
+  shift
+  run_node_tool "$project_dir" tsc typescript "$@"
+}
+
 array_contains() {
   local needle="$1"
   shift
@@ -291,10 +355,6 @@ run_ts_lint() {
     return 0
   fi
 
-  if ! require_command npx; then
-    return 1
-  fi
-
   local ts_prefix
   ts_prefix="$(path_prefix_for "$TS_PROJECT_DIR")"
   local -a ts_suffixes=()
@@ -316,16 +376,16 @@ run_ts_lint() {
       mapfile -t ts_relative_biome_files < <(relativize_paths "$TS_PROJECT_DIR" "${ts_biome_files[@]}")
 
       if (( fix )); then
-        (cd "$TS_PROJECT_DIR" && npx @biomejs/biome check --fix "${ts_relative_biome_files[@]}") || exit_code=1
+        run_biome "$TS_PROJECT_DIR" check --fix "${ts_relative_biome_files[@]}" || exit_code=1
       else
-        (cd "$TS_PROJECT_DIR" && npx @biomejs/biome ci "${ts_relative_biome_files[@]}") || exit_code=1
+        run_biome "$TS_PROJECT_DIR" ci "${ts_relative_biome_files[@]}" || exit_code=1
       fi
     fi
 
     if (( ${#ts_typecheck_files[@]} > 0 )); then
       if compgen -G "$TS_PROJECT_DIR/tsconfig*.json" >/dev/null; then
         echo "=== TypeScript: tsc (project scope) ==="
-        (cd "$TS_PROJECT_DIR" && npx tsc --noEmit) || exit_code=1
+        run_tsc "$TS_PROJECT_DIR" --noEmit || exit_code=1
       else
         print_skip "TypeScript: tsc" "no tsconfig*.json found in ${TS_PROJECT_DIR}"
       fi
@@ -343,12 +403,12 @@ run_ts_lint() {
     echo "=== TypeScript/JavaScript: biome ==="
     local -a ts_relative_biome_files=()
     mapfile -t ts_relative_biome_files < <(relativize_paths "$TS_PROJECT_DIR" "${ts_biome_files[@]}")
-    (cd "$TS_PROJECT_DIR" && npx @biomejs/biome ci "${ts_relative_biome_files[@]}") || exit_code=1
+    run_biome "$TS_PROJECT_DIR" ci "${ts_relative_biome_files[@]}" || exit_code=1
   fi
 
   if compgen -G "$TS_PROJECT_DIR/tsconfig*.json" >/dev/null; then
     echo "=== TypeScript: tsc ==="
-    (cd "$TS_PROJECT_DIR" && npx tsc --noEmit) || exit_code=1
+    run_tsc "$TS_PROJECT_DIR" --noEmit || exit_code=1
   else
     print_skip "TypeScript: tsc" "no tsconfig*.json found in ${TS_PROJECT_DIR}"
   fi
@@ -489,10 +549,6 @@ run_docs_lint() {
     return 0
   fi
 
-  if ! require_command npx; then
-    return 1
-  fi
-
   local docs_prefix
   docs_prefix="$(path_prefix_for "$DOCS_PROJECT_DIR")"
   local -a docs_suffixes=()
@@ -560,16 +616,16 @@ run_docs_lint() {
   if (( ${#markdown_relative_files[@]} == 0 )); then
     echo "No Markdown files to lint."
   elif (( fix )); then
-    (cd "$DOCS_PROJECT_DIR" && npx markdownlint-cli --fix "${markdownlint_args[@]}" "${markdown_relative_files[@]}") || exit_code=1
+    run_markdownlint "$DOCS_PROJECT_DIR" --fix "${markdownlint_args[@]}" "${markdown_relative_files[@]}" || exit_code=1
   else
-    (cd "$DOCS_PROJECT_DIR" && npx markdownlint-cli "${markdownlint_args[@]}" "${markdown_relative_files[@]}") || exit_code=1
+    run_markdownlint "$DOCS_PROJECT_DIR" "${markdownlint_args[@]}" "${markdown_relative_files[@]}" || exit_code=1
   fi
 
   echo "=== Docs: prettier ==="
   if (( fix )); then
-    (cd "$DOCS_PROJECT_DIR" && npx prettier --write "${docs_relative_files[@]}" "${prettier_args[@]}") || exit_code=1
+    run_prettier "$DOCS_PROJECT_DIR" --write "${docs_relative_files[@]}" "${prettier_args[@]}" || exit_code=1
   else
-    (cd "$DOCS_PROJECT_DIR" && npx prettier --check "${docs_relative_files[@]}" "${prettier_args[@]}") || exit_code=1
+    run_prettier "$DOCS_PROJECT_DIR" --check "${docs_relative_files[@]}" "${prettier_args[@]}" || exit_code=1
   fi
 
   return "$exit_code"
@@ -619,10 +675,6 @@ run_ts_format() {
     return 0
   fi
 
-  if ! require_command npx; then
-    return 1
-  fi
-
   local ts_prefix
   ts_prefix="$(path_prefix_for "$TS_PROJECT_DIR")"
   local -a ts_suffixes=()
@@ -641,8 +693,8 @@ run_ts_format() {
     echo "=== TypeScript/JavaScript: biome ==="
     local -a ts_relative_files=()
     mapfile -t ts_relative_files < <(relativize_paths "$TS_PROJECT_DIR" "${ts_files[@]}")
-    (cd "$TS_PROJECT_DIR" && npx @biomejs/biome format --write "${ts_relative_files[@]}")
-    (cd "$TS_PROJECT_DIR" && npx @biomejs/biome check --fix "${ts_relative_files[@]}")
+    run_biome "$TS_PROJECT_DIR" format --write "${ts_relative_files[@]}"
+    run_biome "$TS_PROJECT_DIR" check --fix "${ts_relative_files[@]}"
     return 0
   fi
 
@@ -657,8 +709,8 @@ run_ts_format() {
   echo "=== TypeScript/JavaScript: biome ==="
   local -a ts_relative_files=()
   mapfile -t ts_relative_files < <(relativize_paths "$TS_PROJECT_DIR" "${ts_files[@]}")
-  (cd "$TS_PROJECT_DIR" && npx @biomejs/biome format --write "${ts_relative_files[@]}")
-  (cd "$TS_PROJECT_DIR" && npx @biomejs/biome check --fix "${ts_relative_files[@]}")
+  run_biome "$TS_PROJECT_DIR" format --write "${ts_relative_files[@]}"
+  run_biome "$TS_PROJECT_DIR" check --fix "${ts_relative_files[@]}"
 }
 
 run_docs_format() {
@@ -669,10 +721,6 @@ run_docs_format() {
   if ! detect_docs_project; then
     print_skip "$docs_label" "no docs-owned files or docs config found in ${DOCS_PROJECT_DIR}"
     return 0
-  fi
-
-  if ! require_command npx; then
-    return 1
   fi
 
   local docs_prefix
@@ -708,7 +756,7 @@ run_docs_format() {
   echo "=== Docs: prettier ==="
   local -a docs_relative_files=()
   mapfile -t docs_relative_files < <(relativize_paths "$DOCS_PROJECT_DIR" "${docs_files[@]}")
-  (cd "$DOCS_PROJECT_DIR" && npx prettier --write "${docs_relative_files[@]}" "${prettier_args[@]}")
+  run_prettier "$DOCS_PROJECT_DIR" --write "${docs_relative_files[@]}" "${prettier_args[@]}"
 }
 
 run_python_format() {
