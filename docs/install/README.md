@@ -15,22 +15,74 @@ every target's installer behavior.
 
 ## Installer Model
 
-Use `install.sh` from the repository root:
+Use `install.sh` from the repository root. The `sync` subcommand is the
+recommended entry point:
+
+```bash
+./install.sh sync --target <claude|cursor|codex|opencode|all> --intent <intents>
+```
+
+You say **what** you want synced; each target maps the intent onto the steps it
+actually supports, and reports (rather than silently substitutes) anything it
+cannot do.
+
+```bash
+./install.sh sync --target claude --intent hooks,settings,mcp,plugins
+./install.sh sync --target all --intent settings,rules
+./install.sh sync --target codex --intent settings,mcp
+```
+
+| Intent     | Meaning                                                                                    |
+| ---------- | ------------------------------------------------------------------------------------------ |
+| `base`     | Install or register the target's native bundle surface.                                    |
+| `settings` | Merge repo-managed config keys (models, effort levels, statusline, ...).                   |
+| `rules`    | Symlink shared rule files so rule edits flow across runtimes.                              |
+| `mcp`      | Merge MCP server definitions into the target's MCP surface.                                |
+| `hooks`    | Merge hook configuration; Claude also links the hook scripts directory.                    |
+| `plugins`  | Merge plugin enablement and marketplace entries. Add `base` for CLI-side registration too. |
+
+Per-target mapping (intents a target cannot execute are skipped with a notice):
+
+| Intent     | claude             | cursor     | codex      | opencode   |
+| ---------- | ------------------ | ---------- | ---------- | ---------- |
+| `base`     | `base`             | `base`     | `base`     | `base`     |
+| `settings` | `settings`         | `settings` | `settings` | `settings` |
+| `rules`    | `rules`            | `rules`    | `rules`    | `rules`    |
+| `mcp`      | `mcp`              | `mcp`      | `settings` | `settings` |
+| `hooks`    | `settings`+`hooks` | no-op      | no-op      | no-op      |
+| `plugins`  | `settings`         | no-op      | `settings` | `settings` |
+
+`sync` is exclusive: it never implicitly runs `base`.
+
+### Merge Semantics
+
+Structured config files (`~/.claude/settings.json`, `~/.claude.json`,
+`~/.codex/config.toml`, `~/.config/opencode/opencode.json`,
+`~/.cursor/cli-config.json`) are **merged**, not copied:
+
+- Only keys this repository declares as managed are written; every other key
+  in your file is preserved.
+- A managed value the installer previously wrote is updated automatically on
+  later runs.
+- A managed value **you** changed is preserved with a warning; `--force` takes
+  the repo value instead.
+- Ownership is tracked by hash in `~/.config/ycc/managed-config-state.json`
+  (hashes only, never values, so tokens never leak into state).
+
+This is what makes new-machine setup reliable: run the same `sync` command on
+any machine and repo-managed settings land without clobbering machine-local
+trusted projects, provider credentials, or CLI-written marketplace entries.
+
+### Legacy Flag Form
+
+The original flag CLI keeps working unchanged:
 
 ```bash
 ./install.sh --target <claude|cursor|codex|opencode|all> [flags]
 ```
 
-The installer is organized by target and step. Without `--only`, the target's
-`base` step runs by default, and additive flags run additional steps.
-
-| Step       | Meaning                                                                                                                          |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `base`     | Install or register the target's native bundle surface.                                                                          |
-| `settings` | Copy per-machine config files. Existing real files are protected unless `--force` is passed.                                     |
-| `rules`    | Symlink shared rule files so rule edits flow across runtimes. Existing real rule files are protected unless `--force` is passed. |
-| `mcp`      | Configure MCP where the target has a separate MCP step.                                                                          |
-| `hooks`    | Claude-only hook setup, including the worktree redirect hook.                                                                    |
+Without `--only`, the target's `base` step runs by default, and additive flags
+run additional steps.
 
 Common flags:
 

@@ -1,7 +1,8 @@
 ---
 description: Create and maintain user-facing feature documentation with clear guides,
   examples, and troubleshooting.
-model: openai/gpt-5.5
+mode: subagent
+model: openai/gpt-5.5#subagent
 tools:
   read: true
   grep: true

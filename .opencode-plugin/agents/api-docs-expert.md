@@ -2,7 +2,8 @@
 description: Create, review, and improve API documentation, design RESTful endpoints,
   write OpenAPI/Swagger specs, create Postman collections, and ensure API docs follow
   best practices.
-model: openai/gpt-5.5
+mode: subagent
+model: openai/gpt-5.5#subagent
 color: '#EC4899'
 ---
 

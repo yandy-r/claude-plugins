@@ -29,6 +29,12 @@ if "instructions" not in data or not isinstance(data["instructions"], list):
 elif "AGENTS.md" not in data["instructions"]:
     errors.append("instructions must include 'AGENTS.md'")
 
+providers = data.get("providers")
+if not isinstance(providers, dict) or not providers:
+    errors.append("providers must be a non-empty object")
+if "provider" in data:
+    errors.append("legacy singular provider key is not valid OpenCode V2 config; use providers")
+
 plugins = data.get("plugins")
 if not isinstance(plugins, list):
     errors.append("plugins must be a list")
@@ -39,8 +45,10 @@ mcp = data.get("mcp")
 if mcp is not None:
     if not isinstance(mcp, dict):
         errors.append("mcp must be an object")
+    elif not isinstance(mcp.get("servers"), dict):
+        errors.append("mcp.servers must be an object (OpenCode V2 nests servers under mcp.servers)")
     else:
-        for name, entry in mcp.items():
+        for name, entry in mcp["servers"].items():
             if not isinstance(entry, dict):
                 errors.append(f"mcp.{name} must be an object")
                 continue

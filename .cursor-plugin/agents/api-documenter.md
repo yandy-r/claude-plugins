@@ -1,7 +1,7 @@
 ---
 name: api-documenter
 description: 'Generate comprehensive API documentation from code, including endpoint specs, parameter descriptions, response schemas, and usage examples.'
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 color: cyan
 tools:
   - Read

@@ -2,7 +2,7 @@
 name: go-expert-architect
 title: Go Expert Architect
 description: 'Expert Go development assistance including concurrent systems, microservices, performance optimization, design patterns, project structure, testing strategies, and architectural decisions.'
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 color: cyan
 ---
 

@@ -26,6 +26,12 @@ registered marketplace if it is not already installed.
 For the full local Codex setup:
 
 ```bash
+./install.sh sync --target codex --intent base,settings,mcp,plugins,rules
+```
+
+The legacy equivalent remains supported:
+
+```bash
 ./install.sh --target codex --settings --rules
 ```
 
@@ -34,11 +40,14 @@ Step behavior:
 | Step       | Effect                                                                                                                                                                                                                                                                                                                                       |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `base`     | Generates and validates the Codex bundle, links `~/.codex/plugins/ycc/` and `~/.agents/plugins/ycc` to `.codex-plugin/ycc/`, refreshes the `~/.codex/plugins/cache/local-ycc-plugins/ycc` plugin-root copy, syncs `.codex-plugin/agents/` to `~/.codex/agents/`, and registers the marketplace with the relative local path `./plugins/ycc`. |
-| `settings` | Copies `.codex-plugin/config/config.toml` into `~/.codex/config.toml`.                                                                                                                                                                                                                                                                       |
+| `settings` | Merges managed keys from `.codex-plugin/config/config.toml` into `~/.codex/config.toml`. Codex reads MCP servers and plugin enablement from the same file, so the `mcp` and `plugins` intents also map here.                                                                                                                                 |
 | `rules`    | Symlinks `.codex-plugin/config/default.rules`, `CLAUDE.md`, and `AGENTS.md` into `~/.codex/`.                                                                                                                                                                                                                                                |
 
-`--settings` copies config so model, trusted-project, and token edits remain
-local. `--rules` symlinks rules so rule edits stay shared across runtimes.
+Settings merge without rewriting the rest of TOML: comments, local trusted
+projects, account-specific connectors, tokens, and unknown tables stay intact.
+Managed defaults are `gpt-6-astra` at Medium effort for the main agent and
+`gpt-5.6-sol` at High effort for spawned agents (`[agents]` defaults). `--rules`
+symlinks rules so rule edits stay shared across runtimes.
 
 ## Local Vs Repo Mode
 

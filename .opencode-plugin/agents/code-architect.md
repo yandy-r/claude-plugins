@@ -2,7 +2,8 @@
 description: Designs feature architectures by analyzing existing codebase patterns
   and conventions, then providing implementation blueprints with concrete files, interfaces,
   data flow, and build order.
-model: openai/gpt-5.5
+mode: subagent
+model: openai/gpt-5.5#subagent
 tools:
   read: true
   grep: true

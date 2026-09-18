@@ -1,7 +1,7 @@
 ---
 name: review-fixer
 description: 'Implement a SINGLE code-review finding (or same-file group) from a review artifact. Applies the exact fix specified — nothing more. Scope-disciplined: fixes only what the finding specifies.'
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 color: yellow
 tools:
   - Read

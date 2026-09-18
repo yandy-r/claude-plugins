@@ -1,7 +1,8 @@
 ---
 description: Clean up unnecessary files from a project directory including old code,
   compiled binaries, unused assets, outdated docs, and temporary files.
-model: openai/gpt-5.5
+mode: subagent
+model: openai/gpt-5.5#subagent
 color: '#EAB308'
 ---
 

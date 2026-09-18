@@ -18,9 +18,16 @@ source and installs `ycc@ycc` through the Claude CLI.
 After the command completes, run `/reload-plugins` in Claude Code or start a new
 Claude Code session.
 
-## Add Settings, Rules, MCP, And Hooks
+## Add Settings, Rules, MCP, Hooks, And Plugins
 
-For the full local Claude Code setup:
+For a full local Claude Code sync without implicitly running plugin registration:
+
+```bash
+./install.sh sync --target claude --intent hooks,settings,mcp,plugins,rules
+```
+
+Add `base` to the intent list when you also want the Claude CLI to register and
+install the plugin marketplace. The legacy equivalent remains supported:
 
 ```bash
 ./install.sh --target claude --settings --rules --mcp --hooks
@@ -28,17 +35,19 @@ For the full local Claude Code setup:
 
 Step behavior:
 
-| Step       | Effect                                                                                                     |
-| ---------- | ---------------------------------------------------------------------------------------------------------- |
-| `base`     | Runs `claude plugin marketplace add <repo> --scope user` and `claude plugin install ycc@ycc --scope user`. |
-| `settings` | Copies `ycc/settings/settings.json` and `ycc/settings/statusline-command.sh` into `~/.claude/`.            |
-| `rules`    | Symlinks `ycc/settings/rules/CLAUDE.md` and `AGENTS.md` into `~/.claude/`.                                 |
-| `mcp`      | Merges `mcp-configs/mcp.json` into `~/.claude.json`.                                                       |
-| `hooks`    | Symlinks `ycc/settings/hooks/` into `~/.claude/hooks/`.                                                    |
+| Step       | Effect                                                                                                                                                  |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `base`     | Runs `claude plugin marketplace add <repo> --scope user` and `claude plugin install ycc@ycc --scope user`.                                              |
+| `settings` | Merges managed keys from `ycc/settings/settings.json` into `~/.claude/settings.json` and copies `ycc/settings/statusline-command.sh` into `~/.claude/`. |
+| `rules`    | Symlinks `ycc/settings/rules/CLAUDE.md` and `AGENTS.md` into `~/.claude/`.                                                                              |
+| `mcp`      | Merges `mcp-configs/mcp.json` into `~/.claude.json`.                                                                                                    |
+| `hooks`    | Symlinks `ycc/settings/hooks/` into `~/.claude/hooks/`.                                                                                                 |
 
-`--settings` copies files so local model, marketplace, and statusline edits do
-not back-propagate into the repository. `--rules` symlinks rules so rule edits
-stay shared across runtimes.
+Settings are merge-safe: unmanaged local keys are preserved, and managed keys
+you changed locally are kept unless `--force` is passed. Model defaults are
+`claude-fable-5-1` at Medium effort for the main session and `opus[1m]` at High
+effort for subagents. `--rules` symlinks rules so rule edits stay shared across
+runtimes.
 
 ## Local Vs Repo Mode
 
@@ -69,8 +78,10 @@ Use `--only` when you want exactly one step or a small set of steps:
 ./install.sh --target claude --only hooks
 ```
 
-If an existing real config or rules file would be overwritten, the installer
-stops. Pass `--force` only when you intentionally want to replace that file.
+Rules symlinks stop rather than overwrite an existing real rules file; pass
+`--force` when you intentionally want to replace it. Structured config files
+merge instead, so `--force` there only resolves conflicts on managed keys you
+edited locally.
 
 ## Live Iteration
 

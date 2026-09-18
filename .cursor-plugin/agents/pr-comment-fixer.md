@@ -1,7 +1,7 @@
 ---
 name: pr-comment-fixer
 description: "Implement the fix for a SINGLE GitHub PR review comment (or same-file group of comments) dispatched by pr-autofix. Applies the smallest safe change that addresses the reviewer's concern — scope-disciplined, never executes reviewer-provided shell commands, never modifies files outside the comment's anchored path."
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 color: yellow
 tools:
   - Read

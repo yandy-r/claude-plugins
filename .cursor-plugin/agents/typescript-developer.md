@@ -2,7 +2,7 @@
 name: typescript-developer
 title: TypeScript Developer
 description: 'Implement TypeScript/JavaScript code including libraries, tsconfig hierarchies, package.json exports, monorepo workspaces, bundler pipelines (vite/tsup/esbuild), ESM/CJS dual builds, and Vitest configs.'
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 color: green
 tools: ['Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob']
 ---

@@ -18,6 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = REPO_ROOT / "ycc" / "agents"
 DST_DIR = REPO_ROOT / ".cursor-plugin" / "agents"
 FAST_ALLOWLIST_PATH = REPO_ROOT / "scripts" / "cursor_fast_agents.json"
+MODEL_SETTINGS_PATH = REPO_ROOT / "ycc" / "settings" / "models.json"
 
 # Frontmatter `name:` must match filename stem for Cursor discovery where we fix drift.
 NAME_OVERRIDES: dict[str, str] = {
@@ -120,9 +121,29 @@ def load_fast_allowlist() -> set[str]:
     return allowlist
 
 
-def normalize_frontmatter_model(text: str, stem: str, fast_allowlist: set[str]) -> str:
-    """Force generated Cursor models to either `fast` or `inherit`."""
-    model_value = "fast" if stem in fast_allowlist else "inherit"
+def load_subagent_model() -> str:
+    """Read the Cursor sub-agent model from the shared model source of truth.
+
+    Cursor resolves a subagent's model from its own frontmatter, so the
+    preferred sub-agent model and effort are expressed per generated agent
+    file rather than in cli-config.json (which only carries the main model).
+    """
+    try:
+        payload = json.loads(MODEL_SETTINGS_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise SystemExit(f"Missing model settings: {MODEL_SETTINGS_PATH}") from exc
+    except json.JSONDecodeError as exc:
+        raise SystemExit(f"Invalid JSON in {MODEL_SETTINGS_PATH}: {exc}") from exc
+
+    model = payload.get("targets", {}).get("cursor", {}).get("subagent", {}).get("model")
+    if not isinstance(model, str) or not model.strip():
+        raise SystemExit(f"{MODEL_SETTINGS_PATH}: targets.cursor.subagent.model must be a non-empty string")
+    return model.strip()
+
+
+def normalize_frontmatter_model(text: str, stem: str, fast_allowlist: set[str], subagent_model: str) -> str:
+    """Pin generated Cursor agents to `fast` or the preferred sub-agent model."""
+    model_value = "fast" if stem in fast_allowlist else subagent_model
     lines = text.splitlines()
     if len(lines) < 3 or lines[0].strip() != "---":
         return text
@@ -161,11 +182,11 @@ def fix_frontmatter_name(text: str, stem: str) -> str:
     )
 
 
-def transform_file(stem: str, content: str, fast_allowlist: set[str]) -> str:
+def transform_file(stem: str, content: str, fast_allowlist: set[str], subagent_model: str) -> str:
     text = strip_preamble_before_frontmatter(content)
     text = apply_text_transforms(text)
     text = fix_frontmatter_name(text, stem)
-    text = normalize_frontmatter_model(text, stem, fast_allowlist)
+    text = normalize_frontmatter_model(text, stem, fast_allowlist, subagent_model)
     # Normalize trailing newline
     if text and not text.endswith("\n"):
         text += "\n"
@@ -180,6 +201,7 @@ def write_all(dry_run: bool, dest: Path) -> list[Path]:
     src_files = sorted(SRC_DIR.glob("*.md"))
     source_stems = {src.stem for src in src_files}
     fast_allowlist = load_fast_allowlist()
+    subagent_model = load_subagent_model()
     unknown_fast_agents = sorted(fast_allowlist - source_stems)
     if unknown_fast_agents:
         raise SystemExit(
@@ -192,7 +214,7 @@ def write_all(dry_run: bool, dest: Path) -> list[Path]:
     for src in src_files:
         source_names.add(src.name)
         stem = src.stem
-        out = transform_file(stem, src.read_text(encoding="utf-8"), fast_allowlist)
+        out = transform_file(stem, src.read_text(encoding="utf-8"), fast_allowlist, subagent_model)
         target = dest / src.name
         if dry_run:
             print(f"Would write {target.relative_to(REPO_ROOT)} ({len(out)} bytes)")

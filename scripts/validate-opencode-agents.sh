@@ -65,6 +65,15 @@ for path in sorted(root.glob("*.md")):
     if mode is not None and mode not in {"primary", "subagent", "all"}:
         print(f"INVALID mode {mode!r} in {path} (expected primary|subagent|all)", file=sys.stderr)
         errors += 1
+    # Every generated ycc agent is launched through the subagent tool. Without
+    # an explicit mode, opencode would register it as a primary agent.
+    elif mode is None:
+        print(f"MISSING 'mode: subagent' in {path}", file=sys.stderr)
+        errors += 1
+    model = str(data.get("model") or "")
+    if "#" not in model:
+        print(f"MISSING sub-agent model variant in {path}: {model!r}", file=sys.stderr)
+        errors += 1
     tools = data.get("tools")
     if tools is not None and not isinstance(tools, dict):
         print(f"TOOLS must be an object (got {type(tools).__name__}) in {path}", file=sys.stderr)

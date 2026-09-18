@@ -2,7 +2,8 @@
 description: Analyze codebases and create comprehensive testing strategies including
   unit, integration, e2e, performance, and security tests with detailed roadmaps and
   implementation plans.
-model: openai/gpt-5.5
+mode: subagent
+model: openai/gpt-5.5#subagent
 color: '#EAB308'
 ---
 

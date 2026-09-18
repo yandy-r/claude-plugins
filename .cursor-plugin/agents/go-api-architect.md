@@ -2,7 +2,7 @@
 name: go-api-architect
 title: Go API Architect
 description: 'Design, develop, review, and improve Go/Golang REST APIs including microservices, authentication, performance optimization, testing strategies, and architectural decisions.'
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 color: blue
 ---
 

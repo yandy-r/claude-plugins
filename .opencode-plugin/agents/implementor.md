@@ -1,7 +1,8 @@
 ---
 description: Implement specific software engineering tasks assigned from a master
   plan with planning documentation context. Receives a single task and executes it.
-model: openai/gpt-5.5
+mode: subagent
+model: openai/gpt-5.5#subagent
 color: '#EF4444'
 ---
 

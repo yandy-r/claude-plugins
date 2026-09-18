@@ -1,7 +1,8 @@
 ---
 description: Comprehensive research on non-code topics with fact-checking, current
   information gathering, and authoritative sources with citations.
-model: openai/gpt-5.5
+mode: subagent
+model: openai/gpt-5.5#subagent
 color: '#3B82F6'
 ---
 

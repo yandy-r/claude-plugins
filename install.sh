@@ -11,6 +11,8 @@ CODEX_PLUGIN_DIR="${SCRIPT_DIR}/.codex-plugin/ycc"
 CODEX_AGENTS_DIR="${SCRIPT_DIR}/.codex-plugin/agents"
 OPENCODE_PLUGIN_DIR="${SCRIPT_DIR}/.opencode-plugin"
 MCP_CONFIG_SRC="${SCRIPT_DIR}/mcp-configs/mcp.json"
+CURSOR_CLI_CONFIG_SRC="${SCRIPT_DIR}/.cursor-plugin/config/cli-config.json"
+CONFIG_MERGE_HELPER="${SCRIPT_DIR}/scripts/merge_managed_config.py"
 
 # Colors ($'...' so escapes are real bytes, not literal \\033)
 RED=$'\033[0;31m'
@@ -107,11 +109,75 @@ copy_settings_file() {
     info "copied $src -> $dest"
 }
 
+# merge_settings_config <profile> <src> <dest> <groups>
+# Merge only repo-managed keys while preserving unknown/local settings. Managed
+# values previously written by this helper update automatically; locally edited
+# managed values are preserved unless --force is passed.
+merge_settings_config() {
+    local profile="$1"
+    local src="$2"
+    local dest="$3"
+    local groups="$4"
+
+    [[ -f "${CONFIG_MERGE_HELPER}" ]] || { err "config merge helper not found: ${CONFIG_MERGE_HELPER}"; exit 1; }
+    [[ -r "${CONFIG_MERGE_HELPER}" ]] || { err "config merge helper not readable: ${CONFIG_MERGE_HELPER}"; exit 1; }
+    command -v python3 >/dev/null 2>&1 || { err "python3 is required but not found"; exit 1; }
+
+    local -a command=(
+        python3 "${CONFIG_MERGE_HELPER}"
+        --profile "${profile}"
+        --source "${src}"
+        --destination "${dest}"
+        --groups "${groups}"
+    )
+    [[ "${FORCE:-0}" == "1" ]] && command+=(--force)
+    "${command[@]}"
+}
+
 usage() {
     cat <<EOF
-Usage: $(basename "$0") --target <target> [--mode <mode>] [--settings] [--rules] [--mcp] [--hooks] [--force] [--only <steps>]
+Usage: $(basename "$0") sync --target <target> --intent <intents> [--mode <mode>] [--force]
+       $(basename "$0") --target <target> [--mode <mode>] [--settings] [--rules] [--mcp] [--hooks] [--force] [--only <steps>]
 
 Sync plugin assets to an IDE configuration directory.
+
+The 'sync' subcommand is the recommended entry point: say WHAT you want synced
+and each target maps it onto the steps it actually supports. Structured config
+files are MERGED (repo-managed keys only), so local edits, tokens, trusted
+projects and CLI-written marketplace entries survive. The legacy flag form
+below keeps working unchanged.
+
+  $(basename "$0") sync --target claude --intent hooks,settings,mcp,plugins
+
+Intents (valid: base, settings, rules, mcp, hooks, plugins):
+  base      Install/register the target's bundle.
+  settings  Merge repo-managed config keys (models, effort levels, ...).
+  rules     Symlink the shared CLAUDE.md / AGENTS.md ruleset.
+  mcp       Merge MCP server definitions.
+  hooks     Merge hook config; claude also links the hook scripts directory.
+  plugins   Merge plugin enablement and marketplace entries. Add 'base' too
+            when you also want the target's CLI to perform registration.
+
+  Intents a target cannot execute are reported and skipped. 'sync' is exclusive:
+  it never implicitly runs 'base'.
+
+  Intent → step mapping per target:
+    claude    base→base  settings→settings  rules→rules  mcp→mcp
+              hooks→settings+hooks  plugins→settings
+    cursor    base→base  settings→settings  rules→rules  mcp→mcp
+              hooks, plugins → no-op
+    codex     base→base  settings→settings  rules→rules
+              mcp, plugins → settings (config.toml holds both)
+    opencode  base→base  settings→settings  rules→rules
+              mcp, plugins → settings (opencode.json holds both)
+
+Merge semantics (all structured config files):
+  - Keys this repo declares as managed are written; every other key is kept.
+  - A managed value the installer previously wrote is updated automatically.
+  - A managed value YOU changed is preserved, with a warning; --force takes
+    the repo value instead.
+  - Ownership is tracked by hash in ~/.config/ycc/managed-config-state.json
+    (hashes only — never values).
 
 Options:
   --target <target>   Target: claude, cursor, codex, opencode, or all
@@ -136,18 +202,18 @@ Options:
                                 (they have no remote-source concept).
                                 With --target all + --mode repo, cursor and
                                 opencode are skipped with a warning.
-  --settings          Additive: COPY per-machine config files so local edits
-                      (model, reasoning effort, statusline tweaks, MCP tokens,
+  --settings          Additive: MERGE repo-managed keys into per-machine config
+                      files while preserving local model choices, tokens,
                       marketplace entries written by the CLI, trusted-project
-                      lists, ...) don't back-propagate into the repo. Refuses
-                      to overwrite an existing real file without --force;
-                      replaces symlinks in place with an info warning (so
-                      upgrading from the old symlink flow is a no-op).
+                      lists, and unknown keys. Managed values changed locally
+                      are preserved unless --force is passed. Non-structured
+                      companion files (for example the Claude statusline script)
+                      still use copy semantics.
                       Mode-agnostic. Scope per target:
                         claude   — settings.json, statusline-command.sh
                         codex    — config.toml
                         opencode — opencode.json
-                        cursor   — (no config; use --rules for CLAUDE.md/AGENTS.md)
+                        cursor   — cli-config.json (CLI model preference)
   --rules             Additive: SYMLINK rules files so edits flow across
                       systems (this is the old --settings behavior for rules).
                       Refuses to replace a real rules file without --force;
@@ -161,14 +227,15 @@ Options:
   --hooks             Additive: also run the target's 'hooks' step.
                       Currently supported by the claude target only; silently
                       ignored by targets without hook support. Mode-agnostic.
-  --force             Replace a real (non-symlink) file at the destination.
-                        --settings: overwrite local edits in an existing
-                                    config file with the repo copy.
-                        --rules:    replace a user-authored CLAUDE.md /
-                                    AGENTS.md with the repo symlink.
+  --force             Let repo-managed config values win over local edits, and
+                      replace real rules files with repo symlinks when needed.
+                      Unknown/unmanaged config keys are never removed.
   --only <steps>      Exclusive: run only the comma-separated steps
                       (e.g. --only settings, --only rules,settings).
                       Overrides defaults and --settings/--rules/--mcp/--hooks.
+  --intent <intents>  'sync' subcommand only. Comma-separated intents (see
+                      above). Cannot be combined with --only or the additive
+                      --settings/--rules/--mcp/--hooks flags.
   --help              Show this help message
 
 Semantics:
@@ -192,26 +259,26 @@ Target steps:
                       ~/.claude/settings.json symlink (if any) first so the CLI
                       write doesn't pollute the committed source file. Edits
                       in ycc/ apply on /reload-plugins.
-            settings: COPY ycc/settings/{settings.json,statusline-command.sh}
-                      into ~/.claude/. Per-machine edits (model, effortLevel,
-                      marketplace entries, ...) no longer back-propagate into
-                      the repo. Refuses to overwrite an existing real file
-                      (e.g., one that already contains the CLI-written
-                      marketplace entry) without --force.
+            settings: MERGE managed keys from ycc/settings/settings.json into
+                      ~/.claude/settings.json and COPY statusline-command.sh.
+                      Local edits and CLI-written marketplace entries are
+                      preserved unless --force resolves a managed conflict.
             rules:    symlink ycc/settings/rules/{CLAUDE.md,AGENTS.md} into
                       ~/.claude/.
             mcp:      merge mcp-configs/mcp.json mcpServers into ~/.claude.json.
             hooks:    symlink ycc/settings/hooks/ into ~/.claude/hooks/, enabling
                       the WorktreeCreate hook (redirects harness-managed
                       worktrees to ~/.claude-worktrees/).
-  cursor    base | mcp | rules
+  cursor    base | settings | mcp | rules
             base:     generate + validate + format + rsync bundle to ~/.cursor/.
+            settings: merge .cursor-plugin/config/cli-config.json into
+                      ~/.cursor/cli-config.json (main CLI model preference).
             mcp:      symlink mcp-configs/mcp.json → ~/.cursor/mcp.json.
             rules:    symlink ycc/settings/rules/{CLAUDE.md,AGENTS.md} into
                       ~/.cursor/ (top level — NOT inside ~/.cursor/rules/, which
                       is rsynced with --delete during 'base').
-                      (cursor has no 'settings' step — no per-machine config
-                      file to copy.)
+                      Cursor sub-agent models are set per generated agent file
+                      in .cursor-plugin/agents/, not in cli-config.json.
   codex     base | settings | rules
             base:     generate + validate + format + sync custom agents, then
                       register the repo's .codex-plugin/ycc/ as a local
@@ -222,20 +289,21 @@ Target steps:
                       ./scripts/sync.sh --only codex to refresh the generated
                       bundle, and rerun this step after clearing the Codex
                       plugin cache.
-            settings: COPY .codex-plugin/config/config.toml into ~/.codex/.
-                      Per-machine edits (model, reasoning effort, trusted
-                      projects, MCP bearer tokens, ...) no longer back-
-                      propagate into the repo.
+            settings: MERGE managed keys from .codex-plugin/config/config.toml
+                      into ~/.codex/config.toml. Comments, trusted projects,
+                      MCP bearer tokens, connector entries and unknown tables
+                      are preserved; Codex reads MCP and plugin state from the
+                      same file, so those intents map here too.
             rules:    symlink .codex-plugin/config/default.rules AND
                       ycc/settings/rules/{CLAUDE.md,AGENTS.md} into ~/.codex/.
   opencode  base | settings | rules
             base:     generate + validate + format + rsync skills/agents/commands
                       into ~/.config/opencode/.
-            settings: COPY .opencode-plugin/opencode.json into
-                      ~/.config/opencode/. Per-machine edits (model, provider
-                      tokens, MCP blocks) no longer back-propagate. opencode
-                      reads MCP from opencode.json, so enable MCP via
-                      --settings — there is no separate mcp step.
+            settings: MERGE managed keys from .opencode-plugin/opencode.json
+                      into ~/.config/opencode/opencode.json. Local model
+                      choices, provider credentials and unknown keys are
+                      preserved. opencode reads MCP and plugins from the same
+                      file, so those intents map here — no separate mcp step.
             rules:    symlink .opencode-plugin/AGENTS.md into
                       ~/.config/opencode/ (generator-produced from
                       ycc/settings/rules/CLAUDE.md — the same user-global
@@ -245,23 +313,23 @@ Target steps:
 Examples:
   $(basename "$0") --target claude                         # base only (register local marketplace)
   $(basename "$0") --target claude --only base             # same, exclusive
-  $(basename "$0") --target claude --settings --rules      # base + copy settings + link rules
+  $(basename "$0") --target claude --settings --rules      # base + merge settings + link rules
   $(basename "$0") --target claude --settings --rules --mcp
   $(basename "$0") --target claude --only settings         # copy settings only
   $(basename "$0") --target claude --only rules            # link rules only
   $(basename "$0") --target claude --only mcp
-  $(basename "$0") --target claude --settings --force      # overwrite local settings.json with repo copy
+  $(basename "$0") --target claude --settings --force      # repo values win for managed-key conflicts
   $(basename "$0") --target claude --hooks                 # base + WorktreeCreate hook
   $(basename "$0") --target claude --only hooks            # hooks only
   $(basename "$0") --target cursor                         # base only
   $(basename "$0") --target cursor --mcp                   # base + mcp
   $(basename "$0") --target cursor --rules                 # base + rules symlinks
   $(basename "$0") --target cursor --only rules            # rules only
-  $(basename "$0") --target codex --settings --rules       # base + copy config + link rules
-  $(basename "$0") --target codex --only settings          # copy config.toml only
+  $(basename "$0") --target codex --settings --rules       # base + merge config + link rules
+  $(basename "$0") --target codex --only settings          # merge config.toml only
   $(basename "$0") --target codex --only rules             # link default.rules + CLAUDE.md + AGENTS.md
   $(basename "$0") --target opencode                       # base only
-  $(basename "$0") --target opencode --settings --rules    # base + copy opencode.json + link AGENTS.md
+  $(basename "$0") --target opencode --settings --rules    # base + merge opencode.json + link AGENTS.md
   $(basename "$0") --target all --settings --rules --mcp
   $(basename "$0") --target all --rules --force            # force-replace user-authored rules files
 
@@ -313,63 +381,15 @@ run_repo_style_format_modified() {
 # ---------------------------------------------------------------------------
 # MCP: Claude Code (~/.claude.json root mcpServers)
 # ---------------------------------------------------------------------------
+# Claude Code reads MCP servers from ~/.claude.json. The shared merge helper
+# gives this the same ownership tracking, local-edit protection and atomic
+# write behavior as every other structured config file.
 merge_claude_mcp_json() {
-    command -v python3 >/dev/null 2>&1 || { err "python3 is required but not found"; exit 1; }
-
-    if [[ ! -f "${MCP_CONFIG_SRC}" ]]; then
-        err "MCP source not found: ${MCP_CONFIG_SRC}"
-        exit 1
-    fi
-    if [[ ! -r "${MCP_CONFIG_SRC}" ]]; then
-        err "MCP source not readable: ${MCP_CONFIG_SRC}"
-        exit 1
-    fi
-
-    local dest="${HOME}/.claude.json"
-    python3 - "$MCP_CONFIG_SRC" "$dest" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-src_path = Path(sys.argv[1])
-dest_path = Path(sys.argv[2])
-
-with open(src_path, encoding="utf-8") as f:
-    src = json.load(f)
-if "mcpServers" not in src or not isinstance(src["mcpServers"], dict):
-    sys.stderr.write("error: mcp-configs/mcp.json must contain a top-level object mcpServers\n")
-    sys.exit(1)
-incoming = src["mcpServers"]
-
-if dest_path.exists():
-    with open(dest_path, encoding="utf-8") as f:
-        try:
-            dest = json.load(f)
-        except json.JSONDecodeError as e:
-            sys.stderr.write(f"error: invalid JSON in {dest_path}: {e}\n")
-            sys.exit(1)
-    if not isinstance(dest, dict):
-        sys.stderr.write("error: ~/.claude.json must be a JSON object\n")
-        sys.exit(1)
-else:
-    dest = {}
-
-existing = dest.get("mcpServers")
-if existing is None:
-    existing = {}
-elif not isinstance(existing, dict):
-    sys.stderr.write("error: mcpServers in ~/.claude.json must be an object\n")
-    sys.exit(1)
-
-merged = {**existing, **incoming}
-dest["mcpServers"] = merged
-
-dest_path.parent.mkdir(parents=True, exist_ok=True)
-with open(dest_path, "w", encoding="utf-8") as f:
-    json.dump(dest, f, indent=2, ensure_ascii=False)
-    f.write("\n")
-PY
-    info "Merged mcpServers into ${dest}"
+    merge_settings_config \
+        "claude-mcp" \
+        "${MCP_CONFIG_SRC}" \
+        "${HOME}/.claude.json" \
+        "mcp"
 }
 
 # ---------------------------------------------------------------------------
@@ -518,6 +538,16 @@ sync_cursor_mcp_json() {
 # The target's valid steps are used for validation by validate_only_steps().
 step_enabled() {
     local step="$1"
+    if [[ "${EXCLUSIVE_STEPS:-0}" == "1" ]]; then
+        # Exclusive mode: nothing runs unless it was explicitly selected, so a
+        # target whose intents are all no-ops must not silently fall back to
+        # 'base'.
+        local s
+        for s in "${ONLY_STEPS[@]}"; do
+            [[ "$s" == "$step" ]] && return 0
+        done
+        return 1
+    fi
     if [[ ${#ONLY_STEPS[@]} -gt 0 ]]; then
         local s
         for s in "${ONLY_STEPS[@]}"; do
@@ -540,7 +570,9 @@ step_enabled() {
 validate_only_steps() {
     local target="$1"
     local valid_csv="$2"
-    [[ ${#ONLY_STEPS[@]} -eq 0 ]] && return 0
+    if [[ "${EXCLUSIVE_STEPS:-0}" != "1" && ${#ONLY_STEPS[@]} -eq 0 ]]; then
+        return 0
+    fi
 
     local -a valid
     IFS=',' read -r -a valid <<< "$valid_csv"
@@ -555,6 +587,128 @@ validate_only_steps() {
             exit 1
         fi
     done
+}
+
+# ---------------------------------------------------------------------------
+# Intent mapping ('sync' subcommand)
+# ---------------------------------------------------------------------------
+# Intents describe WHAT the user wants synced; each target maps them onto the
+# steps it actually supports. An intent a target cannot execute is reported and
+# skipped rather than silently falling back to another step.
+VALID_INTENTS=(base settings rules mcp hooks plugins)
+
+# intent_steps_for_target <target> <intent>
+# Echo the comma-separated steps <intent> maps to for <target>. Empty output
+# means the intent is a no-op there.
+intent_steps_for_target() {
+    local target="$1"
+    local intent="$2"
+
+    case "${target}:${intent}" in
+        claude:base|claude:settings|claude:rules|claude:mcp) echo "${intent}" ;;
+        # Hook activation lives in settings.json; hook scripts live in hooks/.
+        claude:hooks) echo "settings,hooks" ;;
+        # Claude plugin enablement is pure settings.json state (enabledPlugins,
+        # extraKnownMarketplaces). Add 'base' explicitly to also run the CLI's
+        # marketplace registration, which needs network access.
+        claude:plugins) echo "settings" ;;
+
+        cursor:base|cursor:rules|cursor:mcp) echo "${intent}" ;;
+        cursor:settings) echo "settings" ;;
+        cursor:hooks|cursor:plugins) echo "" ;;
+
+        codex:base|codex:settings|codex:rules) echo "${intent}" ;;
+        # Codex reads MCP servers and plugin enablement from config.toml.
+        codex:mcp|codex:plugins) echo "settings" ;;
+        codex:hooks) echo "" ;;
+
+        opencode:base|opencode:settings|opencode:rules) echo "${intent}" ;;
+        # opencode reads MCP servers and plugins from opencode.json.
+        opencode:mcp|opencode:plugins) echo "settings" ;;
+        opencode:hooks) echo "" ;;
+
+        *) echo "" ;;
+    esac
+}
+
+# configure_intents_for_target <target>
+# Translate INTENTS into ONLY_STEPS for <target> and enable exclusive mode.
+configure_intents_for_target() {
+    local target="$1"
+    local -a steps=()
+    local intent mapped step
+
+    for intent in "${INTENTS[@]}"; do
+        mapped="$(intent_steps_for_target "${target}" "${intent}")"
+        if [[ -z "${mapped}" ]]; then
+            warn "intent '${intent}' is not supported by target '${target}' — skipping"
+            continue
+        fi
+        local -a mapped_steps=()
+        IFS=',' read -r -a mapped_steps <<< "${mapped}"
+        for step in "${mapped_steps[@]}"; do
+            local seen=0 existing
+            for existing in "${steps[@]:-}"; do
+                [[ "${existing}" == "${step}" ]] && seen=1 && break
+            done
+            [[ ${seen} -eq 0 ]] && steps+=("${step}")
+        done
+    done
+
+    ONLY_STEPS=("${steps[@]:-}")
+    # Drop the empty element bash leaves behind when expanding an empty array.
+    if [[ ${#ONLY_STEPS[@]} -eq 1 && -z "${ONLY_STEPS[0]}" ]]; then
+        ONLY_STEPS=()
+    fi
+    EXCLUSIVE_STEPS=1
+}
+
+intent_requested() {
+    local requested="$1"
+    local intent
+    for intent in "${INTENTS[@]:-}"; do
+        [[ "${intent}" == "${requested}" ]] && return 0
+    done
+    return 1
+}
+
+# config_groups_for_target <target>
+# Return managed config groups selected for a structured settings file.
+config_groups_for_target() {
+    local target="$1"
+    if [[ "${COMMAND}" != "sync" ]]; then
+        case "${target}" in
+            claude) echo "settings,hooks,plugins" ;;
+            cursor) echo "settings" ;;
+            codex|opencode) echo "settings,mcp,plugins" ;;
+        esac
+        return 0
+    fi
+
+    local -a groups=()
+    local group
+    for group in settings mcp plugins hooks; do
+        intent_requested "${group}" || continue
+        case "${target}:${group}" in
+            claude:settings|claude:plugins|claude:hooks) groups+=("${group}") ;;
+            cursor:settings) groups+=("settings") ;;
+            codex:settings|codex:mcp|codex:plugins) groups+=("${group}") ;;
+            opencode:settings|opencode:mcp|opencode:plugins) groups+=("${group}") ;;
+        esac
+    done
+    local IFS=','
+    echo "${groups[*]}"
+}
+
+# run_target <target> <function>
+# Configure intent mapping (sync mode only), then run the target.
+run_target() {
+    local target="$1"
+    local fn="$2"
+    if [[ "${COMMAND}" == "sync" ]]; then
+        configure_intents_for_target "${target}"
+    fi
+    "${fn}"
 }
 
 # ---------------------------------------------------------------------------
@@ -576,26 +730,22 @@ sync_claude_target() {
         base_ran=1
     fi
     if step_enabled settings; then
-        printf '\n%sClaude: copy settings + statusline%s\n' "${BOLD}" "${NC}"
-        # Copy (not symlink) so per-machine edits (model, effortLevel, MCP
-        # toggles, CLI-added marketplace entries) don't back-propagate into
-        # ycc/settings/settings.json. copy_settings_file refuses to overwrite
-        # a real file without --force, preserving any marketplace entry written
-        # by the 'base' step.
-        #
-        # If 'base' ran in this same invocation, ~/.claude/settings.json was
-        # just written by the claude CLI (marketplace entry + enabledPlugins).
-        # Copying the repo version over it would wipe that entry. Skip the
-        # copy here — 'base' already materialized fresh content from the repo
-        # as its starting point, so the file is up-to-date. If the user
-        # explicitly wants to refresh from the repo, they can run
-        # '--only settings --force' followed by '--only base' to re-register.
-        if [[ $base_ran -eq 1 ]]; then
-            info "skip: ${HOME}/.claude/settings.json (base just wrote the marketplace entry; re-copying would wipe it)"
-        else
-            copy_settings_file "${SCRIPT_DIR}/ycc/settings/settings.json" "${HOME}/.claude/settings.json"
+        printf '\n%sClaude: merge settings + copy statusline%s\n' "${BOLD}" "${NC}"
+        # Structured merge keeps CLI-written marketplace entries and local
+        # machine preferences while updating repo-managed model, hook and
+        # plugin keys. This is safe even when 'base' ran in the same invocation.
+        local claude_groups
+        claude_groups="$(config_groups_for_target claude)"
+        if [[ -n "${claude_groups}" ]]; then
+            merge_settings_config \
+                "claude-settings" \
+                "${SCRIPT_DIR}/ycc/settings/settings.json" \
+                "${HOME}/.claude/settings.json" \
+                "${claude_groups}"
         fi
-        copy_settings_file "${SCRIPT_DIR}/ycc/settings/statusline-command.sh" "${HOME}/.claude/statusline-command.sh"
+        if [[ "${COMMAND}" != "sync" ]] || intent_requested settings; then
+            copy_settings_file "${SCRIPT_DIR}/ycc/settings/statusline-command.sh" "${HOME}/.claude/statusline-command.sh"
+        fi
         ran=1
     fi
     if step_enabled rules; then
@@ -626,13 +776,13 @@ sync_claude_target() {
         if [[ "${MODE:-local}" == "repo" ]]; then
             warn "Run /reload-plugins or start a new Claude Code session. The 'ycc' marketplace in ~/.claude/settings.json now tracks the github source yandy-r/claude-plugins."
             warn "Updates: rerun 'claude plugin install ycc@ycc --scope user' (or use the in-Claude /plugins UI) to pull the latest published commit."
-            warn "Heads up: ~/.claude/settings.json now contains the CLI-written marketplace entry. Re-running '--settings' without --force is blocked; with --force it overwrites the file with the repo version (wiping the marketplace entry), so re-run '--only base' afterwards to re-register."
+            warn "The Claude settings file now contains the CLI-written marketplace entry. Re-running the settings step merges repo-managed keys and preserves that entry."
         else
             local claude_repo_root_msg
             claude_repo_root_msg="$(realpath "${SCRIPT_DIR}")"
             warn "Run /reload-plugins or start a new Claude Code session. The 'ycc' marketplace in ~/.claude/settings.json now points at ${claude_repo_root_msg} (directory source)."
             warn "Edits in ycc/ apply on plugin reload. No rsync, no cache clear."
-            warn "Heads up: ~/.claude/settings.json now contains the CLI-written marketplace entry. Re-running '--settings' without --force is blocked; with --force it overwrites the file with the repo version (wiping the marketplace entry), so re-run '--only base' afterwards to re-register."
+            warn "The Claude settings file now contains the CLI-written marketplace entry. Re-running the settings step merges repo-managed keys and preserves that entry."
             warn "If you move or rename this repo, rerun ./install.sh --target claude --only base."
         fi
     fi
@@ -757,7 +907,7 @@ PY
 # Cursor sync (base + optional MCP + optional settings/rules)
 # ---------------------------------------------------------------------------
 sync_cursor_target() {
-    validate_only_steps "cursor" "base,mcp,rules"
+    validate_only_steps "cursor" "base,settings,mcp,rules"
 
     if [[ "${MODE:-local}" == "repo" ]]; then
         err "--mode repo is not supported by the cursor target"
@@ -770,16 +920,18 @@ sync_cursor_target() {
     local scripts_dir="${SCRIPT_DIR}/scripts"
 
     command -v python3 >/dev/null 2>&1 || { err "python3 is required but not found"; exit 1; }
-    command -v rsync >/dev/null 2>&1 || { err "rsync is required but not found"; exit 1; }
 
     mkdir -p "${cursor_dir}"
 
-    local do_base=0 do_mcp=0 do_rules=0
+    local do_base=0 do_settings=0 do_mcp=0 do_rules=0
     step_enabled base && do_base=1
+    step_enabled settings && do_settings=1
     step_enabled mcp && do_mcp=1
     step_enabled rules && do_rules=1
 
-    if [[ $do_base -eq 0 && $do_mcp -eq 0 && $do_rules -eq 0 ]]; then
+    [[ $do_base -eq 1 ]] && { command -v rsync >/dev/null 2>&1 || { err "rsync is required but not found"; exit 1; }; }
+
+    if [[ $do_base -eq 0 && $do_settings -eq 0 && $do_mcp -eq 0 && $do_rules -eq 0 ]]; then
         warn "Cursor target ran no steps"
         printf '\n%sCursor sync complete.%s\n' "${BOLD}" "${NC}"
         return 0
@@ -787,6 +939,7 @@ sync_cursor_target() {
 
     local total=0
     [[ $do_base -eq 1 ]] && total=$((total + 4))
+    [[ $do_settings -eq 1 ]] && total=$((total + 1))
     [[ $do_mcp -eq 1 ]] && total=$((total + 1))
     [[ $do_rules -eq 1 ]] && total=$((total + 1))
     local step=0
@@ -858,6 +1011,16 @@ sync_cursor_target() {
                 warn "Source not found, skipping: ${src_unit}"
             fi
         done
+    fi
+
+    if [[ $do_settings -eq 1 ]]; then
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Merge Cursor CLI settings%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        merge_settings_config \
+            "cursor-cli" \
+            "${CURSOR_CLI_CONFIG_SRC}" \
+            "${cursor_dir}/cli-config.json" \
+            "settings"
     fi
 
     if [[ $do_mcp -eq 1 ]]; then
@@ -1053,11 +1216,18 @@ PY
 
     if [[ $do_settings -eq 1 ]]; then
         step=$((step + 1))
-        printf '\n%s[%d/%d] Copy Codex config (config.toml)%s\n' "${BOLD}" "$step" "$total" "${NC}"
-        # Copy (not symlink) so per-machine edits (model, reasoning effort,
-        # trusted-project entries, MCP tokens, ...) don't back-propagate into
-        # .codex-plugin/config/config.toml.
-        copy_settings_file "${SCRIPT_DIR}/.codex-plugin/config/config.toml" "${HOME}/.codex/config.toml"
+        printf '\n%s[%d/%d] Merge Codex config (config.toml)%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        # Merge managed keys only: trusted-project entries, MCP tokens,
+        # connector IDs and comments in the user's config.toml are preserved.
+        local codex_groups
+        codex_groups="$(config_groups_for_target codex)"
+        if [[ -n "${codex_groups}" ]]; then
+            merge_settings_config \
+                "codex-config" \
+                "${SCRIPT_DIR}/.codex-plugin/config/config.toml" \
+                "${HOME}/.codex/config.toml" \
+                "${codex_groups}"
+        fi
     fi
 
     if [[ $do_rules -eq 1 ]]; then
@@ -1211,11 +1381,19 @@ sync_opencode_target() {
 
     if [[ $do_settings -eq 1 ]]; then
         step=$((step + 1))
-        printf '\n%s[%d/%d] Copy opencode config (opencode.json)%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        printf '\n%s[%d/%d] Merge opencode config (opencode.json)%s\n' "${BOLD}" "$step" "$total" "${NC}"
         mkdir -p "${opencode_dir}"
-        # Copy (not symlink) so per-machine edits (model, provider tokens, MCP
-        # blocks) don't back-propagate into .opencode-plugin/opencode.json.
-        copy_settings_file "${OPENCODE_PLUGIN_DIR}/opencode.json" "${opencode_dir}/opencode.json"
+        # Merge managed keys only: per-machine model overrides, provider
+        # credentials and unknown keys in the user's opencode.json are kept.
+        local opencode_groups
+        opencode_groups="$(config_groups_for_target opencode)"
+        if [[ -n "${opencode_groups}" ]]; then
+            merge_settings_config \
+                "opencode-config" \
+                "${OPENCODE_PLUGIN_DIR}/opencode.json" \
+                "${opencode_dir}/opencode.json" \
+                "${opencode_groups}"
+        fi
     fi
 
     if [[ $do_rules -eq 1 ]]; then
@@ -1244,14 +1422,14 @@ sync_all_targets() {
     if [[ "${MODE:-local}" == "repo" ]]; then
         warn "--mode repo: skipping cursor and opencode targets (no remote-source concept)."
         warn "  use --target cursor / --target opencode (default --mode local) to install those bundles."
-        sync_claude_target
-        sync_codex_target
+        run_target claude sync_claude_target
+        run_target codex sync_codex_target
         return 0
     fi
-    sync_claude_target
-    sync_cursor_target
-    sync_codex_target
-    sync_opencode_target
+    run_target claude sync_claude_target
+    run_target cursor sync_cursor_target
+    run_target codex sync_codex_target
+    run_target opencode sync_opencode_target
 }
 
 # ---------------------------------------------------------------------------
@@ -1259,12 +1437,22 @@ sync_all_targets() {
 # ---------------------------------------------------------------------------
 TARGET=""
 MODE="local"
+COMMAND="legacy"
 MCP=0
 SETTINGS=0
 RULES=0
 HOOKS=0
 FORCE=0
+EXCLUSIVE_STEPS=0
 ONLY_STEPS=()
+INTENTS=()
+
+# Optional ergonomic subcommand. Invocations that begin with --target retain
+# the legacy CLI unchanged.
+if [[ "${1:-}" == "sync" ]]; then
+    COMMAND="sync"
+    shift
+fi
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -1289,6 +1477,11 @@ while [[ $# -gt 0 ]]; do
                 err "--only requires at least one step"
                 exit 1
             fi
+            shift 2
+            ;;
+        --intent)
+            [[ $# -lt 2 ]] && { err "--intent requires a comma-separated list of intents"; exit 1; }
+            IFS=',' read -r -a INTENTS <<< "$2"
             shift 2
             ;;
         --mcp)
@@ -1329,7 +1522,44 @@ if [[ -z "${TARGET}" ]]; then
     exit 1
 fi
 
+if [[ "${COMMAND}" == "sync" ]]; then
+    if [[ ${#INTENTS[@]} -eq 0 ]]; then
+        err "sync requires --intent <intent,...>"
+        exit 1
+    fi
+    if [[ ${#ONLY_STEPS[@]} -gt 0 || "${SETTINGS}" == "1" || "${RULES}" == "1" || "${MCP}" == "1" || "${HOOKS}" == "1" ]]; then
+        err "sync --intent cannot be combined with --only, --settings, --rules, --mcp, or --hooks"
+        exit 1
+    fi
+
+    declare -A seen_intents=()
+    unique_intents=()
+    for intent in "${INTENTS[@]}"; do
+        if [[ -z "${intent}" ]]; then
+            err "--intent contains an empty value"
+            exit 1
+        fi
+        intent_valid=0
+        for allowed in "${VALID_INTENTS[@]}"; do
+            [[ "${intent}" == "${allowed}" ]] && intent_valid=1 && break
+        done
+        if [[ ${intent_valid} -eq 0 ]]; then
+            err "unknown intent '${intent}' (valid: ${VALID_INTENTS[*]})"
+            exit 1
+        fi
+        if [[ -z "${seen_intents[${intent}]:-}" ]]; then
+            unique_intents+=("${intent}")
+            seen_intents["${intent}"]=1
+        fi
+    done
+    INTENTS=("${unique_intents[@]}")
+elif [[ ${#INTENTS[@]} -gt 0 ]]; then
+    err "--intent requires the 'sync' subcommand"
+    exit 1
+fi
+
 if [[ ${#ONLY_STEPS[@]} -gt 0 ]]; then
+    EXCLUSIVE_STEPS=1
     if [[ "${SETTINGS}" == "1" ]]; then
         warn "--settings is ignored when --only is used"
     fi
@@ -1346,16 +1576,16 @@ fi
 
 case "${TARGET}" in
     claude)
-        sync_claude_target
+        run_target claude sync_claude_target
         ;;
     cursor)
-        sync_cursor_target
+        run_target cursor sync_cursor_target
         ;;
     codex)
-        sync_codex_target
+        run_target codex sync_codex_target
         ;;
     opencode)
-        sync_opencode_target
+        run_target opencode sync_opencode_target
         ;;
     all)
         sync_all_targets

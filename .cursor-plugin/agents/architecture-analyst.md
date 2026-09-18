@@ -1,7 +1,7 @@
 ---
 name: architecture-analyst
 description: 'Analyze codebase architecture and create documentation in docs/architecture/ with system overviews, component maps, and Mermaid data flow diagrams.'
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 color: blue
 tools:
   - Read

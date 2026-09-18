@@ -2,7 +2,7 @@
 name: typescript-expert-architect
 title: TypeScript Expert Architect
 description: 'Expert TypeScript/JavaScript assistance at the language, type-system, and tooling level including generic APIs, .d.ts authoring, tsconfig tuning, conditional/mapped types, npm libraries, monorepos, cross-runtime, and bundler optimization.'
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 color: yellow
 ---
 

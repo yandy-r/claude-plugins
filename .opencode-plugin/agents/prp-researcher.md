@@ -2,6 +2,8 @@
 description: 'Dual-mode research for PRP workflows: codebase exploration (similar
   features, naming, error handling, test patterns, dependencies) and external market/technical
   research (competitors, docs, best practices).'
+mode: subagent
+model: openai/gpt-5.5#subagent
 tools:
   read: true
   grep: true

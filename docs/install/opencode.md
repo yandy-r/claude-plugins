@@ -21,16 +21,22 @@ Restart opencode after installing or updating the bundle.
 For the full opencode setup:
 
 ```bash
+./install.sh sync --target opencode --intent base,settings,mcp,plugins,rules
+```
+
+The legacy equivalent remains supported:
+
+```bash
 ./install.sh --target opencode --settings --rules
 ```
 
 Step behavior:
 
-| Step       | Effect                                                                                                             |
-| ---------- | ------------------------------------------------------------------------------------------------------------------ |
-| `base`     | Generates and validates `.opencode-plugin/{skills,agents,commands}/`, then rsyncs them into `~/.config/opencode/`. |
-| `settings` | Copies `.opencode-plugin/opencode.json` into `~/.config/opencode/opencode.json`.                                   |
-| `rules`    | Symlinks `.opencode-plugin/AGENTS.md` into `~/.config/opencode/AGENTS.md`.                                         |
+| Step       | Effect                                                                                                                                     |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `base`     | Generates and validates `.opencode-plugin/{skills,agents,commands}/`, then rsyncs them into `~/.config/opencode/`.                         |
+| `settings` | Merges managed keys from `.opencode-plugin/opencode.json` into `~/.config/opencode/opencode.json`. MCP and plugins live in this same file. |
+| `rules`    | Symlinks `.opencode-plugin/AGENTS.md` into `~/.config/opencode/AGENTS.md`.                                                                 |
 
 opencode reads MCP configuration from `opencode.json`; there is no separate
 `mcp` step for this target.
@@ -87,9 +93,18 @@ or the built-in `task` tool, and commands as `/<name>` in the TUI.
 
 ## Model Configuration
 
-The generated `opencode.json` sets the default model and provider options for
-this bundle. Users can keep local changes in the copied config file without
-back-propagating edits into the repository.
+The generated `opencode.json` sets the bundle's main model, its reasoning
+effort, and a `#subagent` variant carrying the sub-agent reasoning effort. The
+built-in `general` and `explore` subagents are pinned to that variant so
+delegated work runs at sub-agent effort.
+
+**These values are placeholders.** Unlike Claude and Codex, opencode's usable
+catalog depends on which provider subscriptions and models you have configured,
+so the bundle ships a portable default rather than a fixed model. Change the
+preferred models in [`ycc/settings/models.json`](../../ycc/settings/models.json)
+(`targets.opencode`), or simply edit your own
+`~/.config/opencode/opencode.json` — the merge keeps local model choices and
+provider credentials instead of overwriting them.
 
 ## Hooks
 

@@ -2,7 +2,7 @@
 name: rust-build-resolver
 description: 'Rust build, compilation, and dependency error resolution specialist. Fixes cargo build errors, borrow checker issues, and Cargo.toml problems with minimal changes.'
 tools: ['Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob']
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 ---
 
 # Rust Build Error Resolver

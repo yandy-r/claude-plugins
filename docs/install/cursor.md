@@ -14,24 +14,49 @@ From the repository root:
 The default `base` step generates, validates, formats, and rsyncs the Cursor
 bundle into `~/.cursor/`.
 
-## Add Rules And MCP
+## Add Settings, Rules, And MCP
 
 For the full Cursor setup:
 
 ```bash
-./install.sh --target cursor --rules --mcp
+./install.sh sync --target cursor --intent settings,rules,mcp
+```
+
+The legacy equivalent remains supported:
+
+```bash
+./install.sh --target cursor --settings --rules --mcp
 ```
 
 Step behavior:
 
-| Step    | Effect                                                                                               |
-| ------- | ---------------------------------------------------------------------------------------------------- |
-| `base`  | Generates and validates `.cursor-plugin/{skills,agents,rules}/`, then rsyncs them into `~/.cursor/`. |
-| `rules` | Symlinks `ycc/settings/rules/CLAUDE.md` and `AGENTS.md` into `~/.cursor/`.                           |
-| `mcp`   | Symlinks `mcp-configs/mcp.json` to `~/.cursor/mcp.json`.                                             |
+| Step       | Effect                                                                                               |
+| ---------- | ---------------------------------------------------------------------------------------------------- |
+| `base`     | Generates and validates `.cursor-plugin/{skills,agents,rules}/`, then rsyncs them into `~/.cursor/`. |
+| `settings` | Merges `.cursor-plugin/config/cli-config.json` into `~/.cursor/cli-config.json`.                     |
+| `rules`    | Symlinks `ycc/settings/rules/CLAUDE.md` and `AGENTS.md` into `~/.cursor/`.                           |
+| `mcp`      | Symlinks `mcp-configs/mcp.json` to `~/.cursor/mcp.json`.                                             |
 
-Cursor has no `settings` step because this repository does not manage a
-per-machine Cursor config file.
+Cursor has no `hooks` or `plugins` step; those intents are reported as no-ops.
+
+## Model Configuration
+
+Cursor splits model selection across two surfaces, so this repository manages
+both:
+
+| Surface         | File                        | Value                                   |
+| --------------- | --------------------------- | --------------------------------------- |
+| Main CLI model  | `~/.cursor/cli-config.json` | `claude-fable-5-1`                      |
+| Sub-agent model | `~/.cursor/agents/*.md`     | `claude-opus-5[effort=high,context=1m]` |
+
+Sub-agent models live in each generated agent's frontmatter because that is
+where Cursor resolves them. `scripts/cursor_fast_agents.json` remains an
+explicit opt-in escape hatch for individual agents, but is empty by default so
+every generated subagent uses Opus High.
+
+Both values are placeholders in the sense that Cursor may override them: model
+availability is plan- and admin-gated, and legacy request-based plans can force
+subagents onto Composer regardless of configuration.
 
 ## Selective Steps
 
@@ -39,6 +64,7 @@ Use `--only` to run exactly the listed steps:
 
 ```bash
 ./install.sh --target cursor --only base
+./install.sh --target cursor --only settings
 ./install.sh --target cursor --only rules
 ./install.sh --target cursor --only mcp
 ```
@@ -54,6 +80,7 @@ directories, so use the default local mode.
 | Agents                 | `~/.cursor/agents/`                          |
 | Cursor rules           | `~/.cursor/rules/`                           |
 | Shared top-level rules | `~/.cursor/CLAUDE.md`, `~/.cursor/AGENTS.md` |
+| CLI config             | `~/.cursor/cli-config.json`                  |
 | MCP config             | `~/.cursor/mcp.json`                         |
 
 The top-level rule links intentionally live outside `~/.cursor/rules/` because

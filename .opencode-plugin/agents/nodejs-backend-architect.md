@@ -2,7 +2,8 @@
 description: Expert guidance on Node.js/TypeScript backend development including microservices
   architecture, performance optimization, async/concurrency, API design, auth systems,
   and database optimization.
-model: openai/gpt-5.5
+mode: subagent
+model: openai/gpt-5.5#subagent
 color: '#22C55E'
 ---
 

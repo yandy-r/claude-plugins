@@ -61,7 +61,9 @@ for path in sorted(agents_dir.glob("*.md")):
         continue
     if model in {"inherit", "fast"}:
         continue
-    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]*[A-Za-z0-9]|[A-Za-z0-9]", model):
+    # Cursor model IDs may carry bracketed parameters, e.g.
+    # claude-opus-5[effort=high,context=1m] (see cursor.com/docs/subagents).
+    if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]*(?:\[[A-Za-z0-9=,._-]*\])?", model):
         continue
     errors.append(f"unsupported model token in {path.name}: {model}")
 

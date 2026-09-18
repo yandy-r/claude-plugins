@@ -2,7 +2,7 @@
 name: cloudflare-developer
 title: Cloudflare Developer
 description: 'Implement Cloudflare Workers, Pages, D1, R2, KV, Durable Objects, and wrangler.toml configurations. Writes Worker code, creates configs, and verifies deployments.'
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 color: green
 tools: ['Read', 'Write', 'Edit', 'Bash', 'Grep', 'Glob']
 ---

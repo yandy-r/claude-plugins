@@ -2,7 +2,7 @@
 name: test-strategy-planner
 title: Test Strategy Planner
 description: 'Analyze codebases and create comprehensive testing strategies including unit, integration, e2e, performance, and security tests with detailed roadmaps and implementation plans.'
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 color: yellow
 ---
 

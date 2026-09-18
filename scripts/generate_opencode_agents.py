@@ -29,6 +29,7 @@ import argparse
 import filecmp
 import sys
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 
 from generate_opencode_common import (
@@ -44,6 +45,37 @@ from generate_opencode_common import (
     normalize_agent_color,
     parse_frontmatter,
 )
+from generate_opencode_plugin import (
+    SUBAGENT_VARIANT_ID,
+    build_subagent_model_reference,
+    load_model_settings,
+    split_model_reference,
+)
+
+
+def subagent_variant_applier() -> Callable[[str], str]:
+    """Build a function that pins an agent model to the sub-agent variant.
+
+    Every agent in this bundle runs as a sub-agent, so a bare `provider/model`
+    in agent frontmatter would silently override the sub-agent reasoning effort
+    configured in opencode.json and run at the *main* effort instead. Attach the
+    `#subagent` variant whenever the agent resolves to the variant-bearing
+    model, and redirect other models to the configured sub-agent model.
+    """
+    settings = load_model_settings()
+    main_provider, main_model = split_model_reference(str(settings["main"]["model"]))
+    subagent_reference = build_subagent_model_reference(settings)
+
+    def apply(model: str) -> str:
+        if not model:
+            return subagent_reference
+        if "#" in model:
+            return model
+        if model == f"{main_provider}/{main_model}":
+            return f"{model}#{SUBAGENT_VARIANT_ID}"
+        return subagent_reference
+
+    return apply
 
 
 def convert_tools(value: object) -> dict[str, bool]:
@@ -89,6 +121,7 @@ def transform_agent(
     raw: str,
     aliases: dict[str, str],
     model_aliases: dict[str, str],
+    apply_subagent_variant: Callable[[str], str],
 ) -> str:
     frontmatter, body = parse_frontmatter(raw)
 
@@ -100,17 +133,28 @@ def transform_agent(
     if not transformed_description:
         transformed_description = f"{stem} agent"
 
-    payload: dict[str, object] = {"description": transformed_description}
+    payload: dict[str, object] = {
+        "description": transformed_description,
+        # Every generated ycc specialist is launched through the subagent tool.
+        # OpenCode V2 defaults custom agents to `primary` when mode is omitted.
+        "mode": "subagent",
+    }
 
     raw_model = frontmatter.get("model")
     model_value = map_model(raw_model, model_aliases)
     if model_value:
-        payload["model"] = model_value
+        payload["model"] = apply_subagent_variant(model_value)
     elif raw_model and not is_model_drop_sentinel(str(raw_model)):
         print(
-            f"generate_opencode_agents: WARN unmapped model " f"'{raw_model}' on {stem}.md — dropping model field",
+            f"generate_opencode_agents: WARN unmapped model " f"'{raw_model}' on {stem}.md — using sub-agent default",
             file=sys.stderr,
         )
+        payload["model"] = apply_subagent_variant("")
+    else:
+        # Every generated ycc agent runs as a sub-agent. Omitting this field
+        # would inherit the parent session's main model/effort, bypassing the
+        # preferred High-effort sub-agent profile.
+        payload["model"] = apply_subagent_variant("")
 
     if "tools" in frontmatter:
         tools_map = convert_tools(frontmatter["tools"])
@@ -148,6 +192,7 @@ def transform_agent(
 def write_all(dest: Path, dry_run: bool) -> set[Path]:
     aliases = load_agent_aliases()
     model_aliases = load_model_aliases()
+    apply_subagent_variant = subagent_variant_applier()
     written: set[Path] = set()
 
     for src in sorted(SRC_AGENTS_DIR.glob("*.md")):
@@ -157,6 +202,7 @@ def write_all(dest: Path, dry_run: bool) -> set[Path]:
             src.read_text(encoding="utf-8"),
             aliases,
             model_aliases,
+            apply_subagent_variant,
         )
         target = dest / f"{stem}.md"
         written.add(target.relative_to(dest))

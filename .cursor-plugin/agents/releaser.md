@@ -1,7 +1,7 @@
 ---
 name: releaser
 description: Audit an existing GitHub Actions release workflow against the releaser checklist — triggers, permissions, action pinning, caching, build matrix, artifact provenance, release-notes sourcing, error handling, documentation, and observability. Read-only. Invoked by releaser in --ci-config=audit mode; do NOT invoke directly from a command.
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 tools: [Read, Grep, Glob]
 ---
 

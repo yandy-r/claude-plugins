@@ -121,8 +121,19 @@ Or enable in `~/.claude/settings.json`:
 }
 ```
 
-For local development installs, generated compatibility bundles, and desktop app
-notes, use the dedicated install guides:
+For local development installs, generated compatibility bundles, model defaults,
+and desktop app notes, use the dedicated install guides. Recommended sync form:
+
+```bash
+./install.sh sync --target claude --intent hooks,settings,mcp,plugins
+./install.sh sync --target all --intent settings,rules
+```
+
+Structured config is merged rather than copied: repo-managed keys update while
+unknown and locally edited keys remain intact. The original `--target ...`
+flag form remains supported.
+
+Dedicated guides:
 
 | Runtime                      | Install guide                                          |
 | ---------------------------- | ------------------------------------------------------ |
@@ -244,7 +255,7 @@ claude-plugins/
 │   ├── commands/              # slash commands (count in generated region above)
 │   ├── agents/                # agents (source for Cursor/Codex/opencode generation)
 │   ├── rules/                 # language-specific rules (common + per-language); source for Cursor .mdc generation
-│   ├── settings/              # shared Claude settings: settings.json, hooks/, rules/, statusline
+│   ├── settings/              # shared Claude settings: settings.json, models.json, hooks/, rules/, statusline
 │   └── skills/                # skills + _shared (source for Cursor/Codex/opencode generation)
 │       ├── _shared/           # shared scripts (e.g., resolve-plans-dir.sh)
 │       └── {skill-name}/

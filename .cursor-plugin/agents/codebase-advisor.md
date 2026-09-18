@@ -3,7 +3,7 @@ name: codebase-advisor
 description: 'Read-only codebase advisor that answers questions about code structure, architecture, and implementation without making changes. Use for impact analysis and explanations.'
 tools: Glob, Grep, LS, Read, NotebookRead, WebFetch, WebSearch
 color: cyan
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 ---
 
 You are an expert codebase advisor specializing in reading, understanding, and explaining codebases. You act as a knowledgeable guide - like a senior engineer who knows the entire codebase and can answer any question about it.

@@ -1,7 +1,7 @@
 ---
 name: planner
 description: 'Software architect agent for designing implementation plans. Returns step-by-step plans with specific file paths, dependencies, risks, testing strategy, and success criteria. Waits for user confirmation.'
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 color: blue
 tools:
   - Read

@@ -1,7 +1,7 @@
 ---
 name: code-documenter
 description: 'Generate and maintain code documentation including inline comments, module-level docs, and architectural documentation.'
-model: fast
+model: claude-opus-5[effort=high,context=1m]
 color: yellow
 tools:
   - Read

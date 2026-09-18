@@ -9,11 +9,20 @@ opencode.json we emit here, and the native rules file is AGENTS.md.
 
 opencode.json contents:
 - `$schema`: https://opencode.ai/config.json
-- `model`: openai/gpt-5.5 (bundle default; users can override globally)
+- `model`: main model from ycc/settings/models.json (bundle default; users can
+  override globally)
 - `instructions`: ["AGENTS.md"] so opencode pulls in the bundle's rules
-- `provider.openai.models["gpt-5.5"]`: reasoningEffort=high, textVerbosity=low
-  (per the plan §6; high-reasoning default for coding-agent work)
+- `providers.<provider>.models[<model>]`: reasoningEffort from the models.json
+  main entry, textVerbosity=low, plus a `subagent` variant carrying the
+  sub-agent reasoning effort. opencode resolves variants as `model#subagent`.
+- `agents.general` / `agents.explore`: pin the built-in subagents to the
+  sub-agent model variant so delegated work runs at sub-agent effort.
 - `plugins`: shared OpenCode V2 plugins loaded by server/runtime
+
+The opencode model values are placeholders (models.json marks the target with
+`placeholder: true`) because the usable catalog depends on the user's provider
+subscriptions. Machines that need different models override
+~/.config/opencode/opencode.json rather than this generated bundle file.
 - `mcp`: translated from mcp-configs/mcp.json (Claude Code shape → opencode shape)
 
 AGENTS.md is derived from ycc/settings/rules/CLAUDE.md (the user-global
@@ -24,6 +33,7 @@ ycc/settings/rules tree, not this repo's project-specific CLAUDE.md.
 
 Source of truth:
 - ycc/.claude-plugin/plugin.json (name/version reference, not emitted)
+- ycc/settings/models.json
 - mcp-configs/mcp.json
 - ycc/settings/rules/CLAUDE.md
 """
@@ -52,22 +62,100 @@ from generate_opencode_common import (
 # user-global opencode rules file, so it must source from the generic
 # user-global rules tree — not this repo's project-specific CLAUDE.md.
 SOURCE_RULES_PATH = REPO_ROOT / "ycc" / "settings" / "rules" / "CLAUDE.md"
+SOURCE_MODEL_SETTINGS_PATH = REPO_ROOT / "ycc" / "settings" / "models.json"
 
-DEFAULT_MODEL = "openai/gpt-5.5"
 # OpenCode V2 `plugins` entries (npm package specifiers). The goal plugin adds
 # Codex-style goal mode: /goal commands, persistent goal state, and the goal
 # tools the user-global AGENTS.md policy references.
 DEFAULT_PLUGINS: list[str] = ["@prevalentware/opencode-goal-plugin"]
-DEFAULT_PROVIDER_CONFIG: dict[str, object] = {
-    "openai": {
-        "models": {
-            "gpt-5.5": {
-                "reasoningEffort": "high",
+
+# Variant ID applied to the sub-agent reasoning effort. opencode selects it as
+# `provider/model#subagent` (see opencode.ai/v2/docs/models §Variants).
+SUBAGENT_VARIANT_ID = "subagent"
+
+# Built-in opencode subagents that delegated work runs through.
+BUILTIN_SUBAGENTS = ("general", "explore")
+
+
+def load_model_settings() -> dict[str, object]:
+    """Load the opencode entry from the shared model/effort source of truth."""
+    if not SOURCE_MODEL_SETTINGS_PATH.is_file():
+        raise SystemExit(f"opencode plugin generator cannot find {SOURCE_MODEL_SETTINGS_PATH.relative_to(REPO_ROOT)}")
+
+    payload = json.loads(SOURCE_MODEL_SETTINGS_PATH.read_text(encoding="utf-8"))
+    target = payload.get("targets", {}).get("opencode")
+    if not isinstance(target, dict):
+        raise SystemExit(f"{SOURCE_MODEL_SETTINGS_PATH.relative_to(REPO_ROOT)} is missing targets.opencode")
+
+    for field in ("provider", "main", "subagent"):
+        if field not in target:
+            raise SystemExit(
+                f"{SOURCE_MODEL_SETTINGS_PATH.relative_to(REPO_ROOT)}: targets.opencode.{field} is required"
+            )
+    return target
+
+
+def split_model_reference(reference: str) -> tuple[str, str]:
+    """Split a `provider/model` reference into its two parts."""
+    provider, separator, model = reference.partition("/")
+    if not separator or not provider or not model:
+        raise SystemExit(
+            f"{SOURCE_MODEL_SETTINGS_PATH.relative_to(REPO_ROOT)}: expected 'provider/model', got {reference!r}"
+        )
+    return provider, model
+
+
+def build_provider_config(settings: dict[str, object]) -> dict[str, object]:
+    """Emit provider settings carrying main effort plus a sub-agent variant."""
+    provider, model = split_model_reference(str(settings["main"]["model"]))
+    subagent_provider, subagent_model = split_model_reference(str(settings["subagent"]["model"]))
+
+    models: dict[str, object] = {
+        model: {
+            "settings": {
+                "reasoningEffort": settings["main"]["effort"],
+                "textVerbosity": "low",
+            },
+            "variants": [
+                {
+                    "id": SUBAGENT_VARIANT_ID,
+                    "settings": {"reasoningEffort": settings["subagent"]["effort"]},
+                }
+            ],
+        }
+    }
+
+    # A distinct sub-agent model needs its own catalog entry carrying the
+    # sub-agent effort; the shared case is already covered by the variant above.
+    if (subagent_provider, subagent_model) != (provider, model):
+        if subagent_provider != provider:
+            raise SystemExit(
+                f"{SOURCE_MODEL_SETTINGS_PATH.relative_to(REPO_ROOT)}: opencode main and subagent "
+                f"models must share a provider (got {provider!r} and {subagent_provider!r})"
+            )
+        models[subagent_model] = {
+            "settings": {
+                "reasoningEffort": settings["subagent"]["effort"],
                 "textVerbosity": "low",
             }
         }
-    }
-}
+
+    return {provider: {"models": models}}
+
+
+def build_subagent_model_reference(settings: dict[str, object]) -> str:
+    """Return the `provider/model#variant` reference built-in subagents use."""
+    provider, model = split_model_reference(str(settings["subagent"]["model"]))
+    main_provider, main_model = split_model_reference(str(settings["main"]["model"]))
+    if (provider, model) == (main_provider, main_model):
+        return f"{provider}/{model}#{SUBAGENT_VARIANT_ID}"
+    return f"{provider}/{model}"
+
+
+def build_agents_config(settings: dict[str, object]) -> dict[str, object]:
+    """Pin opencode's built-in subagents to the sub-agent model reference."""
+    reference = build_subagent_model_reference(settings)
+    return {name: {"model": reference} for name in BUILTIN_SUBAGENTS}
 
 
 def normalize_agents_runtime_syntax(text: str) -> str:
@@ -124,16 +212,20 @@ def load_mcp_block() -> dict[str, object]:
     raw_servers = payload.get("mcpServers")
     if not isinstance(raw_servers, dict):
         return {}
-    return translate_mcp_servers(raw_servers)
+    # Native OpenCode V2 nests named servers under mcp.servers.
+    return {"servers": translate_mcp_servers(raw_servers)}
 
 
 def build_opencode_config() -> dict[str, object]:
+    model_settings = load_model_settings()
     config: dict[str, object] = {
         "$schema": "https://opencode.ai/config.json",
-        "model": DEFAULT_MODEL,
+        "model": model_settings["main"]["model"],
         "instructions": ["AGENTS.md"],
         "plugins": DEFAULT_PLUGINS,
-        "provider": DEFAULT_PROVIDER_CONFIG,
+        "agents": build_agents_config(model_settings),
+        # OpenCode V2 uses the plural `providers` key (opencode.ai/v2/docs/config).
+        "providers": build_provider_config(model_settings),
     }
     mcp_block = load_mcp_block()
     if mcp_block:

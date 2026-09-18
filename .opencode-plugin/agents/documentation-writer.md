@@ -1,7 +1,8 @@
 ---
 description: Create or update documentation for specific files, features, CLI commands,
   or other project components by analyzing code and writing proper docs.
-model: openai/gpt-5.5
+mode: subagent
+model: openai/gpt-5.5#subagent
 color: '#22C55E'
 ---
 

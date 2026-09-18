@@ -2,7 +2,7 @@
 name: nodejs-backend-architect
 title: Node.js Backend Architect
 description: 'Expert guidance on Node.js/TypeScript backend development including microservices architecture, performance optimization, async/concurrency, API design, auth systems, and database optimization.'
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 color: green
 ---
 

@@ -2,7 +2,8 @@
 description: Expert Go development assistance including concurrent systems, microservices,
   performance optimization, design patterns, project structure, testing strategies,
   and architectural decisions.
-model: openai/gpt-5.5
+mode: subagent
+model: openai/gpt-5.5#subagent
 color: '#06B6D4'
 ---
 

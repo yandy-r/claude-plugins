@@ -5,6 +5,8 @@ description: Read-only git cleanup auditor. Collects git state (branches, worktr
   and returns a structured report. Does NOT delete anything. Invoked by the git-cleanup
   skill for large-repo audits or when the orchestrator wants a clean read-only pass
   before the decision gate.
+mode: subagent
+model: openai/gpt-5.5#subagent
 ---
 
 # git-cleanup (auditor)

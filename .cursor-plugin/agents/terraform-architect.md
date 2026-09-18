@@ -2,7 +2,7 @@
 name: terraform-architect
 title: Terraofrm Architect
 description: 'Expert Terraform IaC assistance including cloud-native architecture design, module development, multi-cloud strategies, deployment debugging, and configuration review.'
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 color: blue
 ---
 

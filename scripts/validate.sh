@@ -7,15 +7,16 @@
 #   ./scripts/validate.sh --only inventory      # single target
 #   ./scripts/validate.sh --only cursor,codex   # comma-separated subset
 #
-# Targets: inventory, cursor, codex, opencode, json
+# Targets: inventory, cursor, codex, opencode, json, config
 #   - inventory  validates ycc skill↔command pairing and the shared inventory
 #   - json       validates .claude-plugin/marketplace.json plus ycc/.claude-plugin/plugin.json
+#   - config     tests the managed-config merge helper and install.sh sync CLI
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-VALID_TARGETS=(inventory cursor codex opencode json)
+VALID_TARGETS=(inventory cursor codex opencode json config)
 TARGETS=("${VALID_TARGETS[@]}")
 
 usage() {
@@ -23,7 +24,7 @@ usage() {
 Usage: $(basename "$0") [--only <targets>]
 
 Run every validator for the ycc source-of-truth directory and its generated
-Cursor / Codex / opencode bundles.
+Cursor / Codex / opencode bundles and managed configuration sync.
 
 Options:
   --only <targets>   Comma-separated subset (valid: ${VALID_TARGETS[*]})
@@ -111,6 +112,14 @@ run_target() {
             "${REPO_ROOT}/scripts/validate-opencode-plugin.sh" || fail "validate-opencode-plugin.sh"
             echo "== validate: opencode install coverage =="
             "${REPO_ROOT}/scripts/validate-opencode-install-coverage.sh" || fail "validate-opencode-install-coverage.sh"
+            ;;
+        config)
+            echo "== validate: model/effort declarations =="
+            python3 "${REPO_ROOT}/scripts/validate-model-settings.py" || fail "validate-model-settings.py"
+            echo "== validate: managed-config merge helper =="
+            python3 "${REPO_ROOT}/scripts/test_merge_managed_config.py" || fail "test_merge_managed_config.py"
+            echo "== validate: install sync CLI =="
+            "${REPO_ROOT}/scripts/test-install-sync.sh" || fail "test-install-sync.sh"
             ;;
         json)
             echo "== validate: marketplace and plugin manifests =="

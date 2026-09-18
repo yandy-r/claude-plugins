@@ -1,6 +1,8 @@
 {
   "env": {
-    "FORCE_AUTOUPDATE_PLUGINS": "1"
+    "FORCE_AUTOUPDATE_PLUGINS": "1",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "opus[1m]",
+    "CLAUDE_CODE_SUBAGENT_MODEL_FORCE": "1"
   },
   "attribution": {
     "commit": "",
@@ -78,7 +80,16 @@
     }
   },
   "alwaysThinkingEnabled": true,
+  "model": "claude-fable-5-1",
   "effortLevel": "high",
+  "modelSettings": {
+    "claude-fable-5-1": {
+      "effortLevel": "medium"
+    },
+    "claude-opus-5": {
+      "effortLevel": "high"
+    }
+  },
   "skipDangerousModePermissionPrompt": true,
   "skipAutoPermissionPrompt": true,
   "pluginMarketplaces": [

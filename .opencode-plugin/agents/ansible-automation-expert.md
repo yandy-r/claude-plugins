@@ -2,7 +2,8 @@
 description: Expert Ansible automation assistance including playbook development,
   role creation, inventory management, network automation, IaC implementation, and
   troubleshooting configurations.
-model: openai/gpt-5.5
+mode: subagent
+model: openai/gpt-5.5#subagent
 color: '#8B5CF6'
 ---
 

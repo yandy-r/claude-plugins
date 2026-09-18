@@ -1,7 +1,7 @@
 ---
 name: readme-generator
 description: 'Generate comprehensive README files for projects with proper structure, badges, installation instructions, and usage examples.'
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 color: magenta
 tools:
   - Read

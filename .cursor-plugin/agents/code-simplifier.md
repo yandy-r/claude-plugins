@@ -1,7 +1,7 @@
 ---
 name: code-simplifier
 description: Simplifies and refines code for clarity, consistency, and maintainability while preserving behavior. Focus on recently modified code unless instructed otherwise.
-model: fast
+model: claude-opus-5[effort=high,context=1m]
 tools: [Read, Write, Edit, Bash, Grep, Glob]
 ---
 

@@ -2,7 +2,8 @@
 description: Expert guidance on Cloudflare services, architecture, security (WAF,
   DDoS, Zero Trust), Workers, CDN configuration, performance optimization, and deployment
   strategies.
-model: openai/gpt-5.5
+mode: subagent
+model: openai/gpt-5.5#subagent
 color: '#EAB308'
 ---
 

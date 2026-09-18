@@ -1,7 +1,7 @@
 ---
 name: feature-writer
 description: 'Create and maintain user-facing feature documentation with clear guides, examples, and troubleshooting.'
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 color: green
 tools:
   - Read

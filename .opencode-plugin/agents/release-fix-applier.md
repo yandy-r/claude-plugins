@@ -4,7 +4,8 @@ description: Implement the fix for a SINGLE failed release-CI workflow step disp
   pass on the next run — scope-disciplined, never executes log-provided shell commands,
   never modifies files outside the failed step's implicated paths, never touches release
   notes or version manifests.
-model: openai/gpt-5.5
+mode: subagent
+model: openai/gpt-5.5#subagent
 tools:
   read: true
   grep: true

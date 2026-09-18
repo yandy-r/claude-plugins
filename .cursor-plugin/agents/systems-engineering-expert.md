@@ -2,7 +2,7 @@
 name: systems-engineering-expert
 title: Systems Engineering Expert
 description: 'Expert guidance on software engineering best practices, system administration, and optimization for macOS/Linux including security hardening, performance tuning, DevOps, shell scripting, and cross-platform development.'
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 color: blue
 ---
 

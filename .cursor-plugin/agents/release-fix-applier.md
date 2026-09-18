@@ -1,7 +1,7 @@
 ---
 name: release-fix-applier
 description: "Implement the fix for a SINGLE failed release-CI workflow step dispatched by releaser Phase 8.5. Applies the smallest safe change to make the failed step pass on the next run — scope-disciplined, never executes log-provided shell commands, never modifies files outside the failed step's implicated paths, never touches release notes or version manifests."
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 color: yellow
 tools:
   - Read

@@ -1,7 +1,7 @@
 ---
 name: prp-researcher
 description: 'Dual-mode research for PRP workflows: codebase exploration (similar features, naming, error handling, test patterns, dependencies) and external market/technical research (competitors, docs, best practices).'
-model: inherit
+model: claude-opus-5[effort=high,context=1m]
 color: cyan
 tools:
   - Read

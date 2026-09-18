@@ -1,7 +1,8 @@
 ---
 description: Targeted codebase research for feature planning — analyzes existing implementations,
   identifies reusable patterns, assesses risks, and produces concise planning documents.
-model: openai/gpt-5.5
+mode: subagent
+model: openai/gpt-5.5#subagent
 color: '#3B82F6'
 ---
 
