@@ -119,7 +119,10 @@ PROFILES: dict[str, dict[str, Any]] = {
                 {"path": ["model_context_window"], "policy": "scalar"},
                 {"path": ["model_auto_compact_token_limit"], "policy": "scalar"},
                 {"path": ["plan_mode_reasoning_effort"], "policy": "scalar"},
+                {"path": ["approval_policy"], "policy": "scalar"},
                 {"path": ["approvals_reviewer"], "policy": "scalar"},
+                {"path": ["sandbox_mode"], "policy": "scalar"},
+                {"path": ["sandbox_workspace_write"], "policy": "object"},
                 {"path": ["service_tier"], "policy": "scalar"},
                 {"path": ["agents"], "policy": "object"},
                 {"path": ["features"], "policy": "object"},
@@ -516,6 +519,100 @@ def scan_toml_assignments(lines: list[str]) -> dict[tuple[str, ...], tuple[int, 
     return spans
 
 
+def repair_duplicate_managed_toml(text: str, managed_paths: list[list[str]]) -> str:
+    """Remove duplicate managed assignments/tables so ``--force`` can recover.
+
+    Recovery is intentionally narrow: only paths supplied by the selected
+    profile groups are eligible, and a duplicated table is removed only when
+    every assignment in each occurrence is managed. The normal merge then
+    writes the source-of-truth values back atomically. Unrelated malformed TOML
+    remains an error.
+    """
+    lines = text.splitlines(keepends=True)
+    if lines and not lines[-1].endswith("\n"):
+        lines[-1] += "\n"
+
+    managed = {tuple(path) for path in managed_paths}
+    occurrences: dict[tuple[str, ...], list[tuple[int, int]]] = {}
+    table_headers: dict[tuple[str, ...], list[int]] = {}
+    table: tuple[str, ...] = ()
+    covered_assignment_lines: set[int] = set()
+    index = 0
+
+    while index < len(lines):
+        line = lines[index]
+        table_match = TOML_TABLE_RE.match(line)
+        if table_match:
+            table = tuple(split_toml_key(table_match.group(1)))
+            table_headers.setdefault(table, []).append(index)
+            index += 1
+            continue
+
+        key_match = TOML_KEY_RE.match(line)
+        if not key_match:
+            index += 1
+            continue
+
+        end = index + 1
+        while end <= len(lines):
+            try:
+                tomllib.loads("".join(lines[index:end]))
+                break
+            except tomllib.TOMLDecodeError:
+                end += 1
+        else:
+            return text
+
+        path = (*table, *split_toml_key(key_match.group(1)))
+        occurrences.setdefault(path, []).append((index, end))
+        covered_assignment_lines.update(range(index, end))
+        index = end
+
+    duplicate_paths = {path for path, spans in occurrences.items() if len(spans) > 1 and path in managed}
+    if not duplicate_paths:
+        return text
+
+    duplicate_tables = {
+        table_path
+        for table_path, headers in table_headers.items()
+        if len(headers) > 1 and any(path[:-1] == table_path for path in duplicate_paths)
+    }
+
+    header_indexes = sorted(index for indexes in table_headers.values() for index in indexes)
+    remove_lines: set[int] = set()
+
+    for table_path in duplicate_tables:
+        for header_index in table_headers[table_path]:
+            next_header = next((candidate for candidate in header_indexes if candidate > header_index), len(lines))
+            for line_index in range(header_index + 1, next_header):
+                stripped = lines[line_index].strip()
+                if not stripped or stripped.startswith("#") or line_index in covered_assignment_lines:
+                    continue
+                return text
+
+            section_paths = {
+                path
+                for path, spans in occurrences.items()
+                if any(header_index < start < next_header for start, _ in spans)
+            }
+            if not section_paths.issubset(managed):
+                return text
+
+            remove_lines.add(header_index)
+            for path in section_paths:
+                for start, end in occurrences[path]:
+                    if header_index < start < next_header:
+                        remove_lines.update(range(start, end))
+
+    for path in duplicate_paths:
+        if path[:-1] in duplicate_tables:
+            continue
+        for start, end in occurrences[path]:
+            remove_lines.update(range(start, end))
+
+    return "".join(line for line_index, line in enumerate(lines) if line_index not in remove_lines)
+
+
 def table_end_line(lines: list[str], table: list[str]) -> int | None:
     """Return the insertion point at the end of an existing table's body."""
     target = tuple(table)
@@ -649,7 +746,14 @@ def merge_toml(
 
     if destination_path.exists():
         destination_text = destination_path.read_text(encoding="utf-8")
-        destination = tomllib.loads(destination_text)
+        try:
+            destination = tomllib.loads(destination_text)
+        except tomllib.TOMLDecodeError:
+            if not force:
+                raise
+            managed_paths = [path for path, _ in collect_managed_leaves(profile, groups, source)]
+            destination_text = repair_duplicate_managed_toml(destination_text, managed_paths)
+            destination = tomllib.loads(destination_text)
     else:
         destination_text = ""
         destination = {}

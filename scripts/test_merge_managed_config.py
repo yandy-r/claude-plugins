@@ -315,6 +315,57 @@ class MergeHelperTestCase(unittest.TestCase):
         self.assertEqual(text.count("[agents]"), 1)
         self.assertEqual(tomllib.loads(text)["agents"]["default_subagent_model"], "gpt-5.6-sol")
 
+    def test_force_repairs_duplicate_managed_toml(self) -> None:
+        source = self.tmp / "src.toml"
+        source.write_text(
+            'approval_policy = "on-request"\n'
+            'approvals_reviewer = "auto_review"\n'
+            'sandbox_mode = "workspace-write"\n\n'
+            "[sandbox_workspace_write]\n"
+            "network_access = true\n",
+            encoding="utf-8",
+        )
+        destination = self.tmp / "dest.toml"
+        original = (
+            'approvals_reviewer = "user"\n'
+            'approvals_reviewer = "auto_review"\n\n'
+            "[sandbox_workspace_write]\n"
+            "network_access = false\n\n"
+            '[projects."/home/me/work"]\n'
+            'trust_level = "trusted"\n\n'
+            "[sandbox_workspace_write]\n"
+            "network_access = true\n"
+        )
+        destination.write_text(original, encoding="utf-8")
+
+        failed = self.run_merge("codex-config", source, destination, "settings", force=False, expect_success=False)
+        self.assertEqual(failed.returncode, 1)
+        self.assertEqual(destination.read_text(), original)
+
+        self.run_merge("codex-config", source, destination, "settings", force=True)
+
+        text = destination.read_text()
+        parsed = tomllib.loads(text)
+        self.assertEqual(text.count("approvals_reviewer ="), 1)
+        self.assertEqual(text.count("[sandbox_workspace_write]"), 1)
+        self.assertEqual(parsed["approval_policy"], "on-request")
+        self.assertEqual(parsed["approvals_reviewer"], "auto_review")
+        self.assertEqual(parsed["sandbox_mode"], "workspace-write")
+        self.assertTrue(parsed["sandbox_workspace_write"]["network_access"])
+        self.assertEqual(parsed["projects"]["/home/me/work"]["trust_level"], "trusted")
+
+    def test_force_rejects_unrelated_invalid_toml_without_mutation(self) -> None:
+        source = self.tmp / "src.toml"
+        source.write_text('model = "gpt-6-astra"\n', encoding="utf-8")
+        destination = self.tmp / "dest.toml"
+        original = '[user_config]\nvalue = "first"\nvalue = "second"\n'
+        destination.write_text(original, encoding="utf-8")
+
+        result = self.run_merge("codex-config", source, destination, "settings", force=True, expect_success=False)
+
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(destination.read_text(), original)
+
     def test_real_codex_config_merges_into_existing_config(self) -> None:
         """End-to-end guard against the committed Codex source shape."""
         source = REPO_ROOT / ".codex-plugin" / "config" / "config.toml"
