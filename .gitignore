@@ -39,3 +39,4 @@ scripts/opencode_model_aliases.local.json
 plan-blocks.md
 **/plans/*/.plan-serve/
 **/.agent-native/
+.config/opencode/
