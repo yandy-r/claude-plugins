@@ -24,6 +24,10 @@
     },
     "railway": {
       "url": "https://mcp.railway.com"
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
     }
   }
 }
