@@ -405,7 +405,60 @@ class MergeHelperTestCase(unittest.TestCase):
         self.assertEqual(providers["openai"]["settings"]["apiKey"], "{env:MY_KEY}")
         self.assertEqual(providers["openai"]["settings"]["baseURL"], "https://proxy.local/v1")
         self.assertEqual(providers["9router"]["options"]["apiKey"], "sk-private")
-        self.assertEqual(providers["openai"]["models"]["gpt-5.5"]["variants"][0]["id"], "subagent")
+        main_model = json.loads((REPO_ROOT / "ycc/settings/models.json").read_text(encoding="utf-8"))["targets"][
+            "opencode"
+        ]["main"]["model"].split("/", 1)[1]
+        self.assertEqual(providers["openai"]["models"][main_model]["variants"][0]["id"], "subagent")
+
+    def test_opencode_clean_install_sets_subagent_depth(self) -> None:
+        source = REPO_ROOT / ".opencode-plugin" / "opencode.json"
+        destination = self.tmp / "opencode.json"
+
+        self.run_merge("opencode-config", source, destination, "settings")
+
+        self.assertEqual(json.loads(destination.read_text())["experimental"]["subagent_depth"], 2)
+
+    def test_opencode_depth_merge_preserves_unrelated_experimental_settings(self) -> None:
+        source = self.write_json(
+            self.tmp / "source.json", {"experimental": {"subagent_depth": 2, "other_toggle": False}}
+        )
+        destination = self.write_json(self.tmp / "opencode.json", {"experimental": {"other_toggle": True}})
+
+        self.run_merge("opencode-config", source, destination, "settings", force=True)
+
+        self.assertEqual(
+            json.loads(destination.read_text())["experimental"],
+            {"subagent_depth": 2, "other_toggle": True},
+        )
+        self.assertNotIn("/experimental/other_toggle", self.state.read_text())
+
+    def test_opencode_depth_updates_follow_managed_ownership(self) -> None:
+        source = self.write_json(self.tmp / "source.json", {"experimental": {"subagent_depth": 1}})
+        destination = self.tmp / "opencode.json"
+        self.run_merge("opencode-config", source, destination, "settings")
+
+        # Previously managed, unchanged value follows the new bundle default.
+        self.write_json(source, {"experimental": {"subagent_depth": 2}})
+        self.run_merge("opencode-config", source, destination, "settings")
+        self.assertEqual(json.loads(destination.read_text())["experimental"]["subagent_depth"], 2)
+
+        # A later local edit wins unless force was explicitly requested.
+        self.write_json(destination, {"experimental": {"subagent_depth": 4, "other_toggle": True}})
+        self.run_merge("opencode-config", source, destination, "settings")
+        self.assertEqual(json.loads(destination.read_text())["experimental"]["subagent_depth"], 4)
+        self.run_merge("opencode-config", source, destination, "settings", force=True)
+        self.assertEqual(
+            json.loads(destination.read_text())["experimental"],
+            {"subagent_depth": 2, "other_toggle": True},
+        )
+
+    def test_opencode_existing_unmanaged_depth_is_preserved(self) -> None:
+        source = REPO_ROOT / ".opencode-plugin" / "opencode.json"
+        destination = self.write_json(self.tmp / "opencode.json", {"experimental": {"subagent_depth": 3}})
+
+        self.run_merge("opencode-config", source, destination, "settings")
+
+        self.assertEqual(json.loads(destination.read_text())["experimental"]["subagent_depth"], 3)
 
     def test_opencode_mcp_servers_merge_under_servers_key(self) -> None:
         source = REPO_ROOT / ".opencode-plugin" / "opencode.json"

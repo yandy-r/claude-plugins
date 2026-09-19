@@ -3,12 +3,24 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
+import runpy
 import unittest
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 from generate_opencode_common import translate_mcp_servers
+from generate_opencode_plugin import (
+    build_agents_config,
+    build_opencode_config,
+    build_provider_config,
+    expected_agent_ids,
+    load_model_settings,
+    validate_agent_models,
+)
 from validate_opencode_config import validate_config
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -25,6 +37,16 @@ class OpenCodeConfigValidationTestCase(unittest.TestCase):
         config = json.loads((REPO_ROOT / ".opencode-plugin/opencode.json").read_text(encoding="utf-8"))
 
         self.assertEqual(validate_config(config), [])
+
+    def test_committed_bundle_agents_match_models_json(self) -> None:
+        config = json.loads((REPO_ROOT / ".opencode-plugin/opencode.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(config["agents"], build_agents_config(load_model_settings()))
+
+    def test_generated_config_sets_subagent_depth(self) -> None:
+        config = build_opencode_config()
+
+        self.assertEqual(config["experimental"]["subagent_depth"], 2)
 
     def test_rejects_v1_and_inert_top_level_fields(self) -> None:
         config: dict[str, Any] = {
@@ -115,6 +137,90 @@ class OpenCodeConfigValidationTestCase(unittest.TestCase):
         self.assertNotIn("enabled", translated["local"])
         self.assertTrue(translated["remote"]["disabled"])
         self.assertNotIn("enabled", translated["remote"])
+
+    def test_agent_models_validation_catches_missing_and_stale_and_malformed(self) -> None:
+        expected = expected_agent_ids()
+        valid_mapping = {agent_id: "openai/gpt-5.6-sol" for agent_id in expected}
+
+        # Valid mapping passes
+        self.assertEqual(validate_agent_models(valid_mapping), valid_mapping)
+
+        # Missing agent
+        incomplete = dict(valid_mapping)
+        incomplete.pop("general")
+        with self.assertRaises(SystemExit) as ctx:
+            validate_agent_models(incomplete)
+        self.assertIn("missing agent IDs: general", str(ctx.exception))
+
+        # Stale agent
+        extra = dict(valid_mapping)
+        extra["stale-agent-xyz"] = "openai/gpt-5.6-sol"
+        with self.assertRaises(SystemExit) as ctx:
+            validate_agent_models(extra)
+        self.assertIn("stale agent IDs: stale-agent-xyz", str(ctx.exception))
+
+        # Malformed model reference (bare model name or not provider/model)
+        malformed = dict(valid_mapping)
+        malformed["architect"] = "gpt-6-astra"
+        with self.assertRaises(SystemExit) as ctx:
+            validate_agent_models(malformed)
+        self.assertIn("expected 'provider/model'", str(ctx.exception))
+
+    def test_provider_config_effort_and_verbosity_and_subagent_variant(self) -> None:
+        settings = load_model_settings()
+        providers = build_provider_config(settings)
+
+        self.assertIn("openai", providers)
+        openai_models = providers["openai"]["models"]
+        self.assertIn("gpt-5.6-sol", openai_models)
+
+        main_entry = openai_models["gpt-5.6-sol"]
+        self.assertEqual(
+            main_entry["settings"],
+            {"reasoningEffort": "high", "textVerbosity": "medium"},
+        )
+        self.assertEqual(len(main_entry["variants"]), 1)
+        subagent_variant = main_entry["variants"][0]
+        self.assertEqual(subagent_variant["id"], "subagent")
+        self.assertEqual(
+            subagent_variant["settings"],
+            {"reasoningEffort": "high", "textVerbosity": "low"},
+        )
+
+    def test_model_settings_validator_diagnoses_each_agent_divergence(self) -> None:
+        bundle_path = REPO_ROOT / ".opencode-plugin/opencode.json"
+        config = json.loads(bundle_path.read_text(encoding="utf-8"))
+        config["agents"].pop("general")
+        config["agents"]["architect"] = "openai/gpt-6-astra"
+        config["agents"]["planner"] = {"model": "openai/other"}
+        config["agents"]["stale-agent-xyz"] = {"model": "openai/gpt-5.6-sol"}
+        original_read_text = Path.read_text
+
+        def fake_read_text(self: Path, *args: object, **kwargs: object) -> str:
+            if self == bundle_path:
+                return json.dumps(config)
+            return original_read_text(self, *args, **kwargs)
+
+        stderr = io.StringIO()
+        with patch.object(Path, "read_text", fake_read_text), contextlib.redirect_stderr(stderr):
+            with self.assertRaises(SystemExit) as ctx:
+                runpy.run_path(str(REPO_ROOT / "scripts/validate-model-settings.py"), run_name="__main__")
+
+        self.assertEqual(ctx.exception.code, 1)
+        output = stderr.getvalue()
+        self.assertIn("agents.general: missing from generated opencode.json", output)
+        self.assertIn("agents.architect: malformed entry 'openai/gpt-6-astra'", output)
+        self.assertIn("agents.planner.model: got 'openai/other', expected 'openai/gpt-5.6-sol'", output)
+        self.assertIn("agents.stale-agent-xyz: emitted but not declared in models.json", output)
+
+    def test_agents_config_mapping_preserved_after_generation(self) -> None:
+        settings = load_model_settings()
+        agents_config = build_agents_config(settings)
+        declared_mapping = settings["agents"]
+
+        self.assertEqual(set(agents_config.keys()), set(declared_mapping.keys()))
+        for agent_id, reference in declared_mapping.items():
+            self.assertEqual(agents_config[agent_id], {"model": reference})
 
 
 if __name__ == "__main__":

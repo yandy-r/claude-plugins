@@ -106,17 +106,47 @@ or the built-in `task` tool, and commands as `/<name>` in the TUI.
 ## Model Configuration
 
 The generated `opencode.json` sets the bundle's main model, its reasoning
-effort, and a `#subagent` variant carrying the sub-agent reasoning effort. The
-built-in `general` and `explore` subagents are pinned to that variant so
-delegated work runs at sub-agent effort.
+effort, and a `#subagent` variant carrying the sub-agent reasoning effort.
+Beyond that root model, every agent under `ycc/agents/` (plus the built-in
+`general` and `explore` subagents) gets its **own** explicit model assignment
+in the generated `agents` block — not just `general`/`explore` on the
+`#subagent` variant. Assignments are tiered by intended capability:
+
+| Tier                          | Sample Model           | Intended Roles                                                                                                           |
+| ----------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Deep architecture / high-risk | `openai/gpt-6-astra`   | e.g. `architect`, `code-architect`, `root-cause-analyzer`, `db-modifier`, `go-expert-architect`, `rust-expert-architect` |
+| Docs / lookup / routine       | `openai/gpt-5.6-terra` | e.g. `docs-git-committer`, `code-finder`, `api-documenter`, `documentation-writer`, `readme-generator`                   |
+| Everything else               | `openai/gpt-5.6-sol`   | General implementation, review, and specialty agents                                                                     |
 
 **These values are placeholders.** Unlike Claude and Codex, opencode's usable
 catalog depends on which provider subscriptions and models you have configured,
-so the bundle ships a portable default rather than a fixed model. Change the
+so the bundle ships portable defaults rather than fixed models. Change the
 preferred models in [`ycc/settings/models.json`](../../ycc/settings/models.json)
-(`targets.opencode`), or simply edit your own
+(`targets.opencode.main`, `.subagent`, and `.agents`), or simply edit your own
 `~/.config/opencode/opencode.json` — the merge keeps local model choices and
 provider credentials instead of overwriting them.
+
+`scripts/generate_opencode_plugin.py` fails fast if any agent under `ycc/agents/`
+(or the built-ins) is missing from `targets.opencode.agents`, so the mapping in
+`models.json` must stay in sync whenever agents are added, renamed, or removed
+(see `CONTRIBUTING.md` → Adding, Renaming, or Removing Agents).
+
+## Runtime Settings
+
+The generated config sets the experimental subagent depth:
+
+```json
+{
+  "experimental": {
+    "subagent_depth": 2
+  }
+}
+```
+
+The V2 docs do not describe this field, so its detailed runtime semantics are
+not documented here. Change it in `scripts/generate_opencode_plugin.py`
+(`DEFAULT_SUBAGENT_DEPTH`) or override it in your own
+`~/.config/opencode/opencode.json`.
 
 ## Hooks
 

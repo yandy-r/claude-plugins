@@ -169,7 +169,32 @@ matrix.
 ## Regeneration
 
 After changing `ycc/skills/`, `ycc/agents/`, or `ycc/commands/`, regenerate and validate
-the compatibility bundles:
+the compatibility bundles.
+
+### Adding, Renaming, or Removing Agents
+
+Every agent under `ycc/agents/*.md` (plus built-in `general` and `explore`) must have an
+explicit model entry in `ycc/settings/models.json` under `targets.opencode.agents`.
+Generated `.opencode-plugin/agents/*.md` stay model-free; `.opencode-plugin/opencode.json`
+owns per-agent model assignment.
+
+When adding, renaming, or removing an agent:
+
+1. Update `ycc/settings/models.json` under `targets.opencode.agents` to assign the new/renamed agent ID to a full `provider/model` reference based on intended capability tier.
+2. Run `./scripts/sync.sh` (or `./scripts/sync.sh --only opencode`).
+3. Run `./scripts/validate.sh` (or `./scripts/validate.sh --only opencode`).
+
+The generator (`scripts/generate_opencode_plugin.py`) fails fast if any agent is missing or stale.
+
+#### OpenCode Capability Tiers (Sample Policy)
+
+These values are sample placeholders (`placeholder: true` in `models.json`); users map them to models available on their configured providers by capability and cost.
+
+| Tier                              | Sample Model           | Intended Roles / Agents                                                                                                                                                                                                                                          |
+| --------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Deep Architecture & High-Risk** | `openai/gpt-6-astra`   | Complex system design, database mutation, deep debugging (`architect`, `code-architect`, `root-cause-analyzer`, `db-modifier`, `go-expert-architect`, `rust-expert-architect`)                                                                                   |
+| **Docs, Lookup & Routine**        | `openai/gpt-5.6-terra` | Documentation authoring, code search, routine cleanup (`docs-git-committer`, `code-finder`, `api-documenter`, `code-documenter`, `documentation-writer`, `feature-writer`, `readme-generator`, `library-docs-writer`, `api-docs-expert`, `project-file-cleaner`) |
+| **General Development**           | `openai/gpt-5.6-sol`   | All other implementation, review, and specialty agents (`implementor`, `code-reviewer`, `typescript-developer`, `python-developer`, built-ins `general`/`explore`, etc.)                                                                                         |
 
 ```bash
 ./scripts/sync.sh         # regenerate every Cursor / Codex / opencode bundle

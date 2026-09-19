@@ -143,6 +143,9 @@ PROFILES: dict[str, dict[str, Any]] = {
                 {"path": ["model"], "policy": "scalar"},
                 {"path": ["agents"], "policy": "deep"},
                 {"path": ["providers"], "policy": "deep"},
+                # Scoped to the one leaf the bundle sets so other user-owned
+                # `experimental` toggles are never adopted or deleted.
+                {"path": ["experimental", "subagent_depth"], "policy": "scalar"},
             ],
             "mcp": [
                 {"path": ["mcp", "servers"], "policy": "deep"},

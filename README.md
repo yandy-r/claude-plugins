@@ -185,6 +185,18 @@ Examples:
 
 CI runs `./scripts/validate.sh` via [`.github/workflows/validate.yml`](.github/workflows/validate.yml) and fails the job on any generated drift, so local and CI paths are identical.
 
+### OpenCode Per-Agent Model Policy
+
+`ycc/settings/models.json` owns OpenCode model policy. Every `ycc/agents/*.md`
+basename, plus built-in `general` and `explore`, must have a full `provider/model`
+entry in `targets.opencode.agents`. Select by intended capability: deep architecture
+or high-risk work uses `openai/gpt-6-astra`; docs, lookup, and routine work uses
+`openai/gpt-5.6-terra`; all other agents use `openai/gpt-5.6-sol`. These are
+placeholders (`placeholder: true`); users choose available provider models by
+capability and cost. `opencode.json` owns assignments; generated agent Markdown
+stays model-free. Update this mapping whenever an agent is added, renamed, or
+removed, then run `./scripts/sync.sh` and `./scripts/validate.sh`.
+
 ## Repository layout
 
 ```

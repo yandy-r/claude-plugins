@@ -156,8 +156,14 @@ After modifying anything under `ycc/`:
 4. Test the skill or command in a live Claude Code session via its `ycc:` prefix.
 
 If you changed `ycc/skills/`, `ycc/agents/`, or `ycc/commands/`, also regenerate and
-validate the compatibility bundles (Cursor / Codex / opencode). The recommended pair
-is the unified entrypoints:
+validate the compatibility bundles (Cursor / Codex / opencode). When adding, renaming,
+or removing an agent under `ycc/agents/`, you **must** also add or update its entry in
+`ycc/settings/models.json` under `targets.opencode.agents` mapped to an appropriate model
+tier (`openai/gpt-6-astra` for deep architecture/high-risk, `openai/gpt-5.6-terra` for docs/lookup/routine,
+`openai/gpt-5.6-sol` default). The generator `scripts/generate_opencode_plugin.py` fails fast
+if any agent is missing.
+
+The recommended pair is the unified entrypoints:
 
 ```bash
 ./scripts/sync.sh         # regenerate every compatibility bundle

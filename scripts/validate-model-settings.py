@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 import tomllib
+from generate_opencode_plugin import expected_agent_ids, validate_agent_models
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MODELS = json.loads((REPO_ROOT / "ycc/settings/models.json").read_text(encoding="utf-8"))["targets"]
@@ -63,10 +64,34 @@ expect(cursor.get("model", {}).get("modelId"), MODELS["cursor"]["main"]["model"]
 # OpenCode generated config
 opencode = json.loads((REPO_ROOT / ".opencode-plugin/opencode.json").read_text(encoding="utf-8"))
 expect(opencode.get("model"), MODELS["opencode"]["main"]["model"], "OpenCode main model")
-for agent in ("general", "explore"):
-    model = opencode.get("agents", {}).get(agent, {}).get("model", "")
-    if not model.endswith("#subagent"):
-        errors.append(f"OpenCode {agent} model lacks #subagent variant: {model!r}")
+
+# Per-agent pins are declared in models.json and emitted verbatim, so the two
+# mappings must match key for key. The declared side is checked with the same
+# coverage/reference rules the generator applies (every ycc/agents/*.md basename
+# plus the built-ins, full provider/model strings); the emitted side is then
+# diagnosed agent by agent so one run names every divergence.
+try:
+    declared_agents = validate_agent_models(MODELS["opencode"].get("agents"))
+except SystemExit as exc:
+    declared_agents = {}
+    errors.append(f"OpenCode declared agents: {exc}")
+
+emitted_agents = opencode.get("agents")
+if not isinstance(emitted_agents, dict):
+    errors.append(f"OpenCode agents: expected an object, got {type(emitted_agents).__name__}")
+    emitted_agents = {}
+
+for name in sorted(expected_agent_ids() | set(declared_agents) | set(emitted_agents)):
+    label = f"OpenCode agents.{name}"
+    entry = emitted_agents.get(name)
+    if name not in emitted_agents:
+        errors.append(f"{label}: missing from generated opencode.json")
+    elif name not in declared_agents:
+        errors.append(f"{label}: emitted but not declared in models.json")
+    elif not isinstance(entry, dict) or not isinstance(entry.get("model"), str):
+        errors.append(f"{label}: malformed entry {entry!r}, expected {{'model': 'provider/model'}}")
+    else:
+        expect(entry["model"], declared_agents[name], f"{label}.model")
 
 if errors:
     for error in errors:
