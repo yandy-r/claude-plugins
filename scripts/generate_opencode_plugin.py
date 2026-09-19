@@ -124,7 +124,10 @@ def build_provider_config(settings: dict[str, object]) -> dict[str, object]:
             "variants": [
                 {
                     "id": SUBAGENT_VARIANT_ID,
-                    "settings": {"reasoningEffort": settings["subagent"]["effort"]},
+                    "settings": {
+                        "reasoningEffort": settings["subagent"]["effort"],
+                        "textVerbosity": "low",
+                    },
                 }
             ],
         }

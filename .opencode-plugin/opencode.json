@@ -24,7 +24,8 @@
             {
               "id": "subagent",
               "settings": {
-                "reasoningEffort": "high"
+                "reasoningEffort": "high",
+                "textVerbosity": "low"
               }
             }
           ]
