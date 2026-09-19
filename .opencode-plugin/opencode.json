@@ -1,24 +1,77 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "openai/gpt-5.5",
+  "model": "openai/gpt-5.6-sol",
   "plugins": [
     "@prevalentware/opencode-goal-plugin"
   ],
   "agents": {
-    "general": {
-      "model": "openai/gpt-5.5#subagent"
-    },
-    "explore": {
-      "model": "openai/gpt-5.5#subagent"
-    }
+    "general": { "model": "gpt-5.6-sol" },
+    "explore": { "model": "gpt-5.6-sol" },
+
+    "architect": { "model": "gpt-6-astra" },
+    "code-architect": { "model": "gpt-6-astra" },
+    "root-cause-analyzer": { "model": "gpt-6-astra" },
+    "db-modifier": { "model": "gpt-6-astra" },
+    "go-expert-architect": { "model": "gpt-6-astra" },
+    "rust-expert-architect": { "model": "gpt-6-astra" },
+
+    "planner": { "model": "gpt-5.6-sol" },
+    "test-strategy-planner": { "model": "gpt-5.6-sol" },
+    "python-expert-architect": { "model": "gpt-5.6-sol" },
+    "typescript-expert-architect": { "model": "gpt-5.6-sol" },
+    "code-reviewer": { "model": "gpt-5.6-sol" },
+    "implementor": { "model": "gpt-5.6-sol" },
+    "research-specialist": { "model": "gpt-5.6-sol" },
+    "cloudflare-developer": { "model": "gpt-5.6-sol" },
+    "nodejs-backend-developer": { "model": "gpt-5.6-sol" },
+    "python-developer": { "model": "gpt-5.6-sol" },
+    "typescript-developer": { "model": "gpt-5.6-sol" },
+    "terraform-developer": { "model": "gpt-5.6-sol" },
+    "sql-database-developer": { "model": "gpt-5.6-sol" },
+    "frontend-ui-developer": { "model": "gpt-5.6-sol" },
+    "go-api-architect": { "model": "gpt-5.6-sol" },
+    "nodejs-backend-architect": { "model": "gpt-5.6-sol" },
+    "cloudflare-architect": { "model": "gpt-5.6-sol" },
+    "terraform-architect": { "model": "gpt-5.6-sol" },
+    "turso-database-architect": { "model": "gpt-5.6-sol" },
+    "reverse-proxy-architect": { "model": "gpt-5.6-sol" },
+    "systems-engineering-expert": { "model": "gpt-5.6-sol" },
+    "nextjs-ux-ui-expert": { "model": "gpt-5.6-sol" },
+    "ansible-automation-expert": { "model": "gpt-5.6-sol" },
+    "rust-reviewer": { "model": "gpt-5.6-sol" },
+    "rust-build-resolver": { "model": "gpt-5.6-sol" },
+    "review-fixer": { "model": "gpt-5.6-sol" },
+    "pr-comment-fixer": { "model": "gpt-5.6-sol" },
+    "release-fix-applier": { "model": "gpt-5.6-sol" },
+    "code-researcher": { "model": "gpt-5.6-sol" },
+    "feature-researcher": { "model": "gpt-5.6-sol" },
+    "prp-researcher": { "model": "gpt-5.6-sol" },
+    "practices-researcher": { "model": "gpt-5.6-sol" },
+    "codebase-advisor": { "model": "gpt-5.6-sol" },
+    "code-explorer": { "model": "gpt-5.6-sol" },
+    "architecture-analyst": { "model": "gpt-5.6-sol" },
+    "code-simplifier": { "model": "gpt-5.6-sol" },
+    "git-cleanup": { "model": "gpt-5.6-sol" },
+    "releaser": { "model": "gpt-5.6-sol" },
+
+    "docs-git-committer": { "model": "gpt-5.6-terra" },
+    "code-finder": { "model": "gpt-5.6-terra" },
+    "api-documenter": { "model": "gpt-5.6-terra" },
+    "code-documenter": { "model": "gpt-5.6-terra" },
+    "documentation-writer": { "model": "gpt-5.6-terra" },
+    "feature-writer": { "model": "gpt-5.6-terra" },
+    "readme-generator": { "model": "gpt-5.6-terra" },
+    "library-docs-writer": { "model": "gpt-5.6-terra" },
+    "api-docs-expert": { "model": "gpt-5.6-terra" },
+    "project-file-cleaner": { "model": "gpt-5.6-terra" }
   },
   "providers": {
     "openai": {
       "models": {
-        "gpt-5.5": {
+        "gpt-5.6-sol": {
           "settings": {
-            "reasoningEffort": "medium",
-            "textVerbosity": "low"
+            "reasoningEffort": "high",
+            "textVerbosity": "medium"
           },
           "variants": [
             {
