@@ -2,7 +2,6 @@
 description: Implement Terraform infrastructure code including .tf modules, variables/outputs,
   provider/backend configs, terragrunt.hcl, resource lifecycle rules, and module structures.
 mode: subagent
-model: openai/gpt-5.5#subagent
 tools:
   read: true
   write: true

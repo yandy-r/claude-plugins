@@ -3,7 +3,6 @@ description: Expert Python architecture guidance including package design, async
   framework selection (FastAPI/Flask/Django), data pipelines, CLI tools, packaging
   (hatch/poetry/uv), and testing strategies.
 mode: subagent
-model: openai/gpt-5.5#subagent
 color: '#EAB308'
 ---
 

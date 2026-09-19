@@ -5,7 +5,6 @@ description: Implement the fix for a SINGLE failed release-CI workflow step disp
   never modifies files outside the failed step's implicated paths, never touches release
   notes or version manifests.
 mode: subagent
-model: openai/gpt-5.5#subagent
 tools:
   read: true
   grep: true

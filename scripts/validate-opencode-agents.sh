@@ -18,20 +18,15 @@ from pathlib import Path
 import yaml
 
 root = Path(sys.argv[1])
-# opencode agent frontmatter keys (per opencode.ai/docs/agents). `name` and
+# opencode agent frontmatter keys (per opencode.ai/v2/docs/agents). `name` and
 # `title` are intentionally absent — opencode uses the filename as the agent
-# identifier.
+# identifier. `model` is absent by policy: see the model check below.
 ALLOWED = {
     "description",
     "mode",
-    "model",
-    "prompt",
     "tools",
     "permission",
-    "temperature",
-    "top_p",
     "steps",
-    "disable",
     "hidden",
     "color",
 }
@@ -70,9 +65,15 @@ for path in sorted(root.glob("*.md")):
     elif mode is None:
         print(f"MISSING 'mode: subagent' in {path}", file=sys.stderr)
         errors += 1
-    model = str(data.get("model") or "")
-    if "#" not in model:
-        print(f"MISSING sub-agent model variant in {path}: {model!r}", file=sys.stderr)
+    # These files must stay provider-agnostic: a pinned model here would bake
+    # one provider into every generated agent. Runtime model policy belongs in
+    # opencode.json under `agents.<id>.model`, which merges by agent ID.
+    if "model" in data:
+        print(
+            f"UNEXPECTED 'model' in {path}: {data['model']!r} "
+            "(set per-agent models in opencode.json, not in generated agent files)",
+            file=sys.stderr,
+        )
         errors += 1
     tools = data.get("tools")
     if tools is not None and not isinstance(tools, dict):

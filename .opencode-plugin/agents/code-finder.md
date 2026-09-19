@@ -3,7 +3,6 @@ description: Quickly locate specific code files, functions, classes, or patterns
   a codebase. Find implementations, search syntax patterns, and discover related code
   across files.
 mode: subagent
-model: openai/gpt-5.5#subagent
 color: '#EAB308'
 ---
 

@@ -3,7 +3,6 @@ description: Software architecture specialist for system design, scalability, an
   technical decision-making. Use when planning new features, refactoring large systems,
   or making architectural decisions.
 mode: subagent
-model: openai/gpt-5.5#subagent
 tools:
   read: true
   grep: true

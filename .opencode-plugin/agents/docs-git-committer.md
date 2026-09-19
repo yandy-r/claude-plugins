@@ -2,7 +2,6 @@
 description: Update documentation after code changes (feature docs, AGENTS.md files)
   and commit all changes to git.
 mode: subagent
-model: openai/gpt-5.5#subagent
 color: '#06B6D4'
 ---
 

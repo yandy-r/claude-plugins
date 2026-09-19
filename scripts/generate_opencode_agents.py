@@ -6,19 +6,28 @@ opencode reads agents from <workspace>/.opencode/agents/<name>.md or
 ~/.config/opencode/agents/<name>.md. The filename stem becomes the agent
 name; ``name`` in frontmatter is not required (and is dropped here).
 
-Authoritative opencode agent frontmatter (per opencode.ai/docs/agents):
-    description (required), mode, model, prompt, tools (deprecated),
-    permission, temperature, top_p, steps, disable, hidden, color.
+Authoritative opencode agent frontmatter (per opencode.ai/v2/docs/agents):
+    description (required), mode, model, system, permissions, steps, hidden,
+    color, disabled, request.
 
 This generator performs:
 1. Strips `name` / `title` / unknown Claude-specific fields.
-2. Maps `model` via the opencode_model_aliases.json table. Unknown model
-   values are dropped (opencode falls back to the global config default).
+2. Drops `model` entirely (see below).
 3. Converts `tools: [PascalCase, ...]` to `tools: {lowercase: bool, ...}`,
    dropping Claude-only tools (Task, TodoWrite, TeamCreate, ...).
 4. Rewrites body text with opencode-native phrasing via
    apply_opencode_text_transforms.
 5. Normalizes Claude color names to opencode-valid hex colors.
+
+Model policy
+------------
+These files describe agent *behavior* and must stay provider-agnostic. Pinning
+`model:` here would hard-code one provider into 50+ generated files, so every
+user whose catalog differs (a different gateway, local models, another vendor)
+would have to edit the whole tree. OpenCode falls back to the parent session's
+model when the field is absent, and a user who wants a specific model or effort
+for one agent sets it in `opencode.json` under `agents.<id>.model`, which merges
+with these definitions by agent ID.
 
 Source of truth: ycc/agents/*.md.
 """
@@ -29,7 +38,6 @@ import argparse
 import filecmp
 import sys
 import tempfile
-from collections.abc import Callable
 from pathlib import Path
 
 from generate_opencode_common import (
@@ -37,45 +45,11 @@ from generate_opencode_common import (
     SRC_AGENTS_DIR,
     apply_opencode_text_transforms,
     dump_frontmatter,
-    is_model_drop_sentinel,
     load_agent_aliases,
-    load_model_aliases,
-    map_model,
     map_tool_name,
     normalize_agent_color,
     parse_frontmatter,
 )
-from generate_opencode_plugin import (
-    SUBAGENT_VARIANT_ID,
-    build_subagent_model_reference,
-    load_model_settings,
-    split_model_reference,
-)
-
-
-def subagent_variant_applier() -> Callable[[str], str]:
-    """Build a function that pins an agent model to the sub-agent variant.
-
-    Every agent in this bundle runs as a sub-agent, so a bare `provider/model`
-    in agent frontmatter would silently override the sub-agent reasoning effort
-    configured in opencode.json and run at the *main* effort instead. Attach the
-    `#subagent` variant whenever the agent resolves to the variant-bearing
-    model, and redirect other models to the configured sub-agent model.
-    """
-    settings = load_model_settings()
-    main_provider, main_model = split_model_reference(str(settings["main"]["model"]))
-    subagent_reference = build_subagent_model_reference(settings)
-
-    def apply(model: str) -> str:
-        if not model:
-            return subagent_reference
-        if "#" in model:
-            return model
-        if model == f"{main_provider}/{main_model}":
-            return f"{model}#{SUBAGENT_VARIANT_ID}"
-        return subagent_reference
-
-    return apply
 
 
 def convert_tools(value: object) -> dict[str, bool]:
@@ -116,13 +90,7 @@ def convert_tools(value: object) -> dict[str, bool]:
     return resolved
 
 
-def transform_agent(
-    stem: str,
-    raw: str,
-    aliases: dict[str, str],
-    model_aliases: dict[str, str],
-    apply_subagent_variant: Callable[[str], str],
-) -> str:
+def transform_agent(stem: str, raw: str, aliases: dict[str, str]) -> str:
     frontmatter, body = parse_frontmatter(raw)
 
     # Description is required by opencode. Fall back to the filename stem as a
@@ -140,21 +108,12 @@ def transform_agent(
         "mode": "subagent",
     }
 
-    raw_model = frontmatter.get("model")
-    model_value = map_model(raw_model, model_aliases)
-    if model_value:
-        payload["model"] = apply_subagent_variant(model_value)
-    elif raw_model and not is_model_drop_sentinel(str(raw_model)):
-        print(
-            f"generate_opencode_agents: WARN unmapped model " f"'{raw_model}' on {stem}.md — using sub-agent default",
-            file=sys.stderr,
-        )
-        payload["model"] = apply_subagent_variant("")
-    else:
-        # Every generated ycc agent runs as a sub-agent. Omitting this field
-        # would inherit the parent session's main model/effort, bypassing the
-        # preferred High-effort sub-agent profile.
-        payload["model"] = apply_subagent_variant("")
+    # `model` is deliberately never emitted. These agent files define behavior,
+    # not runtime model policy: a pinned `provider/model` would hard-code one
+    # provider into 50+ portable files and break every user whose catalog
+    # differs. OpenCode falls back to the parent session's model when the field
+    # is absent, and per-machine overrides belong in opencode.json's `agents`
+    # block, which merges with these definitions by agent ID.
 
     if "tools" in frontmatter:
         tools_map = convert_tools(frontmatter["tools"])
@@ -191,19 +150,11 @@ def transform_agent(
 
 def write_all(dest: Path, dry_run: bool) -> set[Path]:
     aliases = load_agent_aliases()
-    model_aliases = load_model_aliases()
-    apply_subagent_variant = subagent_variant_applier()
     written: set[Path] = set()
 
     for src in sorted(SRC_AGENTS_DIR.glob("*.md")):
         stem = src.stem
-        output = transform_agent(
-            stem,
-            src.read_text(encoding="utf-8"),
-            aliases,
-            model_aliases,
-            apply_subagent_variant,
-        )
+        output = transform_agent(stem, src.read_text(encoding="utf-8"), aliases)
         target = dest / f"{stem}.md"
         written.add(target.relative_to(dest))
         if dry_run:

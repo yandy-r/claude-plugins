@@ -3,7 +3,6 @@ description: Expert Terraform IaC assistance including cloud-native architecture
   module development, multi-cloud strategies, deployment debugging, and configuration
   review.
 mode: subagent
-model: openai/gpt-5.5#subagent
 color: '#3B82F6'
 ---
 

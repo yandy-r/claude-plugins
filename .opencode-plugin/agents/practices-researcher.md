@@ -3,7 +3,6 @@ description: Evaluate code quality, modularity, reuse, and KISS compliance. Disc
   existing reusable code, assess build-vs-depend decisions, and review code structure
   for engineering best practices.
 mode: subagent
-model: openai/gpt-5.5#subagent
 tools:
   read: true
   grep: true

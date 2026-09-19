@@ -3,7 +3,6 @@ description: Implement Node.js/TypeScript backend services including Express/Fas
   routes, Prisma/Drizzle setup, auth flows, Docker configs, structured logging, and
   test suites.
 mode: subagent
-model: openai/gpt-5.5#subagent
 tools:
   read: true
   write: true

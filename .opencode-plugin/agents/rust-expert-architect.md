@@ -3,7 +3,6 @@ description: Expert Rust development assistance including async systems (tokio),
   design, trait/generic APIs, CLI/systems/embedded/WASM apps, performance optimization,
   crate selection, and architectural decisions.
 mode: subagent
-model: openai/gpt-5.5#subagent
 color: '#EF4444'
 ---
 

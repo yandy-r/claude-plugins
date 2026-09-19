@@ -5,7 +5,6 @@ description: Audit an existing GitHub Actions release workflow against the relea
   Read-only. Invoked by releaser in --ci-config=audit mode; do NOT invoke directly
   from a command.
 mode: subagent
-model: openai/gpt-5.5#subagent
 tools:
   read: true
   grep: true

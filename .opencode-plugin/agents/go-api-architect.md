@@ -3,7 +3,6 @@ description: Design, develop, review, and improve Go/Golang REST APIs including 
   authentication, performance optimization, testing strategies, and architectural
   decisions.
 mode: subagent
-model: openai/gpt-5.5#subagent
 color: '#3B82F6'
 ---
 

@@ -3,7 +3,6 @@ description: Read-only codebase advisor that answers questions about code struct
   architecture, and implementation without making changes. Use for impact analysis
   and explanations.
 mode: subagent
-model: openai/gpt-5.5#subagent
 color: '#06B6D4'
 ---
 

@@ -3,7 +3,6 @@ description: Expert Next.js UX/UI guidance including component architecture, SSR
   optimization, accessibility, responsive design, state management, animations, theme
   systems, and design system integration.
 mode: subagent
-model: openai/gpt-5.5#subagent
 color: '#3B82F6'
 ---
 

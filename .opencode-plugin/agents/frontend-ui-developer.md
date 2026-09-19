@@ -3,7 +3,6 @@ description: Create, modify, or enhance frontend React components, UI elements, 
   and styling including Tailwind CSS and shadcn/ui. Analyzes existing patterns before
   implementation.
 mode: subagent
-model: openai/gpt-5.5#subagent
 color: '#8B5CF6'
 ---
 

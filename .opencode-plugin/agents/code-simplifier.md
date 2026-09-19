@@ -2,7 +2,6 @@
 description: Simplifies and refines code for clarity, consistency, and maintainability
   while preserving behavior. Focus on recently modified code unless instructed otherwise.
 mode: subagent
-model: openai/gpt-5.5#subagent
 tools:
   read: true
   write: true

@@ -3,7 +3,6 @@ description: Implement Python code from specs including FastAPI/Flask/Django ser
   CLI tools, data pipelines, async apps, pytest suites, pyproject.toml configs, and
   Dockerfiles.
 mode: subagent
-model: openai/gpt-5.5#subagent
 tools:
   read: true
   write: true

@@ -2,7 +2,6 @@
 description: Generate comprehensive README files for projects with proper structure,
   badges, installation instructions, and usage examples.
 mode: subagent
-model: openai/gpt-5.5#subagent
 tools:
   read: true
   grep: true

@@ -2,7 +2,6 @@
 description: Generate comprehensive API documentation from code, including endpoint
   specs, parameter descriptions, response schemas, and usage examples.
 mode: subagent
-model: openai/gpt-5.5#subagent
 tools:
   read: true
   grep: true

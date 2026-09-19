@@ -3,7 +3,6 @@ description: Expert guidance on software engineering best practices, system admi
   and optimization for macOS/Linux including security hardening, performance tuning,
   DevOps, shell scripting, and cross-platform development.
 mode: subagent
-model: openai/gpt-5.5#subagent
 color: '#3B82F6'
 ---
 

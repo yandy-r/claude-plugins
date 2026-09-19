@@ -2,7 +2,6 @@
 description: Comprehensive analysis of a codebase's architecture, patterns, and implementation
   details to inform feature development or architectural decisions.
 mode: subagent
-model: openai/gpt-5.5#subagent
 color: '#3B82F6'
 ---
 

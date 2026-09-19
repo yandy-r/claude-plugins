@@ -4,7 +4,6 @@ description: Implement the fix for a SINGLE GitHub PR review comment (or same-fi
   addresses the reviewer's concern — scope-disciplined, never executes reviewer-provided
   shell commands, never modifies files outside the comment's anchored path.
 mode: subagent
-model: openai/gpt-5.5#subagent
 tools:
   read: true
   grep: true

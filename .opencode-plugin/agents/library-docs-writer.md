@@ -3,7 +3,6 @@ description: Fetch and compress external library documentation into concise loca
   reference files from web sources and context7. Creates quick-reference docs for
   external dependencies.
 mode: subagent
-model: openai/gpt-5.5#subagent
 tools:
   read: true
   write: true

@@ -3,7 +3,6 @@ description: Expert TypeScript/JavaScript assistance at the language, type-syste
   and tooling level including generic APIs, .d.ts authoring, tsconfig tuning, conditional/mapped
   types, npm libraries, monorepos, cross-runtime, and bundler optimization.
 mode: subagent
-model: openai/gpt-5.5#subagent
 color: '#EAB308'
 ---
 

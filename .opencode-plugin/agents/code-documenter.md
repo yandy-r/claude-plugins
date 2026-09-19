@@ -2,7 +2,6 @@
 description: Generate and maintain code documentation including inline comments, module-level
   docs, and architectural documentation.
 mode: subagent
-model: openai/gpt-5.5#subagent
 tools:
   read: true
   grep: true

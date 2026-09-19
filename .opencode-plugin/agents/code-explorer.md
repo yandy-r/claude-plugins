@@ -2,7 +2,6 @@
 description: Deeply analyze codebase features by tracing execution paths, mapping
   architecture layers, and documenting dependencies to inform new development.
 mode: subagent
-model: openai/gpt-5.5#subagent
 tools:
   read: true
   grep: true

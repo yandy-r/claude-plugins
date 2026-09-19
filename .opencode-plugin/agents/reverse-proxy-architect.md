@@ -3,7 +3,6 @@ description: Configure, troubleshoot, and optimize reverse proxy setups (nginx, 
   Traefik) including load balancing, SSL/TLS, routing, caching, rate limiting, WebSocket
   proxying, and K8s/Docker integration.
 mode: subagent
-model: openai/gpt-5.5#subagent
 color: '#8B5CF6'
 ---
 

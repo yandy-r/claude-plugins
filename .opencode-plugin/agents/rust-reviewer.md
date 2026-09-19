@@ -3,7 +3,6 @@ description: Expert Rust code reviewer specializing in ownership, lifetimes, err
   handling, unsafe usage, and idiomatic patterns. Use for all Rust code changes. MUST
   BE USED for Rust projects.
 mode: subagent
-model: openai/gpt-5.5#subagent
 tools:
   read: true
   grep: true

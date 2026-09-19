@@ -3,7 +3,6 @@ description: 'Implement a SINGLE code-review finding (or same-file group) from a
   artifact. Applies the exact fix specified — nothing more. Scope-disciplined: fixes
   only what the finding specifies.'
 mode: subagent
-model: openai/gpt-5.5#subagent
 tools:
   read: true
   grep: true

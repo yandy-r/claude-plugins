@@ -3,7 +3,6 @@ description: Make database schema changes, data migrations, or modifications to 
   production Supabase/PostgreSQL database including tables, RLS policies, RPC functions,
   storage buckets, and data updates.
 mode: subagent
-model: openai/gpt-5.5#subagent
 color: '#EF4444'
 ---
 

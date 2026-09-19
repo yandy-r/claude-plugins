@@ -3,7 +3,6 @@ description: Expert database design, architecture, and optimization for Turso/li
   including schema design, query optimization, migration strategies, performance tuning,
   and index strategies.
 mode: subagent
-model: openai/gpt-5.5#subagent
 color: '#F97316'
 ---
 

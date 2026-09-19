@@ -3,7 +3,6 @@ description: Implement TypeScript/JavaScript code including libraries, tsconfig 
   package.json exports, monorepo workspaces, bundler pipelines (vite/tsup/esbuild),
   ESM/CJS dual builds, and Vitest configs.
 mode: subagent
-model: openai/gpt-5.5#subagent
 tools:
   read: true
   write: true
