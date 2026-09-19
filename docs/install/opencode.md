@@ -3,6 +3,14 @@
 opencode support is native. The generated bundle installs skills, agents,
 commands, config, and rules into `~/.config/opencode/`.
 
+The generated `opencode.json` targets **OpenCode V2 only**. V1 field shapes
+(`provider`, `agent`, `permission`, `plugin`, and server names directly under
+`mcp`) are rejected by `scripts/validate-opencode-plugin.sh`. Note that
+`https://opencode.ai/config.json` still serves the V1 schema, so an editor
+validating against it may flag correct V2 config; the repo validator encodes the
+V2 field set from [opencode.ai/v2/docs](https://opencode.ai/v2/docs/config)
+instead.
+
 ## Quick Start
 
 From the repository root:
@@ -87,6 +95,10 @@ config directories, so use the default local mode.
 | Commands       | `~/.config/opencode/commands/`     |
 | Config and MCP | `~/.config/opencode/opencode.json` |
 | Rules          | `~/.config/opencode/AGENTS.md`     |
+
+Rules reach the model through `~/.config/opencode/AGENTS.md`, which V2 loads as
+the global instructions file. The config's `instructions` array is deliberately
+unused: V2 parses the field but does not resolve its files, globs, or URLs.
 
 Invoke skills with the built-in `skill` tool, agents with `@agent-name` mentions
 or the built-in `task` tool, and commands as `/<name>` in the TUI.

@@ -141,7 +141,6 @@ PROFILES: dict[str, dict[str, Any]] = {
             "settings": [
                 {"path": ["$schema"], "policy": "scalar"},
                 {"path": ["model"], "policy": "scalar"},
-                {"path": ["instructions"], "policy": "list-union"},
                 {"path": ["agents"], "policy": "deep"},
                 {"path": ["providers"], "policy": "deep"},
             ],

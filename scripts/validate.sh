@@ -112,6 +112,9 @@ run_target() {
             "${REPO_ROOT}/scripts/validate-opencode-plugin.sh" || fail "validate-opencode-plugin.sh"
             echo "== validate: opencode install coverage =="
             "${REPO_ROOT}/scripts/validate-opencode-install-coverage.sh" || fail "validate-opencode-install-coverage.sh"
+            echo "== validate: opencode V2 config rules =="
+            (cd "${REPO_ROOT}/scripts" && python3 test_validate_opencode_config.py) \
+                || fail "test_validate_opencode_config.py"
             ;;
         config)
             echo "== validate: model/effort declarations =="

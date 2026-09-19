@@ -7,11 +7,16 @@ opencode has no plugin manifest file analogous to Claude Code's plugin.json
 or Codex's .codex-plugin/plugin.json. The bundle's top-level config is the
 opencode.json we emit here, and the native rules file is AGENTS.md.
 
+The emitted config targets OpenCode V2 exclusively. Note that
+https://opencode.ai/config.json still serves the V1 schema, so it validates the
+wrong shapes; scripts/validate_opencode_config.py encodes the V2 field set from
+opencode.ai/v2/docs instead. The `$schema` URL is still emitted because editors
+use it for autocomplete.
+
 opencode.json contents:
 - `$schema`: https://opencode.ai/config.json
 - `model`: main model from ycc/settings/models.json (bundle default; users can
   override globally)
-- `instructions`: ["AGENTS.md"] so opencode pulls in the bundle's rules
 - `providers.<provider>.models[<model>]`: reasoningEffort from the models.json
   main entry, textVerbosity=low, plus a `subagent` variant carrying the
   sub-agent reasoning effort. opencode resolves variants as `model#subagent`.
@@ -180,7 +185,7 @@ def normalize_agents_runtime_syntax(text: str) -> str:
     )
     marketplace_block_replacement = (
         "The opencode bundle metadata is defined in `.opencode-plugin/opencode.json`, "
-        "and it loads `.opencode-plugin/AGENTS.md` via the `instructions` field."
+        "and its rules are installed separately as the global `~/.config/opencode/AGENTS.md`."
     )
     normalized = re.sub(marketplace_block_pattern, marketplace_block_replacement, normalized)
     normalized = normalized.replace(
@@ -218,10 +223,12 @@ def load_mcp_block() -> dict[str, object]:
 
 def build_opencode_config() -> dict[str, object]:
     model_settings = load_model_settings()
+    # `instructions` is deliberately absent: V2 accepts the field but does not
+    # resolve its entries, and the bundle's rules already install as the global
+    # ~/.config/opencode/AGENTS.md, which V2 does load.
     config: dict[str, object] = {
         "$schema": "https://opencode.ai/config.json",
         "model": model_settings["main"]["model"],
-        "instructions": ["AGENTS.md"],
         "plugins": DEFAULT_PLUGINS,
         "agents": build_agents_config(model_settings),
         # OpenCode V2 uses the plural `providers` key (opencode.ai/v2/docs/config).

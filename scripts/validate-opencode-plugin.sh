@@ -12,60 +12,24 @@ python3 "${REPO_ROOT}/scripts/generate_opencode_plugin.py" --check
 echo "== JSON lint =="
 python3 -m json.tool "${BUNDLE_ROOT}/opencode.json" >/dev/null
 
-echo "== Schema assertions =="
+echo "== OpenCode V2 config assertions =="
+python3 "${REPO_ROOT}/scripts/validate_opencode_config.py" "${BUNDLE_ROOT}/opencode.json"
+
+echo "== Bundle plugin assertions =="
 python3 - <<'PY' "${BUNDLE_ROOT}/opencode.json"
 import json
 import sys
 from pathlib import Path
 
-path = Path(sys.argv[1])
-data = json.loads(path.read_text(encoding="utf-8"))
+# Bundle-specific requirements, separate from generic V2 config validity.
+REQUIRED_PLUGIN = "@prevalentware/opencode-goal-plugin"
 
-errors = []
-if data.get("$schema") != "https://opencode.ai/config.json":
-    errors.append(f"$schema={data.get('$schema')!r} (expected 'https://opencode.ai/config.json')")
-if "instructions" not in data or not isinstance(data["instructions"], list):
-    errors.append("instructions must be a list")
-elif "AGENTS.md" not in data["instructions"]:
-    errors.append("instructions must include 'AGENTS.md'")
+data = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+plugins = data.get("plugins", [])
+names = {entry if isinstance(entry, str) else entry.get("package") for entry in plugins}
 
-providers = data.get("providers")
-if not isinstance(providers, dict) or not providers:
-    errors.append("providers must be a non-empty object")
-if "provider" in data:
-    errors.append("legacy singular provider key is not valid OpenCode V2 config; use providers")
-
-plugins = data.get("plugins")
-if not isinstance(plugins, list):
-    errors.append("plugins must be a list")
-elif "@prevalentware/opencode-goal-plugin" not in plugins:
-    errors.append("plugins must include '@prevalentware/opencode-goal-plugin'")
-
-mcp = data.get("mcp")
-if mcp is not None:
-    if not isinstance(mcp, dict):
-        errors.append("mcp must be an object")
-    elif not isinstance(mcp.get("servers"), dict):
-        errors.append("mcp.servers must be an object (OpenCode V2 nests servers under mcp.servers)")
-    else:
-        for name, entry in mcp["servers"].items():
-            if not isinstance(entry, dict):
-                errors.append(f"mcp.{name} must be an object")
-                continue
-            t = entry.get("type")
-            if t not in {"local", "remote"}:
-                errors.append(f"mcp.{name}.type must be 'local' or 'remote' (got {t!r})")
-            if t == "local":
-                cmd = entry.get("command")
-                if not isinstance(cmd, list) or not cmd:
-                    errors.append(f"mcp.{name}.command must be a non-empty list")
-            if t == "remote":
-                if not isinstance(entry.get("url"), str):
-                    errors.append(f"mcp.{name}.url must be a string")
-
-if errors:
-    for err in errors:
-        print(f"  {err}", file=sys.stderr)
+if REQUIRED_PLUGIN not in names:
+    print(f"  plugins must include {REQUIRED_PLUGIN!r}", file=sys.stderr)
     sys.exit(1)
 PY
 

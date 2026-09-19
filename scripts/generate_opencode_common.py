@@ -518,13 +518,14 @@ def translate_mcp_servers(servers: dict[str, Any]) -> dict[str, Any]:
       single ``command: [...]`` array and renames ``env`` to ``environment``.
     - Remote servers in opencode require ``type: "remote"`` and use ``headers``
       / ``oauth`` / ``url`` fields directly.
+    - OpenCode V2 gates a server with ``disabled: true``; the V1 ``enabled``
+      field is not part of the V2 server shape.
     """
     translated: dict[str, Any] = {}
     for name, raw in servers.items():
         if not isinstance(raw, dict):
-            # Preserve non-dict entries verbatim so weird opencode-native shapes
-            # (e.g. ``{"enabled": false}``) pass through untouched when the user
-            # hand-edits mcp-configs/mcp.json later.
+            # Preserve non-dict entries verbatim so unusual shapes pass through
+            # untouched when the user hand-edits mcp-configs/mcp.json later.
             translated[name] = raw
             continue
 
@@ -542,8 +543,8 @@ def translate_mcp_servers(servers: dict[str, Any]) -> dict[str, Any]:
                 entry["oauth"] = raw["oauth"]
             if "timeout" in raw:
                 entry["timeout"] = raw["timeout"]
-            if raw.get("enabled") is False:
-                entry["enabled"] = False
+            if raw.get("enabled") is False or raw.get("disabled") is True:
+                entry["disabled"] = True
             translated[name] = translate_opencode_env(entry)
             continue
 
@@ -564,7 +565,7 @@ def translate_mcp_servers(servers: dict[str, Any]) -> dict[str, Any]:
             entry["environment"] = raw["env"]
         if "timeout" in raw:
             entry["timeout"] = raw["timeout"]
-        if raw.get("enabled") is False:
-            entry["enabled"] = False
+        if raw.get("enabled") is False or raw.get("disabled") is True:
+            entry["disabled"] = True
         translated[name] = translate_opencode_env(entry)
     return translated
