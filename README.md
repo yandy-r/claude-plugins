@@ -127,7 +127,11 @@ and desktop app notes, use the dedicated install guides. Recommended sync form:
 ```bash
 ./install.sh sync --target claude --intent hooks,settings,mcp,plugins
 ./install.sh sync --target all --intent settings,rules
+./install.sh sync --target codex,claude,opencode --intent mcp
 ```
+
+`--target` takes a comma-separated list (or `all`); every target is validated
+before any of them runs.
 
 Structured config is merged rather than copied: repo-managed keys update while
 unknown and locally edited keys remain intact. The original `--target ...`

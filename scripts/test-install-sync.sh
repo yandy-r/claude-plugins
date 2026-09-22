@@ -97,6 +97,45 @@ out="$(run_install "${home}" sync --intent settings)"
 assert_contains "${out}" "Missing required --target" "sync still requires --target"
 
 echo
+echo "== install.sh: multiple targets =="
+
+home="$(new_home)"
+out="$(run_install "${home}" sync --target codex,claude,opencode --intent mcp)"
+assert_contains "${out}" "Codex sync complete" "multi-target runs codex"
+assert_contains "${out}" "Claude sync complete" "multi-target runs claude"
+assert_contains "${out}" "opencode sync complete" "multi-target runs opencode"
+assert_not_contains "${out}" "Cursor sync complete" "multi-target skips unlisted cursor"
+assert_contains "$(cat "${home}/.claude.json")" '"mcpServers"' "multi-target merges claude MCP"
+
+home="$(new_home)"
+out="$(run_install "${home}" sync --target claude,claude --intent mcp)"
+count="$(grep -c "Claude sync complete" <<< "${out}")"
+if [[ "${count}" == "1" ]]; then ok "duplicate targets run once"; else ko "duplicate targets run once" "ran ${count} times"; fi
+
+home="$(new_home)"
+out="$(run_install "${home}" sync --target claude,bogus --intent mcp)"
+assert_contains "${out}" "Unknown target: bogus" "unknown target in list rejected"
+assert_not_contains "${out}" "Claude sync complete" "unknown target fails before any target runs"
+
+home="$(new_home)"
+out="$(run_install "${home}" sync --target "claude,,codex" --intent mcp)"
+assert_contains "${out}" "--target contains an empty value" "empty target token rejected"
+
+home="$(new_home)"
+out="$(run_install "${home}" sync --target all,claude --intent mcp)"
+assert_contains "${out}" "'all' cannot be combined" "all must stand alone"
+
+home="$(new_home)"
+out="$(run_install "${home}" sync --target claude,cursor --intent mcp --mode repo)"
+assert_contains "${out}" "--mode repo is not supported by the cursor target" "repo mode rejects listed cursor"
+assert_not_contains "${out}" "Claude sync complete" "repo-mode rejection happens before any target runs"
+
+home="$(new_home)"
+out="$(run_install "${home}" --target claude,codex --only mcp)"
+assert_contains "${out}" "--only step 'mcp' is not valid for target 'codex'" "legacy --only validated across all targets"
+assert_not_contains "${out}" "Claude sync complete" "--only rejection happens before any target runs"
+
+echo
 echo "== install.sh sync: no implicit base =="
 
 home="$(new_home)"

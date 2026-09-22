@@ -136,8 +136,8 @@ merge_settings_config() {
 
 usage() {
     cat <<EOF
-Usage: $(basename "$0") sync --target <target> --intent <intents> [--mode <mode>] [--force]
-       $(basename "$0") --target <target> [--mode <mode>] [--settings] [--rules] [--mcp] [--hooks] [--force] [--only <steps>]
+Usage: $(basename "$0") sync --target <targets> --intent <intents> [--mode <mode>] [--force]
+       $(basename "$0") --target <targets> [--mode <mode>] [--settings] [--rules] [--mcp] [--hooks] [--force] [--only <steps>]
 
 Sync plugin assets to an IDE configuration directory.
 
@@ -148,6 +148,7 @@ projects and CLI-written marketplace entries survive. The legacy flag form
 below keeps working unchanged.
 
   $(basename "$0") sync --target claude --intent hooks,settings,mcp,plugins
+  $(basename "$0") sync --target codex,claude,opencode --intent mcp
 
 Intents (valid: base, settings, rules, mcp, hooks, plugins):
   base      Install/register the target's bundle.
@@ -180,7 +181,9 @@ Merge semantics (all structured config files):
     (hashes only — never values).
 
 Options:
-  --target <target>   Target: claude, cursor, codex, opencode, or all
+  --target <targets>  Comma-separated targets: claude, cursor, codex, opencode,
+                      or all (which must stand alone). Every target is
+                      validated before any of them runs.
   --mode <mode>       Marketplace source mode (default: local). Supported:
                         local — register the local repo checkout as the
                                 marketplace source. claude target adds the
@@ -331,6 +334,7 @@ Examples:
   $(basename "$0") --target opencode                       # base only
   $(basename "$0") --target opencode --settings --rules    # base + merge opencode.json + link AGENTS.md
   $(basename "$0") --target all --settings --rules --mcp
+  $(basename "$0") --target claude,codex --only rules      # rules for two targets
   $(basename "$0") --target all --rules --force            # force-replace user-authored rules files
 
   # Upgrading from the symlink-based --settings (<= pre-split): the first run of
@@ -565,11 +569,23 @@ step_enabled() {
     esac
 }
 
-# validate_only_steps <target> <valid_steps_csv>
+# valid_steps_for_target <target>
+# Echo the comma-separated steps <target> supports for --only.
+valid_steps_for_target() {
+    case "$1" in
+        claude) echo "base,settings,rules,mcp,hooks" ;;
+        cursor) echo "base,settings,mcp,rules" ;;
+        codex|opencode) echo "base,settings,rules" ;;
+        *) err "valid_steps_for_target: unknown target '$1'"; exit 1 ;;
+    esac
+}
+
+# validate_only_steps <target>
 # If --only was passed, ensure every requested step is valid for the target.
 validate_only_steps() {
     local target="$1"
-    local valid_csv="$2"
+    local valid_csv
+    valid_csv="$(valid_steps_for_target "${target}")"
     if [[ "${EXCLUSIVE_STEPS:-0}" != "1" && ${#ONLY_STEPS[@]} -eq 0 ]]; then
         return 0
     fi
@@ -715,7 +731,7 @@ run_target() {
 # Claude target (settings + mcp; no base)
 # ---------------------------------------------------------------------------
 sync_claude_target() {
-    validate_only_steps "claude" "base,settings,rules,mcp,hooks"
+    validate_only_steps "claude"
 
     local ran=0
     local base_ran=0
@@ -907,14 +923,7 @@ PY
 # Cursor sync (base + optional MCP + optional settings/rules)
 # ---------------------------------------------------------------------------
 sync_cursor_target() {
-    validate_only_steps "cursor" "base,settings,mcp,rules"
-
-    if [[ "${MODE:-local}" == "repo" ]]; then
-        err "--mode repo is not supported by the cursor target"
-        err "  cursor has no remote-source concept; it reads bundles from ~/.cursor/{skills,agents,rules}/."
-        err "  use --mode local (default) to rsync the local bundle into ~/.cursor/."
-        exit 1
-    fi
+    validate_only_steps "cursor"
 
     local cursor_dir="${HOME}/.cursor"
     local scripts_dir="${SCRIPT_DIR}/scripts"
@@ -1046,7 +1055,7 @@ sync_cursor_target() {
 # Codex sync (base: plugin + agents + marketplace; settings: config link)
 # ---------------------------------------------------------------------------
 sync_codex_target() {
-    validate_only_steps "codex" "base,settings,rules"
+    validate_only_steps "codex"
 
     local codex_plugin_dest="${HOME}/.codex/plugins/ycc"
     local codex_marketplace_plugin_dest="${HOME}/.agents/plugins/ycc"
@@ -1259,14 +1268,7 @@ PY
 # opencode sync (base: skills + agents + commands; settings: config + rules)
 # ---------------------------------------------------------------------------
 sync_opencode_target() {
-    validate_only_steps "opencode" "base,settings,rules"
-
-    if [[ "${MODE:-local}" == "repo" ]]; then
-        err "--mode repo is not supported by the opencode target"
-        err "  opencode has no remote-source concept; it reads bundles from ~/.config/opencode/{skills,agents,commands}/."
-        err "  use --mode local (default) to rsync the local bundle into ~/.config/opencode/."
-        exit 1
-    fi
+    validate_only_steps "opencode"
 
     local opencode_dir="${HOME}/.config/opencode"
     local scripts_dir="${SCRIPT_DIR}/scripts"
@@ -1416,26 +1418,101 @@ sync_opencode_target() {
 }
 
 # ---------------------------------------------------------------------------
-# All targets
+# Target selection
 # ---------------------------------------------------------------------------
-sync_all_targets() {
-    if [[ "${MODE:-local}" == "repo" ]]; then
-        warn "--mode repo: skipping cursor and opencode targets (no remote-source concept)."
-        warn "  use --target cursor / --target opencode (default --mode local) to install those bundles."
-        run_target claude sync_claude_target
-        run_target codex sync_codex_target
+ALL_TARGETS=(claude cursor codex opencode)
+
+# is_known_target <target>
+is_known_target() {
+    local known
+    for known in "${ALL_TARGETS[@]}"; do
+        [[ "${known}" == "$1" ]] && return 0
+    done
+    return 1
+}
+
+# supports_repo_mode <target>
+# cursor and opencode read bundles from local directories only.
+supports_repo_mode() {
+    [[ "$1" == "claude" || "$1" == "codex" ]]
+}
+
+# resolve_targets <csv>
+# Populate TARGETS from a comma-separated --target value. 'all' expands to
+# every target (minus repo-incapable ones under --mode repo) and must stand
+# alone. Duplicates are dropped; order is preserved.
+resolve_targets() {
+    local csv="$1"
+    local -a requested=()
+    local target existing seen
+    IFS=',' read -r -a requested <<< "${csv// /}"
+    TARGETS=()
+
+    if [[ ${#requested[@]} -eq 0 ]]; then
+        err "--target requires at least one target"
+        exit 1
+    fi
+
+    if [[ " ${requested[*]} " == *" all "* ]]; then
+        if [[ ${#requested[@]} -ne 1 ]]; then
+            err "--target 'all' cannot be combined with other targets"
+            exit 1
+        fi
+        if [[ "${MODE}" == "repo" ]]; then
+            warn "--mode repo: skipping cursor and opencode targets (no remote-source concept)."
+            warn "  use --target cursor / --target opencode (default --mode local) to install those bundles."
+        fi
+        for target in "${ALL_TARGETS[@]}"; do
+            if [[ "${MODE}" == "repo" ]] && ! supports_repo_mode "${target}"; then
+                continue
+            fi
+            TARGETS+=("${target}")
+        done
         return 0
     fi
-    run_target claude sync_claude_target
-    run_target cursor sync_cursor_target
-    run_target codex sync_codex_target
-    run_target opencode sync_opencode_target
+
+    for target in "${requested[@]}"; do
+        if [[ -z "${target}" ]]; then
+            err "--target contains an empty value"
+            exit 1
+        fi
+        if ! is_known_target "${target}"; then
+            err "Unknown target: ${target} (supported: ${ALL_TARGETS[*]}, all)"
+            exit 1
+        fi
+        seen=0
+        for existing in "${TARGETS[@]:-}"; do
+            [[ "${existing}" == "${target}" ]] && { seen=1; break; }
+        done
+        if [[ ${seen} -eq 0 ]]; then
+            TARGETS+=("${target}")
+        fi
+    done
+}
+
+# preflight_targets
+# Reject every invalid target/mode/--only combination before any target runs,
+# so a multi-target invocation never stops half-applied.
+preflight_targets() {
+    local target
+    for target in "${TARGETS[@]}"; do
+        if [[ "${MODE}" == "repo" ]] && ! supports_repo_mode "${target}"; then
+            err "--mode repo is not supported by the ${target} target"
+            err "  ${target} has no remote-source concept; it reads bundles from local directories."
+            err "  use --mode local (default), or --target all to skip it automatically."
+            exit 1
+        fi
+        if [[ "${COMMAND}" != "sync" ]]; then
+            validate_only_steps "${target}"
+        fi
+    done
 }
 
 # ---------------------------------------------------------------------------
 # Argument parsing
 # ---------------------------------------------------------------------------
 TARGET=""
+TARGETS=()
 MODE="local"
 COMMAND="legacy"
 MCP=0
@@ -1574,24 +1651,8 @@ if [[ ${#ONLY_STEPS[@]} -gt 0 ]]; then
     fi
 fi
 
-case "${TARGET}" in
-    claude)
-        run_target claude sync_claude_target
-        ;;
-    cursor)
-        run_target cursor sync_cursor_target
-        ;;
-    codex)
-        run_target codex sync_codex_target
-        ;;
-    opencode)
-        run_target opencode sync_opencode_target
-        ;;
-    all)
-        sync_all_targets
-        ;;
-    *)
-        err "Unknown target: ${TARGET} (supported: claude, cursor, codex, opencode, all)"
-        exit 1
-        ;;
-esac
+resolve_targets "${TARGET}"
+preflight_targets
+for target in "${TARGETS[@]}"; do
+    run_target "${target}" "sync_${target}_target"
+done
