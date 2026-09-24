@@ -40,3 +40,4 @@ plan-blocks.md
 **/plans/*/.plan-serve/
 **/.agent-native/
 .config/opencode/
+opencode.json
