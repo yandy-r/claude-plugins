@@ -24,17 +24,22 @@ trap 'rm -rf "${SANDBOX_ROOT}"' EXIT
 new_home() {
     local home
     home="$(mktemp -d "${SANDBOX_ROOT}/home.XXXXXX")"
-    mkdir -p "${home}/.claude" "${home}/.codex" "${home}/.cursor" "${home}/.config/opencode"
+    mkdir -p "${home}/.claude" "${home}/.codex" "${home}/.cursor" "${home}/.config/opencode" "${home}/project"
     echo "${home}"
 }
 
 # run_install <home> <args...> — run install.sh sandboxed; capture output.
+# Runs from <home>/project (not a git repo) so project-scoped steps write
+# there and never into this checkout.
 run_install() {
     local home="$1"
     shift
-    HOME="${home}" \
-    YCC_MANAGED_CONFIG_STATE="${home}/.config/ycc/managed-config-state.json" \
-        bash "${INSTALL}" "$@" 2>&1
+    (
+        cd "${home}/project" || exit 1
+        HOME="${home}" \
+        YCC_MANAGED_CONFIG_STATE="${home}/.config/ycc/managed-config-state.json" \
+            bash "${INSTALL}" "$@" 2>&1
+    )
 }
 
 ok() {
@@ -90,7 +95,7 @@ assert_contains "${out}" "cannot be combined with --only" "sync rejects additive
 
 home="$(new_home)"
 out="$(run_install "${home}" --target claude --intent settings)"
-assert_contains "${out}" "--intent requires the 'sync' subcommand" "--intent rejected in legacy mode"
+assert_contains "${out}" "--intent requires the 'sync' or 'remove' subcommand" "--intent rejected in legacy mode"
 
 home="$(new_home)"
 out="$(run_install "${home}" sync --intent settings)"
@@ -105,7 +110,7 @@ assert_contains "${out}" "Codex sync complete" "multi-target runs codex"
 assert_contains "${out}" "Claude sync complete" "multi-target runs claude"
 assert_contains "${out}" "opencode sync complete" "multi-target runs opencode"
 assert_not_contains "${out}" "Cursor sync complete" "multi-target skips unlisted cursor"
-assert_contains "$(cat "${home}/.claude.json")" '"mcpServers"' "multi-target merges claude MCP"
+assert_contains "$(cat "${home}/project/.mcp.json")" '"mcpServers"' "multi-target merges claude MCP into project scope"
 
 home="$(new_home)"
 out="$(run_install "${home}" sync --target claude,claude --intent mcp)"
@@ -131,8 +136,8 @@ assert_contains "${out}" "--mode repo is not supported by the cursor target" "re
 assert_not_contains "${out}" "Claude sync complete" "repo-mode rejection happens before any target runs"
 
 home="$(new_home)"
-out="$(run_install "${home}" --target claude,codex --only mcp)"
-assert_contains "${out}" "--only step 'mcp' is not valid for target 'codex'" "legacy --only validated across all targets"
+out="$(run_install "${home}" --target claude,codex --only hooks)"
+assert_contains "${out}" "--only step 'hooks' is not valid for target 'codex'" "legacy --only validated across all targets"
 assert_not_contains "${out}" "Claude sync complete" "--only rejection happens before any target runs"
 
 echo
@@ -263,6 +268,80 @@ assert_not_contains "${out}" "register repo checkout" "legacy --only stays exclu
 home="$(new_home)"
 out="$(run_install "${home}" --target claude --only bogus)"
 assert_contains "${out}" "is not valid for target" "legacy --only validates steps"
+
+echo
+echo "== install.sh: --project / --global MCP scope =="
+
+home="$(new_home)"
+out="$(run_install "${home}" --target claude --project --global)"
+assert_contains "${out}" "mutually exclusive" "--project and --global rejected together"
+
+home="$(new_home)"
+out="$(run_install "${home}" --target claude --only settings,mcp --project)"
+assert_contains "${out}" "--project is not supported by step 'settings'" "--project rejects non-project steps"
+assert_not_contains "${out}" "Claude sync complete" "--project rejection happens before any target runs"
+
+home="$(new_home)"
+run_install "${home}" sync --target all --intent mcp >/dev/null
+for f in .mcp.json .cursor/mcp.json .codex/config.toml opencode.json; do
+    if [[ -f "${home}/project/${f}" ]]; then ok "project MCP written: ${f}"; else ko "project MCP written: ${f}"; fi
+done
+if [[ ! -e "${home}/.claude.json" && ! -e "${home}/.cursor/mcp.json" ]]; then
+    ok "project scope leaves global MCP files alone"
+else
+    ko "project scope leaves global MCP files alone"
+fi
+
+home="$(new_home)"
+run_install "${home}" --target claude --only mcp --global >/dev/null
+assert_contains "$(cat "${home}/.claude.json")" '"mcpServers"' "--global writes ~/.claude.json"
+if [[ ! -e "${home}/project/.mcp.json" ]]; then ok "--global leaves project alone"; else ko "--global leaves project alone"; fi
+
+echo
+echo "== install.sh remove =="
+
+home="$(new_home)"
+out="$(run_install "${home}" remove --target claude)"
+assert_contains "${out}" "remove requires --only <steps> or --intent <intents>" "remove requires a selection"
+
+home="$(new_home)"
+out="$(run_install "${home}" remove --target claude --mcp)"
+assert_contains "${out}" "remove does not accept --settings" "remove rejects additive flags"
+
+home="$(new_home)"
+out="$(run_install "${home}" remove --target claude --only settings)"
+assert_contains "${out}" "remove does not support step 'settings'" "remove rejects unsupported steps"
+
+home="$(new_home)"
+cat > "${home}/project/.mcp.json" <<'JSON'
+{ "mcpServers": { "mine": { "url": "https://mine" } } }
+JSON
+run_install "${home}" --target claude --only mcp >/dev/null
+out="$(run_install "${home}" remove --target claude --only mcp)"
+assert_contains "${out}" "Claude remove complete" "remove runs for claude"
+merged="$(cat "${home}/project/.mcp.json")"
+assert_contains "${merged}" '"mine"' "remove keeps user-added server"
+assert_not_contains "${merged}" '"playwright"' "remove drops managed server"
+
+home="$(new_home)"
+run_install "${home}" sync --target all --intent mcp --global >/dev/null
+run_install "${home}" remove --target all --intent mcp --global >/dev/null
+for f in .claude.json .cursor/mcp.json .codex/config.toml .config/opencode/opencode.json; do
+    if [[ ! -e "${home}/${f}" ]]; then ok "global remove cleans ${f}"; else ko "global remove cleans ${f}"; fi
+done
+
+home="$(new_home)"
+cat > "${home}/.codex/config.toml" <<'TOML'
+# keep me
+[mcp_servers.internal]
+url = "https://internal.example"
+TOML
+run_install "${home}" --target codex --only mcp --global >/dev/null
+run_install "${home}" remove --target codex --only mcp --global >/dev/null
+merged="$(cat "${home}/.codex/config.toml")"
+assert_contains "${merged}" "# keep me" "codex remove keeps comments"
+assert_contains "${merged}" "[mcp_servers.internal]" "codex remove keeps user server"
+assert_not_contains "${merged}" "[mcp_servers.playwright]" "codex remove drops managed server"
 
 echo
 printf 'test-install-sync: %d passed, %d failed\n' "${PASS}" "${FAIL}"

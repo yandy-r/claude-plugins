@@ -30,12 +30,12 @@ The legacy equivalent remains supported:
 
 Step behavior:
 
-| Step       | Effect                                                                                               |
-| ---------- | ---------------------------------------------------------------------------------------------------- |
-| `base`     | Generates and validates `.cursor-plugin/{skills,agents,rules}/`, then rsyncs them into `~/.cursor/`. |
-| `settings` | Merges `.cursor-plugin/config/cli-config.json` into `~/.cursor/cli-config.json`.                     |
-| `rules`    | Symlinks `ycc/settings/rules/CLAUDE.md` and `AGENTS.md` into `~/.cursor/`.                           |
-| `mcp`      | Symlinks `mcp-configs/mcp.json` to `~/.cursor/mcp.json`.                                             |
+| Step       | Effect                                                                                                     |
+| ---------- | ---------------------------------------------------------------------------------------------------------- |
+| `base`     | Generates and validates `.cursor-plugin/{skills,agents,rules}/`, then rsyncs them into `~/.cursor/`.       |
+| `settings` | Merges `.cursor-plugin/config/cli-config.json` into `~/.cursor/cli-config.json`.                           |
+| `rules`    | Symlinks `ycc/settings/rules/CLAUDE.md` and `AGENTS.md` into `~/.cursor/`.                                 |
+| `mcp`      | Merges `mcp-configs/mcp.json` into `<project>/.cursor/mcp.json` (or `~/.cursor/mcp.json` with `--global`). |
 
 Cursor has no `hooks` or `plugins` step; those intents are reported as no-ops.
 
@@ -66,22 +66,30 @@ Use `--only` to run exactly the listed steps:
 ./install.sh --target cursor --only base
 ./install.sh --target cursor --only settings
 ./install.sh --target cursor --only rules
-./install.sh --target cursor --only mcp
+./install.sh --target cursor --only mcp                   # <project>/.cursor/mcp.json
+./install.sh --target cursor --only mcp --global          # ~/.cursor/mcp.json
+./install.sh remove --target cursor --only mcp --global   # remove managed servers
 ```
+
+MCP servers are merged, not symlinked, so servers you add survive; a symlink
+left at `~/.cursor/mcp.json` by older installers becomes a real file on the
+next `--global` run. See
+[Project Vs Global Scope](README.md#project-vs-global-scope) and
+[Removing MCP Servers](README.md#removing-mcp-servers).
 
 `--mode repo` is not supported for Cursor. Cursor reads files from local config
 directories, so use the default local mode.
 
 ## Installed Surfaces
 
-| Surface                | Location                                     |
-| ---------------------- | -------------------------------------------- |
-| Skills                 | `~/.cursor/skills/`                          |
-| Agents                 | `~/.cursor/agents/`                          |
-| Cursor rules           | `~/.cursor/rules/`                           |
-| Shared top-level rules | `~/.cursor/CLAUDE.md`, `~/.cursor/AGENTS.md` |
-| CLI config             | `~/.cursor/cli-config.json`                  |
-| MCP config             | `~/.cursor/mcp.json`                         |
+| Surface                | Location                                             |
+| ---------------------- | ---------------------------------------------------- |
+| Skills                 | `~/.cursor/skills/`                                  |
+| Agents                 | `~/.cursor/agents/`                                  |
+| Cursor rules           | `~/.cursor/rules/`                                   |
+| Shared top-level rules | `~/.cursor/CLAUDE.md`, `~/.cursor/AGENTS.md`         |
+| CLI config             | `~/.cursor/cli-config.json`                          |
+| MCP config             | `<project>/.cursor/mcp.json` or `~/.cursor/mcp.json` |
 
 The top-level rule links intentionally live outside `~/.cursor/rules/` because
 the `base` step rsyncs `~/.cursor/rules/` with `--delete`.

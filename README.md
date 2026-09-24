@@ -127,8 +127,14 @@ and desktop app notes, use the dedicated install guides. Recommended sync form:
 ```bash
 ./install.sh sync --target claude --intent hooks,settings,mcp,plugins
 ./install.sh sync --target all --intent settings,rules
-./install.sh sync --target codex,claude,opencode --intent mcp
+./install.sh sync --target codex,claude,opencode --intent mcp            # current project
+./install.sh sync --target codex,claude,opencode --intent mcp --global   # user-global
+./install.sh remove --target all --only mcp                              # undo project MCP
 ```
+
+The `mcp` step defaults to the current project; pass `--global` for user-global
+config. `remove` strips installer-managed MCP servers and leaves yours alone. See
+[Project Vs Global Scope](docs/install/README.md#project-vs-global-scope).
 
 `--target` takes a comma-separated list (or `all`); every target is validated
 before any of them runs.

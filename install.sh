@@ -109,7 +109,7 @@ copy_settings_file() {
     info "copied $src -> $dest"
 }
 
-# merge_settings_config <profile> <src> <dest> <groups>
+# merge_settings_config <profile> <src> <dest> <groups> [helper-args...]
 # Merge only repo-managed keys while preserving unknown/local settings. Managed
 # values previously written by this helper update automatically; locally edited
 # managed values are preserved unless --force is passed.
@@ -129,6 +129,7 @@ merge_settings_config() {
         --source "${src}"
         --destination "${dest}"
         --groups "${groups}"
+        "${@:5}"
     )
     [[ "${FORCE:-0}" == "1" ]] && command+=(--force)
     "${command[@]}"
@@ -136,8 +137,9 @@ merge_settings_config() {
 
 usage() {
     cat <<EOF
-Usage: $(basename "$0") sync --target <targets> --intent <intents> [--mode <mode>] [--force]
-       $(basename "$0") --target <targets> [--mode <mode>] [--settings] [--rules] [--mcp] [--hooks] [--force] [--only <steps>]
+Usage: $(basename "$0") sync --target <targets> --intent <intents> [--mode <mode>] [--project|--global] [--force]
+       $(basename "$0") remove --target <targets> (--only <steps> | --intent <intents>) [--project|--global] [--force]
+       $(basename "$0") --target <targets> [--mode <mode>] [--settings] [--rules] [--mcp] [--hooks] [--project|--global] [--force] [--only <steps>]
 
 Sync plugin assets to an IDE configuration directory.
 
@@ -167,10 +169,32 @@ Intents (valid: base, settings, rules, mcp, hooks, plugins):
               hooks→settings+hooks  plugins→settings
     cursor    base→base  settings→settings  rules→rules  mcp→mcp
               hooks, plugins → no-op
-    codex     base→base  settings→settings  rules→rules
-              mcp, plugins → settings (config.toml holds both)
-    opencode  base→base  settings→settings  rules→rules
-              mcp, plugins → settings (opencode.json holds both)
+    codex     base→base  settings→settings  rules→rules  mcp→mcp
+              plugins → settings (config.toml)
+    opencode  base→base  settings→settings  rules→rules  mcp→mcp
+              plugins → settings (opencode.json)
+
+Remove ('remove' subcommand):
+  Strips what the installer manages from the selected steps' config files.
+  Requires --only or --intent; never runs 'base'. Supported steps today: mcp
+  (every target). Servers you added are never touched; a managed server you
+  edited is kept with a warning unless --force. A file left empty is deleted.
+
+  $(basename "$0") remove --target claude --only mcp            # project scope
+  $(basename "$0") remove --target all --intent mcp --global    # user-global
+
+Scope (--project | --global, mutually exclusive):
+  Without a flag, steps that support project scope use it; all others stay
+  global. --project with a step lacking project support is an error. The
+  project is the git toplevel of the current directory (else the directory).
+  Project-capable steps today: mcp.
+
+    target    mcp --project                   mcp --global
+    claude    <project>/.mcp.json             ~/.claude.json
+    cursor    <project>/.cursor/mcp.json      ~/.cursor/mcp.json
+    codex     <project>/.codex/config.toml    ~/.codex/config.toml
+              (Codex loads it only for trusted projects)
+    opencode  <project>/opencode.json         ~/.config/opencode/opencode.json
 
 Merge semantics (all structured config files):
   - Keys this repo declares as managed are written; every other key is kept.
@@ -227,6 +251,10 @@ Options:
                         codex    — default.rules, CLAUDE.md, AGENTS.md at ~/.codex/
                         opencode — AGENTS.md at ~/.config/opencode/
   --mcp               Additive: also run the target's 'mcp' step. Mode-agnostic.
+                      Scope follows --project (default) / --global.
+  --project           Scope-capable steps (today: mcp) write into the current
+                      project. Default when neither flag is given.
+  --global            Scope-capable steps write into user-global config.
   --hooks             Additive: also run the target's 'hooks' step.
                       Currently supported by the claude target only; silently
                       ignored by targets without hook support. Mode-agnostic.
@@ -236,7 +264,7 @@ Options:
   --only <steps>      Exclusive: run only the comma-separated steps
                       (e.g. --only settings, --only rules,settings).
                       Overrides defaults and --settings/--rules/--mcp/--hooks.
-  --intent <intents>  'sync' subcommand only. Comma-separated intents (see
+  --intent <intents>  'sync' / 'remove' subcommands only. Comma-separated intents (see
                       above). Cannot be combined with --only or the additive
                       --settings/--rules/--mcp/--hooks flags.
   --help              Show this help message
@@ -268,7 +296,8 @@ Target steps:
                       preserved unless --force resolves a managed conflict.
             rules:    symlink ycc/settings/rules/{CLAUDE.md,AGENTS.md} into
                       ~/.claude/.
-            mcp:      merge mcp-configs/mcp.json mcpServers into ~/.claude.json.
+            mcp:      merge mcp-configs/mcp.json mcpServers into <project>/.mcp.json
+                      (--project, default) or ~/.claude.json (--global).
             hooks:    symlink ycc/settings/hooks/ into ~/.claude/hooks/, enabling
                       the WorktreeCreate hook (redirects harness-managed
                       worktrees to ~/.claude-worktrees/).
@@ -276,13 +305,14 @@ Target steps:
             base:     generate + validate + format + rsync bundle to ~/.cursor/.
             settings: merge .cursor-plugin/config/cli-config.json into
                       ~/.cursor/cli-config.json (main CLI model preference).
-            mcp:      symlink mcp-configs/mcp.json → ~/.cursor/mcp.json.
+            mcp:      merge mcp-configs/mcp.json mcpServers into
+                      <project>/.cursor/mcp.json or ~/.cursor/mcp.json.
             rules:    symlink ycc/settings/rules/{CLAUDE.md,AGENTS.md} into
                       ~/.cursor/ (top level — NOT inside ~/.cursor/rules/, which
                       is rsynced with --delete during 'base').
                       Cursor sub-agent models are set per generated agent file
                       in .cursor-plugin/agents/, not in cli-config.json.
-  codex     base | settings | rules
+  codex     base | settings | rules | mcp
             base:     generate + validate + format + sync custom agents, then
                       register the repo's .codex-plugin/ycc/ as a local
                       marketplace source in ~/.agents/plugins/marketplace.json
@@ -295,18 +325,20 @@ Target steps:
             settings: MERGE managed keys from .codex-plugin/config/config.toml
                       into ~/.codex/config.toml. Comments, trusted projects,
                       MCP bearer tokens, connector entries and unknown tables
-                      are preserved; Codex reads MCP and plugin state from the
-                      same file, so those intents map here too.
+                      are preserved; the 'plugins' intent maps here too.
+            mcp:      merge [mcp_servers.*] from .codex-plugin/config/config.toml
+                      into <project>/.codex/config.toml or ~/.codex/config.toml.
             rules:    symlink .codex-plugin/config/default.rules AND
                       ycc/settings/rules/{CLAUDE.md,AGENTS.md} into ~/.codex/.
-  opencode  base | settings | rules
+  opencode  base | settings | rules | mcp
             base:     generate + validate + format + rsync skills/agents/commands
                       into ~/.config/opencode/.
             settings: MERGE managed keys from .opencode-plugin/opencode.json
                       into ~/.config/opencode/opencode.json. Local model
                       choices, provider credentials and unknown keys are
-                      preserved. opencode reads MCP and plugins from the same
-                      file, so those intents map here — no separate mcp step.
+                      preserved; the 'plugins' intent maps here too.
+            mcp:      merge mcp.servers from .opencode-plugin/opencode.json into
+                      <project>/opencode.json or ~/.config/opencode/opencode.json.
             rules:    symlink .opencode-plugin/AGENTS.md into
                       ~/.config/opencode/ (generator-produced from
                       ycc/settings/rules/CLAUDE.md — the same user-global
@@ -320,7 +352,8 @@ Examples:
   $(basename "$0") --target claude --settings --rules --mcp
   $(basename "$0") --target claude --only settings         # copy settings only
   $(basename "$0") --target claude --only rules            # link rules only
-  $(basename "$0") --target claude --only mcp
+  $(basename "$0") --target claude --only mcp            # project .mcp.json
+  $(basename "$0") --target claude --only mcp --global   # ~/.claude.json
   $(basename "$0") --target claude --settings --force      # repo values win for managed-key conflicts
   $(basename "$0") --target claude --hooks                 # base + WorktreeCreate hook
   $(basename "$0") --target claude --only hooks            # hooks only
@@ -383,17 +416,92 @@ run_repo_style_format_modified() {
 }
 
 # ---------------------------------------------------------------------------
-# MCP: Claude Code (~/.claude.json root mcpServers)
+# Scope (--project / --global)
 # ---------------------------------------------------------------------------
-# Claude Code reads MCP servers from ~/.claude.json. The shared merge helper
-# gives this the same ownership tracking, local-edit protection and atomic
-# write behavior as every other structured config file.
-merge_claude_mcp_json() {
-    merge_settings_config \
-        "claude-mcp" \
-        "${MCP_CONFIG_SRC}" \
-        "${HOME}/.claude.json" \
-        "mcp"
+# Steps that can write into the current project instead of the user-global
+# config. Without an explicit flag, these default to project scope and every
+# other step stays global.
+# ponytail: mcp only; widen these per step as project/remove support lands for
+# settings, hooks, rules.
+step_supports_project() {
+    [[ "$2" == "mcp" ]]
+}
+
+step_supports_remove() {
+    [[ "$2" == "mcp" ]]
+}
+
+# step_scope <target> <step> — echo 'project' or 'global'.
+step_scope() {
+    if [[ -n "${SCOPE}" ]]; then
+        echo "${SCOPE}"
+    elif step_supports_project "$1" "$2"; then
+        echo "project"
+    else
+        echo "global"
+    fi
+}
+
+# project_root — git toplevel of $PWD, else $PWD itself.
+project_root() {
+    git rev-parse --show-toplevel 2>/dev/null || pwd
+}
+
+# ---------------------------------------------------------------------------
+# MCP step (every target, project or global scope, merge or remove)
+# ---------------------------------------------------------------------------
+# The shared merge helper gives every MCP file the same ownership tracking,
+# local-edit protection and atomic writes; state is keyed per destination, so
+# project and global copies never interfere.
+#
+#   target    project                          global
+#   claude    <project>/.mcp.json              ~/.claude.json
+#   cursor    <project>/.cursor/mcp.json       ~/.cursor/mcp.json
+#   codex     <project>/.codex/config.toml     ~/.codex/config.toml
+#   opencode  <project>/opencode.json          ~/.config/opencode/opencode.json
+mcp_destination() {
+    local target="$1"
+    if [[ "$(step_scope "${target}" mcp)" == "project" ]]; then
+        local root
+        root="$(project_root)"
+        case "${target}" in
+            claude)   echo "${root}/.mcp.json" ;;
+            cursor)   echo "${root}/.cursor/mcp.json" ;;
+            codex)    echo "${root}/.codex/config.toml" ;;
+            opencode) echo "${root}/opencode.json" ;;
+        esac
+    else
+        case "${target}" in
+            claude)   echo "${HOME}/.claude.json" ;;
+            cursor)   echo "${HOME}/.cursor/mcp.json" ;;
+            codex)    echo "${HOME}/.codex/config.toml" ;;
+            opencode) echo "${HOME}/.config/opencode/opencode.json" ;;
+        esac
+    fi
+}
+
+# run_mcp_step <target> — merge (or, for 'remove', strip) managed MCP servers.
+run_mcp_step() {
+    local target="$1" profile src dest
+    case "${target}" in
+        claude)   profile="claude-mcp";      src="${MCP_CONFIG_SRC}" ;;
+        cursor)   profile="cursor-mcp";      src="${MCP_CONFIG_SRC}" ;;
+        codex)    profile="codex-config";    src="${SCRIPT_DIR}/.codex-plugin/config/config.toml" ;;
+        opencode) profile="opencode-config"; src="${OPENCODE_PLUGIN_DIR}/opencode.json" ;;
+        *) err "run_mcp_step: unknown target '${target}'"; exit 1 ;;
+    esac
+    dest="$(mcp_destination "${target}")"
+
+    if [[ "${COMMAND}" == "remove" ]]; then
+        info "Removing managed MCP servers from ${dest}"
+        merge_settings_config "${profile}" "${src}" "${dest}" "mcp" --remove
+        return 0
+    fi
+    info "Merging MCP servers into ${dest}"
+    merge_settings_config "${profile}" "${src}" "${dest}" "mcp"
+    if [[ "${target}" == "codex" && "${dest}" != "${HOME}/.codex/config.toml" ]]; then
+        warn "Codex loads ${dest} only when the project is trusted in ~/.codex/config.toml."
+    fi
 }
 
 # ---------------------------------------------------------------------------
@@ -517,22 +625,6 @@ PY
 }
 
 # ---------------------------------------------------------------------------
-# MCP: Cursor (~/.cursor/mcp.json)
-# ---------------------------------------------------------------------------
-sync_cursor_mcp_json() {
-    if [[ ! -f "${MCP_CONFIG_SRC}" ]]; then
-        err "MCP source not found: ${MCP_CONFIG_SRC}"
-        exit 1
-    fi
-    if [[ ! -r "${MCP_CONFIG_SRC}" ]]; then
-        err "MCP source not readable: ${MCP_CONFIG_SRC}"
-        exit 1
-    fi
-
-    link_file "${MCP_CONFIG_SRC}" "${HOME}/.cursor/mcp.json"
-}
-
-# ---------------------------------------------------------------------------
 # Step selection
 # ---------------------------------------------------------------------------
 # step_enabled <step> <target_valid_steps_csv>
@@ -575,7 +667,7 @@ valid_steps_for_target() {
     case "$1" in
         claude) echo "base,settings,rules,mcp,hooks" ;;
         cursor) echo "base,settings,mcp,rules" ;;
-        codex|opencode) echo "base,settings,rules" ;;
+        codex|opencode) echo "base,settings,rules,mcp" ;;
         *) err "valid_steps_for_target: unknown target '$1'"; exit 1 ;;
     esac
 }
@@ -633,14 +725,14 @@ intent_steps_for_target() {
         cursor:settings) echo "settings" ;;
         cursor:hooks|cursor:plugins) echo "" ;;
 
-        codex:base|codex:settings|codex:rules) echo "${intent}" ;;
-        # Codex reads MCP servers and plugin enablement from config.toml.
-        codex:mcp|codex:plugins) echo "settings" ;;
+        # MCP has its own scope-aware step; plugin enablement lives in the
+        # target's main config file (config.toml / opencode.json).
+        codex:base|codex:settings|codex:rules|codex:mcp) echo "${intent}" ;;
+        codex:plugins) echo "settings" ;;
         codex:hooks) echo "" ;;
 
-        opencode:base|opencode:settings|opencode:rules) echo "${intent}" ;;
-        # opencode reads MCP servers and plugins from opencode.json.
-        opencode:mcp|opencode:plugins) echo "settings" ;;
+        opencode:base|opencode:settings|opencode:rules|opencode:mcp) echo "${intent}" ;;
+        opencode:plugins) echo "settings" ;;
         opencode:hooks) echo "" ;;
 
         *) echo "" ;;
@@ -692,24 +784,25 @@ intent_requested() {
 # Return managed config groups selected for a structured settings file.
 config_groups_for_target() {
     local target="$1"
-    if [[ "${COMMAND}" != "sync" ]]; then
+    if [[ ${#INTENTS[@]} -eq 0 ]]; then
         case "${target}" in
             claude) echo "settings,hooks,plugins" ;;
             cursor) echo "settings" ;;
-            codex|opencode) echo "settings,mcp,plugins" ;;
+            # MCP servers are owned by the scope-aware 'mcp' step.
+            codex|opencode) echo "settings,plugins" ;;
         esac
         return 0
     fi
 
     local -a groups=()
     local group
-    for group in settings mcp plugins hooks; do
+    for group in settings plugins hooks; do
         intent_requested "${group}" || continue
         case "${target}:${group}" in
             claude:settings|claude:plugins|claude:hooks) groups+=("${group}") ;;
             cursor:settings) groups+=("settings") ;;
-            codex:settings|codex:mcp|codex:plugins) groups+=("${group}") ;;
-            opencode:settings|opencode:mcp|opencode:plugins) groups+=("${group}") ;;
+            codex:settings|codex:plugins) groups+=("${group}") ;;
+            opencode:settings|opencode:plugins) groups+=("${group}") ;;
         esac
     done
     local IFS=','
@@ -721,7 +814,7 @@ config_groups_for_target() {
 run_target() {
     local target="$1"
     local fn="$2"
-    if [[ "${COMMAND}" == "sync" ]]; then
+    if [[ ${#INTENTS[@]} -gt 0 ]]; then
         configure_intents_for_target "${target}"
     fi
     "${fn}"
@@ -759,7 +852,7 @@ sync_claude_target() {
                 "${HOME}/.claude/settings.json" \
                 "${claude_groups}"
         fi
-        if [[ "${COMMAND}" != "sync" ]] || intent_requested settings; then
+        if [[ ${#INTENTS[@]} -eq 0 ]] || intent_requested settings; then
             copy_settings_file "${SCRIPT_DIR}/ycc/settings/statusline-command.sh" "${HOME}/.claude/statusline-command.sh"
         fi
         ran=1
@@ -771,8 +864,8 @@ sync_claude_target() {
         ran=1
     fi
     if step_enabled mcp; then
-        printf '\n%sClaude: merge MCP into ~/.claude.json%s\n' "${BOLD}" "${NC}"
-        merge_claude_mcp_json
+        printf '\n%sClaude: %s MCP servers%s\n' "${BOLD}" "${COMMAND/legacy/sync}" "${NC}"
+        run_mcp_step claude
         ran=1
     fi
     if step_enabled hooks; then
@@ -787,7 +880,7 @@ sync_claude_target() {
     if [[ $ran -eq 0 ]]; then
         warn "Claude target ran no steps (pass --settings, --rules, --mcp, --hooks, or --only ...)"
     fi
-    printf '\n%sClaude sync complete.%s\n' "${BOLD}" "${NC}"
+    printf '\n%sClaude %s complete.%s\n' "${BOLD}" "${COMMAND/legacy/sync}" "${NC}"
     if [[ $base_ran -eq 1 ]]; then
         if [[ "${MODE:-local}" == "repo" ]]; then
             warn "Run /reload-plugins or start a new Claude Code session. The 'ycc' marketplace in ~/.claude/settings.json now tracks the github source yandy-r/claude-plugins."
@@ -942,7 +1035,7 @@ sync_cursor_target() {
 
     if [[ $do_base -eq 0 && $do_settings -eq 0 && $do_mcp -eq 0 && $do_rules -eq 0 ]]; then
         warn "Cursor target ran no steps"
-        printf '\n%sCursor sync complete.%s\n' "${BOLD}" "${NC}"
+        printf '\n%sCursor %s complete.%s\n' "${BOLD}" "${COMMAND/legacy/sync}" "${NC}"
         return 0
     fi
 
@@ -1034,8 +1127,8 @@ sync_cursor_target() {
 
     if [[ $do_mcp -eq 1 ]]; then
         step=$((step + 1))
-        printf '\n%s[%d/%d] Sync MCP to ~/.cursor/mcp.json%s\n' "${BOLD}" "$step" "$total" "${NC}"
-        sync_cursor_mcp_json
+        printf '\n%s[%d/%d] %s MCP servers%s\n' "${BOLD}" "$step" "$total" "${COMMAND/legacy/sync}" "${NC}"
+        run_mcp_step cursor
     fi
 
     if [[ $do_rules -eq 1 ]]; then
@@ -1048,7 +1141,7 @@ sync_cursor_target() {
         link_rules_file "${SCRIPT_DIR}/ycc/settings/rules/AGENTS.md" "${cursor_dir}/AGENTS.md"
     fi
 
-    printf '\n%sCursor sync complete.%s\n' "${BOLD}" "${NC}"
+    printf '\n%sCursor %s complete.%s\n' "${BOLD}" "${COMMAND/legacy/sync}" "${NC}"
 }
 
 # ---------------------------------------------------------------------------
@@ -1063,14 +1156,15 @@ sync_codex_target() {
     local codex_agents_dest="${HOME}/.codex/agents"
     local scripts_dir="${SCRIPT_DIR}/scripts"
 
-    local do_base=0 do_settings=0 do_rules=0
+    local do_base=0 do_settings=0 do_rules=0 do_mcp=0
     step_enabled base && do_base=1
     step_enabled settings && do_settings=1
     step_enabled rules && do_rules=1
+    step_enabled mcp && do_mcp=1
 
-    if [[ $do_base -eq 0 && $do_settings -eq 0 && $do_rules -eq 0 ]]; then
+    if [[ $do_base -eq 0 && $do_settings -eq 0 && $do_rules -eq 0 && $do_mcp -eq 0 ]]; then
         warn "Codex target ran no steps"
-        printf '\n%sCodex sync complete.%s\n' "${BOLD}" "${NC}"
+        printf '\n%sCodex %s complete.%s\n' "${BOLD}" "${COMMAND/legacy/sync}" "${NC}"
         return 0
     fi
 
@@ -1094,6 +1188,7 @@ sync_codex_target() {
     fi
     [[ $do_settings -eq 1 ]] && total=$((total + 1))
     [[ $do_rules -eq 1 ]] && total=$((total + 1))
+    [[ $do_mcp -eq 1 ]] && total=$((total + 1))
     local step=0
 
     if [[ $do_base -eq 1 && "${MODE:-local}" == "repo" ]]; then
@@ -1247,7 +1342,13 @@ PY
         link_rules_file "${SCRIPT_DIR}/ycc/settings/rules/AGENTS.md"       "${HOME}/.codex/AGENTS.md"
     fi
 
-    printf '\n%sCodex sync complete.%s\n' "${BOLD}" "${NC}"
+    if [[ $do_mcp -eq 1 ]]; then
+        step=$((step + 1))
+        printf '\n%s[%d/%d] %s MCP servers%s\n' "${BOLD}" "$step" "$total" "${COMMAND/legacy/sync}" "${NC}"
+        run_mcp_step codex
+    fi
+
+    printf '\n%sCodex %s complete.%s\n' "${BOLD}" "${COMMAND/legacy/sync}" "${NC}"
     if [[ $do_base -eq 1 ]]; then
         if [[ "${MODE:-local}" == "repo" ]]; then
             warn "Restart Codex; the 'local-ycc-plugins' marketplace in ~/.agents/plugins/marketplace.json now tracks the github source yandy-r/claude-plugins@main."
@@ -1273,14 +1374,15 @@ sync_opencode_target() {
     local opencode_dir="${HOME}/.config/opencode"
     local scripts_dir="${SCRIPT_DIR}/scripts"
 
-    local do_base=0 do_settings=0 do_rules=0
+    local do_base=0 do_settings=0 do_rules=0 do_mcp=0
     step_enabled base && do_base=1
     step_enabled settings && do_settings=1
     step_enabled rules && do_rules=1
+    step_enabled mcp && do_mcp=1
 
-    if [[ $do_base -eq 0 && $do_settings -eq 0 && $do_rules -eq 0 ]]; then
+    if [[ $do_base -eq 0 && $do_settings -eq 0 && $do_rules -eq 0 && $do_mcp -eq 0 ]]; then
         warn "opencode target ran no steps"
-        printf '\n%sopencode sync complete.%s\n' "${BOLD}" "${NC}"
+        printf '\n%sopencode %s complete.%s\n' "${BOLD}" "${COMMAND/legacy/sync}" "${NC}"
         return 0
     fi
 
@@ -1291,6 +1393,7 @@ sync_opencode_target() {
     [[ $do_base -eq 1 ]] && total=$((total + 4))
     [[ $do_settings -eq 1 ]] && total=$((total + 1))
     [[ $do_rules -eq 1 ]] && total=$((total + 1))
+    [[ $do_mcp -eq 1 ]] && total=$((total + 1))
     local step=0
 
     if [[ $do_base -eq 1 ]]; then
@@ -1411,7 +1514,13 @@ sync_opencode_target() {
         link_file "${OPENCODE_PLUGIN_DIR}/AGENTS.md" "${opencode_dir}/AGENTS.md"
     fi
 
-    printf '\n%sopencode sync complete.%s\n' "${BOLD}" "${NC}"
+    if [[ $do_mcp -eq 1 ]]; then
+        step=$((step + 1))
+        printf '\n%s[%d/%d] %s MCP servers%s\n' "${BOLD}" "$step" "$total" "${COMMAND/legacy/sync}" "${NC}"
+        run_mcp_step opencode
+    fi
+
+    printf '\n%sopencode %s complete.%s\n' "${BOLD}" "${COMMAND/legacy/sync}" "${NC}"
     if [[ $do_base -eq 1 ]]; then
         warn "Restart opencode to pick up the new skills/agents/commands."
     fi
@@ -1502,8 +1611,33 @@ preflight_targets() {
             err "  use --mode local (default), or --target all to skip it automatically."
             exit 1
         fi
-        if [[ "${COMMAND}" != "sync" ]]; then
+        if [[ ${#INTENTS[@]} -gt 0 ]]; then
+            # Warnings for unsupported intents are printed when the target runs.
+            configure_intents_for_target "${target}" >/dev/null
+        else
             validate_only_steps "${target}"
+        fi
+        preflight_step_support "${target}"
+    done
+}
+
+# preflight_step_support <target>
+# Every step selected for <target> must support 'remove' (remove command) and
+# project scope (explicit --project).
+preflight_step_support() {
+    local target="$1"
+    local step valid_csv
+    valid_csv="$(valid_steps_for_target "${target}")"
+    for step in ${valid_csv//,/ }; do
+        step_enabled "${step}" || continue
+        if [[ "${COMMAND}" == "remove" ]] && ! step_supports_remove "${target}" "${step}"; then
+            err "remove does not support step '${step}' for target '${target}' (remove currently supports: mcp)"
+            exit 1
+        fi
+        if [[ "${SCOPE}" == "project" ]] && ! step_supports_project "${target}" "${step}"; then
+            err "--project is not supported by step '${step}' for target '${target}' (project scope currently supports: mcp)"
+            err "  use --global, or select only project-capable steps with --only / --intent."
+            exit 1
         fi
     done
 }
@@ -1523,11 +1657,12 @@ FORCE=0
 EXCLUSIVE_STEPS=0
 ONLY_STEPS=()
 INTENTS=()
+SCOPE=""
 
-# Optional ergonomic subcommand. Invocations that begin with --target retain
+# Optional ergonomic subcommands. Invocations that begin with --target retain
 # the legacy CLI unchanged.
-if [[ "${1:-}" == "sync" ]]; then
-    COMMAND="sync"
+if [[ "${1:-}" == "sync" || "${1:-}" == "remove" ]]; then
+    COMMAND="$1"
     shift
 fi
 
@@ -1577,6 +1712,14 @@ while [[ $# -gt 0 ]]; do
             HOOKS=1
             shift
             ;;
+        --project|--global)
+            if [[ -n "${SCOPE}" && "${SCOPE}" != "${1#--}" ]]; then
+                err "--project and --global are mutually exclusive"
+                exit 1
+            fi
+            SCOPE="${1#--}"
+            shift
+            ;;
         --force)
             FORCE=1
             shift
@@ -1599,13 +1742,21 @@ if [[ -z "${TARGET}" ]]; then
     exit 1
 fi
 
-if [[ "${COMMAND}" == "sync" ]]; then
-    if [[ ${#INTENTS[@]} -eq 0 ]]; then
-        err "sync requires --intent <intent,...>"
+if [[ "${COMMAND}" == "remove" ]]; then
+    # remove never runs 'base' and never guesses: say exactly what to remove.
+    if [[ "${SETTINGS}" == "1" || "${RULES}" == "1" || "${MCP}" == "1" || "${HOOKS}" == "1" ]]; then
+        err "remove does not accept --settings, --rules, --mcp, or --hooks (use --only or --intent)"
         exit 1
     fi
+    if [[ ${#ONLY_STEPS[@]} -eq 0 && ${#INTENTS[@]} -eq 0 ]]; then
+        err "remove requires --only <steps> or --intent <intents>"
+        exit 1
+    fi
+fi
+
+if [[ ${#INTENTS[@]} -gt 0 && "${COMMAND}" != "legacy" ]]; then
     if [[ ${#ONLY_STEPS[@]} -gt 0 || "${SETTINGS}" == "1" || "${RULES}" == "1" || "${MCP}" == "1" || "${HOOKS}" == "1" ]]; then
-        err "sync --intent cannot be combined with --only, --settings, --rules, --mcp, or --hooks"
+        err "${COMMAND} --intent cannot be combined with --only, --settings, --rules, --mcp, or --hooks"
         exit 1
     fi
 
@@ -1630,8 +1781,11 @@ if [[ "${COMMAND}" == "sync" ]]; then
         fi
     done
     INTENTS=("${unique_intents[@]}")
+elif [[ "${COMMAND}" == "sync" ]]; then
+    err "sync requires --intent <intent,...>"
+    exit 1
 elif [[ ${#INTENTS[@]} -gt 0 ]]; then
-    err "--intent requires the 'sync' subcommand"
+    err "--intent requires the 'sync' or 'remove' subcommand"
     exit 1
 fi
 

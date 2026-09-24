@@ -40,14 +40,17 @@ The legacy equivalent remains supported:
 
 Step behavior:
 
-| Step       | Effect                                                                                                                                     |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `base`     | Generates and validates `.opencode-plugin/{skills,agents,commands}/`, then rsyncs them into `~/.config/opencode/`.                         |
-| `settings` | Merges managed keys from `.opencode-plugin/opencode.json` into `~/.config/opencode/opencode.json`. MCP and plugins live in this same file. |
-| `rules`    | Symlinks `.opencode-plugin/AGENTS.md` into `~/.config/opencode/AGENTS.md`.                                                                 |
+| Step       | Effect                                                                                                                                             |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `base`     | Generates and validates `.opencode-plugin/{skills,agents,commands}/`, then rsyncs them into `~/.config/opencode/`.                                 |
+| `settings` | Merges managed keys from `.opencode-plugin/opencode.json` into `~/.config/opencode/opencode.json`. Plugins live in this same file.                 |
+| `mcp`      | Merges `mcp.servers` from `.opencode-plugin/opencode.json` into `<project>/opencode.json` (or `~/.config/opencode/opencode.json` with `--global`). |
+| `rules`    | Symlinks `.opencode-plugin/AGENTS.md` into `~/.config/opencode/AGENTS.md`.                                                                         |
 
-opencode reads MCP configuration from `opencode.json`; there is no separate
-`mcp` step for this target.
+MCP servers moved from the `settings` step to the `mcp` step, which defaults to
+project scope; pass `--global` to keep writing the user config. See
+[Project Vs Global Scope](README.md#project-vs-global-scope) and
+[Removing MCP Servers](README.md#removing-mcp-servers).
 
 ## Plugins
 
@@ -81,6 +84,8 @@ Use `--only` to run exactly the listed steps:
 ./install.sh --target opencode --only settings
 ./install.sh --target opencode --only rules
 ./install.sh --target opencode --only settings,rules
+./install.sh --target opencode --only mcp                   # <project>/opencode.json
+./install.sh remove --target opencode --only mcp --global   # remove managed servers
 ```
 
 `--mode repo` is not supported for opencode. opencode reads files from local
@@ -88,13 +93,14 @@ config directories, so use the default local mode.
 
 ## Installed Surfaces
 
-| Surface        | Location                           |
-| -------------- | ---------------------------------- |
-| Skills         | `~/.config/opencode/skills/`       |
-| Agents         | `~/.config/opencode/agents/`       |
-| Commands       | `~/.config/opencode/commands/`     |
-| Config and MCP | `~/.config/opencode/opencode.json` |
-| Rules          | `~/.config/opencode/AGENTS.md`     |
+| Surface  | Location                                                        |
+| -------- | --------------------------------------------------------------- |
+| Skills   | `~/.config/opencode/skills/`                                    |
+| Agents   | `~/.config/opencode/agents/`                                    |
+| Commands | `~/.config/opencode/commands/`                                  |
+| Config   | `~/.config/opencode/opencode.json`                              |
+| MCP      | `<project>/opencode.json` or `~/.config/opencode/opencode.json` |
+| Rules    | `~/.config/opencode/AGENTS.md`                                  |
 
 Rules reach the model through `~/.config/opencode/AGENTS.md`, which V2 loads as
 the global instructions file. The config's `instructions` array is deliberately

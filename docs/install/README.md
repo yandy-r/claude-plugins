@@ -29,8 +29,12 @@ cannot do.
 ```bash
 ./install.sh sync --target claude --intent hooks,settings,mcp,plugins
 ./install.sh sync --target all --intent settings,rules
-./install.sh sync --target codex --intent settings,mcp
+./install.sh sync --target codex --intent settings,mcp --global
+./install.sh remove --target all --only mcp --global
 ```
+
+`mcp` defaults to project scope on every target; see
+[Project Vs Global Scope](#project-vs-global-scope).
 
 | Intent     | Meaning                                                                                    |
 | ---------- | ------------------------------------------------------------------------------------------ |
@@ -48,7 +52,7 @@ Per-target mapping (intents a target cannot execute are skipped with a notice):
 | `base`     | `base`             | `base`     | `base`     | `base`     |
 | `settings` | `settings`         | `settings` | `settings` | `settings` |
 | `rules`    | `rules`            | `rules`    | `rules`    | `rules`    |
-| `mcp`      | `mcp`              | `mcp`      | `settings` | `settings` |
+| `mcp`      | `mcp`              | `mcp`      | `mcp`      | `mcp`      |
 | `hooks`    | `settings`+`hooks` | no-op      | no-op      | no-op      |
 | `plugins`  | `settings`         | no-op      | `settings` | `settings` |
 
@@ -72,6 +76,49 @@ Structured config files (`~/.claude/settings.json`, `~/.claude.json`,
 This is what makes new-machine setup reliable: run the same `sync` command on
 any machine and repo-managed settings land without clobbering machine-local
 trusted projects, provider credentials, or CLI-written marketplace entries.
+
+### Project Vs Global Scope
+
+`--project` and `--global` (mutually exclusive) work with the flag form, `sync`,
+and `remove`. Without either flag, steps that support project scope use it and
+every other step stays global. The project is the git root of the current
+directory, else the current directory. Today only the `mcp` step is
+project-capable:
+
+| Target   | `--project` (default)          | `--global`                         |
+| -------- | ------------------------------ | ---------------------------------- |
+| claude   | `<project>/.mcp.json`          | `~/.claude.json`                   |
+| cursor   | `<project>/.cursor/mcp.json`   | `~/.cursor/mcp.json`               |
+| codex    | `<project>/.codex/config.toml` | `~/.codex/config.toml`             |
+| opencode | `<project>/opencode.json`      | `~/.config/opencode/opencode.json` |
+
+Codex loads a project `.codex/config.toml` only for trusted projects; the
+installer warns when it writes one. An explicit `--project` combined with a step
+that has no project scope (for example `--only settings,mcp --project`) is
+rejected before anything runs: the error is about `settings`, not `mcp`. Drop
+`--project` to get project MCP plus global settings in one run.
+
+> **Behavior change:** the `mcp` step used to write only user-global files.
+> Pass `--global` to keep that. Cursor MCP is now merged instead of symlinked,
+> and Codex/opencode MCP servers moved from the `settings` step to the `mcp`
+> step.
+
+### Removing MCP Servers
+
+```bash
+./install.sh remove --target claude --only mcp             # project scope
+./install.sh remove --target all --intent mcp --global     # user-global
+```
+
+- Requires `--only` or `--intent`, rejects `--settings`/`--rules`/`--mcp`/`--hooks`,
+  and never runs `base`. Only the `mcp` step is removable today; any other step
+  fails before anything runs.
+- Removes installer-managed servers: those in the repo config plus ones it
+  installed earlier that the repo has since dropped. Servers you added are never
+  touched.
+- A managed server you edited is kept with a warning; `--force` removes it.
+- A file left empty is deleted. Codex TOML removal keeps comments and unrelated
+  tables.
 
 ### Legacy Flag Form
 

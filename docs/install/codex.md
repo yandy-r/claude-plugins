@@ -40,7 +40,8 @@ Step behavior:
 | Step       | Effect                                                                                                                                                                                                                                                                                                                                       |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `base`     | Generates and validates the Codex bundle, links `~/.codex/plugins/ycc/` and `~/.agents/plugins/ycc` to `.codex-plugin/ycc/`, refreshes the `~/.codex/plugins/cache/local-ycc-plugins/ycc` plugin-root copy, syncs `.codex-plugin/agents/` to `~/.codex/agents/`, and registers the marketplace with the relative local path `./plugins/ycc`. |
-| `settings` | Merges managed keys from `.codex-plugin/config/config.toml` into `~/.codex/config.toml`. Codex reads MCP servers and plugin enablement from the same file, so the `mcp` and `plugins` intents also map here.                                                                                                                                 |
+| `settings` | Merges managed keys from `.codex-plugin/config/config.toml` into `~/.codex/config.toml`. Plugin enablement lives in the same file, so the `plugins` intent also maps here.                                                                                                                                                                   |
+| `mcp`      | Merges `[mcp_servers.*]` from `.codex-plugin/config/config.toml` into `<project>/.codex/config.toml` (or `~/.codex/config.toml` with `--global`).                                                                                                                                                                                            |
 | `rules`    | Symlinks `.codex-plugin/config/default.rules`, `CLAUDE.md`, and `AGENTS.md` into `~/.codex/`.                                                                                                                                                                                                                                                |
 
 Settings merge without rewriting the rest of TOML: comments, local trusted
@@ -97,7 +98,16 @@ Use `--only` to run exactly the listed steps:
 ./install.sh --target codex --only settings
 ./install.sh --target codex --only rules
 ./install.sh --target codex --only settings,rules
+./install.sh --target codex --only mcp                   # <project>/.codex/config.toml
+./install.sh --target codex --only mcp --global          # ~/.codex/config.toml
+./install.sh remove --target codex --only mcp --global   # remove managed servers
 ```
+
+Codex loads a project `.codex/config.toml` only when the project is trusted in
+`~/.codex/config.toml`. MCP servers moved from the `settings` step to the `mcp`
+step; pass `--global` to keep writing the user config. See
+[Project Vs Global Scope](README.md#project-vs-global-scope) and
+[Removing MCP Servers](README.md#removing-mcp-servers).
 
 If `~/.codex/plugins/ycc/` already exists as a real directory from an older
 install flow, remove it before rerunning the local-mode base step:

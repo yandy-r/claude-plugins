@@ -92,6 +92,15 @@ PROFILES: dict[str, dict[str, Any]] = {
             ],
         },
     },
+    # Cursor's mcp.json uses the same mcpServers shape as Claude Code.
+    "cursor-mcp": {
+        "format": "json",
+        "groups": {
+            "mcp": [
+                {"path": ["mcpServers"], "policy": "deep"},
+            ],
+        },
+    },
     "cursor-cli": {
         "format": "json",
         "groups": {
@@ -704,6 +713,201 @@ def apply_toml_updates(
     return "".join(lines) + tail
 
 
+def entry_policy_rules(profile: dict[str, Any], groups: list[str]) -> list[dict[str, Any]]:
+    """All rules of the selected groups; unknown groups are an error."""
+    available = profile["groups"]
+    rules: list[dict[str, Any]] = []
+    for group in groups:
+        group_rules = available.get(group)
+        if group_rules is None:
+            raise MergeError(f"unknown group '{group}' (valid: {', '.join(sorted(available))})")
+        rules.extend(group_rules)
+    return rules
+
+
+def plan_remove(
+    profile: dict[str, Any],
+    groups: list[str],
+    source: dict[str, Any],
+    destination: dict[str, Any],
+    state_entry: dict[str, Any],
+    force: bool,
+) -> tuple[list[list[str]], list[str], list[str]]:
+    """Decide which managed entries can be deleted from the destination."""
+    rules = entry_policy_rules(profile, groups)
+    for rule in rules:
+        if rule["policy"] == "list-union":
+            found, _ = read_nested(source, rule["path"])
+            if found:
+                # ponytail: list items lack ownership identity; add index-aware
+                # state tracking if removal is ever needed there.
+                raise MergeError(f"remove not supported for list-union rule at {pointer(rule['path'])}")
+    managed = [rule for rule in rules if rule["policy"] != "list-union"]
+
+    candidates: dict[tuple[str, ...], dict[str, Any]] = {}
+    for rule in managed:
+        found, value = read_nested(source, rule["path"])
+        if not found:
+            continue
+        if rule["policy"] == "scalar":
+            candidates[tuple(rule["path"])] = {
+                "path": list(rule["path"]),
+                "source_value": value,
+                "policy": rule["policy"],
+            }
+        elif isinstance(value, dict) and value:
+            for child_key, child_value in value.items():
+                entry = [*rule["path"], child_key]
+                candidates[tuple(entry)] = {
+                    "path": entry,
+                    "source_value": child_value,
+                    "policy": rule["policy"],
+                }
+
+    for key in state_entry:
+        if not key.startswith("/"):
+            continue
+        path = parse_pointer(key)
+        best: dict[str, Any] | None = None
+        for rule in managed:
+            if path[: len(rule["path"])] == rule["path"] and (best is None or len(rule["path"]) > len(best["path"])):
+                best = rule
+        if best is None:
+            continue
+        if len(path) <= len(best["path"]):
+            entry = list(best["path"])
+        else:
+            entry = [*best["path"], path[len(best["path"])]]
+        candidates.setdefault(
+            tuple(entry),
+            {"path": entry, "source_value": None, "policy": best["policy"]},
+        )
+
+    to_remove: list[list[str]] = []
+    conflicts: list[str] = []
+    stale_keys: list[str] = []
+    for entry_key in sorted(candidates, key=lambda parts: pointer(list(parts))):
+        candidate = candidates[entry_key]
+        entry_path = candidate["path"]
+        under = [
+            key for key in state_entry if key.startswith("/") and parse_pointer(key)[: len(entry_path)] == entry_path
+        ]
+        found, dest_value = read_nested(destination, entry_path)
+        if not found:
+            stale_keys.extend(under)
+            continue
+        source_value = candidate["source_value"]
+        if source_value is not None and dest_value == source_value:
+            owned = True
+        else:
+            leaves = flatten_leaves(entry_path, dest_value, str(candidate["policy"]))
+            owned = bool(leaves) and all(
+                state_entry.get(pointer(leaf_path), {}).get("last_applied_sha256") == value_hash(leaf_value)
+                for leaf_path, leaf_value in leaves
+            )
+        if owned or force:
+            to_remove.append(entry_path)
+            stale_keys.extend(under)
+        else:
+            conflicts.append(pointer(entry_path))
+    return to_remove, conflicts, sorted(set(stale_keys))
+
+
+def remove_json(
+    source_path: Path,
+    destination_path: Path,
+    profile: dict[str, Any],
+    groups: list[str],
+    state_entry: dict[str, Any],
+    force: bool,
+) -> tuple[str | None, list[list[str]], list[str], list[str]]:
+    source = json.loads(source_path.read_text(encoding="utf-8"))
+    if not isinstance(source, dict):
+        raise MergeError(f"{source_path}: expected a JSON object at the root")
+    if not destination_path.exists():
+        return None, [], [], []
+    raw = destination_path.read_text(encoding="utf-8").strip()
+    destination = json.loads(raw) if raw else {}
+    if not isinstance(destination, dict):
+        raise MergeError(f"{destination_path}: expected a JSON object at the root")
+
+    to_remove, conflicts, stale_keys = plan_remove(profile, groups, source, destination, state_entry, force)
+    if not to_remove:
+        return None, to_remove, conflicts, stale_keys
+
+    pruned = json.loads(json.dumps(destination))
+    for path in to_remove:
+        delete_nested(pruned, path)
+    return json.dumps(pruned, indent=2, ensure_ascii=False) + "\n", to_remove, conflicts, stale_keys
+
+
+def delete_toml_entries(text: str, entries: list[list[str]]) -> str:
+    """Drop every table and assignment at or below the given entry paths."""
+    lines = text.splitlines(keepends=True)
+    if lines and not lines[-1].endswith("\n"):
+        lines[-1] += "\n"
+    prefixes = [tuple(entry) for entry in entries]
+
+    def under(path: tuple[str, ...]) -> bool:
+        return any(path[: len(prefix)] == prefix for prefix in prefixes)
+
+    headers = [
+        (index, tuple(split_toml_key(match.group(1))))
+        for index, line in enumerate(lines)
+        if (match := TOML_TABLE_RE.match(line))
+    ]
+    bounds = [index for index, _ in headers] + [len(lines)]
+    remove: set[int] = set()
+    for position, (index, table) in enumerate(headers):
+        if under(table):
+            remove.update(range(index, bounds[position + 1]))
+    for path, (start, end) in scan_toml_assignments(lines).items():
+        if under(path):
+            remove.update(range(start, end))
+    return "".join(line for index, line in enumerate(lines) if index not in remove)
+
+
+def remove_toml(
+    source_path: Path,
+    destination_path: Path,
+    profile: dict[str, Any],
+    groups: list[str],
+    state_entry: dict[str, Any],
+    force: bool,
+) -> tuple[str | None, list[list[str]], list[str], list[str]]:
+    source = tomllib.loads(source_path.read_text(encoding="utf-8"))
+    if not destination_path.exists():
+        return None, [], [], []
+    destination_text = destination_path.read_text(encoding="utf-8")
+    destination = tomllib.loads(destination_text)
+
+    to_remove, conflicts, stale_keys = plan_remove(profile, groups, source, destination, state_entry, force)
+    if not to_remove:
+        return None, to_remove, conflicts, stale_keys
+
+    rendered = delete_toml_entries(destination_text, to_remove)
+    # Re-parse so a bad patch can never reach the user's config.
+    reparsed = tomllib.loads(rendered)
+    for path in to_remove:
+        if read_nested(reparsed, path)[0]:
+            raise MergeError(f"TOML remove verification failed for {pointer(path)}")
+    return rendered, to_remove, conflicts, stale_keys
+
+
+def is_empty_config(value: Any) -> bool:
+    """True for a dict containing nothing but (recursively) empty dicts."""
+    return isinstance(value, dict) and all(is_empty_config(child) for child in value.values())
+
+
+def rendered_is_empty(profile: dict[str, Any], rendered: str) -> bool:
+    """Whether a post-removal file holds nothing worth keeping on disk."""
+    if profile["format"] == "json":
+        return json.loads(rendered) == {}
+    # Only bare (now empty) table headers may remain; comments are user content.
+    only_headers = all(not line.strip() or TOML_TABLE_RE.match(line) for line in rendered.splitlines())
+    return only_headers and is_empty_config(tomllib.loads(rendered))
+
+
 def merge_json(
     source_path: Path,
     destination_path: Path,
@@ -776,6 +980,74 @@ def merge_toml(
     return merged_text, updates, conflicts, deletions
 
 
+def run_remove(
+    args: argparse.Namespace,
+    profile: dict[str, Any],
+    groups: list[str],
+    source_path: Path,
+    destination_path: Path,
+    state: dict[str, Any],
+    state_key: str,
+    state_entry: dict[str, Any],
+) -> int:
+    """Remove tool-owned managed entries; user-edited entries need --force."""
+    label = f"({args.profile}: {', '.join(groups)})"
+    remove = remove_json if profile["format"] == "json" else remove_toml
+    try:
+        rendered, removed, conflicts, stale_keys = remove(
+            source_path, destination_path, profile, groups, state_entry, args.force
+        )
+    except (MergeError, json.JSONDecodeError, tomllib.TOMLDecodeError) as error:
+        print(f"merge_managed_config: {error}", file=sys.stderr)
+        return 1
+
+    for conflict in conflicts:
+        print(f"  [!!] kept your local value at {conflict} (re-run with --force to remove it)")
+
+    if args.dry_run:
+        for path in removed:
+            print(f"  would remove {pointer(path)}")
+        return 0
+
+    for key in stale_keys:
+        state_entry.pop(key, None)
+    if state_entry:
+        state[state_key] = state_entry
+    else:
+        state.pop(state_key, None)
+
+    if rendered is None:
+        if stale_keys:
+            save_state(state)
+        print(f"  [ok] nothing to remove: {destination_path} {label}")
+        return 0
+
+    original_bytes = destination_path.read_bytes()
+    original_mode = destination_path.stat().st_mode & 0o777
+    original_link = os.readlink(destination_path) if destination_path.is_symlink() else None
+    empty = rendered_is_empty(profile, rendered)
+    if empty:
+        destination_path.unlink()
+    else:
+        atomic_write(destination_path, rendered)
+    try:
+        save_state(state)
+    except BaseException:
+        destination_path.unlink(missing_ok=True)
+        if original_link is not None:
+            destination_path.symlink_to(original_link)
+        else:
+            destination_path.write_bytes(original_bytes)
+            destination_path.chmod(original_mode)
+        raise
+
+    noun = "entry" if len(removed) == 1 else "entries"
+    print(f"  [ok] removed {len(removed)} managed {noun} from {destination_path} {label}")
+    if empty:
+        print(f"  [ok] removed empty file {destination_path}")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", required=True, choices=sorted(PROFILES), help="Managed-key profile to apply")
@@ -784,6 +1056,7 @@ def main() -> int:
     parser.add_argument("--groups", required=True, help="Comma-separated managed key groups")
     parser.add_argument("--force", action="store_true", help="Let repo values win over conflicting local edits")
     parser.add_argument("--dry-run", action="store_true", help="Report the merge without writing anything")
+    parser.add_argument("--remove", action="store_true", help="Remove managed entries instead of merging them")
     args = parser.parse_args()
 
     profile = PROFILES[args.profile]
@@ -808,6 +1081,9 @@ def main() -> int:
     state_entry = state.get(state_key, {})
     if not isinstance(state_entry, dict):
         state_entry = {}
+
+    if args.remove:
+        return run_remove(args, profile, groups, source_path, destination_path, state, state_key, state_entry)
 
     merge = merge_json if profile["format"] == "json" else merge_toml
     try:

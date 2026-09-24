@@ -37,6 +37,7 @@ class MergeHelperTestCase(unittest.TestCase):
         *,
         force: bool = False,
         expect_success: bool = True,
+        extra: tuple[str, ...] = (),
     ) -> subprocess.CompletedProcess[str]:
         env = {**os.environ, "YCC_MANAGED_CONFIG_STATE": str(self.state)}
         argv = [
@@ -53,6 +54,7 @@ class MergeHelperTestCase(unittest.TestCase):
         ]
         if force:
             argv.append("--force")
+        argv.extend(extra)
         result = subprocess.run(argv, capture_output=True, text=True, env=env)
         if expect_success:
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -643,6 +645,94 @@ class MergeHelperTestCase(unittest.TestCase):
         parsed = tomllib.loads(destination.read_text())
         self.assertIn("private", parsed["mcp_servers"])
         self.assertIn("github", parsed["mcp_servers"])
+
+    # -- --remove ---------------------------------------------------------
+
+    def remove(self, source: Path, destination: Path, *extra: str, **kwargs) -> subprocess.CompletedProcess[str]:
+        return self.run_merge("claude-mcp", source, destination, "mcp", extra=("--remove", *extra), **kwargs)
+
+    def mcp_source(self, servers: dict) -> Path:
+        return self.write_json(self.tmp / "src.json", {"mcpServers": servers})
+
+    def test_remove_keeps_user_servers_and_other_keys(self) -> None:
+        source = self.mcp_source({"github": {"url": "https://gh"}, "svc": {"command": "x", "args": ["-y"]}})
+        destination = self.write_json(
+            self.tmp / "dest.json", {"projects": {"a": 1}, "mcpServers": {"mine": {"url": "https://mine"}}}
+        )
+        self.run_merge("claude-mcp", source, destination, "mcp")
+
+        result = self.remove(source, destination)
+
+        self.assertIn("removed 2 managed entries", result.stdout)
+        self.assertEqual(
+            json.loads(destination.read_text()), {"projects": {"a": 1}, "mcpServers": {"mine": {"url": "https://mine"}}}
+        )
+        state = json.loads(self.state.read_text())
+        self.assertNotIn(f"claude-mcp:{destination}", state)
+
+    def test_remove_skips_user_edited_server_unless_forced(self) -> None:
+        source = self.mcp_source({"svc": {"url": "https://repo"}})
+        destination = self.tmp / "dest.json"
+        self.run_merge("claude-mcp", source, destination, "mcp")
+        self.write_json(destination, {"mcpServers": {"svc": {"url": "https://edited"}}})
+
+        result = self.remove(source, destination)
+        self.assertIn("kept your local value at /mcpServers/svc", result.stdout)
+        self.assertIn("svc", json.loads(destination.read_text())["mcpServers"])
+
+        self.remove(source, destination, force=True)
+        self.assertFalse(destination.exists())
+
+    def test_remove_drops_server_no_longer_in_repo(self) -> None:
+        destination = self.write_json(self.tmp / "dest.json", {"other": True})
+        self.run_merge("claude-mcp", self.mcp_source({"old": {"url": "https://old"}}), destination, "mcp")
+
+        self.remove(self.mcp_source({}), destination)
+
+        self.assertEqual(json.loads(destination.read_text()), {"other": True})
+
+    def test_remove_missing_destination_is_noop(self) -> None:
+        destination = self.tmp / "dest.json"
+        result = self.remove(self.mcp_source({"svc": {"url": "https://x"}}), destination)
+        self.assertIn("nothing to remove", result.stdout)
+        self.assertFalse(destination.exists())
+
+    def test_remove_deletes_file_left_empty(self) -> None:
+        source = self.mcp_source({"svc": {"url": "https://x"}})
+        destination = self.tmp / "dest.json"
+        self.run_merge("claude-mcp", source, destination, "mcp")
+
+        result = self.remove(source, destination)
+
+        self.assertIn("removed empty file", result.stdout)
+        self.assertFalse(destination.exists())
+
+    def test_remove_dry_run_writes_nothing(self) -> None:
+        source = self.mcp_source({"svc": {"url": "https://x"}})
+        destination = self.tmp / "dest.json"
+        self.run_merge("claude-mcp", source, destination, "mcp")
+        before = destination.read_text()
+
+        result = self.remove(source, destination, "--dry-run")
+
+        self.assertIn("would remove /mcpServers/svc", result.stdout)
+        self.assertEqual(destination.read_text(), before)
+
+    def test_remove_toml_keeps_comments_and_user_tables(self) -> None:
+        source = self.tmp / "src.toml"
+        source.write_text(
+            '[mcp_servers.svc]\nurl = "https://x"\n\n[mcp_servers.svc.tools.a]\napproval_mode = "approve"\n',
+            encoding="utf-8",
+        )
+        destination = self.tmp / "dest.toml"
+        destination.write_text('# keep\nmodel = "m"\n\n[mcp_servers.mine]\nurl = "https://mine"\n', encoding="utf-8")
+        self.run_merge("codex-config", source, destination, "mcp")
+
+        self.run_merge("codex-config", source, destination, "mcp", extra=("--remove",))
+
+        text = destination.read_text()
+        self.assertIn("# keep", text)
+        self.assertEqual(tomllib.loads(text), {"model": "m", "mcp_servers": {"mine": {"url": "https://mine"}}})
 
 
 if __name__ == "__main__":

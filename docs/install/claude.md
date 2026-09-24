@@ -40,7 +40,7 @@ Step behavior:
 | `base`     | Runs `claude plugin marketplace add <repo> --scope user` and `claude plugin install ycc@ycc --scope user`.                                              |
 | `settings` | Merges managed keys from `ycc/settings/settings.json` into `~/.claude/settings.json` and copies `ycc/settings/statusline-command.sh` into `~/.claude/`. |
 | `rules`    | Symlinks `ycc/settings/rules/CLAUDE.md` and `AGENTS.md` into `~/.claude/`.                                                                              |
-| `mcp`      | Merges `mcp-configs/mcp.json` into `~/.claude.json`.                                                                                                    |
+| `mcp`      | Merges `mcp-configs/mcp.json` into `<project>/.mcp.json` (or `~/.claude.json` with `--global`).                                                         |
 | `hooks`    | Symlinks `ycc/settings/hooks/` into `~/.claude/hooks/`.                                                                                                 |
 
 Settings are merge-safe: unmanaged local keys are preserved, and managed keys
@@ -74,7 +74,8 @@ Use `--only` when you want exactly one step or a small set of steps:
 ./install.sh --target claude --only base
 ./install.sh --target claude --only settings
 ./install.sh --target claude --only rules
-./install.sh --target claude --only mcp
+./install.sh --target claude --only mcp           # writes <project>/.mcp.json
+./install.sh --target claude --only mcp --global  # writes ~/.claude.json
 ./install.sh --target claude --only hooks
 ```
 
@@ -82,6 +83,21 @@ Rules symlinks stop rather than overwrite an existing real rules file; pass
 `--force` when you intentionally want to replace it. Structured config files
 merge instead, so `--force` there only resolves conflicts on managed keys you
 edited locally.
+
+## MCP Scope And Removal
+
+The `mcp` step writes `<project>/.mcp.json` by default (project = git root of
+the current directory, else the current directory). Pass `--global` for
+`~/.claude.json`, the pre-scope destination.
+
+```bash
+./install.sh remove --target claude --only mcp            # from <project>/.mcp.json
+./install.sh remove --target claude --intent mcp --global # from ~/.claude.json
+```
+
+See [Project Vs Global Scope](README.md#project-vs-global-scope) and
+[Removing MCP Servers](README.md#removing-mcp-servers) for the rules shared by
+every target.
 
 ## Live Iteration
 
@@ -126,5 +142,6 @@ The resulting file should contain a top-level `mcpServers` object:
 
 Restart Claude Desktop after editing the config.
 
-Note: `./install.sh --target claude --mcp` updates `~/.claude.json`, which is the
-Claude Code MCP file. It does not edit the Claude Desktop config path.
+Note: `./install.sh --target claude --mcp` (or `--only mcp`) now updates
+`<project>/.mcp.json` by default. Pass `--global` to write `~/.claude.json` (the
+Claude Code MCP file). It does not edit the Claude Desktop config path.
