@@ -130,6 +130,7 @@ and desktop app notes, use the dedicated install guides. Recommended sync form:
 ./install.sh sync --target codex,claude,opencode --intent mcp            # current project
 ./install.sh sync --target codex,claude,opencode --intent mcp --global   # user-global
 ./install.sh remove --target all --only mcp                              # undo project MCP
+./install.sh cli && ycc completion --install                             # `ycc` on PATH for other projects
 ```
 
 The `mcp` step defaults to the current project; pass `--global` for user-global

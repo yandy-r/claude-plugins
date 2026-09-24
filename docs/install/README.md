@@ -36,6 +36,35 @@ cannot do.
 `mcp` defaults to project scope on every target; see
 [Project Vs Global Scope](#project-vs-global-scope).
 
+### `ycc` Command On PATH
+
+Project-scoped runs happen from inside the other project, where `./install.sh`
+does not exist. Link the installer onto `PATH` once:
+
+```bash
+./install.sh cli                 # symlink install.sh as `ycc`
+ycc completion --install         # shell completion for $SHELL
+cd ~/code/other-project && ycc sync --target opencode --intent mcp
+```
+
+- `cli` links into the first of `$XDG_BIN_HOME`, `~/.local/bin`, `~/bin` already
+  on `PATH` (else `~/.local/bin`, with a warning); `--dir <dir>` overrides.
+- `ycc` is the installer itself, reached through a symlink, so it always runs
+  this checkout's HEAD. `--project` targets the git root of your current directory.
+- `completion --shell bash|zsh|fish` prints the script (default: `$SHELL`);
+  `--install` symlinks it into the shell's per-user completion directory:
+
+| Shell | Destination                                                                                     |
+| ----- | ----------------------------------------------------------------------------------------------- |
+| bash  | `${BASH_COMPLETION_USER_DIR:-${XDG_DATA_HOME:-~/.local/share}/bash-completion}/completions/ycc` |
+| zsh   | `${XDG_DATA_HOME:-~/.local/share}/zsh/site-functions/_ycc` (must be in `fpath`)                 |
+| fish  | `${XDG_CONFIG_HOME:-~/.config}/fish/completions/ycc.fish`                                       |
+
+Both `cli` and `completion --install` refuse to replace an existing file or a
+symlink pointing elsewhere unless you pass `--force`. Without bash-completion or
+the zsh `fpath` entry, source the script instead: `eval "$(ycc completion --shell bash)"`
+or `source <(ycc completion --shell zsh)`.
+
 | Intent     | Meaning                                                                                    |
 | ---------- | ------------------------------------------------------------------------------------------ |
 | `base`     | Install or register the target's native bundle surface.                                    |

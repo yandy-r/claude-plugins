@@ -17,6 +17,9 @@ RED=$'\033[0;31m'
 GREEN=$'\033[0;32m'
 NC=$'\033[0m'
 
+# Per-user dir overrides would escape the sandbox HOME.
+unset XDG_BIN_HOME XDG_DATA_HOME XDG_CONFIG_HOME BASH_COMPLETION_USER_DIR
+
 SANDBOX_ROOT="$(mktemp -d)"
 trap 'rm -rf "${SANDBOX_ROOT}"' EXIT
 
@@ -342,6 +345,59 @@ merged="$(cat "${home}/.codex/config.toml")"
 assert_contains "${merged}" "# keep me" "codex remove keeps comments"
 assert_contains "${merged}" "[mcp_servers.internal]" "codex remove keeps user server"
 assert_not_contains "${merged}" "[mcp_servers.playwright]" "codex remove drops managed server"
+
+echo
+echo "== install.sh cli / completion =="
+
+home="$(new_home)"
+bin="${home}/.local/bin"
+out="$(PATH="${bin}:${PATH}" run_install "${home}" cli)"
+if [[ "$(readlink "${bin}/ycc")" == "${INSTALL}" ]]; then ok "cli links ycc into ~/.local/bin"; else ko "cli links ycc into ~/.local/bin" "${out}"; fi
+out="$(PATH="${bin}:${PATH}" run_install "${home}" cli)"
+assert_contains "${out}" "link up-to-date" "cli rerun is a no-op"
+
+# The regression: a linked command run outside the repo must find its helpers
+# and write project MCP into the caller's directory.
+out="$(cd "${home}/project" && HOME="${home}" YCC_MANAGED_CONFIG_STATE="${home}/state.json" "${bin}/ycc" sync --target claude --intent mcp 2>&1)"
+assert_contains "$(cat "${home}/project/.mcp.json" 2>/dev/null)" '"mcpServers"' "linked ycc merges project MCP from outside the repo"
+
+home="$(new_home)"
+mkdir -p "${home}/mybin" && echo "mine" > "${home}/mybin/ycc"
+out="$(run_install "${home}" cli --dir "${home}/mybin")"
+assert_contains "${out}" "refusing to replace existing" "cli refuses foreign file without --force"
+run_install "${home}" cli --dir "${home}/mybin" --force >/dev/null
+if [[ "$(readlink "${home}/mybin/ycc")" == "${INSTALL}" ]]; then ok "cli --dir --force replaces"; else ko "cli --dir --force replaces"; fi
+
+home="$(new_home)"
+out="$(run_install "${home}" cli --dir "${home}/offpath")"
+assert_contains "${out}" "is not on PATH" "cli warns when dir is off PATH"
+
+home="$(new_home)"
+for sh in bash zsh fish; do
+    out="$(run_install "${home}" completion --shell "${sh}")"
+    assert_contains "${out}" "ycc" "completion prints ${sh} script"
+done
+out="$(run_install "${home}" completion --shell tcsh)"
+assert_contains "${out}" "unsupported shell 'tcsh'" "completion rejects unknown shell"
+
+home="$(new_home)"
+run_install "${home}" completion --shell bash --install >/dev/null
+run_install "${home}" completion --shell zsh --install >/dev/null
+run_install "${home}" completion --shell fish --install >/dev/null
+for f in .local/share/bash-completion/completions/ycc .local/share/zsh/site-functions/_ycc .config/fish/completions/ycc.fish; do
+    if [[ -L "${home}/${f}" ]]; then ok "completion installed: ${f}"; else ko "completion installed: ${f}"; fi
+done
+rm "${home}/.local/share/zsh/site-functions/_ycc" && echo "mine" > "${home}/.local/share/zsh/site-functions/_ycc"
+out="$(run_install "${home}" completion --shell zsh --install)"
+assert_contains "${out}" "refusing to replace existing" "completion --install refuses real file without --force"
+run_install "${home}" completion --shell zsh --install --force >/dev/null
+if [[ -L "${home}/.local/share/zsh/site-functions/_ycc" ]]; then ok "completion --install --force replaces"; else ko "completion --install --force replaces"; fi
+
+if bash -n "${REPO_ROOT}/scripts/completions/ycc.bash"; then ok "bash completion parses"; else ko "bash completion parses"; fi
+if ! command -v zsh >/dev/null || zsh -n "${REPO_ROOT}/scripts/completions/_ycc"; then ok "zsh completion parses"; else ko "zsh completion parses"; fi
+if ! command -v fish >/dev/null || fish -n "${REPO_ROOT}/scripts/completions/ycc.fish"; then ok "fish completion parses"; else ko "fish completion parses"; fi
+out="$(bash -c 'source "$1"; COMP_WORDS=(ycc sync --target claude,co); COMP_CWORD=3; _ycc; echo "${COMPREPLY[*]}"' _ "${REPO_ROOT}/scripts/completions/ycc.bash")"
+assert_contains "${out}" "claude,codex" "bash completion completes comma lists"
 
 echo
 printf 'test-install-sync: %d passed, %d failed\n' "${PASS}" "${FAIL}"
