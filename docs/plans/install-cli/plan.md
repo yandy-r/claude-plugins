@@ -53,3 +53,12 @@ flag, and values for `--target`, `--intent`, `--only` (comma lists), `--mode`,
 - `completion` prints each shell's script; `--install` links to the table
   paths; differing real file refused without `--force`; unknown shell rejected.
 - `bash -n` / `zsh -n` / `fish -n` syntax checks on the scripts (when present).
+
+## Follow-up: `install` command, command required
+
+- First-time setup moves from the bare flag form to `install` (pairs with
+  `remove`): `ycc install --target <t> [--settings --rules --mcp --hooks | --only <steps>]`.
+- A command is now required. `ycc --target ...` fails with a hint to prefix
+  `install`; no args prints usage.
+- Completions offer only per-command flags (`--intent` for sync/remove,
+  step flags for install, `--only` for install/remove, `--mode` for install/sync).
