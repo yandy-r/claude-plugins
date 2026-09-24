@@ -16,7 +16,7 @@ instead.
 From the repository root:
 
 ```bash
-./install.sh --target opencode
+./install.sh install --target opencode
 ```
 
 The default `base` step generates, validates, formats, and rsyncs the opencode
@@ -32,10 +32,10 @@ For the full opencode setup:
 ./install.sh sync --target opencode --intent base,settings,mcp,plugins,rules
 ```
 
-The legacy equivalent remains supported:
+The step-flag `install` form is equivalent:
 
 ```bash
-./install.sh --target opencode --settings --rules
+./install.sh install --target opencode --settings --rules
 ```
 
 Step behavior:
@@ -66,7 +66,7 @@ and command-palette entry) is read from the global `~/.config/opencode/cli.json`
 which this repository does not manage. Install both halves on a new machine with:
 
 ```bash
-./install.sh --target opencode --settings --rules
+./install.sh install --target opencode --settings --rules
 opencode2 plugin add @prevalentware/opencode-goal-plugin
 ```
 
@@ -80,11 +80,11 @@ is installed under that name.
 Use `--only` to run exactly the listed steps:
 
 ```bash
-./install.sh --target opencode --only base
-./install.sh --target opencode --only settings
-./install.sh --target opencode --only rules
-./install.sh --target opencode --only settings,rules
-./install.sh --target opencode --only mcp                   # <project>/opencode.json
+./install.sh install --target opencode --only base
+./install.sh install --target opencode --only settings
+./install.sh install --target opencode --only rules
+./install.sh install --target opencode --only settings,rules
+./install.sh install --target opencode --only mcp                   # <project>/opencode.json
 ./install.sh remove --target opencode --only mcp --global   # remove managed servers
 ```
 

@@ -27,7 +27,7 @@ This repository's source of truth is the Claude-facing `ycc/` tree.
   - skills under `.opencode-plugin/skills/` → `~/.config/opencode/skills/`
   - agents under `.opencode-plugin/agents/` → `~/.config/opencode/agents/`
   - commands under `.opencode-plugin/commands/` → `~/.config/opencode/commands/`
-  - config + rules (`opencode.json`, `AGENTS.md`) → `~/.config/opencode/` via `install.sh --target opencode --settings`
+  - config + rules (`opencode.json`, `AGENTS.md`) → `~/.config/opencode/` via `install.sh install --target opencode --settings`
 - Do not introduce new top-level plugins; extend the existing `ycc` bundle.
 
 ## Sync policy

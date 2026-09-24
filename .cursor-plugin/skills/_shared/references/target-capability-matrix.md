@@ -92,7 +92,7 @@ No equivalent to Claude Code's dangerous mode exists in the Codex runtime.
 **INSTALL_PATH:claude**
 Two supported install paths. (1) GitHub marketplace install managed by Claude Code
 at `~/.claude/plugins/ycc/`, or the workspace `.claude-plugin/` directory. (2)
-`install.sh --target claude` additionally registers the repo's
+`install.sh install --target claude` additionally registers the repo's
 `.claude-plugin/marketplace.json` absolute path as a local marketplace
 (`local-ycc-plugins`, `source: "file"`) in `~/.claude/settings.local.json`
 (user-private, auto-gitignored) — edits in `ycc/` are live on the next plugin
@@ -103,7 +103,7 @@ reload with no rsync. The two marketplaces coexist; enable either `ycc@ycc` or
 Generated bundle lives at `.cursor-plugin/`; consumed by Cursor from the repo root.
 
 **INSTALL_PATH:codex**
-`install.sh --target codex` symlinks `~/.codex/plugins/ycc/` to the repo's
+`install.sh install --target codex` symlinks `~/.codex/plugins/ycc/` to the repo's
 `.codex-plugin/ycc/`, also symlinks `~/.agents/plugins/ycc` to the same bundle,
 refreshes the `~/.codex/plugins/cache/local-ycc-plugins/ycc` plugin-root copy,
 adds a cache-only compatibility manifest at `skills/.codex-plugin/plugin.json`
@@ -117,7 +117,7 @@ clearing `~/.codex/plugins/cache/`.
 **INSTALL_PATH:opencode**
 Generated bundle lives at `.opencode-plugin/` (skills, agents, commands, AGENTS.md,
 opencode.json). Consumed by opencode from `~/.config/opencode/` (global) or `.opencode/`
-(project-local) after `install.sh --target opencode` rsyncs the files.
+(project-local) after `install.sh install --target opencode` rsyncs the files.
 
 **SKILLS:opencode**
 Native support at `.opencode/skills/<name>/SKILL.md` with strict YAML frontmatter

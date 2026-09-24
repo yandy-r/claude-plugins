@@ -15,8 +15,11 @@ every target's installer behavior.
 
 ## Installer Model
 
-Use `install.sh` from the repository root. The `sync` subcommand is the
-recommended entry point:
+Use `install.sh` from the repository root (or `ycc` once it is on `PATH`). Every
+invocation starts with a command — `install`, `sync`, `remove`, `cli`, or
+`completion`; a bare `./install.sh --target ...` is rejected. `install` is the
+first-time setup (base step plus opt-in `--settings`/`--rules`/`--mcp`/`--hooks`
+or `--only`); `sync` is the recommended entry point after that:
 
 ```bash
 ./install.sh sync --target <claude|cursor|codex|opencode|all> --intent <intents>
@@ -108,7 +111,7 @@ trusted projects, provider credentials, or CLI-written marketplace entries.
 
 ### Project Vs Global Scope
 
-`--project` and `--global` (mutually exclusive) work with the flag form, `sync`,
+`--project` and `--global` (mutually exclusive) work with `install`, `sync`,
 and `remove`. Without either flag, steps that support project scope use it and
 every other step stays global. The project is the git root of the current
 directory, else the current directory. Today only the `mcp` step is
@@ -154,7 +157,7 @@ rejected before anything runs: the error is about `settings`, not `mcp`. Drop
 The original flag CLI keeps working unchanged:
 
 ```bash
-./install.sh --target <claude|cursor|codex|opencode|all> [flags]
+./install.sh install --target <claude|cursor|codex|opencode|all> [flags]
 ```
 
 Without `--only`, the target's `base` step runs by default, and additive flags
@@ -163,19 +166,19 @@ run additional steps.
 Common flags:
 
 ```bash
-./install.sh --target claude --settings --rules --mcp --hooks
-./install.sh --target cursor --rules --mcp
-./install.sh --target codex --settings --rules
-./install.sh --target opencode --settings --rules
-./install.sh --target all --settings --rules --mcp
+./install.sh install --target claude --settings --rules --mcp --hooks
+./install.sh install --target cursor --rules --mcp
+./install.sh install --target codex --settings --rules
+./install.sh install --target opencode --settings --rules
+./install.sh install --target all --settings --rules --mcp
 ```
 
 Use `--only <steps>` to run exactly the listed steps and skip the default `base`
 step:
 
 ```bash
-./install.sh --target claude --only rules
-./install.sh --target codex --only settings,rules
+./install.sh install --target claude --only rules
+./install.sh install --target codex --only settings,rules
 ```
 
 ## Source Modes
@@ -187,9 +190,9 @@ contributors can iterate locally.
 checkout. It is supported by the `claude` and `codex` targets only:
 
 ```bash
-./install.sh --target claude --mode repo
-./install.sh --target codex --mode repo
-./install.sh --target all --mode repo
+./install.sh install --target claude --mode repo
+./install.sh install --target codex --mode repo
+./install.sh install --target all --mode repo
 ```
 
 With `--target all --mode repo`, Cursor and opencode are skipped because they do

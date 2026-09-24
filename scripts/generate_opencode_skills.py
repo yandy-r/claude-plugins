@@ -4,7 +4,7 @@ Generate opencode-native skills under .opencode-plugin/skills from ycc/skills.
 
 opencode reads skills from <workspace>/.opencode/skills/<name>/SKILL.md or
 ~/.config/opencode/skills/<name>/SKILL.md. The bundle we emit mirrors that
-native layout: install.sh --target opencode rsyncs .opencode-plugin/skills
+native layout: install.sh install --target opencode rsyncs .opencode-plugin/skills
 into ~/.config/opencode/skills (or a project's .opencode/skills).
 
 Source of truth: ycc/skills/. Transforms are deterministic and idempotent.

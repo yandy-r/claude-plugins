@@ -141,8 +141,9 @@ config. `remove` strips installer-managed MCP servers and leaves yours alone. Se
 before any of them runs.
 
 Structured config is merged rather than copied: repo-managed keys update while
-unknown and locally edited keys remain intact. The original `--target ...`
-flag form remains supported.
+unknown and locally edited keys remain intact. First-time setup uses `install`
+(`./install.sh install --target <t> [--settings --rules --mcp --hooks]`); every
+invocation needs a command — a bare `--target ...` is rejected.
 
 Dedicated guides:
 
@@ -225,11 +226,11 @@ claude-plugins/
 │       ├── .mcp.json
 │       ├── shared/
 │       └── skills/
-├── .cursor-plugin/            # Cursor IDE bundle (synced by install.sh --target cursor)
+├── .cursor-plugin/            # Cursor IDE bundle (synced by install.sh install --target cursor)
 │   ├── agents/                # generated from ycc/agents (run scripts/generate-cursor-agents.sh)
 │   ├── rules/                 # generated from ycc/rules (run scripts/generate-cursor-rules.sh)
 │   └── skills/                # generated from ycc/skills (run scripts/generate-cursor-skills.sh)
-├── .opencode-plugin/          # opencode bundle (synced by install.sh --target opencode)
+├── .opencode-plugin/          # opencode bundle (synced by install.sh install --target opencode)
 │   ├── agents/                # generated from ycc/agents
 │   ├── commands/              # generated from ycc/commands
 │   ├── skills/                # generated from ycc/skills

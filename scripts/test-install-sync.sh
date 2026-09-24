@@ -74,6 +74,27 @@ assert_not_contains() {
     fi
 }
 
+echo "== install.sh: command is required =="
+
+home="$(new_home)"
+out="$(run_install "${home}" --target claude --only rules)"
+assert_contains "${out}" "missing or unknown command '--target'" "bare --target rejected"
+assert_contains "${out}" "install --target claude --only rules" "bare --target suggests install"
+assert_not_contains "${out}" "link rules" "bare --target runs nothing"
+
+home="$(new_home)"
+out="$(run_install "${home}")"
+assert_contains "${out}" "Usage:" "no command prints usage"
+
+home="$(new_home)"
+out="$(run_install "${home}" bogus --target claude)"
+assert_contains "${out}" "missing or unknown command 'bogus'" "unknown command rejected"
+
+home="$(new_home)"
+out="$(run_install "${home}" install --target claude --intent settings)"
+assert_contains "${out}" "--intent requires the 'sync' or 'remove' subcommand" "install rejects --intent"
+
+echo
 echo "== install.sh sync: argument validation =="
 
 home="$(new_home)"
@@ -97,8 +118,8 @@ out="$(run_install "${home}" sync --target claude --intent settings --hooks)"
 assert_contains "${out}" "cannot be combined with --only" "sync rejects additive flags"
 
 home="$(new_home)"
-out="$(run_install "${home}" --target claude --intent settings)"
-assert_contains "${out}" "--intent requires the 'sync' or 'remove' subcommand" "--intent rejected in legacy mode"
+out="$(run_install "${home}" install --target claude --intent settings)"
+assert_contains "${out}" "--intent requires the 'sync' or 'remove' subcommand" "--intent rejected by install"
 
 home="$(new_home)"
 out="$(run_install "${home}" sync --intent settings)"
@@ -139,8 +160,8 @@ assert_contains "${out}" "--mode repo is not supported by the cursor target" "re
 assert_not_contains "${out}" "Claude sync complete" "repo-mode rejection happens before any target runs"
 
 home="$(new_home)"
-out="$(run_install "${home}" --target claude,codex --only hooks)"
-assert_contains "${out}" "--only step 'hooks' is not valid for target 'codex'" "legacy --only validated across all targets"
+out="$(run_install "${home}" install --target claude,codex --only hooks)"
+assert_contains "${out}" "--only step 'hooks' is not valid for target 'codex'" "install --only validated across all targets"
 assert_not_contains "${out}" "Claude sync complete" "--only rejection happens before any target runs"
 
 echo
@@ -261,26 +282,26 @@ run_install "${home}" sync --target cursor --intent settings >/dev/null
 assert_contains "$(cat "${home}/.cursor/cli-config.json")" '"claude-fable-5-1"' "cursor CLI model applied"
 
 echo
-echo "== install.sh legacy CLI still works =="
+echo "== install.sh install (step flags) =="
 
 home="$(new_home)"
-out="$(run_install "${home}" --target claude --only rules)"
-assert_contains "${out}" "link rules" "legacy --only rules runs"
-assert_not_contains "${out}" "register repo checkout" "legacy --only stays exclusive"
+out="$(run_install "${home}" install --target claude --only rules)"
+assert_contains "${out}" "link rules" "install --only rules runs"
+assert_not_contains "${out}" "register repo checkout" "install --only stays exclusive"
 
 home="$(new_home)"
-out="$(run_install "${home}" --target claude --only bogus)"
-assert_contains "${out}" "is not valid for target" "legacy --only validates steps"
+out="$(run_install "${home}" install --target claude --only bogus)"
+assert_contains "${out}" "is not valid for target" "install --only validates steps"
 
 echo
 echo "== install.sh: --project / --global MCP scope =="
 
 home="$(new_home)"
-out="$(run_install "${home}" --target claude --project --global)"
+out="$(run_install "${home}" install --target claude --project --global)"
 assert_contains "${out}" "mutually exclusive" "--project and --global rejected together"
 
 home="$(new_home)"
-out="$(run_install "${home}" --target claude --only settings,mcp --project)"
+out="$(run_install "${home}" install --target claude --only settings,mcp --project)"
 assert_contains "${out}" "--project is not supported by step 'settings'" "--project rejects non-project steps"
 assert_not_contains "${out}" "Claude sync complete" "--project rejection happens before any target runs"
 
@@ -296,7 +317,7 @@ else
 fi
 
 home="$(new_home)"
-run_install "${home}" --target claude --only mcp --global >/dev/null
+run_install "${home}" install --target claude --only mcp --global >/dev/null
 assert_contains "$(cat "${home}/.claude.json")" '"mcpServers"' "--global writes ~/.claude.json"
 if [[ ! -e "${home}/project/.mcp.json" ]]; then ok "--global leaves project alone"; else ko "--global leaves project alone"; fi
 
@@ -319,7 +340,7 @@ home="$(new_home)"
 cat > "${home}/project/.mcp.json" <<'JSON'
 { "mcpServers": { "mine": { "url": "https://mine" } } }
 JSON
-run_install "${home}" --target claude --only mcp >/dev/null
+run_install "${home}" install --target claude --only mcp >/dev/null
 out="$(run_install "${home}" remove --target claude --only mcp)"
 assert_contains "${out}" "Claude remove complete" "remove runs for claude"
 merged="$(cat "${home}/project/.mcp.json")"
@@ -339,7 +360,7 @@ cat > "${home}/.codex/config.toml" <<'TOML'
 [mcp_servers.internal]
 url = "https://internal.example"
 TOML
-run_install "${home}" --target codex --only mcp --global >/dev/null
+run_install "${home}" install --target codex --only mcp --global >/dev/null
 run_install "${home}" remove --target codex --only mcp --global >/dev/null
 merged="$(cat "${home}/.codex/config.toml")"
 assert_contains "${merged}" "# keep me" "codex remove keeps comments"

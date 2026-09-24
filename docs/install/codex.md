@@ -7,7 +7,7 @@ This guide covers Codex plugin installs, Codex custom agents, and Codex Desktop.
 From the repository root:
 
 ```bash
-./install.sh --target codex
+./install.sh install --target codex
 ```
 
 The default `base` step generates and validates the Codex bundle, links the
@@ -29,10 +29,10 @@ For the full local Codex setup:
 ./install.sh sync --target codex --intent base,settings,mcp,plugins,rules
 ```
 
-The legacy equivalent remains supported:
+The step-flag `install` form is equivalent:
 
 ```bash
-./install.sh --target codex --settings --rules
+./install.sh install --target codex --settings --rules
 ```
 
 Step behavior:
@@ -55,7 +55,7 @@ symlinks rules so rule edits stay shared across runtimes.
 Local mode is the default and is best for contributors:
 
 ```bash
-./install.sh --target codex --mode local
+./install.sh install --target codex --mode local
 ```
 
 In local mode, the installer symlinks:
@@ -83,7 +83,7 @@ Repo mode writes a GitHub marketplace entry and lets Codex pull the bundle from
 `yandy-r/claude-plugins@main`:
 
 ```bash
-./install.sh --target codex --mode repo
+./install.sh install --target codex --mode repo
 ```
 
 Use repo mode for non-developer installs that should track the published
@@ -94,12 +94,12 @@ repository.
 Use `--only` to run exactly the listed steps:
 
 ```bash
-./install.sh --target codex --only base
-./install.sh --target codex --only settings
-./install.sh --target codex --only rules
-./install.sh --target codex --only settings,rules
-./install.sh --target codex --only mcp                   # <project>/.codex/config.toml
-./install.sh --target codex --only mcp --global          # ~/.codex/config.toml
+./install.sh install --target codex --only base
+./install.sh install --target codex --only settings
+./install.sh install --target codex --only rules
+./install.sh install --target codex --only settings,rules
+./install.sh install --target codex --only mcp                   # <project>/.codex/config.toml
+./install.sh install --target codex --only mcp --global          # ~/.codex/config.toml
 ./install.sh remove --target codex --only mcp --global   # remove managed servers
 ```
 
@@ -114,14 +114,14 @@ install flow, remove it before rerunning the local-mode base step:
 
 ```bash
 rm -rf ~/.codex/plugins/ycc
-./install.sh --target codex --only base
+./install.sh install --target codex --only base
 ```
 
 If you clear `~/.codex/plugins/cache/`, rerun the base step to refresh the
 `local-ycc-plugins/ycc` cache root:
 
 ```bash
-./install.sh --target codex --only base
+./install.sh install --target codex --only base
 ```
 
 ## Codex Desktop
@@ -141,7 +141,7 @@ reads the standard Codex config directories:
 Recommended desktop install:
 
 ```bash
-./install.sh --target codex --mode repo --settings --rules
+./install.sh install --target codex --mode repo --settings --rules
 ```
 
 Then restart Codex Desktop and install `ycc` through the desktop app's plugin UI
@@ -150,7 +150,7 @@ or `/plugins` surface.
 For contributor/local desktop testing, use local mode instead:
 
 ```bash
-./install.sh --target codex --settings --rules
+./install.sh install --target codex --settings --rules
 ```
 
 After local source edits, run `./scripts/sync.sh --only codex`, then restart or

@@ -8,7 +8,7 @@ Cursor-native config directories.
 From the repository root:
 
 ```bash
-./install.sh --target cursor
+./install.sh install --target cursor
 ```
 
 The default `base` step generates, validates, formats, and rsyncs the Cursor
@@ -22,10 +22,10 @@ For the full Cursor setup:
 ./install.sh sync --target cursor --intent settings,rules,mcp
 ```
 
-The legacy equivalent remains supported:
+The step-flag `install` form is equivalent:
 
 ```bash
-./install.sh --target cursor --settings --rules --mcp
+./install.sh install --target cursor --settings --rules --mcp
 ```
 
 Step behavior:
@@ -63,11 +63,11 @@ subagents onto Composer regardless of configuration.
 Use `--only` to run exactly the listed steps:
 
 ```bash
-./install.sh --target cursor --only base
-./install.sh --target cursor --only settings
-./install.sh --target cursor --only rules
-./install.sh --target cursor --only mcp                   # <project>/.cursor/mcp.json
-./install.sh --target cursor --only mcp --global          # ~/.cursor/mcp.json
+./install.sh install --target cursor --only base
+./install.sh install --target cursor --only settings
+./install.sh install --target cursor --only rules
+./install.sh install --target cursor --only mcp                   # <project>/.cursor/mcp.json
+./install.sh install --target cursor --only mcp --global          # ~/.cursor/mcp.json
 ./install.sh remove --target cursor --only mcp --global   # remove managed servers
 ```
 

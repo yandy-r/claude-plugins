@@ -139,11 +139,21 @@ merge_settings_config() {
 
 usage() {
     cat <<EOF
-Usage: $(basename "$0") sync --target <targets> --intent <intents> [--mode <mode>] [--project|--global] [--force]
-       $(basename "$0") remove --target <targets> (--only <steps> | --intent <intents>) [--project|--global] [--force]
-       $(basename "$0") --target <targets> [--mode <mode>] [--settings] [--rules] [--mcp] [--hooks] [--project|--global] [--force] [--only <steps>]
-       $(basename "$0") cli [--dir <dir>] [--force]
-       $(basename "$0") completion [--shell bash|zsh|fish] [--install [--force]]
+Usage: $(basename "$0") <command> [options]
+
+Commands:
+  install     Initial setup: base step plus opt-in steps (flags below).
+              $(basename "$0") install --target <targets> [--mode <mode>] [--settings] [--rules] [--mcp] [--hooks] [--only <steps>] [--project|--global] [--force]
+  sync        Sync what you name, nothing else.
+              $(basename "$0") sync --target <targets> --intent <intents> [--mode <mode>] [--project|--global] [--force]
+  remove      Strip installer-managed config.
+              $(basename "$0") remove --target <targets> (--only <steps> | --intent <intents>) [--project|--global] [--force]
+  cli         Put this installer on PATH as '${CLI_NAME}'.
+              $(basename "$0") cli [--dir <dir>] [--force]
+  completion  Print or install shell completion.
+              $(basename "$0") completion [--shell bash|zsh|fish] [--install [--force]]
+
+A command is required; a bare '$(basename "$0") install --target ...' is rejected.
 
 Sync plugin assets to an IDE configuration directory.
 
@@ -165,8 +175,8 @@ Command on PATH ('cli' / 'completion' subcommands):
 The 'sync' subcommand is the recommended entry point: say WHAT you want synced
 and each target maps it onto the steps it actually supports. Structured config
 files are MERGED (repo-managed keys only), so local edits, tokens, trusted
-projects and CLI-written marketplace entries survive. The legacy flag form
-below keeps working unchanged.
+projects and CLI-written marketplace entries survive. 'install' is the
+step-flag form used for first-time setup.
 
   $(basename "$0") sync --target claude --intent hooks,settings,mcp,plugins
   $(basename "$0") sync --target codex,claude,opencode --intent mcp
@@ -288,7 +298,7 @@ Options:
                       --settings/--rules/--mcp/--hooks flags.
   --help              Show this help message
 
-Semantics:
+install semantics:
   Default (no --only):
     - Run the target's 'base' step (if any).
     - Additionally run 'settings' / 'rules' / 'mcp' / 'hooks' if their flag is
@@ -365,43 +375,43 @@ Target steps:
   all       Run claude then cursor then codex then opencode; step flags propagate.
 
 Examples:
-  $(basename "$0") --target claude                         # base only (register local marketplace)
-  $(basename "$0") --target claude --only base             # same, exclusive
-  $(basename "$0") --target claude --settings --rules      # base + merge settings + link rules
-  $(basename "$0") --target claude --settings --rules --mcp
-  $(basename "$0") --target claude --only settings         # copy settings only
-  $(basename "$0") --target claude --only rules            # link rules only
-  $(basename "$0") --target claude --only mcp            # project .mcp.json
-  $(basename "$0") --target claude --only mcp --global   # ~/.claude.json
-  $(basename "$0") --target claude --settings --force      # repo values win for managed-key conflicts
-  $(basename "$0") --target claude --hooks                 # base + WorktreeCreate hook
-  $(basename "$0") --target claude --only hooks            # hooks only
-  $(basename "$0") --target cursor                         # base only
-  $(basename "$0") --target cursor --mcp                   # base + mcp
-  $(basename "$0") --target cursor --rules                 # base + rules symlinks
-  $(basename "$0") --target cursor --only rules            # rules only
-  $(basename "$0") --target codex --settings --rules       # base + merge config + link rules
-  $(basename "$0") --target codex --only settings          # merge config.toml only
-  $(basename "$0") --target codex --only rules             # link default.rules + CLAUDE.md + AGENTS.md
-  $(basename "$0") --target opencode                       # base only
-  $(basename "$0") --target opencode --settings --rules    # base + merge opencode.json + link AGENTS.md
-  $(basename "$0") --target all --settings --rules --mcp
-  $(basename "$0") --target claude,codex --only rules      # rules for two targets
-  $(basename "$0") --target all --rules --force            # force-replace user-authored rules files
+  $(basename "$0") install --target claude                         # base only (register local marketplace)
+  $(basename "$0") install --target claude --only base             # same, exclusive
+  $(basename "$0") install --target claude --settings --rules      # base + merge settings + link rules
+  $(basename "$0") install --target claude --settings --rules --mcp
+  $(basename "$0") install --target claude --only settings         # copy settings only
+  $(basename "$0") install --target claude --only rules            # link rules only
+  $(basename "$0") install --target claude --only mcp            # project .mcp.json
+  $(basename "$0") install --target claude --only mcp --global   # ~/.claude.json
+  $(basename "$0") install --target claude --settings --force      # repo values win for managed-key conflicts
+  $(basename "$0") install --target claude --hooks                 # base + WorktreeCreate hook
+  $(basename "$0") install --target claude --only hooks            # hooks only
+  $(basename "$0") install --target cursor                         # base only
+  $(basename "$0") install --target cursor --mcp                   # base + mcp
+  $(basename "$0") install --target cursor --rules                 # base + rules symlinks
+  $(basename "$0") install --target cursor --only rules            # rules only
+  $(basename "$0") install --target codex --settings --rules       # base + merge config + link rules
+  $(basename "$0") install --target codex --only settings          # merge config.toml only
+  $(basename "$0") install --target codex --only rules             # link default.rules + CLAUDE.md + AGENTS.md
+  $(basename "$0") install --target opencode                       # base only
+  $(basename "$0") install --target opencode --settings --rules    # base + merge opencode.json + link AGENTS.md
+  $(basename "$0") install --target all --settings --rules --mcp
+  $(basename "$0") install --target claude,codex --only rules      # rules for two targets
+  $(basename "$0") install --target all --rules --force            # force-replace user-authored rules files
 
   # Upgrading from the symlink-based --settings (<= pre-split): the first run of
   # --settings detects the existing symlink at each destination and replaces it
   # with a copy (emits an info/warn line per file). No --force needed.
 
   # Repo mode (track the upstream github repo instead of the local checkout):
-  $(basename "$0") --target claude --mode repo             # register yandy-r/claude-plugins
-                                                           # as a github marketplace source
-  $(basename "$0") --target codex  --mode repo             # write the codex marketplace.json
-                                                           # with {source: github, repo: ...,
-                                                           # ref: main}; skip symlink/rsync
-  $(basename "$0") --target all    --mode repo             # claude + codex in repo mode;
-                                                           # cursor/opencode are skipped
-  $(basename "$0") --target claude --mode repo --settings --rules
+  $(basename "$0") install --target claude --mode repo             # register yandy-r/claude-plugins
+                                                                     # as a github marketplace source
+  $(basename "$0") install --target codex  --mode repo             # write the codex marketplace.json
+                                                                     # with {source: github, repo: ...,
+                                                                     # ref: main}; skip symlink/rsync
+  $(basename "$0") install --target all    --mode repo             # claude + codex in repo mode;
+                                                                     # cursor/opencode are skipped
+  $(basename "$0") install --target claude --mode repo --settings --rules
 EOF
 }
 
@@ -538,7 +548,7 @@ run_mcp_step() {
 # file with the marketplace registration.
 #
 # After this step, ~/.claude/settings.json is a REAL file. Re-running
-# `install.sh --target claude --only settings` would symlink over it and wipe
+# `install.sh install --target claude --only settings` would symlink over it and wipe
 # the marketplace entry; the 'settings' step detects this and refuses
 # without --force.
 #
@@ -883,7 +893,7 @@ sync_claude_target() {
         ran=1
     fi
     if step_enabled mcp; then
-        printf '\n%sClaude: %s MCP servers%s\n' "${BOLD}" "${COMMAND/legacy/sync}" "${NC}"
+        printf '\n%sClaude: %s MCP servers%s\n' "${BOLD}" "${COMMAND}" "${NC}"
         run_mcp_step claude
         ran=1
     fi
@@ -899,7 +909,7 @@ sync_claude_target() {
     if [[ $ran -eq 0 ]]; then
         warn "Claude target ran no steps (pass --settings, --rules, --mcp, --hooks, or --only ...)"
     fi
-    printf '\n%sClaude %s complete.%s\n' "${BOLD}" "${COMMAND/legacy/sync}" "${NC}"
+    printf '\n%sClaude %s complete.%s\n' "${BOLD}" "${COMMAND}" "${NC}"
     if [[ $base_ran -eq 1 ]]; then
         if [[ "${MODE:-local}" == "repo" ]]; then
             warn "Run /reload-plugins or start a new Claude Code session. The 'ycc' marketplace in ~/.claude/settings.json now tracks the github source yandy-r/claude-plugins."
@@ -911,7 +921,7 @@ sync_claude_target() {
             warn "Run /reload-plugins or start a new Claude Code session. The 'ycc' marketplace in ~/.claude/settings.json now points at ${claude_repo_root_msg} (directory source)."
             warn "Edits in ycc/ apply on plugin reload. No rsync, no cache clear."
             warn "The Claude settings file now contains the CLI-written marketplace entry. Re-running the settings step merges repo-managed keys and preserves that entry."
-            warn "If you move or rename this repo, rerun ./install.sh --target claude --only base."
+            warn "If you move or rename this repo, rerun ./install.sh install --target claude --only base."
         fi
     fi
 }
@@ -1054,7 +1064,7 @@ sync_cursor_target() {
 
     if [[ $do_base -eq 0 && $do_settings -eq 0 && $do_mcp -eq 0 && $do_rules -eq 0 ]]; then
         warn "Cursor target ran no steps"
-        printf '\n%sCursor %s complete.%s\n' "${BOLD}" "${COMMAND/legacy/sync}" "${NC}"
+        printf '\n%sCursor %s complete.%s\n' "${BOLD}" "${COMMAND}" "${NC}"
         return 0
     fi
 
@@ -1146,7 +1156,7 @@ sync_cursor_target() {
 
     if [[ $do_mcp -eq 1 ]]; then
         step=$((step + 1))
-        printf '\n%s[%d/%d] %s MCP servers%s\n' "${BOLD}" "$step" "$total" "${COMMAND/legacy/sync}" "${NC}"
+        printf '\n%s[%d/%d] %s MCP servers%s\n' "${BOLD}" "$step" "$total" "${COMMAND}" "${NC}"
         run_mcp_step cursor
     fi
 
@@ -1160,7 +1170,7 @@ sync_cursor_target() {
         link_rules_file "${SCRIPT_DIR}/ycc/settings/rules/AGENTS.md" "${cursor_dir}/AGENTS.md"
     fi
 
-    printf '\n%sCursor %s complete.%s\n' "${BOLD}" "${COMMAND/legacy/sync}" "${NC}"
+    printf '\n%sCursor %s complete.%s\n' "${BOLD}" "${COMMAND}" "${NC}"
 }
 
 # ---------------------------------------------------------------------------
@@ -1183,7 +1193,7 @@ sync_codex_target() {
 
     if [[ $do_base -eq 0 && $do_settings -eq 0 && $do_rules -eq 0 && $do_mcp -eq 0 ]]; then
         warn "Codex target ran no steps"
-        printf '\n%sCodex %s complete.%s\n' "${BOLD}" "${COMMAND/legacy/sync}" "${NC}"
+        printf '\n%sCodex %s complete.%s\n' "${BOLD}" "${COMMAND}" "${NC}"
         return 0
     fi
 
@@ -1363,11 +1373,11 @@ PY
 
     if [[ $do_mcp -eq 1 ]]; then
         step=$((step + 1))
-        printf '\n%s[%d/%d] %s MCP servers%s\n' "${BOLD}" "$step" "$total" "${COMMAND/legacy/sync}" "${NC}"
+        printf '\n%s[%d/%d] %s MCP servers%s\n' "${BOLD}" "$step" "$total" "${COMMAND}" "${NC}"
         run_mcp_step codex
     fi
 
-    printf '\n%sCodex %s complete.%s\n' "${BOLD}" "${COMMAND/legacy/sync}" "${NC}"
+    printf '\n%sCodex %s complete.%s\n' "${BOLD}" "${COMMAND}" "${NC}"
     if [[ $do_base -eq 1 ]]; then
         if [[ "${MODE:-local}" == "repo" ]]; then
             warn "Restart Codex; the 'local-ycc-plugins' marketplace in ~/.agents/plugins/marketplace.json now tracks the github source yandy-r/claude-plugins@main."
@@ -1379,7 +1389,7 @@ PY
             warn "Restart Codex; the plugin tree at ${codex_plugin_dest} now symlinks into ${codex_plugin_src_msg} and is registered via the 'local-ycc-plugins' marketplace."
             warn "Local marketplace source uses ${codex_marketplace_plugin_dest} -> ${codex_plugin_src_msg}; the enabled-plugin cache root is refreshed at ${codex_plugin_cache_container}."
             warn "Rerun ./scripts/sync.sh --only codex after editing ycc/ to refresh the Codex bundle."
-            warn "If you move or rename this repo, rerun ./install.sh --target codex --only base to refresh the symlinks."
+            warn "If you move or rename this repo, rerun ./install.sh install --target codex --only base to refresh the symlinks."
         fi
     fi
 }
@@ -1401,7 +1411,7 @@ sync_opencode_target() {
 
     if [[ $do_base -eq 0 && $do_settings -eq 0 && $do_rules -eq 0 && $do_mcp -eq 0 ]]; then
         warn "opencode target ran no steps"
-        printf '\n%sopencode %s complete.%s\n' "${BOLD}" "${COMMAND/legacy/sync}" "${NC}"
+        printf '\n%sopencode %s complete.%s\n' "${BOLD}" "${COMMAND}" "${NC}"
         return 0
     fi
 
@@ -1535,11 +1545,11 @@ sync_opencode_target() {
 
     if [[ $do_mcp -eq 1 ]]; then
         step=$((step + 1))
-        printf '\n%s[%d/%d] %s MCP servers%s\n' "${BOLD}" "$step" "$total" "${COMMAND/legacy/sync}" "${NC}"
+        printf '\n%s[%d/%d] %s MCP servers%s\n' "${BOLD}" "$step" "$total" "${COMMAND}" "${NC}"
         run_mcp_step opencode
     fi
 
-    printf '\n%sopencode %s complete.%s\n' "${BOLD}" "${COMMAND/legacy/sync}" "${NC}"
+    printf '\n%sopencode %s complete.%s\n' "${BOLD}" "${COMMAND}" "${NC}"
     if [[ $do_base -eq 1 ]]; then
         warn "Restart opencode to pick up the new skills/agents/commands."
     fi
@@ -1763,7 +1773,7 @@ run_completion_command() {
 TARGET=""
 TARGETS=()
 MODE="local"
-COMMAND="legacy"
+COMMAND=""
 MCP=0
 SETTINGS=0
 RULES=0
@@ -1779,12 +1789,16 @@ case "${1:-}" in
     completion) shift; run_completion_command "$@"; exit 0 ;;
 esac
 
-# Optional ergonomic subcommands. Invocations that begin with --target retain
-# the legacy CLI unchanged.
-if [[ "${1:-}" == "sync" || "${1:-}" == "remove" ]]; then
-    COMMAND="$1"
-    shift
-fi
+case "${1:-}" in
+    install|sync|remove) COMMAND="$1"; shift ;;
+    --help|-h) usage; exit 0 ;;
+    "") usage; exit 1 ;;
+    *)
+        err "missing or unknown command '$1' (expected: install, sync, remove, cli, completion)"
+        err "  e.g. $(basename "$0") install $*"
+        exit 1
+        ;;
+esac
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -1874,7 +1888,7 @@ if [[ "${COMMAND}" == "remove" ]]; then
     fi
 fi
 
-if [[ ${#INTENTS[@]} -gt 0 && "${COMMAND}" != "legacy" ]]; then
+if [[ ${#INTENTS[@]} -gt 0 && "${COMMAND}" != "install" ]]; then
     if [[ ${#ONLY_STEPS[@]} -gt 0 || "${SETTINGS}" == "1" || "${RULES}" == "1" || "${MCP}" == "1" || "${HOOKS}" == "1" ]]; then
         err "${COMMAND} --intent cannot be combined with --only, --settings, --rules, --mcp, or --hooks"
         exit 1

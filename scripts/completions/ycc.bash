@@ -27,13 +27,16 @@ _ycc() {
     fi
 
     local words
-    if [[ ${COMP_CWORD} -eq 1 && "${cur}" != -* ]]; then
-        words="sync remove cli completion"
+    if [[ ${COMP_CWORD} -eq 1 ]]; then
+        words="install sync remove cli completion"
     else
         case "${sub}" in
             cli)        words="--dir --force --help" ;;
             completion) words="--shell --install --force --help" ;;
-            *)          words="--target --intent --only --mode --settings --rules --mcp --hooks --project --global --force --help" ;;
+            install)    words="--target --only --mode --settings --rules --mcp --hooks --project --global --force --help" ;;
+            sync)       words="--target --intent --mode --project --global --force --help" ;;
+            remove)     words="--target --only --intent --project --global --force --help" ;;
+            *)          words="" ;;
         esac
     fi
     mapfile -t COMPREPLY < <(compgen -W "${words}" -- "${cur}")

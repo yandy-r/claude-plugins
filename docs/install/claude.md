@@ -9,7 +9,7 @@ commands, but it can use the shared MCP server configuration.
 From the repository root:
 
 ```bash
-./install.sh --target claude
+./install.sh install --target claude
 ```
 
 The default `base` step registers this checkout as a Claude plugin marketplace
@@ -27,10 +27,10 @@ For a full local Claude Code sync without implicitly running plugin registration
 ```
 
 Add `base` to the intent list when you also want the Claude CLI to register and
-install the plugin marketplace. The legacy equivalent remains supported:
+install the plugin marketplace. The step-flag `install` form is equivalent:
 
 ```bash
-./install.sh --target claude --settings --rules --mcp --hooks
+./install.sh install --target claude --settings --rules --mcp --hooks
 ```
 
 Step behavior:
@@ -54,13 +54,13 @@ runtimes.
 Local mode is the default and points Claude Code at this checkout:
 
 ```bash
-./install.sh --target claude --mode local
+./install.sh install --target claude --mode local
 ```
 
 Repo mode registers the upstream GitHub repository instead:
 
 ```bash
-./install.sh --target claude --mode repo
+./install.sh install --target claude --mode repo
 ```
 
 Use repo mode for a non-developer install that should track the published
@@ -71,12 +71,12 @@ repository instead of a local checkout.
 Use `--only` when you want exactly one step or a small set of steps:
 
 ```bash
-./install.sh --target claude --only base
-./install.sh --target claude --only settings
-./install.sh --target claude --only rules
-./install.sh --target claude --only mcp           # writes <project>/.mcp.json
-./install.sh --target claude --only mcp --global  # writes ~/.claude.json
-./install.sh --target claude --only hooks
+./install.sh install --target claude --only base
+./install.sh install --target claude --only settings
+./install.sh install --target claude --only rules
+./install.sh install --target claude --only mcp           # writes <project>/.mcp.json
+./install.sh install --target claude --only mcp --global  # writes ~/.claude.json
+./install.sh install --target claude --only hooks
 ```
 
 Rules symlinks stop rather than overwrite an existing real rules file; pass
@@ -107,7 +107,7 @@ In local mode, edits under `ycc/` are picked up by Claude Code after
 If you move or rename this checkout, refresh the registered marketplace path:
 
 ```bash
-./install.sh --target claude --only base
+./install.sh install --target claude --only base
 ```
 
 ## Claude Desktop
@@ -142,6 +142,6 @@ The resulting file should contain a top-level `mcpServers` object:
 
 Restart Claude Desktop after editing the config.
 
-Note: `./install.sh --target claude --mcp` (or `--only mcp`) now updates
+Note: `./install.sh install --target claude --mcp` (or `--only mcp`) now updates
 `<project>/.mcp.json` by default. Pass `--global` to write `~/.claude.json` (the
 Claude Code MCP file). It does not edit the Claude Desktop config path.

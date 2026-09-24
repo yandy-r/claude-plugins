@@ -1,7 +1,7 @@
 # Generic User-Global Rules
 
 This directory is the authoritative source for user-global agent rules installed by
-`install.sh --settings` into each supported runtime's config directory.
+`install.sh install --settings` into each supported runtime's config directory.
 
 ## Files
 
@@ -26,7 +26,7 @@ repo `CLAUDE.md` is never shipped outside this repo; the init template is what
 
 ## Installation
 
-Installed by `install.sh --settings` for each target:
+Installed by `install.sh install --settings` for each target:
 
 | Target     | Destinations                                                        |
 | ---------- | ------------------------------------------------------------------- |
@@ -44,6 +44,6 @@ user-customized rules files.
 - **Edit `CLAUDE.md`.** `AGENTS.md` is a pointer only — never duplicate prose.
 - Keep the content **generic**. No repo names, package managers, or project paths.
 - After edits, run `shellcheck install.sh` and re-run
-  `./install.sh --target all --settings` to confirm the symlinks resolve.
+  `./install.sh install --target all --settings` to confirm the symlinks resolve.
 - Drift between this file and the repo's own `CLAUDE.md` is expected and fine —
   the two have different scopes.
