@@ -103,6 +103,38 @@ path_is_excluded() {
     return 1
 }
 
+# User-declared excludes loaded by style_load_extra_excludes (also appended to
+# STYLE_EXCLUDES). Kept separately so tools that scan the tree themselves can be
+# switched to the filtered file list when the user has declared any.
+STYLE_USER_EXCLUDES=()
+
+# style_load_extra_excludes ROOT
+# Append user excludes to STYLE_EXCLUDES (root-relative, same matching as the
+# defaults): tokens from STYLE_EXTRA_EXCLUDES (whitespace- or colon-separated)
+# and lines of ROOT/.style-excludes (`#` comments, blank lines ignored).
+# Leading "./" and trailing "/" are stripped. Call once, after ROOT is known.
+style_load_extra_excludes() {
+    local root="${1:-}" entry line
+    local -a entries=()
+    if [[ -n "${STYLE_EXTRA_EXCLUDES:-}" ]]; then
+        read -ra entries <<<"${STYLE_EXTRA_EXCLUDES//:/ }"
+    fi
+    if [[ -n "$root" && -f "$root/.style-excludes" ]]; then
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            line="${line%%#*}"
+            read -r line <<<"$line" || true
+            [[ -n "$line" ]] && entries+=("$line")
+        done <"$root/.style-excludes"
+    fi
+    for entry in "${entries[@]}"; do
+        entry="${entry#./}"
+        entry="${entry%/}"
+        [[ -n "$entry" ]] && STYLE_USER_EXCLUDES+=("$entry")
+    done
+    STYLE_EXCLUDES+=("${STYLE_USER_EXCLUDES[@]}")
+    return 0
+}
+
 # style_list_source_files DIR
 #   Emit newline-delimited files under DIR, DIR-relative. Git worktrees honor
 #   .gitignore via ls-files (tracked + untracked-but-not-ignored); non-git dirs

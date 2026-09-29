@@ -19,6 +19,7 @@ source "$SCRIPT_DIR/lib/shellcheck-resolve.sh"
 
 PROJECT_ROOT="$(detect_project_root)"
 readonly PROJECT_ROOT
+style_load_extra_excludes "$PROJECT_ROOT"
 readonly RUST_PROJECT_DIR="${RUST_PROJECT_DIR:-$PROJECT_ROOT}"
 readonly TS_PROJECT_DIR="${TS_PROJECT_DIR:-$PROJECT_ROOT}"
 readonly DOCS_PROJECT_DIR="${DOCS_PROJECT_DIR:-$PROJECT_ROOT}"
@@ -464,13 +465,19 @@ run_python_lint() {
   local python_prefix
   python_prefix="$(path_prefix_for "$PYTHON_PROJECT_DIR")"
 
-  if [[ -n "$git_scope" ]]; then
+  # User excludes (.style-excludes / STYLE_EXTRA_EXCLUDES) never reach a bare
+  # `ruff check .`, so a full run with any declared uses the filtered file list.
+  if [[ -n "$git_scope" ]] || (( ${#STYLE_USER_EXCLUDES[@]} )); then
     local -a python_files=()
-    mapfile -t python_files < <(list_modified_repo_paths "$git_scope" "$python_prefix" ".py" ".pyi")
+    if [[ -n "$git_scope" ]]; then
+      mapfile -t python_files < <(list_modified_repo_paths "$git_scope" "$python_prefix" ".py" ".pyi")
+    else
+      mapfile -t python_files < <(list_repo_paths "$python_prefix" ".py" ".pyi")
+    fi
 
     if (( ${#python_files[@]} == 0 )); then
       echo "=== Python ==="
-      echo "No $(scope_noun "$git_scope") Python files."
+      echo "No ${git_scope:+$(scope_noun "$git_scope") }Python files."
       return 0
     fi
 
@@ -774,13 +781,19 @@ run_python_format() {
   local python_prefix
   python_prefix="$(path_prefix_for "$PYTHON_PROJECT_DIR")"
 
-  if [[ -n "$git_scope" ]]; then
+  # User excludes (.style-excludes / STYLE_EXTRA_EXCLUDES) never reach a bare
+  # `ruff check .`, so a full run with any declared uses the filtered file list.
+  if [[ -n "$git_scope" ]] || (( ${#STYLE_USER_EXCLUDES[@]} )); then
     local -a python_files=()
-    mapfile -t python_files < <(list_modified_repo_paths "$git_scope" "$python_prefix" ".py" ".pyi")
+    if [[ -n "$git_scope" ]]; then
+      mapfile -t python_files < <(list_modified_repo_paths "$git_scope" "$python_prefix" ".py" ".pyi")
+    else
+      mapfile -t python_files < <(list_repo_paths "$python_prefix" ".py" ".pyi")
+    fi
 
     if (( ${#python_files[@]} == 0 )); then
       echo "=== Python ==="
-      echo "No $(scope_noun "$git_scope") Python files."
+      echo "No ${git_scope:+$(scope_noun "$git_scope") }Python files."
       return 0
     fi
 

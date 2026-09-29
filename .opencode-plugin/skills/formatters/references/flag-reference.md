@@ -141,8 +141,10 @@ formatters --target=~/projects/new-app
 
 Skip detection entirely and force a stack set. Auto-detection already ignores
 gitignored files and well-known vendored/build directories (`node_modules`,
-`dist`, `vendor`, `.venv`, …), so this is mainly needed to force a specific stack
-or to exclude a vendored tree that is **committed and not gitignored**.
+`dist`, `vendor`, `.venv`, …), so this is mainly needed to force a specific stack.
+To drop a vendored tree that is **committed and not gitignored**, list it in
+`.style-excludes` or `STYLE_EXTRA_EXCLUDES` instead (see
+`references/stack-detection.md`).
 
 ```
 formatters --profile=rust
