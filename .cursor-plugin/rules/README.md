@@ -55,8 +55,12 @@ From the repo root, sync the generated bundle to your Cursor config:
 
 ```bash
 ./install.sh install --target cursor
-# or: ./install.sh install --target all   # also merges MCP into ~/.claude.json
+# or: ./install.sh install --target all   # base step only for every target
 ```
+
+MCP is never merged implicitly. Opt in with `--mcp`, `--only mcp`, or
+`./install.sh sync --target <targets> --intent mcp`. It writes project scope by
+default; only `--global` writes user-global files such as `~/.claude.json`.
 
 This copies `.cursor-plugin/rules/` (including nested `common/`, `typescript/`, …) to `~/.cursor/rules/`.
 
