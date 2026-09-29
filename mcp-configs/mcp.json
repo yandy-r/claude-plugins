@@ -20,17 +20,10 @@
         "XERO_CLIENT_SECRET": "${XERO_CLIENT_SECRET}"
       }
     },
-<<<<<<< Updated upstream
     "linear": {
       "type": "http",
       "url": "https://mcp.linear.app/mcp"
     },
-||||||| Stash base
-    "linear": {
-      "url": "https://mcp.linear.app/mcp"
-    },
-=======
->>>>>>> Stashed changes
     "vercel": {
       "type": "http",
       "url": "https://mcp.vercel.com"
