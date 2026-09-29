@@ -227,10 +227,21 @@ assert_eq "$(read_profile_value "${user_ex_profile}" detect_python)" "false" "us
 assert_eq "$(read_profile_value "${user_ex_profile}" detect_rust)" "false" "user-excludes detect_rust (STYLE_EXTRA_EXCLUDES entry)"
 assert_eq "$(read_profile_value "${user_ex_profile}" detect_ts)" "true" "user-excludes detect_ts"
 
+# A '#' inside an entry is part of the path, not a comment.
+printf 'print(3)\n' > "${user_ex_dir}/a#b.py"
+printf 'a#b.py\n' > "${user_ex_dir}/.style-excludes"
+user_ex_hash_paths="$(
+  PROJECT_ROOT="${user_ex_dir}" \
+  bash -c '. "'"${BUNDLE_ROOT}"'/lib/modified-files.sh"; style_load_extra_excludes "$PROJECT_ROOT"; list_repo_paths ""'
+)"
+assert_eq "$(printf '%s\n' "${user_ex_hash_paths}" | grep -c 'a#b.py' || true)" "0" "user-excludes keeps '#' inside entries"
+printf '# vendored reference data\n./config/data/trash/  # trailing comment\n\n' > "${user_ex_dir}/.style-excludes"
+
 user_ex_paths="$(
   PROJECT_ROOT="${user_ex_dir}" \
   bash -c '. "'"${BUNDLE_ROOT}"'/lib/modified-files.sh"; style_load_extra_excludes "$PROJECT_ROOT"; list_repo_paths ""'
 )"
 assert_eq "$(printf '%s\n' "${user_ex_paths}" | grep -c 'config/data/trash' || true)" "0" "user-excludes linting drops .style-excludes paths"
+assert_eq "$(printf '%s\n' "${user_ex_paths}" | grep -c 'src/main.ts' || true)" "1" "user-excludes linting keeps project source"
 
 echo "OK: formatter bundle smoke checks passed."

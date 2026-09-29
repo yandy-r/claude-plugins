@@ -111,7 +111,8 @@ STYLE_USER_EXCLUDES=()
 # style_load_extra_excludes ROOT
 # Append user excludes to STYLE_EXCLUDES (root-relative, same matching as the
 # defaults): tokens from STYLE_EXTRA_EXCLUDES (whitespace- or colon-separated)
-# and lines of ROOT/.style-excludes (`#` comments, blank lines ignored).
+# and lines of ROOT/.style-excludes (blank lines, `#` lines and whitespace-
+# preceded ` # ...` trailing comments ignored).
 # Leading "./" and trailing "/" are stripped. Call once, after ROOT is known.
 style_load_extra_excludes() {
     local root="${1:-}" entry line
@@ -121,17 +122,20 @@ style_load_extra_excludes() {
     fi
     if [[ -n "$root" && -f "$root/.style-excludes" ]]; then
         while IFS= read -r line || [[ -n "$line" ]]; do
-            line="${line%%#*}"
             read -r line <<<"$line" || true
-            [[ -n "$line" ]] && entries+=("$line")
+            [[ -z "$line" || "$line" == \#* ]] && continue
+            line="${line%%[[:space:]]#*}"
+            read -r line <<<"$line" || true
+            entries+=("$line")
         done <"$root/.style-excludes"
     fi
-    for entry in "${entries[@]}"; do
+    # ${arr[@]+...} keeps empty arrays safe under `set -u` on bash < 4.4.
+    for entry in ${entries[@]+"${entries[@]}"}; do
         entry="${entry#./}"
         entry="${entry%/}"
         [[ -n "$entry" ]] && STYLE_USER_EXCLUDES+=("$entry")
     done
-    STYLE_EXCLUDES+=("${STYLE_USER_EXCLUDES[@]}")
+    STYLE_EXCLUDES+=(${STYLE_USER_EXCLUDES[@]+"${STYLE_USER_EXCLUDES[@]}"})
     return 0
 }
 

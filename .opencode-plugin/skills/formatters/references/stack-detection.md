@@ -43,8 +43,9 @@ disagree about what counts as source.
 A vendored tree that is committed **and not gitignored** is still source to git.
 Declare it non-source for both detection and linting with either:
 
-- **`.style-excludes`** at the project root — one entry per line, `#` comments
-  and blank lines ignored. Example:
+- **`.style-excludes`** at the project root — one entry per line; blank lines,
+  `#` lines and ` # ...` trailing comments are ignored (a `#` inside an entry is
+  kept). Example:
 
   ```text
   # checked-in reference data
@@ -58,7 +59,8 @@ Declare it non-source for both detection and linting with either:
 Entries are appended to `STYLE_EXCLUDES` and match **root-relative** (the path
 itself or anything under `<entry>/`); a leading `./` or trailing `/` is ignored.
 When any user exclude is set, full-repo Python runs pass the filtered file list to
-ruff/black instead of `.`. Tools that scan the tree themselves (`cargo`,
+ruff/black instead of `.`; explicitly passed files bypass ruff/black's own
+`exclude` settings unless `force-exclude` is enabled in their config. Tools that scan the tree themselves (`cargo`,
 `golangci-lint`, `tsc`) do not see these entries — use their own config to skip
 the path.
 
