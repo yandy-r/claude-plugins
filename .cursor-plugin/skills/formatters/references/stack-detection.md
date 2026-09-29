@@ -36,8 +36,33 @@ so a legitimately-tracked nested source dir is never silently dropped.
 Net effect: a stray `*.rs`/`*.py` inside `node_modules/`, a build-output dir, or
 any gitignored/vendored tree no longer flips `detect_*` to `true`. `profile-style.sh`
 and `style.sh` share this one enumeration, so detection and linting can never
-disagree about what counts as source. (A committed-and-not-gitignored vendored
-tree is still seen as source — override it with an explicit `--<stack>` flag.)
+disagree about what counts as source.
+
+### User excludes (committed vendored trees)
+
+A vendored tree that is committed **and not gitignored** is still source to git.
+Declare it non-source for both detection and linting with either:
+
+- **`.style-excludes`** at the project root — one entry per line; blank lines,
+  `#` lines and ` # ...` trailing comments are ignored (a `#` inside an entry is
+  kept). Example:
+
+  ```text
+  # checked-in reference data
+  config/data/trashguide
+  third_party
+  ```
+
+- **`STYLE_EXTRA_EXCLUDES`** env var — whitespace- or colon-separated entries, for
+  CI or one-off runs (`STYLE_EXTRA_EXCLUDES="third_party:gen" ./scripts/style.sh lint`).
+
+Entries are appended to `STYLE_EXCLUDES` and match **root-relative** (the path
+itself or anything under `<entry>/`); a leading `./` or trailing `/` is ignored.
+When any user exclude is set, full-repo Python runs pass the filtered file list to
+ruff/black instead of `.`; explicitly passed files bypass ruff/black's own
+`exclude` settings unless `force-exclude` is enabled in their config. Tools that scan the tree themselves (`cargo`,
+`golangci-lint`, `tsc`) do not see these entries — use their own config to skip
+the path.
 
 ---
 

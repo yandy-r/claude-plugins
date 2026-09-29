@@ -210,4 +210,38 @@ git_env_profile="${tmp_root}/git-env.profile"
 "${PROFILE_SCRIPT}" "${git_env_dir}" > "${git_env_profile}"
 assert_eq "$(read_profile_value "${git_env_profile}" detect_python)" "true" "git-env detect_python (tracked nested env/*.py must still count)"
 
+# --- user excludes: a COMMITTED, non-gitignored vendored tree is dropped from
+#     detection and linting via .style-excludes / STYLE_EXTRA_EXCLUDES. ---
+user_ex_dir="${tmp_root}/user-excludes"
+mkdir -p "${user_ex_dir}/src" "${user_ex_dir}/config/data/trash" "${user_ex_dir}/third_party"
+git -C "${user_ex_dir}" init -q
+printf 'export const v = 1;\n' > "${user_ex_dir}/src/main.ts"
+printf 'print(1)\n' > "${user_ex_dir}/config/data/trash/gen.py"
+printf 'fn main() {}\n' > "${user_ex_dir}/third_party/lib.rs"
+printf '# vendored reference data\n./config/data/trash/  # trailing comment\n\n' > "${user_ex_dir}/.style-excludes"
+git -C "${user_ex_dir}" add -A >/dev/null 2>&1
+
+user_ex_profile="${tmp_root}/user-excludes.profile"
+STYLE_EXTRA_EXCLUDES="third_party:nope" "${PROFILE_SCRIPT}" "${user_ex_dir}" > "${user_ex_profile}"
+assert_eq "$(read_profile_value "${user_ex_profile}" detect_python)" "false" "user-excludes detect_python (.style-excludes entry)"
+assert_eq "$(read_profile_value "${user_ex_profile}" detect_rust)" "false" "user-excludes detect_rust (STYLE_EXTRA_EXCLUDES entry)"
+assert_eq "$(read_profile_value "${user_ex_profile}" detect_ts)" "true" "user-excludes detect_ts"
+
+# A '#' inside an entry is part of the path, not a comment.
+printf 'print(3)\n' > "${user_ex_dir}/a#b.py"
+printf 'a#b.py\n' > "${user_ex_dir}/.style-excludes"
+user_ex_hash_paths="$(
+  PROJECT_ROOT="${user_ex_dir}" \
+  bash -c '. "'"${BUNDLE_ROOT}"'/lib/modified-files.sh"; style_load_extra_excludes "$PROJECT_ROOT"; list_repo_paths ""'
+)"
+assert_eq "$(printf '%s\n' "${user_ex_hash_paths}" | grep -c 'a#b.py' || true)" "0" "user-excludes keeps '#' inside entries"
+printf '# vendored reference data\n./config/data/trash/  # trailing comment\n\n' > "${user_ex_dir}/.style-excludes"
+
+user_ex_paths="$(
+  PROJECT_ROOT="${user_ex_dir}" \
+  bash -c '. "'"${BUNDLE_ROOT}"'/lib/modified-files.sh"; style_load_extra_excludes "$PROJECT_ROOT"; list_repo_paths ""'
+)"
+assert_eq "$(printf '%s\n' "${user_ex_paths}" | grep -c 'config/data/trash' || true)" "0" "user-excludes linting drops .style-excludes paths"
+assert_eq "$(printf '%s\n' "${user_ex_paths}" | grep -c 'src/main.ts' || true)" "1" "user-excludes linting keeps project source"
+
 echo "OK: formatter bundle smoke checks passed."

@@ -42,6 +42,7 @@ _pf_excludes="${_pf_script_dir}/bundle/lib/excludes.sh"
 if [[ -f "$_pf_excludes" ]]; then
     # shellcheck source=bundle/lib/excludes.sh
     . "$_pf_excludes"
+    style_load_extra_excludes "$project_root"
 else
     echo "[profile-style] WARN: excludes helper not found at ${_pf_excludes}; detection falls back to an unfiltered scan" >&2
 fi
