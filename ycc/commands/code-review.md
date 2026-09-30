@@ -34,6 +34,7 @@ allowed-tools:
   - Bash(python3:*)
   - Bash(make:*)
   - 'mcp__github__*'
+  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
 ---
 
 # Code Review Command
