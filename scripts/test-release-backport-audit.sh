@@ -253,6 +253,22 @@ $(row ok 33 aaaa000000000000000000000000000000000033 "fix!: backported without l
 since=v0.5.1" "audit: blocking rows first; 'Backport of #120' is not a twin of #12; docs: is not a fix"
 }
 
+test_empty_sha_and_limit() {
+  local repo stub out rc
+  repo="$(seed_repo)"
+  stub="$(new_stub_dir)"
+  echo '[{"number":40,"title":"fix: no merge sha","labels":[{"name":"type:bug"}],"mergeCommit":null}]' >"${stub}/search.json"
+  out="$(run_audit "$stub" release/0.5 --repo "$repo" 2>&1)"
+  assert_eq "$out" "$(row unlabelled 40 "" "fix: no merge sha" "no backport:0.5 label")
+since=v0.5.1" "audit: an empty merge sha does not shift the title and labels"
+
+  jq -n '[range(1000) | {number: ., state: "CLOSED", body: ""}]' >"${stub}/base_release_0.5.json"
+  out="$(run_audit "$stub" release/0.5 --repo "$repo" 2>&1)"
+  rc=$?
+  assert_exit "$rc" 1 "audit: a query that hits the result limit fails closed"
+  assert_contains "$out" "results would be truncated" "audit: explains the truncation"
+}
+
 test_window() {
   local repo stub rc date
   repo="$(seed_repo)"
@@ -311,6 +327,7 @@ if [[ ! -x "$AUDIT" ]]; then
 else
   test_clean
   test_findings
+  test_empty_sha_and_limit
   test_window
   test_refusals
 fi

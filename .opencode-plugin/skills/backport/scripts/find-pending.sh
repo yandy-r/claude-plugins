@@ -174,7 +174,10 @@ for label in "${LABELS[@]}"; do
   fi
   target="release/${version}"
   prs_json="$(bp_gh_json find-pending pr list --state merged --label "$label" --limit "$PR_LIMIT" --json number,title,mergeCommit)"
-  while IFS=$'\t' read -r number sha title; do
+  # Rows are joined with the unit separator (\x1f), not @tsv: tab is IFS
+  # whitespace, so an empty field (a missing merge sha) would collapse and
+  # shift the title into sha. Titles have \x1f stripped so they cannot split a row.
+  while IFS=$'\x1f' read -r number sha title; do
     [[ -z "$number" ]] && continue
     if ! is_active "$target"; then
       echo "find-pending: skip: #${number} (${label}): ${target} is not an active maintenance branch" >&2
@@ -188,7 +191,7 @@ for label in "${LABELS[@]}"; do
       continue
     fi
     PENDING+="${number}"$'\t'"${target}"$'\t'"${sha}"$'\t'"${title}"$'\n'
-  done < <(jq -r '.[] | [(.number | tostring), (.mergeCommit.oid // ""), (.title | gsub("[\t\n]"; " "))] | @tsv' <<<"$prs_json")
+  done < <(jq -r '.[] | [(.number | tostring), (.mergeCommit.oid // ""), (.title | gsub("[\t\n\u001f]"; " "))] | join("\u001f")' <<<"$prs_json")
 done
 
 if [[ -n "$PENDING" ]]; then

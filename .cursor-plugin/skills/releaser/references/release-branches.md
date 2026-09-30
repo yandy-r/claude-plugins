@@ -52,6 +52,9 @@ Stdout is one `<status>\t<pr>\t<merge_sha>\t<title>\t<detail>` row per PR checke
 | exit 1                   | STOP with its stderr. When `gh` is missing or not authenticated, also show step 0 of the project's patch steps in `RELEASING.md` (below).            |
 | exit 2                   | STOP, as for a malformed state in Phase 0.                                                                                                           |
 
+`--pending` skips a `missing` row whose detail is `backport #M closed unmerged`; retry
+that one with `/backport <PR#> --to release/X.Y`.
+
 For `unlabelled` rows, ask once (AskUserQuestion), listing every row:
 
 ```

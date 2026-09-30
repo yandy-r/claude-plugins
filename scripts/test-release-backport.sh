@@ -255,6 +255,22 @@ backport_label: bp-{X.Y}"
   assert_eq "$out" "$(printf '8\trelease/2.1\tcccc\tfix: eight')" "find-pending: --label-prefix overrides the prefix"
 }
 
+test_find_pending_empty_sha() {
+  local repo stub out err
+  repo="$(mkrepo)"
+  write_releasing "$repo" "model: release-branches
+trunk: main
+maintenance: release/0.6"
+  stub="$(new_stub_dir)"
+  echo '[{"name":"backport:0.6"}]' >"${stub}/labels.json"
+  echo '[{"number":5,"title":"fix: five","mergeCommit":null}]' >"${stub}/label_backport_0.6.json"
+  err="${stub}/stderr"
+  out="$(run_find_pending "$stub" --repo "$repo" 2>"$err")"
+  assert_eq "$out" "" "find-pending: a PR without a merge commit is not listed"
+  assert_contains "$(cat "$err")" "skip: #5 (backport:0.6): no merge commit reported by GitHub" \
+    "find-pending: an empty merge sha is reported, not shifted into the title"
+}
+
 test_find_pending_state() {
   local repo stub out rc
   stub="$(new_stub_dir)"
@@ -451,6 +467,7 @@ maintenance: hotfix"
 
 test_find_pending
 test_find_pending_label_prefix
+test_find_pending_empty_sha
 test_find_pending_state
 test_find_pending_gh_unavailable
 test_cherry_pick_clean

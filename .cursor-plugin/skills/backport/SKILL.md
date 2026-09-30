@@ -105,8 +105,8 @@ Validation — stop with the usage line on failure:
 ## Phase 2A — Audit (`--audit` only)
 
 Read-only; it creates no worktree, branch, label or PR. Lines: the given `release/X.Y`
-(it must be in `MAINTENANCE` or the state's `frozen` list), else every entry of
-`MAINTENANCE`. For each line:
+(it must be in `MAINTENANCE`; otherwise stop with "not an active maintenance branch"),
+else every entry of `MAINTENANCE`. For each line:
 
 ```bash
 bash "${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/backport-audit.sh" release/X.Y [--since REF]

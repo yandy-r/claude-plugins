@@ -34,8 +34,8 @@
 # Exit codes:
 #   0  every labelled PR is backported and no fix is unaccounted for
 #   1  usage error, missing/unauthenticated gh, missing jq, no RELEASING.md,
-#      model is not release-branches, release/X.Y missing on origin, or a
-#      gh/git query failed
+#      model is not release-branches, release/X.Y missing on origin, a
+#      gh/git query failed, or a query hit the result limit
 #   2  RELEASING.md exists but its state block is malformed
 #   3  findings: at least one missing, in-review or unlabelled row
 #
@@ -188,11 +188,25 @@ if ! gh auth status >/dev/null 2>&1; then
   exit 1
 fi
 
+# require_below_limit <json> <description> — gh pr list truncates silently at
+# --limit, so a full page may hide PRs; fail rather than report a false clean.
+require_below_limit() {
+  local count
+  count="$(jq length <<<"$1")"
+  if [[ "$count" -ge "$PR_LIMIT" ]]; then
+    _error "${PR_LIMIT} or more PRs returned by $2; results would be truncated (narrow the window with --since, or raise PR_LIMIT)"
+    exit 1
+  fi
+}
+
 TWINS_JSON="$(bp_gh_json "$NAME" pr list --state all --base "$TARGET" --limit "$PR_LIMIT" --json number,state,body)"
+require_below_limit "$TWINS_JSON" "the ${TARGET} PR query"
 LABELLED_JSON="$(bp_gh_json "$NAME" pr list --state merged --base "$TRUNK" --label "$LABEL" \
   --limit "$PR_LIMIT" --json number,title,mergeCommit)"
+require_below_limit "$LABELLED_JSON" "the ${LABEL} labelled PR query"
 RECENT_JSON="$(bp_gh_json "$NAME" pr list --state merged --base "$TRUNK" --search "merged:>=${SINCE_DATE}" \
   --limit "$PR_LIMIT" --json number,title,labels,mergeCommit)"
+require_below_limit "$RECENT_JSON" "the merged-since-${SINCE} PR query"
 
 ROWS_MISSING=""
 ROWS_REVIEW=""
@@ -232,14 +246,17 @@ classify() {
   fi
 }
 
-JQ_ROW='(.number | tostring), (.mergeCommit.oid // ""), (.title | gsub("[\t\n]"; " "))'
+# Rows are joined with the unit separator (\x1f), not @tsv: tab is IFS
+# whitespace, so an empty field (a missing merge sha) would collapse and shift
+# the rest. Titles have \x1f stripped so they cannot split a row.
+JQ_ROW='(.number | tostring), (.mergeCommit.oid // ""), (.title | gsub("[\t\n\u001f]"; " "))'
 
-while IFS=$'\t' read -r number sha title; do
+while IFS=$'\x1f' read -r number sha title; do
   [[ -z "$number" ]] && continue
   classify "$number" "$sha" "$title" missing "no backport PR"
-done < <(jq -r ".[] | [${JQ_ROW}] | @tsv" <<<"$LABELLED_JSON")
+done < <(jq -r ".[] | [${JQ_ROW}] | join(\"\u001f\")" <<<"$LABELLED_JSON")
 
-while IFS=$'\t' read -r number sha title labels; do
+while IFS=$'\x1f' read -r number sha title labels; do
   [[ -z "$number" ]] && continue
   labels="${labels:-}"
   [[ ",${labels}," == *",${LABEL},"* ]] && continue
@@ -253,7 +270,7 @@ while IFS=$'\t' read -r number sha title labels; do
   fi
   classify "$number" "$sha" "$title" unlabelled \
     "no ${LABEL} label${other:+ (has ${other})}"
-done < <(jq -r ".[] | [${JQ_ROW}, ([.labels[]?.name] | join(\",\"))] | @tsv" <<<"$RECENT_JSON")
+done < <(jq -r ".[] | [${JQ_ROW}, ([.labels[]?.name] | join(\",\"))] | join(\"\u001f\")" <<<"$RECENT_JSON")
 
 for rows in "$ROWS_MISSING" "$ROWS_REVIEW" "$ROWS_UNLABELLED" "$ROWS_OK"; do
   [[ -n "$rows" ]] && printf '%s' "$rows" | sort -t $'\t' -k2,2n
