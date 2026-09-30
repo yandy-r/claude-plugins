@@ -12,11 +12,17 @@
 # Backticks in single-quoted printf formats are literal Markdown code spans.
 # shellcheck disable=SC2016
 
-RS_BLOCK_BEGIN='<!-- release-state'
-RS_TABLE_BEGIN='<!-- release-state:table:begin -->'
-RS_TABLE_END='<!-- release-state:table:end -->'
+RS_BLOCK_BEGIN='<!-- ycc-release-state'
+RS_TABLE_BEGIN='<!-- ycc-release-state:table:begin -->'
+RS_TABLE_END='<!-- ycc-release-state:table:end -->'
 RS_KNOWN_KEYS=" model trunk maintenance frozen support backport_label tracker tracker_ref "
 RS_BRANCH_RE='^release/[0-9]+\.[0-9]+$'
+
+# Slash-command hints stay in single quotes: the Codex generator rewrites
+# "$release-model" to "$release-model", which bash would expand (and fail
+# on under set -u) inside double quotes.
+RS_HINT_CREATE='$release-model'
+RS_HINT_AUDIT='$release-model --audit'
 
 RS_ERROR=""
 
@@ -64,7 +70,7 @@ rs_normalize_list() {
 rs_extract_block() {
   awk '
     { sub(/\r$/, "") }
-    /^<!-- release-state[[:space:]]*$/ { inblock = 1; found = 1; next }
+    /^<!-- ycc-release-state[[:space:]]*$/ { inblock = 1; found = 1; next }
     inblock && /^-->[[:space:]]*$/ { inblock = 0; closed = 1; exit }
     inblock { print }
     END {
@@ -275,7 +281,7 @@ rs_write_file() {
       next
     }
     skip_table { if (line == end) skip_table = 0; next }
-    line ~ /^<!-- release-state[[:space:]]*$/ { emit(blockf); skip_block = 1; next }
+    line ~ /^<!-- ycc-release-state[[:space:]]*$/ { emit(blockf); skip_block = 1; next }
     line == begin { emit(tablef); skip_table = 1; next }
     { print raw }
   ' has_table="$(rs_extract_table "$file" >/dev/null 2>&1 && echo 1 || echo 0)" "$file" >"$out"

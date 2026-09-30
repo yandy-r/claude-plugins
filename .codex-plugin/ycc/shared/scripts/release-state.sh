@@ -83,7 +83,7 @@ PRESENT=0
 if [[ -f "$FILE" ]]; then
   PRESENT=1
   if ! rs_parse_file "$FILE"; then
-    _error "${RS_ERROR} (run $release-model --audit)"
+    _error "${RS_ERROR} (run ${RS_HINT_AUDIT})"
     exit 2
   fi
 fi
@@ -141,7 +141,7 @@ cmd_base() {
 cmd_check() {
   local findings=0 expected actual heads branch
   if [[ "$PRESENT" -eq 0 ]]; then
-    echo "finding: no RELEASING.md at ${ROOT} (run $release-model)"
+    echo "finding: no RELEASING.md at ${ROOT} (run ${RS_HINT_CREATE})"
     return 1
   fi
   expected="$(rs_render_table)"

@@ -141,11 +141,11 @@ fi
 ROOT="$(rs_repo_root "$REPO_DIR")"
 FILE="${ROOT}/RELEASING.md"
 if [[ ! -f "$FILE" ]]; then
-  _error "no RELEASING.md at ${ROOT} (run /ycc:release-model)"
+  _error "no RELEASING.md at ${ROOT} (run ${RS_HINT_CREATE})"
   exit 1
 fi
 if ! rs_parse_file "$FILE"; then
-  _error "${RS_ERROR} (run /ycc:release-model --audit)"
+  _error "${RS_ERROR} (run ${RS_HINT_AUDIT})"
   exit 2
 fi
 

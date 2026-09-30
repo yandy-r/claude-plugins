@@ -112,7 +112,7 @@ write_releasing() {
   {
     echo "# Releasing"
     echo
-    echo "<!-- ycc:release-state"
+    echo "<!-- ycc-release-state"
     printf '%s\n' "$body"
     echo "-->"
     [[ -n "$rest" ]] && printf '\n%s\n' "$rest"
@@ -253,7 +253,7 @@ backport_label: backport" "must contain {X.Y}"
   assert_contains "$out" "/ycc:release-model --audit" "malformed: message points at the audit"
 
   repo="$(mkrepo)"
-  printf '# Releasing\n\n<!-- ycc:release-state\nmodel: trunk-only\ntrunk: main\n' >"${repo}/RELEASING.md"
+  printf '# Releasing\n\n<!-- ycc-release-state\nmodel: trunk-only\ntrunk: main\n' >"${repo}/RELEASING.md"
   out="$(bash "$STATE" --repo "$repo" 2>&1)"
   rc=$?
   assert_exit "$rc" 2 "malformed: unclosed block"
@@ -343,9 +343,9 @@ test_update_render_and_prose() {
   repo="$(mkrepo)"
   write_releasing "$repo" "model: release-branches
 trunk: main
-maintenance: release/0.5" "<!-- ycc:release-state:table:begin -->
+maintenance: release/0.5" "<!-- ycc-release-state:table:begin -->
 stale table
-<!-- ycc:release-state:table:end -->
+<!-- ycc-release-state:table:end -->
 
 ${PROSE}"
   before_prose="$(sed -n '/^## Notes/,$p' "${repo}/RELEASING.md")"
@@ -369,7 +369,7 @@ test_update_inserts_missing_table() {
 trunk: main" "${PROSE}"
   bash "$UPDATE" --repo "$repo" --render
   out="$(cat "${repo}/RELEASING.md")"
-  assert_contains "$out" "<!-- ycc:release-state:table:begin -->" "update: missing table is inserted"
+  assert_contains "$out" "<!-- ycc-release-state:table:begin -->" "update: missing table is inserted"
   assert_contains "$out" "Human-owned prose." "update: prose kept when inserting the table"
 }
 
@@ -472,7 +472,7 @@ test_update_errors() {
 test_print_block() {
   local out
   out="$(bash "$UPDATE" --print-block --model trunk-only --trunk main)"
-  assert_contains "$out" "<!-- ycc:release-state" "print-block: prints a block"
+  assert_contains "$out" "<!-- ycc-release-state" "print-block: prints a block"
   assert_contains "$out" "| Trunk | \`main\` |" "print-block: prints the table"
 }
 
@@ -585,6 +585,30 @@ test_template() {
 
 # ---------------------------------------------------------------------------
 
+# Generated Cursor/Codex/opencode copies must parse the same files as the
+# source: the generators rewrite ycc:<name> and /ycc:<name> references.
+test_generated_copies() {
+  local copy repo out rc
+  for copy in \
+    "${REPO_ROOT}/.cursor-plugin/skills/_shared/scripts/release-state.sh" \
+    "${REPO_ROOT}/.codex-plugin/ycc/shared/scripts/release-state.sh" \
+    "${REPO_ROOT}/.opencode-plugin/shared/scripts/release-state.sh"; do
+    if [[ ! -f "$copy" ]]; then
+      ko "generated copy exists: ${copy#"${REPO_ROOT}/"}" "run ./scripts/sync.sh"
+      continue
+    fi
+    repo="$(mkrepo)"
+    bash "$UPDATE" --print-block --model release-branches --trunk main | sed '/^$/,$d' >"${repo}/RELEASING.md"
+    out="$(bash "$copy" --repo "$repo" 2>&1)"
+    assert_eq "$(get_key "$out" model)" "release-branches" "generated copy parses the source format: ${copy#"${REPO_ROOT}/"}"
+    printf '# Releasing\n' >"${repo}/RELEASING.md"
+    out="$(bash "$copy" --repo "$repo" 2>&1)"
+    rc=$?
+    assert_exit "$rc" 2 "generated copy reports a malformed block: ${copy#"${REPO_ROOT}/"}"
+    assert_contains "$out" "no ycc state block" "generated copy prints the parse error: ${copy#"${REPO_ROOT}/"}"
+  done
+}
+
 test_get_missing
 test_get_full
 test_get_key_order
@@ -607,6 +631,7 @@ test_print_block
 test_check
 test_prettier_stable
 test_template
+test_generated_copies
 
 echo
 echo "release-model tests: ${PASS} passed, ${FAIL} failed"
