@@ -15,7 +15,11 @@ Invoke the **releaser** skill with `$ARGUMENTS` passed through.
 The skill:
 
 1. Detects the project's language, build system, and version-bearing manifests.
-2. Proposes a semver bump from conventional-commit history if no version is supplied.
+2. Proposes a semver bump from conventional-commit history if no version is supplied,
+   then checks the version is being released from the branch the repo's `RELEASING.md`
+   names (minor/major from the trunk; under release-branches, a patch from
+   `release/X.Y`). A wrong branch stops with the exact fix commands. Without
+   `RELEASING.md` it suggests `/release-model` and otherwise behaves as before.
 3. Resolves the `{os × arch}` release matrix from language defaults or explicit flags.
 4. Drafts a grouped changelog and a release-notes file (use `--exclude-internal` to
    drop the Maintenance section).
@@ -25,6 +29,9 @@ The skill:
    existing one (`--ci-config=audit`) for supply-chain, caching, and permissions
    best practices.
 7. Emits the exact `git tag`, `git push`, and `gh release create` commands to run.
+   Under release-branches a minor/major also records `release/X.Y` in `RELEASING.md`
+   and emits the commands that create the branch and its backport label; a patch adds
+   the step that forward-ports its CHANGELOG entry to the trunk.
 8. When `--publish[=create|edit|auto]` is passed, runs `publish-release.sh` in
    print-only mode so the operator reviews the resolved `gh` command. Re-running with
    `--confirm` actually executes it. `--dry-run` always beats `--publish`.

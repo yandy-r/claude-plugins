@@ -18,12 +18,13 @@ Findings emitted by the audit agent use this format:
 
 ## 1. Triggering
 
-| Check                                                                                                                                                                         | Severity |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| Workflow triggers on `push: tags: ['v*']` or an equivalent explicit event                                                                                                     | high     |
-| Does NOT trigger on every push to `main` (runs only on tag/release)                                                                                                           | high     |
-| `workflow_dispatch` is included for manual re-runs (REQUIRED if the project uses `/releaser --ci` non-destructively; the auto-fix loop re-triggers via `gh workflow run`) | high     |
-| Concurrency group set (prevents duplicate releases racing)                                                                                                                    | medium   |
+| Check                                                                                                                                                                                                                                                            | Severity |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| Workflow triggers on `push: tags: ['v*']` or an equivalent explicit event                                                                                                                                                                                        | high     |
+| Does NOT trigger on every push to `main` or `release/**` (runs only on tag/release)                                                                                                                                                                              | high     |
+| `workflow_dispatch` is included for manual re-runs (REQUIRED if the project uses `/releaser --ci` non-destructively; the auto-fix loop re-triggers via `gh workflow run`)                                                                                    | high     |
+| Concurrency group set (prevents duplicate releases racing)                                                                                                                                                                                                       | medium   |
+| Under the release-branches model (`RELEASING.md`), triggers also cover `release/X.Y`: tag triggers are branch-agnostic, but any `branches:` filter on a workflow the release depends on (tests, build, `needs:` gates) includes `release/**`, not only the trunk | high     |
 
 ## 2. Permissions (Supply-Chain Hardening)
 
@@ -88,11 +89,11 @@ Findings emitted by the audit agent use this format:
 
 ## 9. Documentation
 
-| Check                                                                                                        | Severity |
-| ------------------------------------------------------------------------------------------------------------ | -------- |
-| `.github/workflows/README.md` (or equivalent) documents: trigger, required secrets, local reproduction steps | high     |
-| Release runbook exists at `docs/releasing.md` or `CONTRIBUTING.md#releasing`                                 | medium   |
-| Changelog file is updated as part of the release commit (not only the GitHub release body)                   | medium   |
+| Check                                                                                                                                                | Severity |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `.github/workflows/README.md` (or equivalent) documents: trigger, required secrets, local reproduction steps                                         | high     |
+| Release runbook exists: repo-root `RELEASING.md` (preferred; `release-model` generates it), or `docs/releasing.md` / `CONTRIBUTING.md#releasing` | medium   |
+| Changelog file is updated as part of the release commit (not only the GitHub release body)                                                           | medium   |
 
 ## 10. Observability
 

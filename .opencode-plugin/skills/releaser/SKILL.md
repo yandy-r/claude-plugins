@@ -86,6 +86,20 @@ Before anything else, verify:
 4. If `version` was provided, it matches the regex
    `^v?[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?(\+[A-Za-z0-9.-]+)?$`. Reject malformed
    input with a clear error.
+5. Read the project's release model:
+
+   ```
+   ~/.config/opencode/shared/scripts/release-state.sh get
+   ```
+
+   - `present=0` (no `RELEASING.md`): say so once and offer to run `/release-model`
+     first. If the user declines, continue exactly as this skill always has.
+   - Exit 2 (malformed state block): STOP. Show the parse error and point at
+     `/release-model --audit`. Never guess a trunk from a broken block.
+   - `present=1`: keep `model` and `trunk`. The model's rules are in
+     `~/.config/opencode/shared/references/branching-model.md`; how this skill
+     applies them is in
+     `~/.config/opencode/skills/releaser/references/release-branches.md`.
 
 If any check fails, STOP and surface a specific remediation — do not continue past
 Phase 0 with known-bad preconditions.
@@ -112,6 +126,12 @@ The helper emits a single JSON document to stdout describing:
 
 If `--platform` was passed, override the detected `language` field before continuing.
 
+`latest_tag` is the nearest tag reachable from `HEAD`. Under release-branches that is
+the latest `vX.Y.*` tag on `release/X.Y`, but the previous minor's `.0` tag (or a
+pre-release tag) on the trunk, because patch tags are not reachable from the trunk. See
+"Previous tag and changelog range" in `references/release-branches.md` for when to pass
+an explicit from-ref instead.
+
 See `references/project-type-matrix.md` for the full language → toolchain → default
 matrix.
 
@@ -130,6 +150,26 @@ If the user did NOT supply a version:
 If the user DID supply a version, sanity-check the bump magnitude against commit
 history. Surface a concern if they are mismatched (e.g. `feat:` commits but a patch
 bump) and require explicit confirmation before continuing.
+
+Under release-branches the branch also bounds the bump: on `release/X.Y` propose only
+the next `X.Y.Z` patch (a `feat:` cherry-pick does not make it a minor), and on the trunk
+propose only a minor or major.
+
+### Branch check
+
+Once the version is confirmed, run:
+
+```
+~/.config/opencode/skills/releaser/scripts/check-release-branch.sh <new-version>
+```
+
+- Exit 0: keep its `kind`, `branch`, `creates_maintenance`, `backport_label` and
+  `forward_port` output for Phases 5, 7 and 8. With `present=0` it only prints a note
+  on stderr that repeats Phase 0's; do not show it a second time.
+- Exit 1: STOP. Show its stderr verbatim; it names the right branch and the exact fix
+  commands (e.g. `git switch release/0.5`, or `git switch <trunk>`). Do not switch
+  branches for the user.
+- Exit 2: STOP with the parse error, as in Phase 0.
 
 ## Phase 3: Resolve release target matrix
 
@@ -153,6 +193,9 @@ Unless `--skip-notes` was passed:
    ~/.config/opencode/skills/releaser/scripts/draft-changelog.sh [--exclude-internal] [--template <path>] <new-version> [<from-ref>]
    ```
 
+   Pass an explicit `<from-ref>` when the default (`git describe --tags --abbrev=0`)
+   picks the wrong previous tag — on `release/X.Y`, or for a final `X.Y.0` after trunk
+   pre-releases; see `references/release-branches.md`.
    Pass `--exclude-internal` if the user requested it. Pass `--template <path>` if the
    user supplied a custom template path. The helper fills the template placeholders
    (`{{VERSION}}`, `{{DATE}}`, `{{HIGHLIGHTS}}`, `{{BREAKING}}`, `{{FEATURES}}`,
@@ -189,8 +232,19 @@ Edit only the files named in `manifest_files` from Phase 1. Common targets:
 - `Dockerfile` or `docker-compose.yml` labels → update if the repo uses
   `org.opencontainers.image.version`.
 
-NEVER edit files outside that list. After edits, emit a diff summary and STOP for user
-review before continuing.
+NEVER edit files outside that list — with one exception: when the Phase 2 branch check
+printed a non-empty `creates_maintenance=release/X.Y`, also record the new maintenance
+branch so the state change lands in the release commit:
+
+```
+~/.config/opencode/shared/scripts/release-state-update.sh --add-maintenance release/X.Y
+```
+
+It edits only `RELEASING.md` (and may move a branch past the support window to
+`frozen`); it never commits. Include `RELEASING.md` in the diff summary. Under
+`--dry-run`, add `--dry-run` so it prints the diff instead of writing.
+
+After edits, emit a diff summary and STOP for user review before continuing.
 
 ## Phase 6: CI workflow file (optional)
 
@@ -235,15 +289,18 @@ separate from `--ci`, which monitors a live release workflow after publish.)"
 If `--dry-run` was passed:
 
 1. Print the full release plan: detected project, proposed version, target matrix,
-   files that would change, commands that would run.
+   files that would change, commands that would run. Include the release model, the
+   branch-check result, and — when `creates_maintenance` is set — the `RELEASING.md`
+   diff from `release-state-update.sh --dry-run --add-maintenance release/X.Y`.
 2. STOP. Write nothing, execute nothing side-effecting.
 3. If both `--dry-run` and `--publish` were passed, `--dry-run` wins: the publish helper
    does NOT run.
 
 ## Phase 8: Emit next-step commands
 
-Always emit the following block. Substitute `<new-version>`, `<changed-files>`, and
-`<notes-path>` with real values. NEVER run these commands automatically.
+Always emit the following block. Substitute `<new-version>`, `<changed-files>`,
+`<notes-path>`, and `<branch>` (the `branch=` from the Phase 2 branch check — the
+branch being released) with real values. NEVER run these commands automatically.
 
 ```
 Release prepared. No commits or tags have been created — review the diff, then run:
@@ -251,7 +308,7 @@ Release prepared. No commits or tags have been created — review the diff, then
 git add <changed-files>
 git commit -m "chore(release): v<new-version>"
 git tag -a v<new-version> -m "v<new-version>"
-git push origin HEAD --follow-tags
+git push origin HEAD:<branch> --follow-tags
 
 # Create the GitHub release from the drafted notes:
 gh release create v<new-version> \
@@ -261,6 +318,34 @@ gh release create v<new-version> \
 # If artifacts were produced locally and need uploading:
 gh release upload v<new-version> <path-to-artifact> [...]
 ```
+
+Under release-branches, append the steps the branch check asked for (see
+`~/.config/opencode/shared/references/branching-model.md`, "Models").
+When `creates_maintenance=release/X.Y` (a final minor or major cut from the trunk):
+
+```
+# Create the maintenance branch from the tag, and its backport label (skip the
+# label if it already exists):
+git push origin vX.Y.0^{commit}:refs/heads/release/X.Y
+gh label create "<backport_label>" --description "Cherry-pick to release/X.Y"
+```
+
+When `forward_port=1` (a patch cut from `release/X.Y`), carry the CHANGELOG entry — not
+the version bump — to the trunk in its own PR:
+
+```
+# Forward-port the vX.Y.Z CHANGELOG entry to <trunk>:
+git fetch origin
+git switch -c chore/changelog-vX.Y.Z origin/<trunk>
+# Copy the X.Y.Z section from `git show vX.Y.Z:CHANGELOG.md` into CHANGELOG.md,
+# in version order. Leave the version manifests alone.
+git commit -am "chore(release): record vX.Y.Z in changelog"
+git push -u origin HEAD
+gh pr create --base <trunk> --title "chore(release): record vX.Y.Z in changelog" \
+  --body "Forward-port of the vX.Y.Z CHANGELOG entry from release/X.Y. No version bump."
+```
+
+See "Forward-porting a patch's CHANGELOG entry" in `references/release-branches.md`.
 
 If `--ci-config=generate` ran, append:
 
@@ -431,26 +516,31 @@ The monitor wrote one JSONL line to the audit log with the failed run's metadata
    ~/.config/opencode/skills/git-workflow/scripts/validate-commit.sh "<message>"
    ```
 
-3. **Pre-push branch-protection check**:
+3. **Pre-push branch-protection check** on the branch that was released — the trunk,
+   or `release/X.Y` for a patch under release-branches — not a hard-coded `main`:
 
    ```
-   gh api repos/<owner>/<name>/branches/main/protection 2>/dev/null
+   RELEASE_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+   gh api "repos/<owner>/<name>/branches/${RELEASE_BRANCH}/protection" 2>/dev/null
    ```
 
-   If `main` has `required_pull_request_reviews`, the loop cannot push directly.
-   Surface: "Direct push to `main` blocked by branch protection — open a PR with
-   the fix, merge it, and re-run with `--ci`." Exit Phase 8.5 with `loop-blocked`
-   status (renders an 8.5.4-style block without retrying).
+   `RELEASE_BRANCH` must equal the Phase 2 `branch=`; if it does not (or is `HEAD`),
+   exit Phase 8.5 with `loop-blocked`. If the branch has
+   `required_pull_request_reviews`, the loop cannot push directly. Surface: "Direct
+   push to `<RELEASE_BRANCH>` blocked by branch protection — open a PR with the fix
+   into `<RELEASE_BRANCH>`, merge it, and re-run with `--ci`." Exit Phase 8.5 with
+   `loop-blocked` status (renders an 8.5.4-style block without retrying).
 
-4. **Commit and push**:
+4. **Commit and push** to the release branch:
 
    ```
    git add <implicated-files>
    git commit -m "<validated-message>"
-   git push origin HEAD
+   git push origin "HEAD:${RELEASE_BRANCH}"
    ```
 
-   NEVER `--force`. NEVER `--no-verify`.
+   NEVER `--force`. NEVER `--no-verify`. When `RELEASE_BRANCH` is `release/X.Y`, the fix
+   also needs a trunk PR after the loop ends (see `references/release-branches.md`).
 
 5. **Re-trigger the release workflow** per the strategy detected in 8.5.0.
    - **Preferred** (`workflow_dispatch` available):
@@ -493,6 +583,9 @@ Report to the user:
 
 - Detected language / build system / manifest files.
 - Proposed vs. requested version.
+- Release model and branch: `model` and `branch` from the Phase 2 check (or "no
+  `RELEASING.md`"), plus the follow-ups it requires — the new `release/X.Y` branch and
+  label, or the CHANGELOG forward-port PR.
 - Target `{os × arch}` matrix.
 - Files modified (changelog, notes, manifests, workflow).
 - CI workflow-file outcome (generate / audit / skipped) and report path if audit ran.
@@ -576,10 +669,14 @@ The transcript-output contract and shared caveats (worktree cwd, interactive fai
   it, no mutating `gh` call runs.
 - **`--dry-run` beats `--publish`.** If both flags are present, the publish helper does
   not run. Dry-run always exits before any side-effecting step.
-- **Never edits files outside the detected `manifest_files` list.** If the repo has
-  unusual version ownership (e.g. a `VERSION` file, a `_version.py`, multi-package
-  workspaces), add it to the list via `--platform=generic` and the user confirms
-  before edit.
+- **Never edits files outside the detected `manifest_files` list** — except
+  `RELEASING.md`, and only through `release-state-update.sh --add-maintenance` when a
+  minor or major creates `release/X.Y`. If the repo has unusual version ownership
+  (e.g. a `VERSION` file, a `_version.py`, multi-package workspaces), add it to the
+  list via `--platform=generic` and the user confirms before edit.
+- **Releases come from the branch `RELEASING.md` names.** The Phase 2 branch check
+  refuses a version on the wrong branch and prints the fix; the skill never switches
+  branches itself.
 - **Never regenerates third-party lockfiles as a side effect.** If `package.json` bumps
   require `package-lock.json`, the skill instructs the user to run the lockfile command
   themselves and surfaces any drift.
@@ -599,6 +696,8 @@ The transcript-output contract and shared caveats (worktree cwd, interactive fai
 - See `references/ci-optimization-checklist.md` for the audit criteria used by the
   agent and the default quality gate for generated workflows.
 - See `references/release-notes-template.md` for the drafted notes format.
+- See `references/release-branches.md` for the branch-check output, previous-tag
+  ranges, and the maintenance-branch and forward-port steps.
 - See [`../_shared/references/ci-monitoring.md`](../_shared/references/ci-monitoring.md)
   ("Release mode" section) for the loop contract, exit-code table, and audit-log
   schema.
