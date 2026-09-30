@@ -2,6 +2,8 @@
 #
 # Behavioral tests for the release-model branch and PR helpers:
 #   ycc/skills/_shared/scripts/prepare-feature-branch.sh
+#   ycc/skills/_shared/scripts/pr-guard.sh
+#   ycc/skills/git-workflow/scripts/create-pr.sh (with a stubbed gh)
 #
 # Every test runs in throwaway git repos under a temp dir with an isolated git
 # config, so the caller's repositories and global git settings are never used.
@@ -12,6 +14,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 SHARED="${REPO_ROOT}/ycc/skills/_shared/scripts"
 PREP="${SHARED}/prepare-feature-branch.sh"
+GUARD="${SHARED}/pr-guard.sh"
+CREATE_PR="${REPO_ROOT}/ycc/skills/git-workflow/scripts/create-pr.sh"
 
 PASS=0
 FAIL=0
@@ -152,6 +156,15 @@ run_prep() {
   PREP_RC=0
   PREP_OUT="$(cd "$repo" && bash "$PREP" "$@" 2>"$errf")" || PREP_RC=$?
   PREP_ERR="$(cat "$errf")"
+}
+
+# run_guard <repo> [args...] — run pr-guard.sh inside repo; combined output
+# to GUARD_OUT, exit code to GUARD_RC.
+run_guard() {
+  local repo="$1"
+  shift
+  GUARD_RC=0
+  GUARD_OUT="$(cd "$repo" && bash "$GUARD" "$@" 2>&1)" || GUARD_RC=$?
 }
 
 # release_repo <block-body> — mkrepo with RELEASING.md committed and pushed.
@@ -335,6 +348,240 @@ flavour: vanilla"
 }
 
 # ---------------------------------------------------------------------------
+# pr-guard.sh base
+# ---------------------------------------------------------------------------
+
+test_guard_base() {
+  local repo
+  repo="$(mkrepo)"
+  git -C "$repo" checkout -q -b feat/x
+  run_guard "$repo" base
+  assert_eq "$GUARD_OUT" "main" "guard base: no RELEASING.md -> origin default branch"
+  run_guard "$repo" base --base develop
+  assert_eq "$GUARD_OUT" "develop" "guard base: --base overrides"
+
+  repo="$(release_repo "$REL_BLOCK")"
+  git -C "$repo" checkout -q -b release/0.5
+  commit_file "$repo" patch.txt "patch" "fix: release-only"
+  git -C "$repo" push -q origin release/0.5
+  git -C "$repo" checkout -q -b fix/y
+  run_guard "$repo" base
+  assert_eq "$GUARD_OUT" "release/0.5" "guard base: branch cut from release/0.5 -> release/0.5"
+  git -C "$repo" checkout -q -b feat/z origin/main
+  run_guard "$repo" base
+  assert_eq "$GUARD_OUT" "main" "guard base: branch cut from the trunk -> trunk"
+
+  repo="$(mkrepo)"
+  write_releasing "$repo" "model: nope
+trunk: main"
+  run_guard "$repo" base
+  assert_exit "$GUARD_RC" 2 "guard base: malformed RELEASING.md"
+  assert_contains "$GUARD_OUT" "invalid model 'nope'" "guard base: malformed message"
+  run_guard "$repo" base --base main
+  assert_exit "$GUARD_RC" 2 "guard base: --base does not bypass a malformed RELEASING.md"
+}
+
+# ---------------------------------------------------------------------------
+# pr-guard.sh sync-check
+# ---------------------------------------------------------------------------
+
+# sync_repo — release-branches repo with origin/main ahead of origin/release/0.5.
+sync_repo() {
+  local repo
+  repo="$(release_repo "$REL_BLOCK")"
+  git -C "$repo" checkout -q -b release/0.5
+  commit_file "$repo" patch.txt "patch" "fix: release-only"
+  git -C "$repo" push -q origin release/0.5
+  git -C "$repo" checkout -q main
+  commit_file "$repo" trunk.txt "trunk" "feat: trunk work"
+  git -C "$repo" push -q origin main
+  echo "$repo"
+}
+
+test_guard_sync_check() {
+  local repo
+  repo="$(mkrepo)"
+  git -C "$repo" checkout -q -b release/0.5
+  run_guard "$repo" sync-check --base main
+  assert_exit "$GUARD_RC" 0 "sync-check: skipped without RELEASING.md"
+  assert_contains "$GUARD_OUT" "result=skipped" "sync-check: reports skipped"
+
+  repo="$(sync_repo)"
+
+  git -C "$repo" checkout -q release/0.5
+  run_guard "$repo" sync-check --base main
+  assert_exit "$GUARD_RC" 3 "sync-check: release/0.5 -> main refused"
+  assert_contains "$GUARD_OUT" "branching-model.md#rules" "sync-check: refusal cites the rule"
+
+  git -C "$repo" checkout -q main
+  run_guard "$repo" sync-check --base release/0.5
+  assert_exit "$GUARD_RC" 3 "sync-check: main -> release/0.5 refused"
+
+  git -C "$repo" checkout -q -b feat/clean origin/main
+  commit_file "$repo" a.txt "a" "feat: clean work"
+  run_guard "$repo" sync-check
+  assert_exit "$GUARD_RC" 0 "sync-check: clean topic branch passes"
+  assert_contains "$GUARD_OUT" "result=ok" "sync-check: clean topic branch ok"
+
+  git -C "$repo" checkout -q -b fix/sneaky origin/release/0.5
+  commit_file "$repo" b.txt "b" "fix: something"
+  git -C "$repo" merge -q --no-edit --no-ff origin/main >/dev/null
+  run_guard "$repo" sync-check --base release/0.5
+  assert_exit "$GUARD_RC" 3 "sync-check: merging origin/main into a release PR refused"
+  assert_contains "$GUARD_OUT" "brings origin/main" "sync-check: names the merged branch"
+
+  git -C "$repo" checkout -q -b feat/sneaky origin/main
+  commit_file "$repo" c.txt "c" "feat: something"
+  git -C "$repo" merge -q --no-edit --no-ff origin/release/0.5 >/dev/null
+  run_guard "$repo" sync-check --base main
+  assert_exit "$GUARD_RC" 3 "sync-check: merging origin/release/0.5 into a trunk PR refused"
+
+  git -C "$repo" checkout -q -b feat/update "$(sha "$repo" origin/main)~1"
+  commit_file "$repo" d.txt "d" "feat: behind"
+  git -C "$repo" merge -q --no-edit --no-ff origin/main >/dev/null
+  run_guard "$repo" sync-check --base main
+  assert_exit "$GUARD_RC" 0 "sync-check: merging the base itself passes"
+
+  git -C "$repo" checkout -q -b feat/a origin/main
+  commit_file "$repo" e.txt "e" "feat: a"
+  git -C "$repo" checkout -q -b feat/b origin/main
+  commit_file "$repo" f.txt "f" "feat: b"
+  git -C "$repo" merge -q --no-edit --no-ff feat/a >/dev/null
+  run_guard "$repo" sync-check --base main
+  assert_exit "$GUARD_RC" 0 "sync-check: merging another topic branch passes"
+
+  git -C "$repo" checkout -q -b backport/0.5/clean origin/release/0.5
+  git -C "$repo" cherry-pick -x "$(sha "$repo" feat/clean)" >/dev/null
+  run_guard "$repo" sync-check --base release/0.5
+  assert_exit "$GUARD_RC" 0 "sync-check: cherry-pick backport passes"
+
+  run_guard "$repo" sync-check --base release/9.9
+  assert_exit "$GUARD_RC" 1 "sync-check: unfetched base is an error"
+}
+
+# ---------------------------------------------------------------------------
+# pr-guard.sh backport-label
+# ---------------------------------------------------------------------------
+
+test_guard_backport_label() {
+  local repo
+  repo="$(mkrepo)"
+  run_guard "$repo" backport-label --title "fix: x"
+  assert_contains "$GUARD_OUT" "backport=0" "backport: no RELEASING.md -> no prompt"
+
+  repo="$(release_repo "model: trunk-only
+trunk: main")"
+  run_guard "$repo" backport-label --base main --title "fix: x"
+  assert_contains "$GUARD_OUT" "reason=model is trunk-only" "backport: trunk-only -> no prompt"
+
+  repo="$(release_repo "model: release-branches
+trunk: main")"
+  run_guard "$repo" backport-label --base main --title "fix: x"
+  assert_contains "$GUARD_OUT" "reason=no maintenance branches" "backport: no maintenance -> no prompt"
+
+  repo="$(release_repo "model: release-branches
+trunk: main
+maintenance: release/0.6, release/0.5
+backport_label: port-to/{X.Y}")"
+  git -C "$repo" checkout -q -b feat/x
+  commit_file "$repo" x.txt "x" "feat: new thing"
+  run_guard "$repo" backport-label --base main --title "fix(api): handle nulls"
+  assert_eq "$GUARD_OUT" "backport=1
+branch=release/0.6
+label=port-to/0.6" "backport: fix(scope) title -> latest maintenance label"
+  run_guard "$repo" backport-label --base main --title "feat: new thing"
+  assert_eq "$GUARD_OUT" "backport=0
+reason=not a fix" "backport: feat title -> no prompt"
+  run_guard "$repo" backport-label --base main --title "chore: x" --labels "area:api, type:bug"
+  assert_contains "$GUARD_OUT" "backport=1" "backport: type:bug label -> prompt"
+  run_guard "$repo" backport-label --base release/0.6 --title "fix: x"
+  assert_contains "$GUARD_OUT" "reason=PR targets 'release/0.6'" "backport: PR into a release branch -> no prompt"
+
+  git -C "$repo" push -q origin main
+  commit_file "$repo" y.txt "y" "fix: repair a thing"
+  run_guard "$repo" backport-label --title "chore: tidy"
+  assert_contains "$GUARD_OUT" "backport=1" "backport: fix: commit in the range -> prompt"
+}
+
+# ---------------------------------------------------------------------------
+# create-pr.sh (git-workflow) with a stubbed gh
+# ---------------------------------------------------------------------------
+
+# stub_gh — install a fake gh that reports auth OK, no existing PR, "main" as
+# the default branch, and records `gh pr create` arguments in GH_LOG.
+stub_gh() {
+  local bin="${SANDBOX_ROOT}/bin"
+  mkdir -p "$bin"
+  GH_LOG="${SANDBOX_ROOT}/gh.log"
+  : >"$GH_LOG"
+  cat >"${bin}/gh" <<'STUB'
+#!/usr/bin/env bash
+case "$1 $2" in
+  "auth status") exit 0 ;;
+  "repo view") echo main ;;
+  "pr list") echo "" ;;
+  "pr create") shift 2; printf '%s\n' "$@" >>"$GH_LOG" ;;
+  *) exit 1 ;;
+esac
+STUB
+  chmod +x "${bin}/gh"
+  STUB_PATH="${bin}:${PATH}"
+}
+
+# run_create_pr <repo> [args...] — run create-pr.sh with the gh stub; the
+# origin path doubles as a configured GitHub host (GH_HOST).
+run_create_pr() {
+  local repo="$1" origin
+  shift
+  origin="$(git -C "$repo" remote get-url origin)"
+  CREATE_RC=0
+  CREATE_OUT="$(cd "$repo" && PATH="$STUB_PATH" GH_HOST="${origin%.git}" GH_LOG="$GH_LOG" \
+    bash "$CREATE_PR" "$@" 2>&1)" || CREATE_RC=$?
+}
+
+# gh_create_base — the --base value recorded by the last `gh pr create`.
+gh_create_base() {
+  sed -n '/^--base$/{n;p;}' "$GH_LOG" | tail -1
+}
+
+test_create_pr() {
+  local repo
+  stub_gh
+
+  repo="$(mkrepo)"
+  git -C "$repo" checkout -q -b feat/x
+  commit_file "$repo" x.txt "x" "feat: x"
+  git -C "$repo" push -q origin feat/x
+  run_create_pr "$repo" --create
+  assert_exit "$CREATE_RC" 0 "create-pr: no RELEASING.md creates the PR"
+  assert_eq "$(gh_create_base)" "main" "create-pr: no RELEASING.md targets the forge default branch"
+
+  git -C "$repo" push -q origin main:refs/heads/develop
+  git -C "$repo" fetch -q origin
+  : >"$GH_LOG"
+  run_create_pr "$repo" --create --base develop
+  assert_exit "$CREATE_RC" 0 "create-pr: --base creates the PR"
+  assert_eq "$(gh_create_base)" "develop" "create-pr: --base overrides the base"
+
+  repo="$(sync_repo)"
+  git -C "$repo" checkout -q -b fix/y origin/release/0.5
+  commit_file "$repo" y.txt "y" "fix: y"
+  git -C "$repo" push -q origin fix/y
+  : >"$GH_LOG"
+  run_create_pr "$repo" --create
+  assert_exit "$CREATE_RC" 0 "create-pr: RELEASING.md base creates the PR"
+  assert_eq "$(gh_create_base)" "release/0.5" "create-pr: branch cut from release/0.5 targets it"
+
+  git -C "$repo" merge -q --no-edit --no-ff origin/main >/dev/null
+  git -C "$repo" push -q origin fix/y
+  : >"$GH_LOG"
+  run_create_pr "$repo" --create
+  assert_exit "$CREATE_RC" 1 "create-pr: sync merge refused"
+  assert_contains "$CREATE_OUT" "sync merge" "create-pr: refusal names the sync merge"
+  assert_eq "$(cat "$GH_LOG")" "" "create-pr: no PR created after a refusal"
+}
+
+# ---------------------------------------------------------------------------
 
 test_prep_no_state_unchanged
 test_prep_state_trunk_nonstandard
@@ -345,6 +592,10 @@ test_prep_plan_conflict_falls_back
 test_prep_release_branch
 test_prep_fetch_failure
 test_prep_malformed_state
+test_guard_base
+test_guard_sync_check
+test_guard_backport_label
+test_create_pr
 
 echo
 echo "release branch-prep tests: ${PASS} passed, ${FAIL} failed"

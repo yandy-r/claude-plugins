@@ -3,7 +3,12 @@ set -euo pipefail
 
 # create-pr.sh
 # Analyzes git repository and helps create pull requests
-# Usage: create-pr.sh [--analyze | --create [--draft]]
+# Usage: create-pr.sh [--analyze | --create [--draft]] [--base BRANCH]
+#
+# The PR base is --base when given, else the RELEASING.md base
+# (release-state.sh base), else the forge default branch. With RELEASING.md,
+# the sync-merge guard runs first and refuses a sync PR. Both come from
+# _shared/scripts/pr-guard.sh; see _shared/references/pr-base-and-backport.md.
 
 # Color codes for output
 readonly RED='\033[0;31m'
@@ -15,6 +20,7 @@ readonly NC='\033[0m' # No Color
 # Parse arguments
 MODE="analyze"
 DRAFT=false
+BASE_ARG=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -30,9 +36,17 @@ while [[ $# -gt 0 ]]; do
             DRAFT=true
             shift
             ;;
+        --base)
+            if [[ $# -lt 2 || -z "$2" ]]; then
+                echo -e "${RED}--base requires a branch name${NC}" >&2
+                exit 1
+            fi
+            BASE_ARG="$2"
+            shift 2
+            ;;
         *)
             echo -e "${RED}Unknown option: $1${NC}" >&2
-            echo "Usage: $0 [--analyze | --create [--draft]]" >&2
+            echo "Usage: $0 [--analyze | --create [--draft]] [--base BRANCH]" >&2
             exit 1
             ;;
     esac
@@ -50,6 +64,8 @@ FORGE_LIB="${SCRIPT_DIR}/../../../shared/scripts/lib/forge.sh"
 [[ -f "$FORGE_LIB" ]] || FORGE_LIB="~/.codex/plugins/ycc/shared/scripts/lib/forge.sh"
 # shellcheck source=/dev/null
 source "$FORGE_LIB"
+PR_GUARD="${SCRIPT_DIR}/../../../shared/scripts/pr-guard.sh"
+[[ -f "$PR_GUARD" ]] || PR_GUARD="~/.codex/plugins/ycc/shared/scripts/pr-guard.sh"
 
 PROVIDER="$(forge_detect_provider origin)"
 FORGE_CLI="$(forge_cli "$PROVIDER")"
@@ -101,8 +117,17 @@ if [ "$CURRENT_BRANCH" = "HEAD" ]; then
     exit 1
 fi
 
-# Get default branch (usually main or master) — provider-neutral
-DEFAULT_BRANCH=$(forge_default_branch "$PROVIDER")
+# Resolve the PR base: --base, else RELEASING.md, else the forge default branch.
+if [[ -n "$BASE_ARG" ]]; then
+    BASE_CMD=(bash "$PR_GUARD" base --base "$BASE_ARG")
+else
+    BASE_CMD=(bash "$PR_GUARD" base)
+fi
+if ! BASE_BRANCH=$("${BASE_CMD[@]}"); then
+    echo -e "${RED}Error: could not resolve the PR base (see the RELEASING.md error above)${NC}" >&2
+    echo 'Fix the state block with $release-model --audit, or pass --base BRANCH.' >&2
+    exit 1
+fi
 
 # Check if branch exists on remote
 if ! git ls-remote --exit-code --heads origin "$CURRENT_BRANCH" &> /dev/null; then
@@ -116,14 +141,29 @@ echo -e "${BLUE}=== Pull Request Analysis ===${NC}\n"
 # Display branch information
 echo -e "${GREEN}Branch Information:${NC}"
 echo "  Current branch:  $CURRENT_BRANCH"
-echo "  Base branch:     $DEFAULT_BRANCH"
+echo "  Base branch:     $BASE_BRANCH"
 echo ""
 
+# Sync-merge guard (skipped without RELEASING.md).
+set +e
+GUARD_OUT=$(bash "$PR_GUARD" sync-check --base "$BASE_BRANCH" 2>&1)
+GUARD_RC=$?
+set -e
+if [ "$GUARD_RC" -eq 3 ]; then
+    echo -e "${RED}Error: refusing to open this PR into ${BASE_BRANCH} (sync merge)${NC}" >&2
+    printf '%s\n' "$GUARD_OUT" | sed 's/^/  /' >&2
+    exit 1
+elif [ "$GUARD_RC" -ne 0 ]; then
+    echo -e "${RED}Error: the sync-merge guard could not run${NC}" >&2
+    printf '%s\n' "$GUARD_OUT" | sed 's/^/  /' >&2
+    exit 1
+fi
+
 # Get commits since divergence from base
-MERGE_BASE=$(git merge-base HEAD "origin/$DEFAULT_BRANCH" 2>/dev/null || echo "")
+MERGE_BASE=$(git merge-base HEAD "origin/$BASE_BRANCH" 2>/dev/null || echo "")
 
 if [ -z "$MERGE_BASE" ]; then
-    echo -e "${RED}Error: Cannot find common ancestor with $DEFAULT_BRANCH${NC}" >&2
+    echo -e "${RED}Error: Cannot find common ancestor with $BASE_BRANCH${NC}" >&2
     exit 1
 fi
 
@@ -149,9 +189,10 @@ echo ""
 
 # Analyze changed files
 CHANGED_FILES=$(git diff --name-only "$MERGE_BASE..HEAD" | wc -l | tr -d ' ')
-SOURCE_FILES=$(git diff --name-only "$MERGE_BASE..HEAD" | grep -vE '(test|spec|__tests__|\.test\.|\.spec\.|\.md$|^docs/)' | wc -l | tr -d ' ')
-TEST_FILES=$(git diff --name-only "$MERGE_BASE..HEAD" | grep -E '(test|spec|__tests__|\.test\.|\.spec\.)' | wc -l | tr -d ' ')
-DOC_FILES=$(git diff --name-only "$MERGE_BASE..HEAD" | grep -E '(\.md$|^docs/)' | wc -l | tr -d ' ')
+# grep -c exits 1 on zero matches; `|| true` keeps pipefail from aborting.
+SOURCE_FILES=$(git diff --name-only "$MERGE_BASE..HEAD" | grep -cvE '(test|spec|__tests__|\.test\.|\.spec\.|\.md$|^docs/)' || true)
+TEST_FILES=$(git diff --name-only "$MERGE_BASE..HEAD" | grep -cE '(test|spec|__tests__|\.test\.|\.spec\.)' || true)
+DOC_FILES=$(git diff --name-only "$MERGE_BASE..HEAD" | grep -cE '(\.md$|^docs/)' || true)
 
 echo -e "${GREEN}Files Changed:${NC}"
 echo "  Total files:   $CHANGED_FILES"
@@ -219,11 +260,11 @@ echo ""
 echo -e "${GREEN}Breaking Changes:${NC}"
 if git log --format=%B "$MERGE_BASE..HEAD" | grep -qE 'BREAKING CHANGE:|^[a-z]+(\([a-z0-9-]+\))?!:'; then
     echo "  ⚠ Breaking changes detected in commits"
-    git log --format=%s "$MERGE_BASE..HEAD" | grep -E '^[a-z]+(\([a-z0-9-]+\))?!:' | while IFS= read -r line; do
+    { git log --format=%s "$MERGE_BASE..HEAD" | grep -E '^[a-z]+(\([a-z0-9-]+\))?!:' || true; } | while IFS= read -r line; do
         echo "    - $line"
     done
-    git log --format=%B "$MERGE_BASE..HEAD" | grep -A2 'BREAKING CHANGE:' | while IFS= read -r line; do
-        [ -n "$line" ] && echo "    $line"
+    { git log --format=%B "$MERGE_BASE..HEAD" | grep -A2 'BREAKING CHANGE:' || true; } | while IFS= read -r line; do
+        if [ -n "$line" ]; then echo "    $line"; fi
     done
 else
     echo "  ✓ No breaking changes detected"
@@ -250,10 +291,10 @@ if [ "$MODE" = "analyze" ]; then
     echo -e "${BLUE}=== Analysis Complete ===${NC}\n"
     echo "To create PR:"
     if [ "$PROVIDER" = "github" ]; then
-        echo "  Regular: gh pr create --web"
-        echo "  Draft:   gh pr create --draft --web"
+        echo "  Regular: gh pr create --base $BASE_BRANCH --web"
+        echo "  Draft:   gh pr create --base $BASE_BRANCH --draft --web"
     else
-        echo "  Regular: tea pull create --head $CURRENT_BRANCH --base $DEFAULT_BRANCH"
+        echo "  Regular: tea pull create --head $CURRENT_BRANCH --base $BASE_BRANCH"
         echo "  (Forgejo/Gitea: 'tea' has no --draft or --web; open the PR in the web UI to mark it draft)"
     fi
     exit 0
@@ -359,6 +400,7 @@ if [ "$PROVIDER" = "github" ]; then
         gh pr create \
             --title "$PR_TITLE" \
             --body "$PR_DESCRIPTION" \
+            --base "$BASE_BRANCH" \
             --draft \
             --web
         rc=$?
@@ -379,6 +421,7 @@ if [ "$PROVIDER" = "github" ]; then
         gh pr create \
             --title "$PR_TITLE" \
             --body "$PR_DESCRIPTION" \
+            --base "$BASE_BRANCH" \
             --web
         rc=$?
         set -e
@@ -404,7 +447,7 @@ else
         --title "$PR_TITLE" \
         --description "$PR_DESCRIPTION" \
         --head "$CURRENT_BRANCH" \
-        --base "$DEFAULT_BRANCH"
+        --base "$BASE_BRANCH"
     rc=$?
     set -e
 

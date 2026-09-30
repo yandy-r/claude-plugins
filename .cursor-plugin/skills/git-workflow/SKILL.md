@@ -24,6 +24,7 @@ Parse arguments. **At least one action flag is required** in normal use; if none
 - **--dry-run**: Show analysis and plan without making changes
 - **--no-docs**: Skip documentation updates (commits only)
 - **--draft**: Create PR as draft (requires `--pr`)
+- **--base <branch>**: PR base branch (requires `--pr`). Overrides the base picked from `RELEASING.md` or the forge default branch (Step 22b).
 - **--ci**: Monitor CI on the PR for the current branch and auto-fix until green or a bail condition. Works with `--pr` (create-then-monitor), `--push` (push-then-monitor existing PR), or bare (monitor only — no commit, no push). An open PR for the current branch must exist by the time Phase 6 starts. Incompatible with `--dry-run` and with `--commit`-only (since CI runs on remote commits).
 - **--ci-max-pushes=N**: Cap on auto-pushes per invocation (default 5).
 - **--ci-max-same-failure=N**: Bail if the same failure signature recurs N times (default 3).
@@ -164,6 +165,7 @@ Before proceeding to Phase 1, determine which actions the user requested. The ac
 
 4. Validate flag combinations:
    - If `--draft` is present and `pr ∉ actions`, stop with the error: "`--draft` requires `--pr`. Re-run with `--pr --draft`, or omit `--draft`."
+   - If `--base <branch>` is present and `pr ∉ actions`, stop with the error: "`--base` requires `--pr`."
    - If `--ci ∈ flags AND actions == {commit}` (commit-only, no push), hard-stop with: `--ci requires --push or --pr (CI runs on the remote, so local-only commits can't be monitored). Pass --ci alone to skip commits and monitor an existing PR.`
    - If `--ci ∈ flags AND --dry-run ∈ flags`, hard-stop with: `--ci is incompatible with --dry-run; the loop performs real pushes.`
 5. Record the resolved action set; later phases gate on it. **Bare `--ci`** (actions empty, `--ci ∈ flags`) is a valid recorded state: Phases 3, 4, and 5 all skip; only Phase 6 runs.
@@ -617,6 +619,16 @@ When MCP tools are available, prefer `mcp__github__list_pull_requests` with `hea
 
 `create-pr.sh` itself still detects an existing PR and exits 1 as a defensive fallback for any path that reaches it.
 
+### Step 22b: Resolve Base, Guard Sync Merges, Offer Backport
+
+Follow [`../_shared/references/pr-base-and-backport.md`](../_shared/references/pr-base-and-backport.md) with `GUARD=${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/pr-guard.sh`:
+
+1. `git fetch origin`, then `BASE=$(bash "$GUARD" base [--base <branch>])` — pass `--base` only when the user gave it. Use `$BASE` everywhere below.
+2. `bash "$GUARD" sync-check --base "$BASE"` — exit 3: do **not** create the PR; show the reason, cite `branching-model.md#rules`, and stop (Phase 6 does not run).
+3. After the title is drafted (Step 25), `bash "$GUARD" backport-label --base "$BASE" --title "<title>"`; on `backport=1` ask `Backport to <branch>? (yes/no)` and remember the answer for Step 29.
+
+Exit 2 from any call (malformed `RELEASING.md`) stops Phase 5 with the parse error and `/release-model --audit`.
+
 ### Step 23: Load PR Template
 
 Read the PR template:
@@ -638,13 +650,13 @@ This provides:
 Run the PR creation script to gather information:
 
 ```bash
-${CURSOR_PLUGIN_ROOT}/skills/git-workflow/scripts/create-pr.sh --analyze
+${CURSOR_PLUGIN_ROOT}/skills/git-workflow/scripts/create-pr.sh --analyze --base "$BASE"
 ```
 
 This provides:
 
 - Current branch name
-- Base branch (typically main/master)
+- Base branch (`$BASE` from Step 22b)
 - Commit history since divergence
 - Changed files summary
 - Documentation changes
@@ -792,7 +804,7 @@ Use `mcp__github__create_pull_request` with:
 - `title`: PR title from Step 25
 - `body`: PR description from Step 26
 - `head`: Current branch name
-- `base`: Default branch (main/master)
+- `base`: `$BASE` from Step 22b
 - `draft`: `true` if `--draft` flag is set, `false` otherwise
 
 The MCP tool returns the PR number and URL in structured data.
@@ -804,6 +816,7 @@ The MCP tool returns the PR number and URL in structured data.
 ```bash
 gh pr create \
   --title "[PR Title]" \
+  --base "$BASE" \
   --body "$(cat <<'EOF'
 [PR Description from Step 26]
 EOF
@@ -816,6 +829,7 @@ EOF
 ```bash
 gh pr create \
   --title "[PR Title]" \
+  --base "$BASE" \
   --body "$(cat <<'EOF'
 [PR Description from Step 26]
 EOF
@@ -835,6 +849,7 @@ After PR creation:
 - Capture PR number and URL
 - Display PR link to user
 - Note if draft or ready for review
+- If the backport prompt (Step 22b) was answered yes: add the `backport:X.Y` label and print `After #<N> merges, run /backport <N>` (see the shared reference)
 
 **Failure scenarios**:
 
