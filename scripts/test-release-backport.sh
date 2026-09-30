@@ -109,7 +109,7 @@ write_releasing() {
   {
     echo "# Releasing"
     echo
-    echo "<!-- ycc:release-state"
+    echo "<!-- ycc-release-state"
     printf '%s\n' "$body"
     echo "-->"
     [[ -n "$rest" ]] && printf '\n%s\n' "$rest"
