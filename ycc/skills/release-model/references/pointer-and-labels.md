@@ -1,0 +1,66 @@
+# Pointer section and labels doc
+
+Exact text `ycc:release-model` adds outside `RELEASING.md`. Both edits are idempotent:
+the skill checks for the marker before writing and never rewrites an existing section.
+
+## Pointer section
+
+Added to each of `CLAUDE.md`, `AGENTS.md`, and `.github/copilot-instructions.md` that
+exists. Marker: a line matching `^## Branching & releases`. When absent, append at the end
+of the file after one blank line.
+
+Trunk-only:
+
+```markdown
+## Branching & releases
+
+[`RELEASING.md`](RELEASING.md) is the source of truth for branches and releases. Branch
+off `<trunk>` and PR back into it; every release is tagged from `<trunk>`. Never merge one
+long-lived branch into another to sync it.
+```
+
+Release-branches:
+
+```markdown
+## Branching & releases
+
+[`RELEASING.md`](RELEASING.md) is the source of truth for branches and releases. Features
+go into `<trunk>`; fixes for a shipped minor land on `<trunk>` first and are backported to
+`release/X.Y` with the `backport:X.Y` label. Never merge one long-lived branch into another
+to sync it.
+```
+
+For `.github/copilot-instructions.md`, use the same text. When the file sits under
+`.github/`, write the link as `../RELEASING.md`.
+
+`--upgrade` replaces a pointer section only when it matches the trunk-only text above
+byte-for-byte (the skill wrote it); an edited section is left alone and listed as
+"update by hand".
+
+## Labels doc
+
+Release-branches only, and only when `.github/labels.md` exists and does not contain
+`backport:`. Two edits:
+
+1. In the label-family table, add one row after the last existing row, padded to the
+   table's column widths:
+
+   ```markdown
+   | `backport:X.Y` | backport | Cherry-pick to release/X.Y |
+   ```
+
+2. At the end of the file, append:
+
+   ```markdown
+   ## Backport labels
+
+   One `backport:X.Y` label exists per active maintenance branch (see
+   [`RELEASING.md`](../RELEASING.md)). Create it when `release/X.Y` is cut:
+
+   gh label create "backport:X.Y" --color "5319e7" --description "Cherry-pick to release/X.Y"
+   ```
+
+   Put the `gh label create` line in a `bash` fenced block.
+
+If the file has no table, do only step 2. Run `prettier --check` on the file afterwards
+when the project has prettier; fix only the table padding if it complains.

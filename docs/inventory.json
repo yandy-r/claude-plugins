@@ -149,6 +149,10 @@
       "description": "Fast interactive review of uncommitted changes \u2014 prints findings inline, writes nothing by default. \"Apply fixes\" hands findings to /ycc:quick-fix; \"Save to file\" writes an artifact under docs/prps/reviews; \"Write file and apply fixes\" hands off to /ycc:review-fix. For short changes where a full /ycc:code-review artifact is overkill. Use when the user asks to \"quick review\", \"fast review\", \"review what I have\", \"on-the-fly review\", or says \"/quick-review\"."
     },
     {
+      "name": "release-model",
+      "description": "This skill should be used when the user asks to \"create a RELEASING.md\", \"set up a branching model\", \"define a release process\", \"document how we branch and release\", \"add release branches\", \"switch to release branches\", \"upgrade the release model\", \"audit the release model\", \"check RELEASING.md\", or when a repo has no written branching/release model and a skill (init, blueprint, releaser) offers to create one. Surveys the repo (tags, release/* branches, CI triggers, version files, sync merges), proposes trunk-only (every release tagged from the trunk) or release-branches (minors from the trunk, patches from release/X.Y with backports), and renders a project-specific RELEASING.md with a machine-readable state block plus pointer sections in CLAUDE.md and AGENTS.md. --upgrade moves trunk-only to release-branches; --audit reports drift read-only. Never commits or pushes."
+    },
+    {
       "name": "releaser",
       "description": "This skill should be used when the user asks to \"prepare a release\", \"cut a release\", \"tag a release\", \"create a GitHub release\", \"draft release notes\", \"set up release CI\", \"add a release workflow\", \"audit release pipeline\", \"publish a GitHub release\", or \"publish release notes\" for any project. Detects language/toolchain, drafts a changelog, plans platform/arch artifacts, optionally generates or audits GitHub Actions release CI, and emits the exact commands the user runs to tag and publish. Never auto-commits, pushes, or publishes without an explicit `--publish` and `--confirm` from the user. Generic external-project counterpart to `ycc:bundle-release` (which is scoped to this repo's ycc bundle)."
     },
@@ -345,6 +349,10 @@
     {
       "name": "quick-review",
       "description": "Fast interactive review of uncommitted changes. Findings print inline and writes nothing by default. Apply fixes hands findings directly to /ycc:quick-fix. Save to file writes an artifact and stops. Write file and apply fixes uses /ycc:review-fix. Pass --parallel or --team for 3-reviewer fan-out; --yes, --save, or --write-and-apply for scripted choices."
+    },
+    {
+      "name": "release-model",
+      "description": "Create, upgrade, or audit a project's RELEASING.md branching and release model \u2014 surveys tags, release branches, CI, and version files, proposes trunk-only or release-branches, renders RELEASING.md with a machine-readable state block, and adds pointer sections to CLAUDE.md and AGENTS.md. Dry-run preview first; never commits or pushes."
     },
     {
       "name": "releaser",
@@ -618,8 +626,8 @@
     }
   ],
   "counts": {
-    "skills": 50,
-    "commands": 49,
+    "skills": 51,
+    "commands": 50,
     "agents": 54
   },
   "parity": {

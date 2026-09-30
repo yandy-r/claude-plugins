@@ -8,7 +8,7 @@ A single Claude Code plugin (`ycc`) bundling workflow orchestration, parallel pl
 
 <!-- BEGIN:GENERATED-COUNTS -->
 
-The source plugin ships **50 skills**, **49 slash commands** (most skills have a matching command), and **54 agents**.
+The source plugin ships **51 skills**, **50 slash commands** (most skills have a matching command), and **54 agents**.
 
 <!-- END:GENERATED-COUNTS -->
 
@@ -52,6 +52,7 @@ The source plugin ships **50 skills**, **49 slash commands** (most skills have a
 | `/ycc:python-testing`      | Python testing patterns using pytest — TDD methodology, fixtures (function/module/session scopes), parametrization, markers, mocking with unittest.mock, async tests with pytest-asy... |
 | `/ycc:quick-fix`           | Apply fixes from an inline /ycc:quick-review findings block without creating a review artifact.                                                                                         |
 | `/ycc:quick-review`        | Fast interactive review of uncommitted changes.                                                                                                                                         |
+| `/ycc:release-model`       | Create, upgrade, or audit a project's RELEASING.md branching and release model — surveys tags, release branches, CI, and version files, proposes trunk-only or release-branches, ren... |
 | `/ycc:releaser`            | Prepare and cut a GitHub release for any project — detects toolchain, drafts changelog, plans platform/arch artifacts, optionally generates or audits release CI, optionally invokes... |
 | `/ycc:research-to-issues`  | Convert research, feature specs, and implementation plans into structured GitHub issues with tracking hierarchy, labels, and priority.                                                  |
 | `/ycc:resume-session`      | Load the most recent session file from ~/.claude/session-data/ and resume work with full context.                                                                                       |
