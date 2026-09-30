@@ -18,6 +18,7 @@ flag surfaces of `ycc/skills/init/SKILL.md` and `ycc/skills/formatters/SKILL.md`
 | `github_templates`    | `yes \| no`                                                     | `--templates` (if yes)      | —                                                            | Issue + PR templates, labels, workflows.                                    |
 | `git_conventions`     | `yes \| no`                                                     | `--git` (if yes)            | `--hooks` (if yes)                                           | Conventional commits + pre-commit hooks.                                    |
 | `vendor_neutral`      | `yes \| no`                                                     | `--vendor-neutral` (if yes) | —                                                            | Also emit `.ai/rules/project.md`.                                           |
+| `release_model`       | `trunk-only \| release-branches \| undecided`                   | `--release-model[=<value>]` | —                                                            | Bare flag when `undecided`. Writes `RELEASING.md`; see Release Model below. |
 
 ## Profile Coercion Rules
 
@@ -34,6 +35,22 @@ flag surfaces of `ycc/skills/init/SKILL.md` and `ycc/skills/formatters/SKILL.md`
 
 Record any coercion in the blueprint's **Decisions Log** so the choice is auditable and the
 orchestrated `--profile=<value>` call cannot fail.
+
+## Release Model
+
+The interview asks: _"Will older versions need patches after a newer release ships?"_
+
+| Answer                                          | `release_model`    | `/ycc:init` flag                   |
+| ----------------------------------------------- | ------------------ | ---------------------------------- |
+| No — fixes ship in the next release             | `trunk-only`       | `--release-model=trunk-only`       |
+| Yes — users stay on older minors that need them | `release-branches` | `--release-model=release-branches` |
+| Not sure yet                                    | `undecided`        | `--release-model`                  |
+
+`init` handles the flag in its **Phase 5.5**: with a value it runs
+`ycc:release-model --model <value> --yes`; bare, it runs `ycc:release-model` so the skill
+proposes a model and confirms it. Either way `init` skips the step when `RELEASING.md`
+already exists. Rules behind both models:
+`${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/branching-model.md`.
 
 ## init Already Chains formatters
 
@@ -59,11 +76,12 @@ formatter_stacks = ts, python, shell
 github_templates = yes
 git_conventions  = yes
 vendor_neutral   = no
+release_model    = trunk-only
 ```
 
 Derived commands:
 
 ```bash
-/ycc:init --profile=ts-node --templates --git --formatters
+/ycc:init --profile=ts-node --templates --git --formatters --release-model=trunk-only
 /ycc:formatters --profile=ts-node --ts --python --shell --ci --hooks
 ```

@@ -68,10 +68,17 @@ These keys let the skill trigger update/merge semantics per artifact:
 | `has_gitignore`           | `.gitignore` file exists at the project root                                               |
 | `has_commitlint_config`   | Any `commitlint.config.*` or `.commitlintrc*` exists                                       |
 | `has_lefthook_config`     | `lefthook.yml`, `lefthook.yaml`, `.lefthook.yml`, `.lefthook.yaml`, or `.lefthook/` exists |
+| `has_releasing_md`        | `RELEASING.md` exists at the project root — the project already has a release model        |
 
 When `--update` is not passed but two or more of these are true, the skill prints a
 suggestion to re-run with `--update`. See `flag-reference.md` for update semantics per
 artifact.
+
+`has_releasing_md` is not part of that count. It drives the release-model phase: when it
+is `false`, the skill offers `release-model` (unless `--no-release-model`); when it
+is `true`, the offer is skipped and the `AGENTS.md` "Branching & releases" section is
+rendered. The skill checks only that the file exists; `release-model --audit` validates
+its content.
 
 ---
 

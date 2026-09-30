@@ -183,10 +183,16 @@ Ask:
 > 6. **Formatter/lint stacks to enable** (defaults follow the language: ts/python/rust/go/docs/shell).
 > 7. **GitHub conventions**: issue + PR templates? (`--templates`)
 > 8. **Git conventions**: conventional commits + pre-commit hooks? (`--git`, `--hooks`)
+> 9. **Release model**: Will older versions need patches after a newer release ships?
+>    `trunk-only` (no — every release, fixes included, ships from the trunk) |
+>    `release-branches` (yes — each minor gets a `release/X.Y` branch for patches) |
+>    `undecided` (let `/ycc:release-model` propose one from the repo). (`--release-model`)
 
 **Coercion rule**: if the primary-language answer is outside
 `rust | ts-node | python | go | mixed | empty`, coerce to the nearest valid value and record
 the coercion in the Decisions Log — this guarantees the orchestrated `--profile=` call cannot fail.
+Likewise, coerce a release-model answer to `trunk-only | release-branches | undecided` (unsure
+or "not yet" → `undecided`) and record it in the Decisions Log.
 
 See `${CLAUDE_PLUGIN_ROOT}/skills/blueprint/references/bootstrap-mapping.md` for the full
 key→flag mapping used when generating the Bootstrap section.
@@ -320,11 +326,12 @@ target — each with a one-line rationale. Note any reconciliation with a detect
 | github_templates    | {yes\|no}                                 | init `--templates`                    |
 | git_conventions     | {yes\|no}                                 | init `--git`; formatters `--hooks`    |
 | vendor_neutral      | {yes\|no}                                 | init `--vendor-neutral`               |
+| release_model       | {trunk-only\|release-branches\|undecided} | init `--release-model[=<value>]`      |
 
 ### Derived Commands
 
 ```bash
-{e.g. /ycc:init --profile=ts-node --templates --git --formatters}
+{e.g. /ycc:init --profile=ts-node --templates --git --formatters --release-model=trunk-only}
 {e.g. /ycc:formatters --profile=ts-node --ts --python --shell --ci --hooks}
 ```
 
@@ -360,9 +367,9 @@ Otherwise ask via `AskUserQuestion`:
 > - **(c) Skip** — just keep the blueprint.
 
 - **On (a)**: invoke the **`ycc:init`** skill, passing the derived flags from the Bootstrap
-  section (e.g. `--profile=ts-node --templates --git --formatters`). `init` chains
-  `ycc:formatters` via its Phase 6.5. If the blueprint run was `--dry-run`, pass `--dry-run`
-  through. If `init` or `formatters` errors, **record the failure and continue** — then emit the
+  section (e.g. `--profile=ts-node --templates --git --formatters --release-model=trunk-only`).
+  `init` chains `ycc:release-model` via its Phase 5.5 and `ycc:formatters` via its Phase 6.5.
+  If the blueprint run was `--dry-run`, pass `--dry-run` through. If `init` or `formatters` errors, **record the failure and continue** — then emit the
   manual recovery command (`/ycc:formatters …`). Never report full success on partial failure.
 - **On (b)**: print the Derived Commands block and stop.
 
@@ -396,7 +403,8 @@ Otherwise ask via `AskUserQuestion`:
 
 ```
 IDEA → /ycc:blueprint → docs/blueprint.md
-            └─Bootstrap→ /ycc:init [--profile --templates --git --formatters]
+            └─Bootstrap→ /ycc:init [--profile --templates --git --formatters --release-model]
+                                 ├─Phase 5.5→ /ycc:release-model [--model <m> --yes] → RELEASING.md
                                  └─Phase 6.5→ /ycc:formatters [--ci --hooks --<stack>]
        per-module → /ycc:prp-prd | /ycc:prp-spec → /ycc:prp-plan → /ycc:prp-implement
 ```

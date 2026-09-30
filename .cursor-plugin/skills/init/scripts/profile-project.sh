@@ -300,6 +300,11 @@ if [[ "$has_lefthook_config" == "false" ]] && dir_exists ".lefthook"; then
     has_lefthook_config=true
 fi
 
+# A repo-root RELEASING.md means the project already follows a ycc release
+# model; init then skips the release-model offer.
+has_releasing_md=false
+file_exists "RELEASING.md" && has_releasing_md=true
+
 # ---------------------------------------------------------------------------
 # CI provider detection
 # ---------------------------------------------------------------------------
@@ -349,5 +354,6 @@ echo "has_gitmessage=${has_gitmessage}"
 echo "has_gitignore=${has_gitignore}"
 echo "has_commitlint_config=${has_commitlint_config}"
 echo "has_lefthook_config=${has_lefthook_config}"
+echo "has_releasing_md=${has_releasing_md}"
 echo "ci_provider=${ci_provider}"
 echo "project_name=${project_name}"

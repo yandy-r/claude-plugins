@@ -20,17 +20,19 @@ Profiles the project, authors the AI-agent doc trio (AGENTS.md, AGENTS.md, .curs
 
 ## Arguments
 
-| Flag               | Meaning                                                                            | Example                      |
-| ------------------ | ---------------------------------------------------------------------------------- | ---------------------------- |
-| `--dry-run`        | Preview every planned file; make no writes                                         | `/init --dry-run`        |
-| `--docs-only`      | Skip MCP/agent selection; emit doc trio only                                       | `/init --docs-only`      |
-| `--templates`      | Also emit `.github/` issue forms, PR template, labels                              | `/init --templates`      |
-| `--git`            | Also emit `.gitignore`, `.gitmessage`, commitlint (JS/TS), and the lefthook bundle | `/init --git`            |
-| `--vendor-neutral` | Also emit `.ai/rules/project.md` mirror of Cursor rule                             | `/init --vendor-neutral` |
-| `--formatters`     | Also bootstrap lint/format via `formatters` (scripts, configs, aliases, docs)  | `/init --formatters`     |
-| `--update`         | Structured refresh of existing artifacts (merge/migrate, never clobber)            | `/init --update`         |
-| `--force`          | Overwrite existing files without prompting                                         | `/init --force`          |
-| `--profile=<lang>` | Override detected language (`rust`, `ts-node`, `python`, `go`, `mixed`, `empty`)   | `/init --profile=rust`   |
+| Flag                        | Meaning                                                                            | Example                                |
+| --------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------- |
+| `--dry-run`                 | Preview every planned file; make no writes                                         | `/init --dry-run`                  |
+| `--docs-only`               | Skip MCP/agent selection; emit doc trio only                                       | `/init --docs-only`                |
+| `--templates`               | Also emit `.github/` issue forms, PR template, labels                              | `/init --templates`                |
+| `--git`                     | Also emit `.gitignore`, `.gitmessage`, commitlint (JS/TS), and the lefthook bundle | `/init --git`                      |
+| `--vendor-neutral`          | Also emit `.ai/rules/project.md` mirror of Cursor rule                             | `/init --vendor-neutral`           |
+| `--formatters`              | Also bootstrap lint/format via `formatters` (scripts, configs, aliases, docs)  | `/init --formatters`               |
+| `--release-model[=<model>]` | Run `release-model` without asking when `RELEASING.md` is missing              | `/init --release-model=trunk-only` |
+| `--no-release-model`        | Never offer `release-model`                                                    | `/init --no-release-model`         |
+| `--update`                  | Structured refresh of existing artifacts (merge/migrate, never clobber)            | `/init --update`                   |
+| `--force`                   | Overwrite existing files without prompting                                         | `/init --force`                    |
+| `--profile=<lang>`          | Override detected language (`rust`, `ts-node`, `python`, `go`, `mixed`, `empty`)   | `/init --profile=rust`             |
 
 Flags are composable. See `references/flag-reference.md` for the full matrix.
 
@@ -48,6 +50,9 @@ Extract mode booleans from `$ARGUMENTS`:
 - `GIT` — true if `--git` present
 - `VENDOR_NEUTRAL` — true if `--vendor-neutral` present
 - `FORMATTERS` — true if `--formatters` present
+- `RELEASE_MODEL` — true if `--release-model` or `--release-model=<model>` present
+- `RELEASE_MODEL_VALUE` — `<model>` from `--release-model=<model>`, else empty. Must be `trunk-only` or `release-branches`; any other value is an error before any phase runs.
+- `NO_RELEASE_MODEL` — true if `--no-release-model` present. Combining it with `--release-model` is an error before any phase runs.
 - `UPDATE` — true if `--update` present
 - `FORCE` — true if `--force` present
 - `PROFILE` — value of `--profile=<lang>` if provided, else empty
@@ -82,7 +87,7 @@ Feed the agent's output into the AGENTS.md rendering in Phase 3.
 
 ### Phase 3 — Render templates
 
-Load each applicable `.tmpl` file from `~/.config/opencode/skills/init/templates/`. Substitute all `{{PLACEHOLDER}}` variables using profile values from Phase 1 (and Phase 2 if run). For language-conditional blocks (`{{#IF_RUST}}...{{/IF_RUST}}` etc.), include only the block matching `primary_language`. Render all files in memory — do NOT write yet.
+Load each applicable `.tmpl` file from `~/.config/opencode/skills/init/templates/`. Substitute all `{{PLACEHOLDER}}` variables using profile values from Phase 1 (and Phase 2 if run). For language-conditional blocks (`{{#IF_RUST}}...{{/IF_RUST}}` etc.), include only the block matching `primary_language`. Leave `{{#IF_RELEASE_MODEL}}...{{/IF_RELEASE_MODEL}}` blocks (in `AGENTS.md.tmpl` and `github/labels.md.tmpl`) unresolved — Phase 5 (dry run) or Phase 5.5 resolves them. Render all files in memory — do NOT write yet.
 
 Rendering map:
 
@@ -129,10 +134,25 @@ Present all available options as checkboxes organized by category. Pre-check ite
 
 If `DRY_RUN=true`:
 
-- Print a listing of every planned file with a preview snippet (first ~15 lines each).
+- Print a listing of every planned file with a preview snippet (first ~15 lines each). Resolve `IF_RELEASE_MODEL` blocks as kept when `has_releasing_md=true` or `RELEASE_MODEL=true`, else drop them.
 - Show the planned `.mcp.json` content.
 - List agent files that would be copied.
+- Print the release-model step Phase 5.5 would take: "skip (RELEASING.md exists)", "skip (--no-release-model)", "would run `release-model` [--model <value> --yes]", or "would offer `release-model`".
 - STOP — make no writes.
+
+### Phase 5.5 — Release model
+
+Decide whether to create `RELEASING.md` (the project's branching and release rules — see `~/.config/opencode/shared/references/branching-model.md`), then resolve the `IF_RELEASE_MODEL` blocks.
+
+1. **Choose the action** (first match wins):
+   - `has_releasing_md=true` → skip. The project already has a release model; init reads only its presence (`/release-model --audit` validates it).
+   - `NO_RELEASE_MODEL=true` → skip.
+   - `RELEASE_MODEL=true` → run without asking.
+   - `DOCS_ONLY=true` (and no `--release-model`) → skip; `--docs-only` stays limited to the doc trio.
+   - Otherwise → ask: "This project has no `RELEASING.md`. Run `release-model` to choose a branching and release model (trunk-only or release branches) and write one?" Default: yes. A missing `RELEASING.md` never blocks init — "no" continues normally.
+2. **Run** the `release-model` skill when chosen. With `RELEASE_MODEL_VALUE` set, pass `--model <value> --yes`: the model was decided upstream (for example by `blueprint`), so the proposal is accepted without questions. Otherwise run it without arguments so it can propose a model from the repo's signals and confirm with the user.
+3. **Resolve** every `IF_RELEASE_MODEL` block rendered in Phase 3: keep the block contents when `RELEASING.md` now exists at the project root, else drop the block. This covers "exists already" and "created in this run", and drops the pointer if `release-model` was declined or failed.
+4. If `release-model` errors, record the failure for the Phase 7 summary and continue — do not abort init.
 
 ### Phase 6 — Apply
 
@@ -193,13 +213,16 @@ Produce a summary using `~/.config/opencode/skills/init/templates/workspace-repo
 
 **Git conventions emitted** — list each git artifact path written (omit section if `GIT=false`).
 
+**Release model** — the Phase 5.5 outcome: `RELEASING.md` created (with the chosen model), already present, skipped (and why), declined, or failed (with the error).
+
 **Next steps** — suggest:
 
 - `git config commit.template .gitmessage` (if `GIT=true`)
 - Review the generated `.gitignore` — confirm language sections match the stack and add project-specific entries (secrets files, generated assets, local scratch dirs). Rust libraries should un-comment the `Cargo.lock` ignore line (if `GIT=true`).
 - `bash scripts/install-lefthook.sh` to install the `lefthook` binary and activate the hooks defined in `lefthook.yml` (if `GIT=true`). Re-runnable on every checkout; safe to rerun.
 - For JS/TS projects: run `{{PACKAGE_MANAGER}} install` (devDependencies `@commitlint/cli` + `@commitlint/config-conventional` must be installed for the `commit-msg` hook to work).
-- Review `.github/labels.md` and run the `gh label create` commands listed there (if `TEMPLATES=true`)
+- Review `.github/labels.md` and run the `gh label create` commands listed there (if `TEMPLATES=true`). Under the release-branches model, create one `backport:X.Y` label per maintenance branch.
+- Review `RELEASING.md` and commit it with the rest of the init output (if Phase 5.5 created it). If the offer was declined, `/release-model` can create it later.
 - Review `.github/copilot-instructions.md` — it restates the PR-workflow rules for GitHub Copilot's coding agent. Adjust to match project-specific conventions (e.g., if the repo customises the Conventional Commits type list, update the allowed-types line) (if `TEMPLATES=true`).
 - Enable the PR title check as a required status: **Settings → Branches → Branch protection rules**, add `Validate Conventional Commit PR title` (the job name from `.github/workflows/pr-title.yml`) to the required checks. Without this, the workflow runs but isn't enforced (if `TEMPLATES=true`).
 - `.github/workflows/pr-title-autofix.yml` runs alongside the validator and (1) strips placeholder prefixes (`[WIP]`, `Draft:`, `Initial plan`) from PR titles server-side, then (2) normalizes a leading Conventional Commit type that was written without a colon or with capitalization (e.g. `Refactor X` → `refactor: X`, `Feat(auth): X` → `feat(auth): X`). Runs because GitHub Copilot's coding-agent token often lacks `pull_requests:write` and cannot self-correct. Do **not** add this workflow to required checks — it is an auto-correcting side effect, not a gate (if `TEMPLATES=true`).
@@ -213,4 +236,5 @@ Produce a summary using `~/.config/opencode/skills/init/templates/workspace-repo
 - `--force` is opt-in and always logs every path it overwrote. `--update --force` applies merge semantics but overwrites on conflict instead of skipping.
 - No new agents are registered. `codebase-research-analyst` is called only once, conditionally, for large existing repos (>50 source files) when `--docs-only` is not set.
 - The MCP and agent selection flow is preserved unchanged behind `--docs-only`.
+- A missing `RELEASING.md` never blocks init. Phase 5.5 only offers `release-model`; `--release-model` runs it and `--no-release-model` silences the offer.
 - For the full flag matrix with composability examples, see `references/flag-reference.md`.

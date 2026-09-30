@@ -6,17 +6,19 @@ Detailed reference for every flag accepted by `init`. See also `SKILL.md` for th
 
 ## Flag Matrix
 
-| Flag               | Default     | Affects phases | Writes to                                                                                                                                                                                         | Example                     |
-| ------------------ | ----------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
-| `--dry-run`        | off         | 5 (halt)       | nothing                                                                                                                                                                                           | `init --dry-run`        |
-| `--docs-only`      | off         | 2, 4 (skip)    | `CLAUDE.md`, `AGENTS.md`, `.cursor/rules/project.mdc`                                                                                                                                             | `init --docs-only`      |
-| `--templates`      | off         | 3 (extend)     | `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `.github/labels.md`, `.github/copilot-instructions.md`, `.github/workflows/pr-title.yml`, `.github/workflows/pr-title-autofix.yml` | `init --templates`      |
-| `--git`            | off         | 3 (extend)     | `.gitignore`, `.gitmessage`, `commitlint.config.cjs` (JS/TS only), `lefthook.yml`, `scripts/install-lefthook.sh`, `docs/lefthook-usage.md`                                                        | `init --git`            |
-| `--vendor-neutral` | off         | 3 (extend)     | `.ai/rules/project.md`                                                                                                                                                                            | `init --vendor-neutral` |
-| `--formatters`     | off         | 6.5 (delegate) | (delegates to `formatters` — see its flag matrix)                                                                                                                                             | `init --formatters`     |
-| `--update`         | off         | 6 (merge)      | existing targets only                                                                                                                                                                             | `init --update`         |
-| `--force`          | off         | 6 (overwrite)  | all target files                                                                                                                                                                                  | `init --force`          |
-| `--profile=<name>` | auto-detect | 1 (skip)       | (drives template variables)                                                                                                                                                                       | `init --profile=rust`   |
+| Flag                        | Default     | Affects phases | Writes to                                                                                                                                                                                         | Example                               |
+| --------------------------- | ----------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `--dry-run`                 | off         | 5 (halt)       | nothing                                                                                                                                                                                           | `init --dry-run`                  |
+| `--docs-only`               | off         | 2, 4 (skip)    | `CLAUDE.md`, `AGENTS.md`, `.cursor/rules/project.mdc`                                                                                                                                             | `init --docs-only`                |
+| `--templates`               | off         | 3 (extend)     | `.github/ISSUE_TEMPLATE/`, `.github/pull_request_template.md`, `.github/labels.md`, `.github/copilot-instructions.md`, `.github/workflows/pr-title.yml`, `.github/workflows/pr-title-autofix.yml` | `init --templates`                |
+| `--git`                     | off         | 3 (extend)     | `.gitignore`, `.gitmessage`, `commitlint.config.cjs` (JS/TS only), `lefthook.yml`, `scripts/install-lefthook.sh`, `docs/lefthook-usage.md`                                                        | `init --git`                      |
+| `--vendor-neutral`          | off         | 3 (extend)     | `.ai/rules/project.md`                                                                                                                                                                            | `init --vendor-neutral`           |
+| `--formatters`              | off         | 6.5 (delegate) | (delegates to `formatters` — see its flag matrix)                                                                                                                                             | `init --formatters`               |
+| `--release-model[=<model>]` | off (offer) | 5.5 (delegate) | `RELEASING.md` (via `release-model`)                                                                                                                                                          | `init --release-model=trunk-only` |
+| `--no-release-model`        | off         | 5.5 (skip)     | nothing                                                                                                                                                                                           | `init --no-release-model`         |
+| `--update`                  | off         | 6 (merge)      | existing targets only                                                                                                                                                                             | `init --update`                   |
+| `--force`                   | off         | 6 (overwrite)  | all target files                                                                                                                                                                                  | `init --force`                    |
+| `--profile=<name>`          | auto-detect | 1 (skip)       | (drives template variables)                                                                                                                                                                       | `init --profile=rust`             |
 
 ### `--profile` accepted values
 
@@ -119,6 +121,33 @@ Add `.ai/rules/project.md` — a plain-markdown mirror of the Cursor `.mdc` rule
 /init --vendor-neutral
 ```
 
+### `--release-model[=<model>]` / `--no-release-model`
+
+Phase 5.5 handles projects without a repo-root `RELEASING.md` (profile key
+`has_releasing_md=false`). By default it **offers** to run `release-model`, which
+chooses a branching and release model and writes `RELEASING.md`. When the file already
+exists, nothing runs.
+
+- `--release-model` — run `release-model` without asking. It proposes a model from the
+  repo's signals and confirms with you.
+- `--release-model=<model>` — `<model>` is `trunk-only` or `release-branches`. Runs
+  `release-model --model <model> --yes`, accepting the proposal without questions.
+  `blueprint` emits this form from its `release_model` bootstrap key.
+- `--no-release-model` — never offer. Conflicts with `--release-model` (error).
+- `--docs-only` skips the offer unless `--release-model` is also passed.
+- `--dry-run` only reports what Phase 5.5 would do.
+
+When `RELEASING.md` exists after Phase 5.5 (already present or just created), the
+rendered `CLAUDE.md` gains a `## Branching & releases` pointer section and
+`.github/labels.md` (with `--templates`) gains the `backport:X.Y` label family. Both come
+from `{{#IF_RELEASE_MODEL}}` blocks — see `template-library.md`.
+
+```
+/init --release-model
+/init --templates --release-model=release-branches
+/init --no-release-model
+```
+
 ### `--update`
 
 Structured refresh of existing artifacts. Never clobbers user content — merges instead.
@@ -165,6 +194,7 @@ Flags are independent and composable. Any combination is valid:
 - `--docs-only` narrows scope; adding `--templates` or `--git` extends it back out.
 - `--force` applies to every output flag in the same invocation.
 - `--profile=` and detection are mutually exclusive; `--profile=` wins.
+- `--release-model` and `--no-release-model` are mutually exclusive (error).
 - Unrecognised flags are reported as errors before any phase runs.
 
 ### Common combinations

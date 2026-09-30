@@ -1,6 +1,6 @@
 ---
 description: Initialize workspace — profile project, emit CLAUDE.md/AGENTS.md/.cursor/rules, optional GitHub templates, git conventions, and Claude CLI config.
-argument-hint: '[--dry-run] [--docs-only] [--templates] [--git] [--vendor-neutral] [--formatters] [--update] [--force] [--profile=rust|ts-node|python|go|mixed|empty]'
+argument-hint: '[--dry-run] [--docs-only] [--templates] [--git] [--vendor-neutral] [--formatters] [--release-model[=trunk-only|release-branches]] [--no-release-model] [--update] [--force] [--profile=rust|ts-node|python|go|mixed|empty]'
 ---
 
 Initialize the current workspace with the optimal Claude CLI configuration.
@@ -11,6 +11,7 @@ Invoke the **init** skill to:
 - Emit the doc trio: `CLAUDE.md`, `AGENTS.md`, and `.cursor/rules`.
 - Optionally seed GitHub issue/PR templates and git commit conventions.
 - Optionally bootstrap a lint/format environment via the `formatters` skill.
+- Offer `ycc:release-model` to write `RELEASING.md` when the project has none.
 - Optionally configure MCP servers and Claude CLI agent stubs.
 - Apply all selected artifacts to the workspace (or preview with `--dry-run`).
 
@@ -23,6 +24,7 @@ Invoke the **init** skill to:
 | `/ycc:init --docs-only`                   | Emit the doc trio only; skip MCP/agent configuration.                               |
 | `/ycc:init --docs-only --templates --git` | Doc trio + GitHub templates + git conventions; no MCP/agent touch.                  |
 | `/ycc:init --formatters`                  | Run init and also bootstrap lint/format scripts, configs, aliases, and docs.        |
+| `/ycc:init --release-model=trunk-only`    | Run init and write `RELEASING.md` for the trunk-only model without asking.          |
 | `/ycc:init --templates --force`           | Re-seed GitHub artifacts, overwriting existing files.                               |
 | `/ycc:init --update`                      | Structured refresh of existing docs/templates (merge + migrate, no clobber).        |
 | `/ycc:init --update --docs-only`          | Refresh only the doc trio — append missing sections, migrate legacy `.cursorrules`. |
@@ -30,17 +32,19 @@ Invoke the **init** skill to:
 
 ## Flags
 
-| Flag               | Effect                                                                                                                                                                                                 |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--dry-run`        | Print planned changes; write nothing.                                                                                                                                                                  |
-| `--docs-only`      | Limit output to `CLAUDE.md`, `AGENTS.md`, `.cursor/rules`.                                                                                                                                             |
-| `--templates`      | Include GitHub issue/PR templates.                                                                                                                                                                     |
-| `--git`            | Add git commit-convention config.                                                                                                                                                                      |
-| `--vendor-neutral` | Omit Claude-specific sections; emit neutral doc content only.                                                                                                                                          |
-| `--formatters`     | Also bootstrap a lint/format environment via the `ycc:formatters` skill (scripts, configs, aliases, docs). Honors `--dry-run` and `--force`.                                                           |
-| `--update`         | Structured refresh for existing artifacts — merge missing sections into `CLAUDE.md`, migrate legacy `.cursorrules` to `.cursor/rules/project.mdc`, preserve custom content. Composes with other flags. |
-| `--force`          | Overwrite existing files instead of skipping them.                                                                                                                                                     |
-| `--profile=<name>` | Skip detection and use the named profile (`rust`, `ts-node`, `python`, `go`, `mixed`, `empty`).                                                                                                        |
+| Flag                        | Effect                                                                                                                                                                                                 |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--dry-run`                 | Print planned changes; write nothing.                                                                                                                                                                  |
+| `--docs-only`               | Limit output to `CLAUDE.md`, `AGENTS.md`, `.cursor/rules`.                                                                                                                                             |
+| `--templates`               | Include GitHub issue/PR templates.                                                                                                                                                                     |
+| `--git`                     | Add git commit-convention config.                                                                                                                                                                      |
+| `--vendor-neutral`          | Omit Claude-specific sections; emit neutral doc content only.                                                                                                                                          |
+| `--formatters`              | Also bootstrap a lint/format environment via the `ycc:formatters` skill (scripts, configs, aliases, docs). Honors `--dry-run` and `--force`.                                                           |
+| `--release-model[=<model>]` | When `RELEASING.md` is missing, run `ycc:release-model` without asking. With `=trunk-only` or `=release-branches`, pass `--model <model> --yes`.                                                       |
+| `--no-release-model`        | Never offer `ycc:release-model` (by default init offers it when `RELEASING.md` is missing).                                                                                                            |
+| `--update`                  | Structured refresh for existing artifacts — merge missing sections into `CLAUDE.md`, migrate legacy `.cursorrules` to `.cursor/rules/project.mdc`, preserve custom content. Composes with other flags. |
+| `--force`                   | Overwrite existing files instead of skipping them.                                                                                                                                                     |
+| `--profile=<name>`          | Skip detection and use the named profile (`rust`, `ts-node`, `python`, `go`, `mixed`, `empty`).                                                                                                        |
 
 See `${CLAUDE_PLUGIN_ROOT}/skills/init/references/flag-reference.md` for the full matrix.
 
