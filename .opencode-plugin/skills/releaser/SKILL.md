@@ -151,9 +151,18 @@ If the user DID supply a version, sanity-check the bump magnitude against commit
 history. Surface a concern if they are mismatched (e.g. `feat:` commits but a patch
 bump) and require explicit confirmation before continuing.
 
-Under release-branches the branch also bounds the bump: on `release/X.Y` propose only
-the next `X.Y.Z` patch (a `feat:` cherry-pick does not make it a minor), and on the trunk
-propose only a minor or major.
+The release model (from `release-state.sh get`) decides how commit types map to the bump:
+
+- **No RELEASING.md, or trunk-only:** the rules above apply as written. Every release is
+  cut from the trunk, so `feat:` commits mean the next release is a minor; a patch
+  requested over `feat:` commits gets the mismatch concern.
+- **release-branches, on `release/X.Y`:** the branch bounds the bump to the next
+  `X.Y.Z` patch. Everything on the branch is a deliberate backport, so a `feat:`
+  cherry-pick is expected and does NOT raise the mismatch concern or make it a minor.
+  Only a breaking change (`!` / `BREAKING CHANGE`) on the branch gets a warning: it
+  should not have been backported. The patch is still the only valid version there.
+- **release-branches, on the trunk:** propose only a minor or major. A fixes-only trunk
+  still ships as the next minor; patches come from `release/X.Y`.
 
 ### Branch check
 
