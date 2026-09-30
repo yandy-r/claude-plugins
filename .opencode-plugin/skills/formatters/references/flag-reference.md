@@ -80,6 +80,8 @@ formatters --sync
 
 Emit `.github/workflows/lint.yml` (authoritative check) **and** `.github/workflows/lint-autofix.yml` (applies `./scripts/style.sh format` + `lint --fix` and pushes fixes back to same-repo PRs). Each destination is managed independently — an existing file is skipped unless `--force` is also passed.
 
+The check workflow runs on every pull request and on pushes to the default branch (detected via `git symbolic-ref refs/remotes/origin/HEAD`, falling back to `main`) and to `release/**` maintenance branches, so patch lines cut under the release-branches model (see `/release-model`) stay linted.
+
 The autofix workflow:
 
 - Triggers on pull requests to the target repo's default branch (detected via `git symbolic-ref refs/remotes/origin/HEAD`, falling back to `main`).
