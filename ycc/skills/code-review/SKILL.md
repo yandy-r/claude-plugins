@@ -35,6 +35,7 @@ allowed-tools:
   - Bash(python3:*)
   - Bash(make:*)
   - 'mcp__github__*'
+  - 'Bash(${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
 ---
 
 # Code Review
@@ -408,10 +409,11 @@ If PR not found, stop with error. Store PR metadata for later phases.
 
 Build review context:
 
-1. **Project rules** — Read `CLAUDE.md`, `.claude/docs/`, and any contributing guidelines
+1. **Project rules** — Read `CLAUDE.md`, `RELEASING.md` (when present), `.claude/docs/`, and any contributing guidelines
 2. **PRP artifacts** — Check `docs/prps/reports/` and `docs/prps/plans/` (including `completed/`) for implementation context related to this PR
 3. **PR intent** — Parse PR description for goals, linked issues, test plans
 4. **Changed files** — List all modified files and categorize by type (source, test, config, docs)
+5. **PR base vs. release model** — Skip silently when `release-state.sh get` prints `present=0`. Otherwise fetch the head (`git fetch origin <headRefName>`, or `pull/<N>/head` for a fork) and compare `baseRefName` with `release-state.sh base --head FETCH_HEAD`, per [`../_shared/references/pr-base-and-backport.md#checking-an-existing-pr`](../_shared/references/pr-base-and-backport.md#checking-an-existing-pr). On a mismatch, record a **MEDIUM** finding anchored at `RELEASING.md` (Category: Pattern Compliance) naming both branches, with the suggested fix `gh pr edit <N> --base <expected>` (a retarget, not a code change).
 
 ### Phase 3 — REVIEW
 

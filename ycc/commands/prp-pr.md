@@ -23,6 +23,8 @@ Create a pull request from the current feature branch.
 
 For commit + push + PR in one flow with documentation orchestration, use `/ycc:git-workflow --pr` instead.
 
+The base branch defaults to the one `RELEASING.md` implies for this branch (its trunk, or the `release/X.Y` it was cut from), else the repo default branch; a positional `base-branch` overrides it. With `RELEASING.md`, sync merges between long-lived branches are refused and fixes get a backport prompt — see `${CLAUDE_PLUGIN_ROOT}/skills/_shared/references/pr-base-and-backport.md`.
+
 ```
 Usage: /ycc:prp-pr [base-branch] [--draft] [--ci] [--ci-max-pushes=N] [--ci-max-same-failure=N] [--ci-timeout-min=N] [--ci-yes]
 
@@ -36,9 +38,9 @@ Modifier flags:
   --ci-yes                 Skip the one-time auth prompt (non-interactive).
 
 Examples:
-  /ycc:prp-pr                    # PR against main
+  /ycc:prp-pr                    # PR against the resolved base (RELEASING.md, else repo default)
   /ycc:prp-pr develop            # PR against develop
   /ycc:prp-pr main --draft       # Draft PR against main
-  /ycc:prp-pr --ci               # PR against main, then monitor CI and auto-fix
+  /ycc:prp-pr --ci               # PR against the resolved base, then monitor CI and auto-fix
   /ycc:prp-pr main --draft --ci --ci-yes  # Draft PR, CI loop, non-interactive
 ```

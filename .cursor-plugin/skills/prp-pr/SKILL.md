@@ -13,6 +13,7 @@ allowed-tools:
   - Bash(test:*)
   - Bash(find:*)
   - 'mcp__github__*'
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/*.sh:*)'
 ---
 
 # Create Pull Request
@@ -32,8 +33,14 @@ This is the lightweight counterpart to `/git-workflow --pr`. Use it when you jus
   - `--ci-max-same-failure=N` — bail after the same failure signature recurs N times (default: 3)
   - `--ci-timeout-min=N` — wall-clock cap in minutes from the first CI iteration (default: 30)
   - `--ci-yes` — skip the one-time authorization prompt (for non-interactive callers)
-- Treat remaining non-flag text as the base branch name
-- Default base branch to `main` if none specified
+- Treat remaining non-flag text as the base branch name (an explicit override)
+- Resolve the base with the shared helper (after `git fetch origin`), passing the explicit base when one was given:
+
+  ```bash
+  BASE=$(bash ${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/pr-guard.sh base [--base <base-branch>])
+  ```
+
+  Without an explicit base this is the `RELEASING.md` base (`release-state.sh base`), else the repo default branch. Exit 2 means a malformed `RELEASING.md`: stop with the parse error and `/release-model --audit`. Use `$BASE` as `<base>` everywhere below. See [`../_shared/references/pr-base-and-backport.md`](../_shared/references/pr-base-and-backport.md).
 
 ---
 
@@ -53,6 +60,7 @@ git log origin/<base>..HEAD --oneline
 | Clean working directory | No uncommitted changes                              | Warn: "You have uncommitted changes. Commit or stash first. Use `/prp-commit` to commit." |
 | Has commits ahead       | `git log origin/<base>..HEAD` not empty             | Stop: "No commits ahead of `<base>`. Nothing to PR."                                          |
 | No existing PR          | `gh pr list --head <branch> --json number` is empty | Stop: "PR already exists: #<number>. Use `gh pr view <number> --web` to open it."             |
+| No sync merge           | `pr-guard.sh sync-check --base <base>` exits 0      | Exit 3 — Stop: show the reason and cite `branching-model.md#rules` (see shared reference)     |
 
 If any check that stops execution fires and `--ci` was passed, append to the stop
 message: `--ci will not run because no PR will be created.`
@@ -170,6 +178,10 @@ Use this default format:
 
 <linked issues with Closes/Fixes/Relates to #N, or "None">
 ```
+
+### Backport prompt
+
+Before creating the PR, run `pr-guard.sh backport-label --base <base> --title "<PR title>"` (add `--labels` when labels are known). On `backport=1`, ask `Backport to <branch>? (yes/no)`; on yes, add the printed label to the new PR and tell the user to run `/backport <PR#>` after it merges. Details: [`../_shared/references/pr-base-and-backport.md`](../_shared/references/pr-base-and-backport.md#backport-prompt).
 
 ### Create the PR
 

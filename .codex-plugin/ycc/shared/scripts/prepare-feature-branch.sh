@@ -4,16 +4,28 @@
 #
 # Usage:
 #   prepare-feature-branch.sh <feature-slug> [--allow-existing-feature-branch]
+#                             [--allow-release-branch]
 #
 # Behavior:
 #   - Rejects an unrelated dirty checkout (only plan-artifact paths allowed:
 #     docs/plans/<slug>/*, docs/orchestration/<slug>*,
 #     docs/prps/{plans,specs,prds}/<slug>*).
 #   - On feat/<slug>: idempotent no-op.
-#   - On trunk (main/master/trunk/develop) and feat/<slug> exists: switch to it.
-#   - On trunk and feat/<slug> missing: create it.
+#   - On trunk (main/master/trunk/develop, plus the RELEASING.md trunk) and
+#     feat/<slug> exists: switch to it.
+#   - On trunk and feat/<slug> missing: create it. With a RELEASING.md state
+#     block, fetch origin/<state-trunk> first and create the branch from it;
+#     if the fetch or that checkout fails, warn and create it from HEAD.
+#   - On release/* with a RELEASING.md state block: exit 2 (is this a
+#     release-only fix?) unless --allow-release-branch, which treats the
+#     release branch as the base: switch to an existing feat/<slug>, else
+#     create it from HEAD (no fetch).
 #   - On another non-trunk branch + --allow-existing-feature-branch: keep it.
 #   - On another non-trunk branch without the flag: exit 2 (caller asks user).
+#   - Without RELEASING.md, behavior is exactly as before the release model.
+#
+# Release state is read with the sibling release-state.sh; the model is
+# described in _shared/references/branching-model.md.
 #
 # Mirrors setup-worktree.sh stdout/stderr discipline:
 #   - Branch name on stdout (one line).
@@ -21,8 +33,10 @@
 #
 # Exit codes:
 #   0  branch is prepared (name on stdout)
-#   1  hard failure (dirty unrelated tree, git error, missing slug, ...)
-#   2  on a different non-trunk branch and --allow-existing-feature-branch not set
+#   1  hard failure (dirty unrelated tree, git error, missing slug, malformed
+#      RELEASING.md state block, ...)
+#   2  on a different non-trunk branch and --allow-existing-feature-branch not
+#      set, or on release/* and --allow-release-branch not set
 
 set -euo pipefail
 
@@ -34,10 +48,13 @@ usage() {
   cat >&2 <<'EOF'
 Usage:
   prepare-feature-branch.sh <feature-slug> [--allow-existing-feature-branch]
+                            [--allow-release-branch]
 
 Arguments:
   feature-slug                       Kebab-case feature identifier (e.g. "add-widget")
   --allow-existing-feature-branch    Reuse the current non-trunk branch
+  --allow-release-branch             On release/* (RELEASING.md present), branch
+                                     feat/<slug> from it for a release-only fix
 EOF
 }
 
@@ -53,8 +70,12 @@ _info() {
 # Argument parsing
 # ---------------------------------------------------------------------------
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RELEASE_STATE_SH="${SCRIPT_DIR}/release-state.sh"
+
 FEATURE_SLUG=""
 ALLOW_EXISTING_FEATURE_BRANCH=false
+ALLOW_RELEASE_BRANCH=false
 
 set_feature_slug() {
   if [[ -z "$FEATURE_SLUG" ]]; then
@@ -70,6 +91,10 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --allow-existing-feature-branch)
       ALLOW_EXISTING_FEATURE_BRANCH=true
+      shift
+      ;;
+    --allow-release-branch)
+      ALLOW_RELEASE_BRANCH=true
       shift
       ;;
     -h|--help)
@@ -185,11 +210,72 @@ remote_branch_exists() {
   git show-ref --verify --quiet "refs/remotes/origin/$1"
 }
 
+# ---------------------------------------------------------------------------
+# Release state (RELEASING.md)
+# ---------------------------------------------------------------------------
+#
+# STATE_TRUNK stays empty when the repo has no RELEASING.md, which keeps every
+# branch below on its pre-release-model path.
+
+STATE_TRUNK=""
+
+load_release_state() {
+  local out rc=0
+  if [[ ! -f "$RELEASE_STATE_SH" ]]; then
+    _error "missing helper: ${RELEASE_STATE_SH}"
+    exit 1
+  fi
+  out="$(bash "$RELEASE_STATE_SH" get 2>&1)" || rc=$?
+  if [[ "$rc" -ne 0 ]]; then
+    _error "could not read the RELEASING.md state block:"
+    printf '  %s\n' "$out" >&2
+    exit 1
+  fi
+  if [[ "$(sed -n 's/^present=//p' <<<"$out")" == "1" ]]; then
+    STATE_TRUNK="$(sed -n 's/^trunk=//p' <<<"$out")"
+  fi
+}
+
+load_release_state
+
 is_trunk_branch() {
+  if [[ -n "$STATE_TRUNK" && "$1" == "$STATE_TRUNK" ]]; then
+    return 0
+  fi
   case "$1" in
     main|master|trunk|develop) return 0 ;;
     *) return 1 ;;
   esac
+}
+
+is_release_branch() {
+  [[ -n "$STATE_TRUNK" && "$1" == release/* ]]
+}
+
+# create_feature_branch — create FEATURE_BRANCH. With release state, start
+# from a freshly fetched origin/<state-trunk>; on any failure fall back to
+# HEAD (the pre-release-model behavior) with a warning.
+create_feature_branch() {
+  local start="origin/${STATE_TRUNK}" out
+  if [[ -z "$STATE_TRUNK" ]]; then
+    _info "creating ${FEATURE_BRANCH} from ${CURRENT_BRANCH}"
+    git checkout -b "$FEATURE_BRANCH" >&2
+    return 0
+  fi
+  if ! out="$(git fetch --quiet origin "+refs/heads/${STATE_TRUNK}:refs/remotes/${start}" 2>&1)"; then
+    _info "warning: could not fetch ${STATE_TRUNK} from origin; creating ${FEATURE_BRANCH} from ${CURRENT_BRANCH} instead"
+    [[ -n "$out" ]] && printf '  %s\n' "$out" >&2
+    git checkout -b "$FEATURE_BRANCH" >&2
+    return 0
+  fi
+  if out="$(git checkout --no-track -b "$FEATURE_BRANCH" "$start" 2>&1)"; then
+    [[ -n "$out" ]] && printf '%s\n' "$out" >&2
+    _info "created ${FEATURE_BRANCH} from ${start} (RELEASING.md trunk)"
+    return 0
+  fi
+  _info "warning: could not create ${FEATURE_BRANCH} from ${start} with the current working tree; creating it from ${CURRENT_BRANCH} instead"
+  printf '  %s\n' "$out" >&2
+  git checkout -b "$FEATURE_BRANCH" >&2
 }
 
 if is_trunk_branch "$CURRENT_BRANCH"; then
@@ -203,7 +289,25 @@ if is_trunk_branch "$CURRENT_BRANCH"; then
     _info "switching from ${CURRENT_BRANCH} to existing origin/${FEATURE_BRANCH}"
     git checkout --track "origin/${FEATURE_BRANCH}" >&2
   else
-    _info "creating ${FEATURE_BRANCH} from ${CURRENT_BRANCH}"
+    create_feature_branch
+  fi
+  echo "$FEATURE_BRANCH"
+  exit 0
+fi
+
+# A maintenance branch under the release model: work normally lands on the
+# trunk first and is backported, so ask before branching from here.
+if is_release_branch "$CURRENT_BRANCH"; then
+  if [[ "$ALLOW_RELEASE_BRANCH" != true ]]; then
+    _error "on maintenance branch '${CURRENT_BRANCH}'; fixes normally land on '${STATE_TRUNK}' first and are backported"
+    _error "if this is a release-only fix, re-run with --allow-release-branch; otherwise check out '${STATE_TRUNK}' first"
+    exit 2
+  fi
+  if branch_exists "$FEATURE_BRANCH"; then
+    _info "switching from ${CURRENT_BRANCH} to existing ${FEATURE_BRANCH} (--allow-release-branch)"
+    git checkout "$FEATURE_BRANCH" >&2
+  else
+    _info "creating ${FEATURE_BRANCH} from ${CURRENT_BRANCH} (--allow-release-branch)"
     git checkout -b "$FEATURE_BRANCH" >&2
   fi
   echo "$FEATURE_BRANCH"

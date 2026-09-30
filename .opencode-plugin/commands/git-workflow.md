@@ -4,7 +4,8 @@ description: 'Git commit and documentation workflow manager. Analyzes changes, d
   documentation updates, and creates pull requests. Use when completing features,
   making commits, pushing changes, creating PRs, or when the user says "It''s time
   to push commits." Usage: [--commit] [--push] [--pr] [--dry-run] [--no-docs] [--draft]
-  [--ci] [--ci-max-pushes=N] [--ci-max-same-failure=N] [--ci-timeout-min=N] [--ci-yes]'
+  [--base <branch>] [--ci] [--ci-max-pushes=N] [--ci-max-same-failure=N] [--ci-timeout-min=N]
+  [--ci-yes]'
 ---
 
 # Git Workflow Command
@@ -30,6 +31,7 @@ $ARGUMENTS
    - **--dry-run**: Show analysis and plan without making changes
    - **--no-docs**: Skip documentation updates (commits only)
    - **--draft**: Create PR as draft (requires `--pr`)
+   - **--base <branch>**: PR base branch (requires `--pr`); default is the `RELEASING.md` base, else the repo default branch
    - **--ci**: After `--pr`, monitor CI and auto-fix until green (or until a bail condition fires). Requires `--pr`. Incompatible with `--dry-run`.
    - **--ci-max-pushes=N**: Cap on auto-pushes per invocation (default 5)
    - **--ci-max-same-failure=N**: Bail if the same failure recurs N times (default 3)
@@ -49,7 +51,7 @@ $ARGUMENTS
 If no action flag (`--commit`, `--push`, or `--pr`) is provided, the skill prompts with a numbered menu (commit / commit & push / commit, push & PR). Modifier flags (`--dry-run`, `--no-docs`, `--draft`) do not satisfy this requirement on their own.
 
 ```
-Usage: /git-workflow [--commit] [--push] [--pr] [--dry-run] [--no-docs] [--draft] [--ci] [--ci-max-pushes=N] [--ci-max-same-failure=N] [--ci-timeout-min=N] [--ci-yes]
+Usage: /git-workflow [--commit] [--push] [--pr] [--dry-run] [--no-docs] [--draft] [--base <branch>] [--ci] [--ci-max-pushes=N] [--ci-max-same-failure=N] [--ci-timeout-min=N] [--ci-yes]
 
 Action flags (at least one required, or pick from the interactive prompt):
   --commit                                Commit only
@@ -61,6 +63,7 @@ Modifier flags:
   --dry-run                               Show analysis and plan without making changes
   --no-docs                               Skip documentation updates
   --draft                                 Create PR as draft (requires --pr)
+  --base <branch>                         PR base (requires --pr); default: RELEASING.md base, else the repo default branch
   --ci                                    After --pr, monitor CI and auto-fix until green (or until a bail condition fires). Requires --pr. Incompatible with --dry-run.
   --ci-max-pushes=N                       Cap on auto-pushes per invocation (default 5)
   --ci-max-same-failure=N                 Bail if the same failure recurs N times (default 3)
@@ -73,6 +76,7 @@ Examples:
   /git-workflow --push                # Commit and push
   /git-workflow --pr                  # Commit, push, create PR
   /git-workflow --pr --draft          # ... as a draft
+  /git-workflow --pr --base release/0.5  # ... into a maintenance branch (release-only fix)
   /git-workflow --commit --dry-run    # Show commit plan, no changes
   /git-workflow --push --no-docs      # Skip docs, commit and push
   /git-workflow --pr --ci             # Commit, push, create PR, then monitor CI and auto-fix
