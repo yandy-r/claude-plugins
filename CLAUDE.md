@@ -313,3 +313,9 @@ npm run format:modified   # only modified files
 New projects should bootstrap this same lint/format environment via `/ycc:formatters` (or `/ycc:init --formatters`), which installs the `scripts/style.sh` bundle, tool configs, aliases, and docs into the target repo.
 
 Testing and validation are defined in `## Testing Changes` above — JSON validation plus the Codex/Cursor/opencode generate-and-validate pipelines are the real verification loop for this repository.
+
+## Branching & releases
+
+[`RELEASING.md`](RELEASING.md) is the source of truth for branches and releases. Branch
+off `main` and PR back into it; every release is tagged from `main`. Never merge one
+long-lived branch into another to sync it.
