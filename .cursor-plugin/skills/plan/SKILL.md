@@ -635,7 +635,7 @@ Before dispatching any `implementor` agents, prepare the feature branch so agent
   FEATURE_BRANCH=$(bash ${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/prepare-feature-branch.sh "${FEATURE_SLUG}")
   ```
 
-  The script is idempotent on `feat/${FEATURE_SLUG}`, creates it from a trunk branch, exits 1 on unrelated dirty tree, and exits 2 on a different feature branch (re-run with `--allow-existing-feature-branch` after user confirmation). **Do not skip this step** — it is what prevents implementor agents from committing to `main`.
+  The script is idempotent on `feat/${FEATURE_SLUG}`, creates it from a trunk branch, exits 1 on unrelated dirty tree, and exits 2 on a different feature branch (re-run with `--allow-existing-feature-branch` after user confirmation) or, when `RELEASING.md` exists, on `release/*` (re-run with `--allow-release-branch` only for a release-only fix). See `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/branch-prep.md`. **Do not skip this step** — it is what prevents implementor agents from committing to `main`.
 
 Then process batches sequentially. Within each batch, dispatch one `implementor` agent per step in a SINGLE message with MULTIPLE `Task` tool calls (standalone dispatch — see `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/standalone-dispatch.md`). Between batches, run the project's type-check and unit-test commands. On failure, stop and ask the user how to proceed.
 
