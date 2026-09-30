@@ -105,7 +105,7 @@ write_releasing() {
   {
     echo "# Releasing"
     echo
-    echo "<!-- ycc:release-state"
+    echo "<!-- ycc-release-state"
     printf '%s\n' "$body"
     echo "-->"
   } >"${dir}/RELEASING.md"
