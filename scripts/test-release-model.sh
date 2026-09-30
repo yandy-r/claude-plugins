@@ -25,6 +25,14 @@ RED=$'\033[0;31m'
 GREEN=$'\033[0;32m'
 NC=$'\033[0m'
 
+# Git hooks (pre-push runs validate.sh) export GIT_DIR, GIT_WORK_TREE,
+# GIT_INDEX_FILE and friends. Left set, they would point every sandbox git
+# call at the caller's repository, so clear all repo-local git variables.
+while IFS= read -r git_var; do
+  unset "$git_var"
+done < <(git rev-parse --local-env-vars)
+unset git_var
+
 SANDBOX_ROOT="$(mktemp -d)"
 trap 'rm -rf "${SANDBOX_ROOT}"' EXIT
 
@@ -84,6 +92,11 @@ mkrepo() {
   origin="${dir}.origin.git"
   git init -q --bare "$origin"
   git -C "$dir" init -q
+  # Refuse to continue if git resolved anything but the sandbox repo.
+  if [[ "$(cd "$dir" && git rev-parse --absolute-git-dir)" != "${dir}/.git" ]]; then
+    echo "test-release-model: git did not resolve the sandbox repo; aborting" >&2
+    exit 1
+  fi
   echo "seed" >"${dir}/README.md"
   git -C "$dir" add README.md
   git -C "$dir" commit -q -m "chore: seed"
