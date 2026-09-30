@@ -11,7 +11,8 @@
 #   - inventory  validates ycc skill↔command pairing and the shared inventory
 #   - json       validates .claude-plugin/marketplace.json plus ycc/.claude-plugin/plugin.json
 #   - config     tests the managed-config merge helper and install.sh sync CLI
-#   - release    tests the release-model state scripts and RELEASING.md template
+#   - release    runs every scripts/test-release-*.sh (release-model state scripts,
+#                RELEASING.md template, signal collector), stopping at the first failure
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -126,8 +127,12 @@ run_target() {
             "${REPO_ROOT}/scripts/test-install-sync.sh" || fail "test-install-sync.sh"
             ;;
         release)
-            echo "== validate: release-model state scripts =="
-            "${REPO_ROOT}/scripts/test-release-model.sh" || fail "test-release-model.sh"
+            local release_test
+            for release_test in "${REPO_ROOT}"/scripts/test-release-*.sh; do
+                [[ -e "${release_test}" ]] || fail "no scripts/test-release-*.sh found"
+                echo "== validate: $(basename "${release_test}") =="
+                "${release_test}" || fail "$(basename "${release_test}")"
+            done
             ;;
         json)
             echo "== validate: marketplace and plugin manifests =="
