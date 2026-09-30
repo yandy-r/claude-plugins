@@ -75,6 +75,7 @@
         "review-fixer": "openai/gpt-5.6-sol",
         "pr-comment-fixer": "openai/gpt-5.6-sol",
         "release-fix-applier": "openai/gpt-5.6-sol",
+        "backport-conflict-resolver": "openai/gpt-5.6-sol",
         "code-researcher": "openai/gpt-5.6-sol",
         "feature-researcher": "openai/gpt-5.6-sol",
         "prp-researcher": "openai/gpt-5.6-sol",

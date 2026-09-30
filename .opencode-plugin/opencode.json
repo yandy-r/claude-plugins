@@ -116,6 +116,9 @@
     "release-fix-applier": {
       "model": "openai/gpt-5.6-sol"
     },
+    "backport-conflict-resolver": {
+      "model": "openai/gpt-5.6-sol"
+    },
     "code-researcher": {
       "model": "openai/gpt-5.6-sol"
     },
