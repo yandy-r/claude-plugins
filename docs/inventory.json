@@ -5,6 +5,10 @@
       "description": "This skill should be used when the user asks questions about the codebase without requesting changes, such as \"how does X work?\", \"where is Y implemented?\", \"explain this code\", \"walk me through X\", \"what does this do?\", \"what would I need to change for X?\", \"if I change X what breaks?\", \"compare how A and B handle X\", or any exploratory question about code structure, architecture, or implementation. Also triggered by the /ask command."
     },
     {
+      "name": "backport",
+      "description": "Cherry-pick merged trunk PRs onto active maintenance branches (release/X.Y) and open one backport PR per target \u2014 driven by the project's RELEASING.md release-branches model and its backport:X.Y labels. Handles a single PR (`<PR#> [--to release/X.Y]`) or every pending labelled PR (`--pending`); stops on conflicts or dispatches a minimal conflict resolver (`--resolve`) and asks before pushing; optionally watches CI (`--ci`). Never merges, tags, or pushes to release/* directly. Use when the user asks to \"backport PR"
+    },
+    {
       "name": "blueprint",
       "description": "Interactive, whole-project source-of-truth spec generator. Takes a raw software idea, interrogates it through a multi-gate process (Foundation \u2192 Grounding \u2192 Scope \u2192 Tech Stack \u2192 Architecture \u2192 Generate), and writes a durable project charter at docs/blueprint.md \u2014 vision, users, scope, tech-stack decision, architecture, modules, NFRs, milestones, risks. Its machine-readable Bootstrap section then drives project bootstrap (code init, CI, formatters) by orchestrating /ycc:init and /ycc:formatters. Use when the user asks to \"create a project spec\", \"write a software spec\", \"whole-project spec\", \"source of truth spec\", \"scaffold/bootstrap a new software project from an idea\", \"project charter/blueprint\", or says \"/blueprint\". Sits UPSTREAM of prp-prd/prp-spec \u2014 those are per-feature; this is the whole software."
     },
@@ -209,6 +213,10 @@
     {
       "name": "ask",
       "description": "Ask questions about the codebase without making changes - get guidance, impact analysis, or comparisons"
+    },
+    {
+      "name": "backport",
+      "description": "Cherry-pick merged trunk PRs onto active maintenance branches (release/X.Y) and open backport PRs, following RELEASING.md and its backport:X.Y labels. Stops on conflicts unless --resolve; optional CI loop with --ci."
     },
     {
       "name": "blueprint",
@@ -429,6 +437,10 @@
       "description": "Analyze codebase architecture and create documentation in docs/architecture/ with system overviews, component maps, and Mermaid data flow diagrams."
     },
     {
+      "name": "backport-conflict-resolver",
+      "description": "Resolve the conflicts of ONE in-progress cherry-pick in a backport worktree, dispatched by ycc:backport --resolve. Minimal resolution: keep the release branch's surrounding code and apply only the fix's intent. Never commits, never pushes, never continues the cherry-pick, never touches files outside the conflicted set."
+    },
+    {
       "name": "cloudflare-architect",
       "description": "Expert guidance on Cloudflare services, architecture, security (WAF, DDoS, Zero Trust), Workers, CDN configuration, performance optimization, and deployment strategies."
     },
@@ -626,9 +638,9 @@
     }
   ],
   "counts": {
-    "skills": 51,
-    "commands": 50,
-    "agents": 54
+    "skills": 52,
+    "commands": 51,
+    "agents": 55
   },
   "parity": {
     "skills_without_commands": [

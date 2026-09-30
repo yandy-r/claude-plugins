@@ -8,7 +8,7 @@ A single Claude Code plugin (`ycc`) bundling workflow orchestration, parallel pl
 
 <!-- BEGIN:GENERATED-COUNTS -->
 
-The source plugin ships **51 skills**, **50 slash commands** (most skills have a matching command), and **54 agents**.
+The source plugin ships **52 skills**, **51 slash commands** (most skills have a matching command), and **55 agents**.
 
 <!-- END:GENERATED-COUNTS -->
 
@@ -17,6 +17,7 @@ The source plugin ships **51 skills**, **50 slash commands** (most skills have a
 | Command / Skill            | Purpose                                                                                                                                                                                 |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/ycc:ask`                 | Ask questions about the codebase without making changes - get guidance, impact analysis, or comparisons                                                                                 |
+| `/ycc:backport`            | Cherry-pick merged trunk PRs onto active maintenance branches (release/X.Y) and open backport PRs, following RELEASING.md and its backport:X.Y labels.                                  |
 | `/ycc:blueprint`           | Whole-project source-of-truth spec generator.                                                                                                                                           |
 | `/ycc:bundle-author`       | Scaffold new source-of-truth content in the ycc bundle (skill, optional matching command and agent)                                                                                     |
 | `/ycc:bundle-release`      | Prepare a ycc bundle release — preflight, bump, regenerate, validate, draft notes (no auto-commit)                                                                                      |
@@ -73,13 +74,13 @@ The source plugin ships **51 skills**, **50 slash commands** (most skills have a
 
 <!-- BEGIN:GENERATED-AGENTS -->
 
-The plugin bundles **54** specialized agents covering codebase analysis, language experts (Go, Rust, Python, TypeScript), reviewers, planners, documenters, and infrastructure architects.
+The plugin bundles **55** specialized agents covering codebase analysis, language experts (Go, Rust, Python, TypeScript), reviewers, planners, documenters, and infrastructure architects.
 
 <details>
-<summary>Full agent list (54 agents, grouped by role)</summary>
+<summary>Full agent list (55 agents, grouped by role)</summary>
 
 - **Language experts & implementors** (12): `frontend-ui-developer`, `go-api-architect`, `go-expert-architect`, `nextjs-ux-ui-expert`, `nodejs-backend-architect`, `nodejs-backend-developer`, `python-developer`, `python-expert-architect`, `rust-build-resolver`, `rust-expert-architect`, `typescript-developer`, `typescript-expert-architect`
-- **Code review & quality** (6): `code-reviewer`, `code-simplifier`, `pr-comment-fixer`, `release-fix-applier`, `review-fixer`, `rust-reviewer`
+- **Code review & quality** (7): `backport-conflict-resolver`, `code-reviewer`, `code-simplifier`, `pr-comment-fixer`, `release-fix-applier`, `review-fixer`, `rust-reviewer`
 - **Research & discovery** (10): `code-explorer`, `code-finder`, `code-researcher`, `codebase-advisor`, `feature-researcher`, `library-docs-writer`, `practices-researcher`, `prp-researcher`, `research-specialist`, `root-cause-analyzer`
 - **Architecture & planning** (5): `architect`, `architecture-analyst`, `code-architect`, `planner`, `test-strategy-planner`
 - **Documentation** (7): `api-docs-expert`, `api-documenter`, `code-documenter`, `docs-git-committer`, `documentation-writer`, `feature-writer`, `readme-generator`
