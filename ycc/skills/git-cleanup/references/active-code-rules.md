@@ -9,6 +9,12 @@ the user per-item.
 The rules are ordered by specificity. Evaluate them all — multiple matches
 strengthen confidence in the classification.
 
+R9 and R10 apply only when the repo has a `RELEASING.md`
+(`${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/release-state.sh get` prints
+`present=1`). Without one, R1–R8 are the whole rule set. A malformed state block
+(exit 2) stops the audit before any rule runs: show the parse error and point at
+`/ycc:release-model --audit`.
+
 ---
 
 ## R1 — Recent tip commit
@@ -138,21 +144,26 @@ label exists.
 ## R7 — Protected name
 
 **Signal:** The branch name matches `main`, `master`, `develop`, the
-repository's default branch, or any user-supplied `--protect=<pattern>`.
+repository's default branch, or any user-supplied `--protect=<pattern>`. With a
+`RELEASING.md`, the state's `trunk` and every branch in its `maintenance` list
+(local or remote) also match.
 
 **How to check:**
 
 ```
 git symbolic-ref refs/remotes/origin/HEAD          # default branch
 # User-supplied patterns from --protect flags
+${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/release-state.sh get
+# present=1 → protect `trunk` and each entry of `maintenance`
 ```
 
 **Rationale:** Nothing good comes from deleting `main`. This rule is the
 fail-closed backstop; it fires even if every other rule returns "stale".
 
 **Always protected (hardcoded):** `main`, `master`, `develop`, and the
-`origin/HEAD` symbolic ref. Patterns from `--protect` combine with these,
-never replace them.
+`origin/HEAD` symbolic ref. With a `RELEASING.md`, the state's `trunk` and
+`maintenance` branches join this set. Patterns from `--protect` combine with
+these, never replace them.
 
 ---
 
@@ -176,23 +187,93 @@ reflog as "no signal", not "inactive".
 
 ---
 
+## R9 — Retired maintenance branch (release model only)
+
+**Signal:** `RELEASING.md` is present and a local or remote `release/*` branch
+is not in the state's `maintenance` list, and R4 (base-ref) and R7 did not
+protect it. Branches in the state's `frozen` list match too and are flagged
+"frozen by RELEASING.md".
+
+**How to check:**
+
+```
+${CLAUDE_PLUGIN_ROOT}/skills/_shared/scripts/release-state.sh get   # maintenance=, frozen=
+git for-each-ref refs/heads/release/ --format='%(refname:short)'
+git for-each-ref refs/remotes/ --format='%(refname:short)' | grep -E '^[^/]+/release/'
+```
+
+**Rationale:** Under the release model a `release/X.Y` branch outside the
+support window receives no more patches, so it is cleanup material — but it is
+also the only branch pointing at that line's last patch. Deleting it without a
+tag loses an easy way back.
+
+**Classification:** **Retired maintenance branch** — its own report category,
+never Stale and never part of a bulk apply. R9 takes precedence over R1–R3,
+R5, R6 and R8: `RELEASING.md` itself names frozen branches, so R5 would
+otherwise mark every one of them active. The report suggests
+`git tag archive/<branch> <branch>` (and pushing that tag for a remote branch)
+before deletion, and each deletion requires explicit per-item confirmation.
+
+---
+
+## R10 — Sync-merge anti-pattern (release model only, informational)
+
+**Signal:** `RELEASING.md` is present and either
+
+- a local or remote branch other than the trunk has a name containing `sync`,
+  or
+- a merge commit newer than `stale-days` that is not on the trunk, on any
+  branch other than the trunk, has a subject matching
+  `^Merge (remote-tracking )?branch '?([A-Za-z0-9._-]+/)?(main|master|trunk|develop|<trunk>)'? into`.
+
+**How to check:**
+
+```
+git log --merges --since="<stale-days> days ago" --format='%h|%s' -E \
+  --grep="^Merge (remote-tracking )?branch '?([A-Za-z0-9._-]+/)?(main|master|trunk|develop|<trunk>)'? into" \
+  "origin/<trunk>..<branch>"
+```
+
+The optional `<remote>/` prefix catches `Merge remote-tracking branch
+'origin/main' into …`, and the GitHub "Update branch" button's
+`Merge branch 'main' into …`.
+
+**Rationale:** The branching model forbids merging one long-lived branch into
+another to "sync" it; code moves between the trunk and maintenance branches
+only by cherry-pick. Sync merges tangle history, drag unreleased trunk work
+into maintenance lines, and make backports unreviewable.
+
+**Classification:** Reported under **Anti-patterns (informational)** with the
+branch, commit hash and subject. It never changes a candidate's
+classification, never blocks a deletion, and never produces a cleanup
+command. The suggested fix is to rebase topic branches onto
+`origin/<trunk>` and to move fixes between lines with `/ycc:backport`.
+
+---
+
 ## Decision Matrix
 
-| R1 recent | R2 unpushed | R3 dirty | R4 open-PR | R5 ref'd | R6 issue | R7 protected | R8 reflog | Classification                    |
-| --------- | ----------- | -------- | ---------- | -------- | -------- | ------------ | --------- | --------------------------------- |
-| any       | any         | any      | any        | any      | any      | ✓            | any       | Protected                         |
-| ✓         | any         | any      | any        | any      | any      | —            | any       | Active                            |
-| any       | ✓           | any      | any        | any      | any      | —            | any       | Active                            |
-| any       | any         | ✓        | any        | any      | any      | —            | any       | Active                            |
-| any       | any         | any      | ✓          | any      | any      | —            | any       | Active (or Protected if base-ref) |
-| any       | any         | any      | any        | ✓        | any      | —            | any       | Active                            |
-| any       | any         | any      | any        | any      | ✓        | —            | any       | Active                            |
-| —         | —           | —        | —          | —        | —        | —            | ✓         | Ambiguous                         |
-| —         | —           | —        | —          | —        | —        | —            | —         | **Stale**                         |
+| R1 recent | R2 unpushed | R3 dirty | R4 open-PR | R5 ref'd | R6 issue | R7 protected | R8 reflog | R9 retired | Classification             |
+| --------- | ----------- | -------- | ---------- | -------- | -------- | ------------ | --------- | ---------- | -------------------------- |
+| any       | any         | any      | any        | any      | any      | ✓            | any       | any        | Protected                  |
+| any       | any         | any      | base-ref   | any      | any      | —            | any       | any        | Protected                  |
+| any       | any         | any      | head-ref   | any      | any      | —            | any       | ✓          | Retired maintenance branch |
+| any       | any         | any      | —          | any      | any      | —            | any       | ✓          | Retired maintenance branch |
+| ✓         | any         | any      | any        | any      | any      | —            | any       | —          | Active                     |
+| any       | ✓           | any      | any        | any      | any      | —            | any       | —          | Active                     |
+| any       | any         | ✓        | any        | any      | any      | —            | any       | —          | Active                     |
+| any       | any         | any      | head-ref   | any      | any      | —            | any       | —          | Active                     |
+| any       | any         | any      | any        | ✓        | any      | —            | any       | —          | Active                     |
+| any       | any         | any      | any        | any      | ✓        | —            | any       | —          | Active                     |
+| —         | —           | —        | —          | —        | —        | —            | ✓         | —          | Ambiguous                  |
+| —         | —           | —        | —          | —        | —        | —            | —         | —          | **Stale**                  |
 
 Empty row = rule returned no signal. "any" = value doesn't affect outcome once
 a higher-priority rule has matched. Classification is the first match reading
-top-down.
+top-down. R9 only fires with a `RELEASING.md` and sits directly below the
+protected rows, so a retired maintenance branch is never reported as Active or
+Stale; one that heads an open PR is still retired, and the report notes the PR. R10 is informational and does not
+appear in the matrix.
 
 ## Worktree-specific notes
 

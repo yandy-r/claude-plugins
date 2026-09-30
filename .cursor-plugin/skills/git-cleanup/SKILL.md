@@ -20,6 +20,7 @@ allowed-tools:
   - Bash(rm:*)
   - Bash(date:*)
   - Bash(awk:*)
+  - 'Bash(${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/release-state.sh:*)'
 ---
 
 # git-cleanup
@@ -46,14 +47,28 @@ Parse `$ARGUMENTS`:
 - **--host=github|gitlab|auto**: Remote host. `auto` (default) parses `origin`.
 - **--protect=<pattern>** (repeatable): Extra branch patterns that must never be
   deleted. Always-protected: `main`, `master`, `develop`, the default branch,
-  and any branch that is the base of an open PR.
+  any branch that is the base of an open PR, and — when the repo has a
+  `RELEASING.md` — the state's `trunk` and every `maintenance` branch.
 
 ## Phase 0: Setup and Host Detection
 
 1. **Verify working tree is a git repo**: `git rev-parse --git-dir`. Abort if not.
 2. **Determine default branch**: `git symbolic-ref refs/remotes/origin/HEAD` →
    fall back to `main` / `master` if unset.
-3. **Detect host CLIs and MCP tools**. Detection follows the bundle-wide
+3. **Read the release state**: run
+   `${CURSOR_PLUGIN_ROOT}/skills/_shared/scripts/release-state.sh get` and parse
+   its `key=value` output (format and rules:
+   `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/branching-model.md`).
+   - `present=0` (no `RELEASING.md`): release-model rules are off. Every later
+     phase behaves exactly as described without the "Release model" notes.
+   - `present=1`: record `RELEASE_TRUNK` (`trunk`), `RELEASE_MAINTENANCE`
+     (`maintenance`, comma-separated) and `RELEASE_FROZEN` (`frozen`,
+     comma-separated). These drive the protected set, the retired
+     maintenance branch category, and the sync-merge findings below.
+   - Exit code 2 (malformed state block): **STOP**. Show the parse error from
+     stderr and point the user at `/release-model --audit`. Never guess a
+     trunk or a protected set from a broken block.
+4. **Detect host CLIs and MCP tools**. Detection follows the bundle-wide
    contract in
    `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/forge-detection.md`
    (`forge_detect_provider origin` → `github` / `forgejo` / `gitea` / `gitlab` /
@@ -68,12 +83,12 @@ Parse `$ARGUMENTS`:
      A Forgejo/Gitea remote (matched against `tea login list`) routes PR/issue
      cleanup through `tea` (`tea pull list/close`, `tea issues list/close`).
      Unknown hosts skip the remote-domain audits with a loud notice.
-4. **Check working-tree state**: Capture `git status --porcelain` and
+5. **Check working-tree state**: Capture `git status --porcelain` and
    `git stash list`. Record whether the current branch has unpushed commits.
-5. **Initialize progress tracking** with TodoWrite (one entry per phase).
-6. **Create audit directory**: `.git-cleanup/` at the repo root. Report and
+6. **Initialize progress tracking** with TodoWrite (one entry per phase).
+7. **Create audit directory**: `.git-cleanup/` at the repo root. Report and
    per-domain finding files land here.
-7. **If `--dry-run` was passed alongside `--apply`**: Abort — they conflict.
+8. **If `--dry-run` was passed alongside `--apply`**: Abort — they conflict.
 
 ## Phase 1: Collect Raw Git State
 
@@ -95,6 +110,25 @@ flags that emit machine-readable output.
   `gh pr list --state=all --author=@me --json number,title,state,headRefName,baseRefName,updatedAt,isDraft,mergedAt,closedAt`.
 - **Issues** (when host available): `gh issue list --state=open --author=@me --json number,title,updatedAt,labels`
   filtered by `updatedAt < now - stale-days`.
+- **Release model** (only when `present=1`):
+  - **Release branches**: every local `release/*` branch
+    (`git for-each-ref refs/heads/release/ --format='%(refname:short)'`) and
+    every remote one (`git for-each-ref refs/remotes/ --format='%(refname:short)'`,
+    keeping names whose part after `<remote>/` starts with `release/`).
+  - **Sync-merge candidates**: branch names (local or remote, excluding
+    `RELEASE_TRUNK`) containing `sync`, and, for every other local branch and
+    remote-tracking branch, merge commits newer than `stale-days` that are not
+    on the trunk and whose subject reads like a trunk sync:
+
+    ```bash
+    git log --merges --since="<stale-days> days ago" --format='%h|%s' -E \
+      --grep="^Merge (remote-tracking )?branch '?([A-Za-z0-9._-]+/)?(main|master|trunk|develop|<RELEASE_TRUNK>)'? into" \
+      "origin/<RELEASE_TRUNK>..<branch>"
+    ```
+
+    Rules and rationale:
+    `${CURSOR_PLUGIN_ROOT}/skills/git-cleanup/references/active-code-rules.md`
+    (R9, R10).
 
 ## Phase 2: Active-Code Analysis
 
@@ -122,12 +156,26 @@ of the following is true:
    within `stale-days`, or has the `status:in-progress` / `status:needs-info`
    label family defined by this repo's taxonomy.
 7. **Protected name**: Matches `main|master|develop`, the default branch, or
-   any `--protect=<pattern>`.
+   any `--protect=<pattern>`. When `present=1`, also `RELEASE_TRUNK` and every
+   branch in `RELEASE_MAINTENANCE` (local or remote).
 8. **Recent reflog activity**: `git reflog show <branch>` shows motion within
    `stale-days`.
 
 Candidates that fail every check become **stale** — eligible for cleanup.
 Record the reason per candidate so the user can audit the decision.
+
+**Release model** (only when `present=1`; see R9 and R10 in the rules file):
+
+- **Retired maintenance branch**: a local or remote `release/*` branch that is
+  not in `RELEASE_MAINTENANCE` and not protected (rule 7, or rule 4 as an
+  open-PR base) is classified as retired, never as Stale — even when rules 1–8
+  would call it stale or active (`RELEASING.md` mentioning a frozen branch does
+  not make it active).
+  Branches listed in `RELEASE_FROZEN` are retired too and are flagged
+  "frozen by RELEASING.md".
+- **Sync-merge anti-pattern**: branches named like `*sync*` and merge commits
+  collected in Phase 1 are informational findings. They never change a
+  candidate's classification and never produce a cleanup command.
 
 ## Phase 3: Produce the Audit Report
 
@@ -141,6 +189,19 @@ Write `.git-cleanup/report.md` with sections keyed by domain:
   exact `git` / `gh` / `glab` command that would remove each one.
 - **Ambiguous (ask)** — edge cases (e.g., branch has unpushed commits **and**
   hasn't been touched in 6 months; worktree with clean tree but branch `[gone]`).
+- **Retired maintenance branch** (only when `present=1`) — `release/*` branches
+  outside `RELEASE_MAINTENANCE`, each marked local or remote, with
+  "frozen by RELEASING.md" on those listed in `RELEASE_FROZEN`. For each, show
+  the archive command to run first and the deletion command, for example:
+  `git tag archive/release/0.3 release/0.3` then `git branch -d release/0.3`;
+  for a remote branch, `git tag archive/release/0.3 origin/release/0.3`,
+  `git push origin archive/release/0.3`, then
+  `git push origin --delete release/0.3`.
+- **Anti-patterns (informational)** (only when `present=1`) — sync-named
+  branches and sync-merge commits (hash, subject, branch), with a pointer to
+  the branching-model rule "Never merge one long-lived branch into another"
+  and the fix: rebase the topic branch onto `origin/<RELEASE_TRUNK>` instead,
+  and move fixes to maintenance branches with `/backport`.
 - **Host-API notes** — PRs/issues surfaced from GitHub/GitLab with current
   state and decision rationale.
 
@@ -160,6 +221,11 @@ Present the summary via AskUserQuestion. Offer structured choices:
 For ambiguous items, re-prompt per item with the evidence summary and the
 exact command that would run.
 
+Retired maintenance branches are never part of "Apply all stale". Each one
+needs its own explicit confirmation, and the prompt offers to create the
+`archive/<branch>` tag first (default: yes). Anti-pattern findings have no
+action to confirm.
+
 If `--dry-run` is active (default), **STOP** here — do not invoke Phase 5 even
 if the user clicks "Apply". Tell them to rerun with `--apply`.
 
@@ -172,7 +238,10 @@ For each approved item, in this order (safest first):
    `git worktree prune`.
 3. **Local branches**: `git branch -d <name>` (never `-D` unless the branch
    has been merged to the default branch or its upstream is `[gone]` AND the
-   user explicitly confirmed in Phase 4).
+   user explicitly confirmed in Phase 4). For a confirmed retired maintenance
+   branch, create and (for a remote branch) push the `archive/<branch>` tag
+   first when the user accepted it; delete a remote one with
+   `git push <remote> --delete <branch>` only after that tag exists.
 4. **Local-only tags**: `git tag -d <name>`.
 5. **Stashes**: `git stash drop stash@{N}`. Drop highest-indexed first to keep
    indices stable during the sweep.
@@ -208,13 +277,21 @@ error): abort and report.
 For large repos where Phase 2's active-code scan is expensive, delegate to
 `git-cleanup` agent via Cursor. The agent performs the read-only
 audit (Phases 1-3) and returns a structured report; this skill orchestrates
-Phases 4-6.
+Phases 4-6. Pass the Phase 0 `release-state.sh get` output with the other
+options so the agent applies the same protected set and release-model rules
+(a malformed state has already stopped the run in Phase 0).
 
 ## Important Notes
 
 - **Dry-run by default**. Destruction requires `--apply` **and** interactive
   approval.
 - **Never touch the default branch, protected branches, or open-PR bases.**
+  With a `RELEASING.md`, that includes the state's trunk and maintenance
+  branches.
+- **Retired maintenance branches are never auto-deleted.** Suggest the
+  `archive/<branch>` tag first and require per-item confirmation.
+- **A malformed `RELEASING.md` state block stops the audit** with the parse
+  error and a pointer to `/release-model --audit`.
 - **Never `git branch -D`** without explicit per-item confirmation.
 - **Worktrees under `<repo-root>/.cursor/worktrees/`** are fair game per this repo's
   convention. Legacy worktrees under `~/.claude-worktrees/` should be reported
