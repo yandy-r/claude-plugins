@@ -102,9 +102,11 @@ gh pr view <N> --json number,title,body,state,mergeCommit,labels,baseRefName,url
   2. the PR's labels that start with `LABEL_PREFIX` and name `release/X.Y`;
   3. `LATEST_MAINTENANCE` (say that it was chosen by default).
 - Drop, and report, any target not in `MAINTENANCE` ("not an active maintenance branch").
-- Drop, and report, any target that already has a backport:
-  `gh pr list --state all --base <target> --search "\"Backport of #<N>\" in:body" --json number,url,body`
-  counts only when the body contains `Backport of #<N>` not followed by a digit.
+- Drop, and report, any target that already has an open or merged backport:
+  `gh pr list --state all --base <target> --search "\"Backport of #<N>\" in:body" --json number,url,body,state`
+  counts only when the body contains `Backport of #<N>` not followed by a digit. A
+  closed, unmerged one is reported but does not block: naming the PR explicitly is how a
+  user retries an abandoned backport (`--pending` treats it as handled).
 
 ### Plan
 
