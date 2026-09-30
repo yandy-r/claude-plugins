@@ -80,6 +80,12 @@ Append `!` after the type/scope (`feat!: …`) **or** add a `BREAKING CHANGE: �
 
 Use `docs(internal): …` for files under `docs/plans`, `docs/research`, or `docs/internal`. These stay out of release notes.
 
+{{#IF_RELEASE_MODEL}}
+## Branching & releases
+
+Read [`RELEASING.md`](RELEASING.md) before creating a branch, opening a PR, or cutting a release. It names the trunk, the maintenance branches that still receive patches, and when a fix needs a `backport:X.Y` label. Never merge one long-lived branch into another to "sync" it — move fixes between lines by cherry-pick (`$backport`).
+{{/IF_RELEASE_MODEL}}
+
 ## Git Worktrees
 
 **Strong preference**: work in a git worktree for any non-trivial task. Worktrees keep the main checkout clean for parallel work, let multiple agents run concurrently without stepping on each other, and make it trivial to abandon a failed attempt (`git worktree remove`). Use the main checkout only when the task is a one-liner, requires observing the current working tree state, or worktree creation is blocked.

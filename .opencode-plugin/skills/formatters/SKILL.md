@@ -152,7 +152,7 @@ Unless suppressed, run each applier. Each writes to a distinct file so they can 
    ~/.config/opencode/skills/formatters/scripts/apply-ci.sh --target "$TARGET" --profile-file "$PROFILE_FILE" [--force] [--no-autofix]
    ```
 
-   Pass `--no-autofix` when `NO_AUTOFIX=true` to install only the check workflow. The autofix workflow runs on same-repo PRs to the default branch (`origin/HEAD`, falling back to `main`), applies `./scripts/style.sh format` + `lint --fix`, and pushes fixes back as `github-actions[bot]`; fork PRs are skipped because `GITHUB_TOKEN` cannot push to them.
+   Pass `--no-autofix` when `NO_AUTOFIX=true` to install only the check workflow. The check workflow runs on every PR and on pushes to the default branch and `release/**`. The autofix workflow runs on same-repo PRs to the default branch (`origin/HEAD`, falling back to `main`), applies `./scripts/style.sh format` + `lint --fix`, and pushes fixes back as `github-actions[bot]`; fork PRs are skipped because `GITHUB_TOKEN` cannot push to them.
 
 4. **Hooks** (run when `HOOKS=true`, OR when the target already has a `lefthook.yml` / `.husky/pre-commit` — i.e., `has_lefthook=true` or `has_husky=true` in the profile):
 

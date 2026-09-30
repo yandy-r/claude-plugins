@@ -49,7 +49,8 @@ done
 
 target="$(cd "$target" && pwd)"
 
-# Resolve the target repo's default branch for the autofix PR trigger.
+# Resolve the target repo's default branch for the lint.yml push trigger and
+# the autofix PR trigger.
 # Falls back to "main" when the target is not a git repo or has no origin/HEAD.
 default_branch=""
 if ref="$(git -C "$target" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null)"; then
