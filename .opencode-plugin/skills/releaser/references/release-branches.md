@@ -29,6 +29,57 @@ exact fix commands. Exit 2 means the state block is malformed. Both stop the rel
 A pre-release of a new line (`0.7.0-beta.1`) is cut from the trunk but does **not**
 create `release/0.7`; the branch is created by the final `0.7.0`.
 
+## Backport gate
+
+A patch is tagged only when `release/X.Y` has every fix meant for it
+(`branching-model.md#before-tagging-a-patch`). After a branch check with
+`model=release-branches` and `kind=patch`, run:
+
+```
+~/.config/opencode/shared/scripts/backport-audit.sh release/X.Y
+```
+
+Stdout is one `<status>\t<pr>\t<merge_sha>\t<title>\t<detail>` row per PR checked, then
+`since=<ref>`. Show the non-`ok` rows as a table (status, PR, title, detail) and count the
+`ok` rows.
+
+| Result                   | Action                                                                                                                                               |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| exit 0                   | Print `Backport gate: clean (<n> backported PRs verified, fixes since <ref> reviewed)` and continue.                                                 |
+| exit 3, `missing` rows   | STOP. The fix is labelled for this line but not on `release/X.Y`. Next step: `/backport --pending --to release/X.Y`, merge, re-run the releaser. |
+| exit 3, `in-review` rows | STOP. The backport PR is open. Next step: review and merge it, then re-run the releaser.                                                             |
+| exit 3, `unlabelled`     | Ask (below). Handle them after any `missing`/`in-review` rows are resolved.                                                                          |
+| exit 1                   | STOP with its stderr. When `gh` is missing or not authenticated, also show step 0 of the project's patch steps in `RELEASING.md` (below).            |
+| exit 2                   | STOP, as for a malformed state in Phase 0.                                                                                                           |
+
+`--pending` skips a `missing` row whose detail is `backport #M closed unmerged`; retry
+that one with `/backport <PR#> --to release/X.Y`.
+
+For `unlabelled` rows, ask once (ask the user), listing every row:
+
+```
+These fixes merged into <trunk> since <ref> without the <label> label:
+  #<pr> <title>
+Do any of them affect vX.Y?
+```
+
+- **None; they only fix trunk code** → continue. Record the answer in the Phase 9 summary.
+- **Some do; stop** → STOP and print, per PR the user names:
+  `gh pr edit <pr> --add-label <label>`, then `/backport --pending --to release/X.Y`.
+
+A STOP can be overridden only by an explicit user instruction to ship without specific
+PRs. Ask again with those PR numbers listed, and name them under "Deferred backports" in
+the Phase 9 summary. Never infer the override, and never apply it under `/goal`.
+
+When the gate cannot run (exit 1 because `gh` is missing or not authenticated), the tag
+still waits. The user either fixes `gh` and re-runs the releaser, or runs the manual
+commands in step 0 of their `RELEASING.md` patch steps and confirms the result explicitly.
+
+`--dry-run` runs the audit, which is read-only, and puts its table in the plan without
+asking. The first gate on a line that was patched before this check existed should sweep
+the whole line: re-run with `--since vX.Y.0` when the user asks for it or when
+`RELEASING.md` has no step 0 (see `/release-model --audit`, check 13).
+
 ## Previous tag and changelog range
 
 `detect-project.sh` reports `latest_tag` and `draft-changelog.sh` defaults its range to

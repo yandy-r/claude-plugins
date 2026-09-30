@@ -180,6 +180,20 @@ Once the version is confirmed, run:
   branches for the user.
 - Exit 2: STOP with the parse error, as in Phase 0.
 
+### Backport gate (patch under release-branches)
+
+When the branch check reports `model=release-branches` and `kind=patch`, confirm that
+every fix meant for the line reached it **before** writing any file:
+
+```
+~/.codex/plugins/ycc/shared/scripts/backport-audit.sh release/X.Y
+```
+
+Follow "Backport gate" in `references/release-branches.md`: `missing` and `in-review`
+rows STOP the release, `unlabelled` rows need the user's decision, and a gate that cannot
+run (`gh` unavailable) fails closed. Never skip it, and never answer its questions for the
+user, including under `/goal` or `--dry-run` (which reports the result without asking).
+
 ## Phase 3: Resolve release target matrix
 
 Build the final `{os × arch}` matrix:
@@ -299,8 +313,9 @@ If `--dry-run` was passed:
 
 1. Print the full release plan: detected project, proposed version, target matrix,
    files that would change, commands that would run. Include the release model, the
-   branch-check result, and — when `creates_maintenance` is set — the `RELEASING.md`
-   diff from `release-state-update.sh --dry-run --add-maintenance release/X.Y`.
+   branch-check result, the backport gate result for a patch, and — when
+   `creates_maintenance` is set — the `RELEASING.md` diff from
+   `release-state-update.sh --dry-run --add-maintenance release/X.Y`.
 2. STOP. Write nothing, execute nothing side-effecting.
 3. If both `--dry-run` and `--publish` were passed, `--dry-run` wins: the publish helper
    does NOT run.
@@ -595,6 +610,9 @@ Report to the user:
 - Release model and branch: `model` and `branch` from the Phase 2 check (or "no
   `RELEASING.md`"), plus the follow-ups it requires — the new `release/X.Y` branch and
   label, or the CHANGELOG forward-port PR.
+- Backport gate (patches under release-branches): `clean` with the number of PRs verified
+  and the `since=` window, or the rows the user chose to ship without, listed as
+  "Deferred backports".
 - Target `{os × arch}` matrix.
 - Files modified (changelog, notes, manifests, workflow).
 - CI workflow-file outcome (generate / audit / skipped) and report path if audit ran.
@@ -624,7 +642,7 @@ condition and `n/a` rules.
 ## Success Criteria
 
 - **RELEASE_PUBLISHED**: `--publish --confirm` ran and `publish-release.sh --confirm` exited 0 (the release exists on GitHub). `n/a` when `--publish` was not set or ran in preview-only mode.
-- **GATES_INTERACTIVE**: Every human gate that applied this run — Phase 2 version confirm, Phase 5 manifest diff review, and the Phase 8.5.1 authorization — was satisfied by explicit user input and **none** was auto-approved or bypassed (including under an active `/goal`). `FAIL` if any applicable gate was skipped without a human `yes`. This is the safety invariant that keeps `/goal` from wrapping the whole skill.
+- **GATES_INTERACTIVE**: Every human gate that applied this run — Phase 2 version confirm, the Phase 2 backport gate decisions, Phase 5 manifest diff review, and the Phase 8.5.1 authorization — was satisfied by explicit user input and **none** was auto-approved or bypassed (including under an active `/goal`). `FAIL` if any applicable gate was skipped without a human `yes`. This is the safety invariant that keeps `/goal` from wrapping the whole skill.
 - **CI_GREEN**: If `--ci` ran, the Phase 8.5 loop reached `RESULT=green` and the Phase 9 summary shows "Release CI loop outcome: `green`". `n/a` when `--ci` was not set or the loop was skipped (no successful publish).
 - **CI_BAIL_VISIBLE**: If `--ci` ended without green, the summary states the terminal outcome (`bail-*`, `loop-blocked`, or `declined`) and the cap/constraint that fired. `n/a` when `--ci` reached green or was not set.
 - **AUDIT_LOG_PRINTED**: If `--ci` ran, the Phase 9 summary printed the audit-log path. `n/a` when `--ci` was not set or the loop was skipped.
@@ -633,13 +651,14 @@ These keys are emitted verbatim in the Phase 9 Goal Signals block so a `/goal` e
 
 ## /goal pairing
 
-Pair this skill with the `/goal` session directive **only for the bounded Phase 8.5 release-CI auto-fix loop** — never for the skill as a whole. The full `releaser` flow has three human approval gates that exist specifically to prevent unattended publishing and looping; `/goal` must never auto-satisfy them:
+Pair this skill with the `/goal` session directive **only for the bounded Phase 8.5 release-CI auto-fix loop** — never for the skill as a whole. The full `releaser` flow has four human approval gates that exist specifically to prevent unattended publishing and looping; `/goal` must never auto-satisfy them:
 
 - **Phase 2 — version confirm.** The user must approve the proposed version bump.
+- **Phase 2 — backport gate (patches).** The user decides each unlabelled fix and any shipping without a missing backport.
 - **Phase 5 — manifest diff review.** The user must approve what changed before any commit.
 - **Phase 8.5.1 — CI authorization gate.** The user must approve before the bounded, destructive-capable loop starts. `--ci-yes` does **not** bypass this gate under an active `/goal` (see the 8.5.1 `/goal` re-confirmation guard).
 
-Because the `/goal` evaluator is transcript-only it cannot answer these prompts, so a `/goal` loop will **pause** at each gate until you respond in person. That is the intended behavior: only after you have published (`--publish --confirm`) and authorized the loop does `/goal` add value — driving Phase 8.5.2+ through every `handoff` fix-and-recut and `rerun-pending` retry to green without returning control between iterations. The `GATES_INTERACTIVE` Goal Signal records that none of the three gates was auto-approved.
+Because the `/goal` evaluator is transcript-only it cannot answer these prompts, so a `/goal` loop will **pause** at each gate until you respond in person. That is the intended behavior: only after you have published (`--publish --confirm`) and authorized the loop does `/goal` add value — driving Phase 8.5.2+ through every `handoff` fix-and-recut and `rerun-pending` retry to green without returning control between iterations. The `GATES_INTERACTIVE` Goal Signal records that none of these gates was auto-approved.
 
 The Phase 8.5 loop's `RESULT=` markers (from `release-ci-monitor.sh`, sharing the `ci-monitor.sh` contract with `pr-autofix` and `prp-pr`) tell the evaluator when to keep looping versus when to stop:
 
@@ -705,8 +724,8 @@ The transcript-output contract and shared caveats (worktree cwd, interactive fai
 - See `references/ci-optimization-checklist.md` for the audit criteria used by the
   agent and the default quality gate for generated workflows.
 - See `references/release-notes-template.md` for the drafted notes format.
-- See `references/release-branches.md` for the branch-check output, previous-tag
-  ranges, and the maintenance-branch and forward-port steps.
+- See `references/release-branches.md` for the branch-check output, the backport gate,
+  previous-tag ranges, and the maintenance-branch and forward-port steps.
 - See [`../_shared/references/ci-monitoring.md`](../_shared/references/ci-monitoring.md)
   ("Release mode" section) for the loop contract, exit-code table, and audit-log
   schema.

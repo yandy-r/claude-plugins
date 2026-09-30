@@ -69,6 +69,23 @@ Open the PR into `release/X.Y` with the original title and `Backport of #N` in t
 then squash-merge it. Resolve conflicts minimally; if the fix needs real rework for the
 older code, write it as its own PR against `release/X.Y`. `$backport` automates this.
 
+### Before tagging a patch
+
+A patch `vX.Y.Z` is tagged only when `release/X.Y` has every fix meant for it. Right before
+the tag, `backport-audit.sh release/X.Y` (run by `$releaser` and `$backport --audit`)
+checks two things:
+
+1. **Labelled:** every trunk PR with `backport:X.Y` has a **merged** twin in
+   `release/X.Y`: a PR whose body says `Backport of #N`, or a commit carrying the
+   `cherry picked from commit <sha>` trailer. An open or closed-unmerged backport PR does
+   not count.
+2. **Unlabelled:** every fix PR (`fix:` title or `type:bug` label) merged into the trunk
+   since the line's previous tag either has a twin or gets an explicit decision: label and
+   backport it, or confirm that it only fixes trunk code. Labels are applied by hand, so
+   this is what catches a fix nobody labelled.
+
+Pass `--since vX.Y.0` to sweep the whole line, for example the first time a line is audited.
+
 ## State block
 
 `RELEASING.md` carries a block that is invisible when rendered:
@@ -124,12 +141,12 @@ human-owned and never rewritten.
 
 ## How skills use this
 
-| Skill                       | Reads                            | Behavior                                                     |
-| --------------------------- | -------------------------------- | ------------------------------------------------------------ |
-| `prepare-feature-branch.sh` | `trunk`                          | New branches start from `origin/<trunk>`                     |
-| `git-workflow`, `prp-pr`    | `base`, `model`, `maintenance`   | PR base, sync-merge guard, backport prompt                   |
-| `code-review`               | `base`                           | Flags a PR whose base contradicts the state                  |
-| `releaser`                  | `model`, `trunk`, `maintenance`  | Checks the release branch; creates `release/X.Y` on a minor  |
-| `backport`                  | `maintenance`, `backport_label`  | Cherry-picks labelled PRs to maintenance branches            |
-| `git-cleanup`               | `trunk`, `maintenance`, `frozen` | Protects active branches; flags retired ones and sync merges |
-| `init`, `blueprint`         | presence                         | Offer `release-model` when the file is missing           |
+| Skill                       | Reads                            | Behavior                                                                                     |
+| --------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------- |
+| `prepare-feature-branch.sh` | `trunk`                          | New branches start from `origin/<trunk>`                                                     |
+| `git-workflow`, `prp-pr`    | `base`, `model`, `maintenance`   | PR base, sync-merge guard, backport prompt                                                   |
+| `code-review`               | `base`                           | Flags a PR whose base contradicts the state                                                  |
+| `releaser`                  | `model`, `trunk`, `maintenance`  | Checks the release branch; creates `release/X.Y` on a minor; audits backports before a patch |
+| `backport`                  | `maintenance`, `backport_label`  | Cherry-picks labelled PRs to maintenance branches; `--audit` runs the pre-tag check          |
+| `git-cleanup`               | `trunk`, `maintenance`, `frozen` | Protects active branches; flags retired ones and sync merges                                 |
+| `init`, `blueprint`         | presence                         | Offer `release-model` when the file is missing                                           |

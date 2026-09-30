@@ -5,8 +5,9 @@ description: Cherry-pick merged trunk PRs onto active maintenance branches (rele
   model and its backport:X.Y labels. Handles a single PR (`<PR#> [--to release/X.Y]`)
   or every pending labelled PR (`--pending`); stops on conflicts or dispatches a minimal
   conflict resolver (`--resolve`) and asks before pushing; optionally watches CI (`--ci`).
-  Never merges, tags, or pushes to release/* directly. Use when the user asks to "backport
-  PR
+  `--audit` is the read-only pre-tag check that every labelled PR has a merged backport
+  and that no fix merged since the line's last tag is unaccounted for. Never merges,
+  tags, or pushes to release/* directly. Use when the user asks to "backport PR
 ---
 
 # Backport
@@ -27,18 +28,21 @@ into `release/X.Y` with `Backport of #<N>` in its body.
 
 ## Phase 0 — Parse arguments
 
-| Argument / flag    | Effect                                                                                    |
-| ------------------ | ----------------------------------------------------------------------------------------- |
-| `<PR#>`            | Backport this merged trunk PR (digits, `#N`, or a GitHub PR URL).                         |
-| `--to release/X.Y` | Target branch. Repeatable. Without it, targets come from labels (see Phase 2).            |
-| `--pending`        | Backport every merged PR with a backport label that has no backport PR yet.               |
-| `--resolve`        | On a conflict, dispatch `backport-conflict-resolver`, show the diff, ask to continue. |
-| `--ci`             | After each backport PR opens, watch CI and run the bounded auto-fix loop (Phase 5).       |
-| `--dry-run`        | Print the plan and every command that would run. No worktree, no push, no PR.             |
+| Argument / flag         | Effect                                                                                    |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
+| `<PR#>`                 | Backport this merged trunk PR (digits, `#N`, or a GitHub PR URL).                         |
+| `--to release/X.Y`      | Target branch. Repeatable. Without it, targets come from labels (see Phase 2).            |
+| `--pending`             | Backport every merged PR with a backport label that has no backport PR yet.               |
+| `--resolve`             | On a conflict, dispatch `backport-conflict-resolver`, show the diff, ask to continue. |
+| `--ci`                  | After each backport PR opens, watch CI and run the bounded auto-fix loop (Phase 5).       |
+| `--dry-run`             | Print the plan and every command that would run. No worktree, no push, no PR.             |
+| `--audit [release/X.Y]` | Read-only pre-tag check for one line, or every active line (Phase 2A).                    |
+| `--since REF`           | With `--audit`: start the unlabelled-fix window at REF (e.g. `v0.5.0` sweeps the line).   |
 
 Validation — stop with the usage line on failure:
 
-- Exactly one of `<PR#>` or `--pending`.
+- Exactly one of `<PR#>`, `--pending`, or `--audit`.
+- `--since` only with `--audit`; `--resolve`, `--ci`, `--to` and `--dry-run` never with it.
 - With `--pending`, `--to` filters the pending list to those targets.
 - Each `--to` value must match `release/X.Y`.
 
@@ -57,7 +61,9 @@ Validation — stop with the usage line on failure:
    # open a PR into release/X.Y: original title, body "Backport of #<N>"
    ```
 
-   Explain: `$backport` automates GitHub only (`gh` PR queries and creation).
+   Explain: `$backport` automates GitHub only (`gh` PR queries and creation). With
+   `--audit`, print step 0 of the project's `RELEASING.md` patch steps instead of the
+   cherry-pick steps.
 
 2. **GitHub CLI.** `gh auth status` must succeed; otherwise stop with "Run `gh auth login`
    first."
@@ -73,6 +79,30 @@ Validation — stop with the usage line on failure:
    | otherwise                               | Record `TRUNK`, `MAINTENANCE` (comma list), `LATEST_MAINTENANCE`, `BACKPORT_LABEL` (e.g. `backport:{X.Y}`).                                   |
 
    Derive `LABEL_PREFIX` by cutting `BACKPORT_LABEL` at `{X.Y}` (e.g. `backport:`).
+
+## Phase 2A — Audit (`--audit` only)
+
+Read-only; it creates no worktree, branch, label or PR. Lines: the given `release/X.Y`
+(it must be in `MAINTENANCE`; otherwise stop with "not an active maintenance branch"),
+else every entry of `MAINTENANCE`. For each line:
+
+```bash
+bash "~/.codex/plugins/ycc/shared/scripts/backport-audit.sh" release/X.Y [--since REF]
+```
+
+Exit 0 is clean, 3 has findings, 1 and 2 are errors (show stderr; stop on 2). Output
+rows, statuses, and the check itself: `branching-model.md#before-tagging-a-patch` and the
+script header. Report per line: a table of the non-`ok` rows (status, PR, title,
+detail), the count of `ok` rows, and the `since=` window. Then the next steps:
+
+- `missing` → `$backport --pending --to release/X.Y`. A `backport #M closed unmerged`
+  row is not pending for `--pending`; retry it with `$backport <PR#> --to release/X.Y`.
+- `in-review` → review and merge the named backport PR.
+- `unlabelled` → decide per PR: `gh pr edit <PR#> --add-label <label>` and backport it,
+  or leave it (trunk-only fix).
+- Clean on every line → "release/X.Y is ready for a patch tag (`$releaser`)."
+
+Stop after the report; Phases 2–5 do not run.
 
 ## Phase 2 — Build the work list
 
@@ -228,7 +258,8 @@ Print one row per work item: PR, target, result (`opened #M <url>`, `conflict (w
 
 - Review and squash-merge each backport PR into `release/X.Y` (a human does this).
 - After the merge, remove the worktree: `git worktree remove <worktree>`.
-- Patch releases are cut from `release/X.Y` with `$releaser`.
+- Patch releases are cut from `release/X.Y` with `$releaser`, which re-runs the
+  `--audit` check and refuses the tag until every backport has merged.
 
 ## Phase 5 — CI (`--ci` only)
 
