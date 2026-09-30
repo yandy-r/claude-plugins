@@ -33,7 +33,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATE_SCRIPT="${SCRIPT_DIR}/../../../shared/scripts/release-state.sh"
+# shellcheck source=../../../shared/scripts/lib/backport-lib.sh
+source "${SCRIPT_DIR}/../../../shared/scripts/lib/backport-lib.sh"
 PR_LIMIT=1000
+# Single-quoted: the Codex generator rewrites this to its own skill syntax, which
+# must stay literal rather than expand as a shell variable.
+RELEASE_MODEL_CMD='$release-model'
 
 _error() {
   echo "find-pending: $*" >&2
@@ -90,7 +95,7 @@ fi
 rc=0
 STATE_OUT="$(bash "$STATE_SCRIPT" --repo "$REPO_DIR" get)" || rc=$?
 if [[ "$rc" -eq 2 ]]; then
-  _error "RELEASING.md has a malformed state block (see above); run $release-model --audit"
+  _error "RELEASING.md has a malformed state block (see above); run ${RELEASE_MODEL_CMD} --audit"
   exit 2
 elif [[ "$rc" -ne 0 ]]; then
   _error "could not read the release state"
@@ -102,7 +107,7 @@ state_key() {
 }
 
 if [[ "$(state_key present)" != "1" ]]; then
-  _error "no RELEASING.md in ${REPO_DIR}; backports need a release-branches model (run $release-model)"
+  _error "no RELEASING.md in ${REPO_DIR}; backports need a release-branches model (run ${RELEASE_MODEL_CMD})"
   exit 1
 fi
 
@@ -115,7 +120,7 @@ if [[ "$MODEL" != "release-branches" || -z "$MAINTENANCE" ]]; then
   exit 0
 fi
 
-LABEL_PREFIX="${PREFIX_OVERRIDE:-${LABEL_TEMPLATE%%\{X.Y\}*}}"
+LABEL_PREFIX="${PREFIX_OVERRIDE:-$(bp_label_prefix "$LABEL_TEMPLATE")}"
 LABEL_SUFFIX="${LABEL_TEMPLATE#*\{X.Y\}}"
 if [[ -z "$LABEL_PREFIX" ]]; then
   _error "backport_label '${LABEL_TEMPLATE}' has no prefix before {X.Y}; pass --label-prefix"
@@ -138,35 +143,25 @@ if ! gh auth status >/dev/null 2>&1; then
   exit 1
 fi
 
-gh_json() {
-  local out
-  if ! out="$(gh "$@" 2>&1)"; then
-    _error "gh $* failed: ${out}"
-    exit 1
-  fi
-  printf '%s\n' "$out"
-}
-
-LABELS_JSON="$(gh_json label list --search "$LABEL_PREFIX" --limit "$PR_LIMIT" --json name)"
+LABELS_JSON="$(bp_gh_json find-pending label list --search "$LABEL_PREFIX" --limit "$PR_LIMIT" --json name)"
 mapfile -t LABELS < <(
   jq -r --arg p "$LABEL_PREFIX" '.[].name | select(startswith($p))' <<<"$LABELS_JSON" | sort -u
 )
 
-# BACKPORT_BODIES[target] holds the bodies of every PR (any state) into that
-# active maintenance branch. Fetched once per branch, in the main shell.
-declare -A BACKPORT_BODIES=()
+# BACKPORT_PRS[target] holds every PR (any state) into that active
+# maintenance branch as JSON. Fetched once per branch, in the main shell.
+declare -A BACKPORT_PRS=()
 IFS=',' read -r -a ACTIVE_BRANCHES <<<"$MAINTENANCE"
 if [[ "${#LABELS[@]}" -gt 0 ]]; then
   for target in "${ACTIVE_BRANCHES[@]}"; do
-    bodies_json="$(gh_json pr list --state all --base "$target" --limit "$PR_LIMIT" --json number,body)"
-    BACKPORT_BODIES[$target]="$(jq -r '.[].body // ""' <<<"$bodies_json")"
+    BACKPORT_PRS[$target]="$(bp_gh_json find-pending pr list --state all --base "$target" --limit "$PR_LIMIT" --json number,state,body)"
   done
 fi
 
-# already_backported <pr> <target> — true when a PR into target references
-# "Backport of #<pr>" (not followed by another digit).
+# already_backported <pr> <target> — true when a PR into target, in any
+# state, references "Backport of #<pr>" (not followed by another digit).
 already_backported() {
-  grep -Eq "Backport of #$1([^0-9]|\$)" <<<"${BACKPORT_BODIES[$2]:-}"
+  [[ -n "$(bp_best_twin "${BACKPORT_PRS[$2]:-[]}" "$1")" ]]
 }
 
 PENDING=""
@@ -178,7 +173,7 @@ for label in "${LABELS[@]}"; do
     continue
   fi
   target="release/${version}"
-  prs_json="$(gh_json pr list --state merged --label "$label" --limit "$PR_LIMIT" --json number,title,mergeCommit)"
+  prs_json="$(bp_gh_json find-pending pr list --state merged --label "$label" --limit "$PR_LIMIT" --json number,title,mergeCommit)"
   while IFS=$'\t' read -r number sha title; do
     [[ -z "$number" ]] && continue
     if ! is_active "$target"; then

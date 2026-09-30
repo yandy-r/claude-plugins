@@ -110,6 +110,23 @@ Pre-releases of the next minor are tagged `vX.Y.0-beta.N` from `{{TRUNK}}`.
 
 ### Patch release (vX.Y.Z) — from `release/X.Y`
 
+0. **Confirm every backport landed. Do not tag until this is clean.** Every `{{TRUNK}}` PR
+   labelled `backport:X.Y` needs a **merged** `Backport of #N` PR into `release/X.Y` (an
+   open or closed one does not count). Every fix merged into `{{TRUNK}}` since the last
+   `vX.Y.*` tag without the label gets a decision: backport it, or confirm it only fixes
+   trunk code. `/ycc:releaser` runs this check; `/ycc:backport --audit release/X.Y` runs it
+   on its own. By hand:
+
+   ```bash
+   git fetch origin --tags
+   for n in $(gh pr list --state merged --base {{TRUNK}} --label backport:X.Y --limit 500 --json number --jq '.[].number'); do
+     [ "$(gh pr list --state merged --base release/X.Y --search "\"Backport of #$n\" in:body" --json number --jq length)" = 0 ] && echo "not backported: #$n"
+   done
+   since=$(git log -1 --format=%cI "$(git describe --tags --abbrev=0 origin/release/X.Y)")
+   gh pr list --state merged --base {{TRUNK}} --search "merged:>=$since -label:\"backport:X.Y\"" \
+     --limit 500 --json number,title --jq '.[] | select(.title | test("^fix")) | "#\(.number) \(.title)"'
+   ```
+
 1. On `release/X.Y`, commit `chore(release): vX.Y.Z` with the changelog entry and the
    version bump.
 2. Push an annotated tag `vX.Y.Z` and publish the release notes.

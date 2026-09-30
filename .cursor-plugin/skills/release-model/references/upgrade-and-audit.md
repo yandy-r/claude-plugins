@@ -97,6 +97,7 @@ Read-only. Gather: `$STATE --repo "$ROOT" get` (exit code included),
 | 10  | Backport labels exist                     | release-branches, gh usable     | warn     | `gh label create "<label>" --description "Cherry-pick to release/X.Y"`                                           |
 | 11  | Trunk is the forge default branch         | parsed                          | warn     | Align the forge default branch or `$UPDATE --set-trunk <default_branch>`                                         |
 | 12  | Pointer sections present                  | `CLAUDE.md` / `AGENTS.md` exist | info     | Add the section from `pointer-and-labels.md#pointer-section`                                                     |
+| 13  | Patch steps gate the tag on backports     | release-branches                | warn     | Insert step 0 of the template's patch section (`$TEMPLATE`, "Confirm every backport landed")                     |
 
 Details:
 
@@ -107,8 +108,13 @@ Details:
   branch, matching `Merge branch '<long-lived>' into …` or `sync … into …`.
 - **Check 10:** the expected label for `release/X.Y` is `backport_label` with `{X.Y}`
   replaced. When `gh` is unusable, report "skipped: gh unavailable" instead of a finding.
-- A malformed block (check 1) skips checks 2–6, 10, and 11; the signal-based checks still
-  run.
+- **Check 13:** find the `### Patch release` heading in `## Releasing`. Report when it is
+  missing or its steps (up to the next heading) mention neither `Backport of #` nor
+  `backport --audit`: the file predates the pre-tag backport check
+  (`branching-model.md#before-tagging-a-patch`). The fix renders step 0 from `$TEMPLATE`
+  with the state's `trunk` and places it before step 1.
+- A malformed block (check 1) skips checks 2–6, 10, 11, and 13; the signal-based checks
+  still run.
 
 Report as one table (`# | Severity | Finding | Fix`), errors first, then a one-line
 verdict: "clean", or "N errors, M warnings". Change nothing, even with `--yes`.

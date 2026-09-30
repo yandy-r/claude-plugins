@@ -45,9 +45,10 @@ RELEASE_STATE_SH="${SCRIPT_DIR}/release-state.sh"
 source "${SCRIPT_DIR}/lib/release-state-lib.sh"
 # shellcheck source=lib/forge.sh
 source "${SCRIPT_DIR}/lib/forge.sh"
+# shellcheck source=lib/backport-lib.sh
+source "${SCRIPT_DIR}/lib/backport-lib.sh"
 
 RULES_REF='_shared/references/branching-model.md#rules'
-FIX_TITLE_RE='^fix(\([^)]*\))?!?:'
 
 usage() {
   sed -n '2,37p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
@@ -229,12 +230,12 @@ cmd_sync_check() {
 # type:bug label marks the change as a fix.
 is_fix() {
   local label
-  [[ "$TITLE" =~ $FIX_TITLE_RE ]] && return 0
+  [[ "$TITLE" =~ $BP_FIX_TITLE_RE ]] && return 0
   while IFS= read -r label; do
     [[ "$(rs_trim "$label")" == "type:bug" ]] && return 0
   done < <(tr ',' '\n' <<<"$LABELS")
   if ref_exists "origin/${BASE}" && ref_exists "$HEAD_REF"; then
-    git log --format=%s "origin/${BASE}..${HEAD_REF}" | grep -Eq "$FIX_TITLE_RE" && return 0
+    git log --format=%s "origin/${BASE}..${HEAD_REF}" | grep -Eq "$BP_FIX_TITLE_RE" && return 0
   fi
   return 1
 }
