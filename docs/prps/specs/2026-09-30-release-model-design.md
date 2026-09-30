@@ -76,7 +76,7 @@ procedure, and the contract for the state block (3.2). Skills cite sections of t
 `RELEASING.md` carries a block that is invisible when rendered:
 
 ```markdown
-<!-- ycc:release-state
+<!-- ycc-release-state
 model: release-branches
 trunk: master
 maintenance: release/0.5
@@ -101,7 +101,7 @@ Format rules:
   `trunk-only` make the block **malformed**.
 
 The human "Current state" table sits between
-`<!-- ycc:release-state:table:begin -->` and `<!-- ycc:release-state:table:end -->` and is
+`<!-- ycc-release-state:table:begin -->` and `<!-- ycc-release-state:table:end -->` and is
 always rendered from the block (trunk, each maintenance branch, frozen branches, support
 window). Prose after the end marker is human-owned and never rewritten.
 

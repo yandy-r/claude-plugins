@@ -109,13 +109,13 @@ Python generators (`scripts/sync.sh`) and validators (`scripts/validate.sh`).
 - [ ] **Step 2:** Run `bash scripts/test-release-model.sh` → FAIL (script missing).
 
 - [ ] **Step 3: Implement** the parser. Core parsing (awk extracts the block between
-      `<!-- ycc:release-state` and the next `-->`, strips `\r`, trims whitespace):
+      `<!-- ycc-release-state` and the next `-->`, strips `\r`, trims whitespace):
 
 ```bash
 extract_block() { # $1=file → key: value lines on stdout; exit 3 if no block
   awk '
     { sub(/\r$/, "") }
-    /^<!-- ycc:release-state[[:space:]]*$/ { inblock=1; found=1; next }
+    /^<!-- ycc-release-state[[:space:]]*$/ { inblock=1; found=1; next }
     inblock && /^-->[[:space:]]*$/ { inblock=0; exit }
     inblock { print }
     END { if (!found) exit 3 }
@@ -154,8 +154,8 @@ extract_block() { # $1=file → key: value lines on stdout; exit 3 if no block
 **Interfaces:**
 
 - Produces: `release-state-update.sh [--repo DIR] [--dry-run] (--set-model M | --set-trunk B | --add-maintenance release/X.Y | --freeze release/X.Y | --render)`.
-  Rendered table (between `<!-- ycc:release-state:table:begin -->` and
-  `<!-- ycc:release-state:table:end -->`):
+  Rendered table (between `<!-- ycc-release-state:table:begin -->` and
+  `<!-- ycc-release-state:table:end -->`):
 
 ```markdown
 | Role        | Branch           | Notes                          |

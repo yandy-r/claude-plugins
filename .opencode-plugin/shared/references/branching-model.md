@@ -74,7 +74,7 @@ older code, write it as its own PR against `release/X.Y`. `/backport` automates 
 `RELEASING.md` carries a block that is invisible when rendered:
 
 ```markdown
-<!-- release-state
+<!-- ycc-release-state
 model: release-branches
 trunk: main
 maintenance: release/0.5
@@ -96,8 +96,8 @@ tracker: github-milestones
 - Malformed: an unknown or duplicate key, a missing required key, an invalid `model` or
   `tracker`, a list entry that is not `release/X.Y`, or `maintenance` under `trunk-only`.
 
-The human "Current state" table sits between `<!-- release-state:table:begin -->` and
-`<!-- release-state:table:end -->`. It is always rendered from the block by
+The human "Current state" table sits between `<!-- ycc-release-state:table:begin -->` and
+`<!-- ycc-release-state:table:end -->`. It is always rendered from the block by
 `release-state-update.sh`; never edit it by hand. Prose after the end marker is
 human-owned and never rewritten.
 
