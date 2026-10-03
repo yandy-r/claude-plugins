@@ -1,0 +1,9 @@
+{
+  "name": "status-bar",
+  "version": "0.2.0",
+  "description": "Context window as a stacked bar above the prompt, one color per /context category, plus cost, rate limits and recent tool calls",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "yandy-r"
+  }
+}

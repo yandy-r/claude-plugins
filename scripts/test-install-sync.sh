@@ -214,6 +214,53 @@ assert_contains "${merged}" '"cli-written"' "CLI-written marketplace entry prese
 assert_contains "${merged}" '"ycc"' "repo marketplace entry added"
 
 echo
+echo "== install.sh sync: claude mods =="
+
+# A stub 'claude' CLI records its arguments, so the mods step is checked
+# without touching the real plugin registry.
+STUB_BIN="${SANDBOX_ROOT}/stub-bin"
+mkdir -p "${STUB_BIN}"
+cat > "${STUB_BIN}/claude" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "${CLAUDE_STUB_LOG}"
+SH
+chmod +x "${STUB_BIN}/claude"
+
+# run_install_stubbed <home> <args...> — run_install with the stub claude first on PATH.
+run_install_stubbed() {
+    local home="$1"
+    shift
+    PATH="${STUB_BIN}:${PATH}" CLAUDE_STUB_LOG="${home}/claude-calls.log" run_install "${home}" "$@"
+}
+
+home="$(new_home)"
+out="$(run_install_stubbed "${home}" sync --target claude --intent mods)"
+calls="$(cat "${home}/claude-calls.log" 2>/dev/null)"
+assert_contains "${calls}" "plugin marketplace add $(realpath "${REPO_ROOT}/ycc/mods") --scope user" "mods registers the ycc-mods marketplace from the checkout"
+assert_contains "${calls}" "plugin install status-bar@ycc-mods --scope user" "mods installs each listed mod"
+assert_not_contains "${calls}" "ycc@ycc" "mods does not run base"
+assert_not_contains "${out}" "merge settings" "mods does not merge settings"
+assert_contains "${out}" "Claude sync complete" "mods sync completes"
+
+home="$(new_home)"
+cat > "${home}/.claude/settings.json" <<'JSON'
+{ "env": { "CLAUDE_CODE_PLUGIN_DIRS": "~/.claude/mods/status-bar" } }
+JSON
+out="$(run_install_stubbed "${home}" sync --target claude --intent mods)"
+assert_contains "${out}" "also loads a 'status-bar' folder" "sideloaded copy of a mod is flagged"
+
+home="$(new_home)"
+out="$(run_install_stubbed "${home}" sync --target codex,cursor,opencode --intent mods)"
+assert_contains "${out}" "intent 'mods' is not supported by target 'codex'" "codex mods is a no-op"
+assert_contains "${out}" "intent 'mods' is not supported by target 'opencode'" "opencode mods is a no-op"
+assert_not_contains "$(cat "${home}/claude-calls.log" 2>/dev/null)" "plugin" "non-claude targets never call the claude CLI"
+
+home="$(new_home)"
+out="$(run_install_stubbed "${home}" install --target claude --only mods)"
+assert_not_contains "${out}" "is not valid for target 'claude'" "--only mods is valid for claude"
+assert_contains "$(cat "${home}/claude-calls.log" 2>/dev/null)" "status-bar@ycc-mods" "install --only mods installs the mods"
+
+echo
 echo "== install.sh sync: local edits are respected =="
 
 home="$(new_home)"

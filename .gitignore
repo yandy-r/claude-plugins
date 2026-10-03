@@ -41,3 +41,6 @@ plan-blocks.md
 **/.agent-native/
 .config/opencode/
 opencode.json
+
+# Agent-managed git worktrees
+.claude/worktrees/

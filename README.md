@@ -128,6 +128,7 @@ and desktop app notes, use the dedicated install guides. Recommended sync form:
 
 ```bash
 ./install.sh sync --target claude --intent hooks,settings,mcp,plugins
+./install.sh sync --target claude --intent mods                          # Claude Code mods (ycc/mods)
 ./install.sh sync --target all --intent settings,rules
 ./install.sh sync --target codex,claude,opencode --intent mcp            # current project
 ./install.sh sync --target codex,claude,opencode --intent mcp --global   # user-global

@@ -7,7 +7,7 @@ _ycc() {
 
     case "${prev}" in
         --target) values="claude cursor codex opencode all" ;;
-        --intent) values="base settings rules mcp hooks plugins" ;;
+        --intent) values="base settings rules mcp hooks plugins mods" ;;
         --only)   values="base settings rules mcp hooks" ;;
         --mode)   mapfile -t COMPREPLY < <(compgen -W "local repo" -- "${cur}"); return ;;
         --shell)  mapfile -t COMPREPLY < <(compgen -W "bash zsh fish" -- "${cur}"); return ;;

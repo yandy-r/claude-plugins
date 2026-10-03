@@ -11,7 +11,7 @@ _ycc() {
         '--help[show help]'
     )
     local mode='--mode[marketplace source mode]:mode:(local repo)'
-    local intent='--intent[what to sync]:intents:_values -s , intent base settings rules mcp hooks plugins'
+    local intent='--intent[what to sync]:intents:_values -s , intent base settings rules mcp hooks plugins mods'
     local only='--only[run only these steps]:steps:_values -s , step base settings rules mcp hooks'
 
     if (( CURRENT == 2 )); then

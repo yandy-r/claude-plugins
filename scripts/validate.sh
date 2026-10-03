@@ -7,18 +7,19 @@
 #   ./scripts/validate.sh --only inventory      # single target
 #   ./scripts/validate.sh --only cursor,codex   # comma-separated subset
 #
-# Targets: inventory, cursor, codex, opencode, json, config, release
+# Targets: inventory, cursor, codex, opencode, json, config, release, mods
 #   - inventory  validates ycc skill↔command pairing and the shared inventory
 #   - json       validates .claude-plugin/marketplace.json plus ycc/.claude-plugin/plugin.json
 #   - config     tests the managed-config merge helper and install.sh sync CLI
 #   - release    runs every scripts/test-release-*.sh (release-model state scripts,
 #                RELEASING.md template, signal collector), stopping at the first failure
+#   - mods       validates the Claude Code mods under ycc/mods and their marketplace
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-VALID_TARGETS=(inventory cursor codex opencode json config release)
+VALID_TARGETS=(inventory cursor codex opencode json config release mods)
 TARGETS=("${VALID_TARGETS[@]}")
 
 usage() {
@@ -133,6 +134,10 @@ run_target() {
                 echo "== validate: $(basename "${release_test}") =="
                 "${release_test}" || fail "$(basename "${release_test}")"
             done
+            ;;
+        mods)
+            echo "== validate: claude mods =="
+            "${REPO_ROOT}/scripts/validate-mods.sh" || fail "validate-mods.sh"
             ;;
         json)
             echo "== validate: marketplace and plugin manifests =="

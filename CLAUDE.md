@@ -47,6 +47,7 @@ claude-plugins/
 ├── ycc/                      # ycc plugin source (dev workflows)
 │   ├── .claude-plugin/
 │   │   └── plugin.json       # name: "ycc", version bumped by /ycc:bundle-release
+│   ├── mods/                 # Claude Code mods + their own 'ycc-mods' marketplace
 │   ├── commands/             # slash commands (one .md per command)
 │   ├── agents/               # agents (one .md per agent)
 │   └── skills/
@@ -114,6 +115,18 @@ is the reference precedent: when scope cannot coexist with ycc without harming
 it (cross-contamination, descriptor pollution, fragility-cliff proximity),
 split into a sibling repo rather than accumulate plugins here. See
 `CONTRIBUTING.md` → Scope & Guardrails for the full decision gate.
+
+### Mods (`ycc/mods/`)
+
+Claude Code mods (plugins with a `hooks/hooks.json` `modules` entry) live under
+`ycc/mods/<name>/`, one complete plugin per folder, listed in their own local
+marketplace `ycc/mods/.claude-plugin/marketplace.json` (`ycc-mods`). This is the
+one deliberate exception to the single-entry rule above: mods are small,
+independently toggled UI/behavior add-ons, not a second workflow bundle, and
+the ycc generators never read `ycc/mods/`. `ycc sync --target claude --intent
+mods` installs them; other targets report the intent as unsupported until a
+translator step exists. Validate with `./scripts/validate.sh --only mods`. See
+[`ycc/mods/README.md`](ycc/mods/README.md).
 
 ### Local install model (directory-source, in-place)
 

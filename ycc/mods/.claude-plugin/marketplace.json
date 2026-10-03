@@ -1,0 +1,22 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "ycc-mods",
+  "description": "Claude Code mods from yandy-r/claude-plugins: plugins whose hooks module draws UI and hooks into Claude Code itself.",
+  "owner": {
+    "name": "yandy-r"
+  },
+  "metadata": {
+    "repository": "https://github.com/yandy-r/claude-plugins"
+  },
+  "plugins": [
+    {
+      "name": "status-bar",
+      "description": "Context window as a stacked bar above the prompt, one color per /context category, plus cost, rate limits and recent tool calls",
+      "version": "0.2.0",
+      "author": {
+        "name": "yandy-r"
+      },
+      "source": "./status-bar"
+    }
+  ]
+}

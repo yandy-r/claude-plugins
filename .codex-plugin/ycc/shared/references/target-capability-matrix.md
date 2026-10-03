@@ -1,6 +1,6 @@
 # Target Capability Matrix
 
-As of 2026-04-16
+As of 2026-10-03
 
 This file is the authoritative source for which ycc bundle capabilities are supported on each
 deployment target. Downstream scripts parse the table below; read the Parser Grammar section
@@ -36,6 +36,7 @@ Follow these rules exactly or the parser will misread cells:
 | INSTALL_PATH      | supported | supported   | supported   | supported   |
 | DANGEROUS_MODE    | supported | unsupported | unsupported | unsupported |
 | WORKTREE          | supported | partial     | partial     | partial     |
+| MODS              | supported | unsupported | unsupported | unsupported |
 
 ---
 
@@ -194,6 +195,21 @@ Partial. Worktree mode is on by default for the 9 worktree-aware skills; pass `-
 to opt out. The legacy `--worktree` flag is a silent no-op. Same as Codex — Bash via prompt,
 no tool-side isolation. Skills embed `git worktree add` commands in agent prompts. See
 `ycc/skills/_shared/references/worktree-strategy.md` for the Bash-fallback protocol.
+
+**MODS:claude**
+Supported from Claude Code 2.1.287 (CLI and desktop app). Mods live under `ycc/mods/` with their
+own `ycc-mods` marketplace and install via `ycc sync --target claude --intent mods`.
+
+**MODS:cursor**
+Unsupported. `--intent mods` is reported and skipped; a translator step would map a mod's hooks
+module onto Cursor's extension surface.
+
+**MODS:codex**
+Unsupported. Codex has no in-process hook module API; the intent is reported and skipped.
+
+**MODS:opencode**
+Unsupported. opencode plugins are the closest analogue, but no translator exists yet; the intent
+is reported and skipped.
 
 ---
 

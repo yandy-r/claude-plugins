@@ -180,8 +180,9 @@ step-flag form used for first-time setup.
 
   $(basename "$0") sync --target claude --intent hooks,settings,mcp,plugins
   $(basename "$0") sync --target codex,claude,opencode --intent mcp
+  $(basename "$0") sync --target claude --intent mods
 
-Intents (valid: base, settings, rules, mcp, hooks, plugins):
+Intents (valid: base, settings, rules, mcp, hooks, plugins, mods):
   base      Install/register the target's bundle.
   settings  Merge repo-managed config keys (models, effort levels, ...).
   rules     Symlink the shared CLAUDE.md / AGENTS.md ruleset.
@@ -189,19 +190,20 @@ Intents (valid: base, settings, rules, mcp, hooks, plugins):
   hooks     Merge hook config; claude also links the hook scripts directory.
   plugins   Merge plugin enablement and marketplace entries. Add 'base' too
             when you also want the target's CLI to perform registration.
+  mods      Install the Claude Code mods under ycc/mods (claude only for now).
 
   Intents a target cannot execute are reported and skipped. 'sync' is exclusive:
   it never implicitly runs 'base'.
 
   Intent → step mapping per target:
     claude    base→base  settings→settings  rules→rules  mcp→mcp
-              hooks→settings+hooks  plugins→settings
+              hooks→settings+hooks  plugins→settings  mods→mods
     cursor    base→base  settings→settings  rules→rules  mcp→mcp
-              hooks, plugins → no-op
+              hooks, plugins, mods → no-op
     codex     base→base  settings→settings  rules→rules  mcp→mcp
-              plugins → settings (config.toml)
+              plugins → settings (config.toml)  mods → no-op
     opencode  base→base  settings→settings  rules→rules  mcp→mcp
-              plugins → settings (opencode.json)
+              plugins → settings (opencode.json)  mods → no-op
 
 Remove ('remove' subcommand):
   Strips what the installer manages from the selected steps' config files.
@@ -313,7 +315,7 @@ install semantics:
                           without --force.
 
 Target steps:
-  claude    base | settings | rules | mcp | hooks
+  claude    base | settings | rules | mcp | hooks | mods
             base:     invoke 'claude plugin marketplace add <repo> --scope user'
                       + 'claude plugin install ycc@ycc --scope user'. Breaks
                       ~/.claude/settings.json symlink (if any) first so the CLI
@@ -330,6 +332,10 @@ Target steps:
             hooks:    symlink ycc/settings/hooks/ into ~/.claude/hooks/, enabling
                       the WorktreeCreate hook (redirects harness-managed
                       worktrees to ~/.claude-worktrees/).
+            mods:     'claude plugin marketplace add ycc/mods --scope user'
+                      (the local 'ycc-mods' marketplace) + 'claude plugin
+                      install <mod>@ycc-mods --scope user' for each mod it
+                      lists. Mods load in place; edits apply on /reload-plugins.
   cursor    base | settings | mcp | rules
             base:     generate + validate + format + rsync bundle to ~/.cursor/.
             settings: merge .cursor-plugin/config/cli-config.json into
@@ -654,6 +660,90 @@ PY
 }
 
 # ---------------------------------------------------------------------------
+# Claude mods (ycc/mods)
+# ---------------------------------------------------------------------------
+# Mods are Claude Code plugins whose hooks module (hooks/hooks.json
+# "modules") hooks into Claude Code itself. They ship from their own local
+# marketplace, 'ycc-mods', so each one installs, enables and uninstalls like
+# any plugin, in the CLI and the desktop app alike. The marketplace is a
+# directory source: Claude Code loads each mod in place from ycc/mods/<name>,
+# so edits apply on /reload-plugins.
+MODS_MARKETPLACE_NAME="ycc-mods"
+
+# mods_plugin_names — echo one mod name per line from the mods marketplace.
+mods_plugin_names() {
+    python3 - "${SCRIPT_DIR}/ycc/mods/.claude-plugin/marketplace.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as f:
+    for plugin in json.load(f).get("plugins", []):
+        print(plugin["name"])
+PY
+}
+
+# warn_sideloaded_mods — a mod also listed in CLAUDE_CODE_PLUGIN_DIRS (the
+# per-machine sideload a mod is usually developed under) would load twice.
+warn_sideloaded_mods() {
+    local settings="${HOME}/.claude/settings.json"
+    [[ -f "${settings}" ]] || return 0
+    local dirs
+    dirs="$(python3 - "${settings}" <<'PY' 2>/dev/null || true
+import json
+import sys
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as f:
+        env = json.load(f).get("env") or {}
+except (OSError, ValueError):
+    sys.exit(0)
+print(env.get("CLAUDE_CODE_PLUGIN_DIRS", "") if isinstance(env, dict) else "")
+PY
+)"
+    [[ -n "${dirs}" ]] || return 0
+    local name
+    while IFS= read -r name; do
+        if [[ "${dirs}" == *"/${name}"* ]]; then
+            warn "env.CLAUDE_CODE_PLUGIN_DIRS in ${settings} also loads a '${name}' folder (${dirs})."
+            warn "Remove that entry, or '${name}' loads twice once the ${MODS_MARKETPLACE_NAME} plugin is enabled."
+        fi
+    done < <(mods_plugin_names)
+}
+
+# install_claude_mods — register the ycc-mods marketplace (local checkout)
+# and install every mod it lists at user scope.
+install_claude_mods() {
+    command -v claude >/dev/null 2>&1 || {
+        err "'claude' CLI is required but not found in PATH"
+        exit 1
+    }
+    command -v python3 >/dev/null 2>&1 || { err "python3 is required but not found"; exit 1; }
+    command -v realpath >/dev/null 2>&1 || { err "realpath is required but not found"; exit 1; }
+
+    local mods_root
+    mods_root="$(realpath "${SCRIPT_DIR}/ycc/mods")"
+    [[ -f "${mods_root}/.claude-plugin/marketplace.json" ]] || {
+        err "mods marketplace not found: ${mods_root}/.claude-plugin/marketplace.json"
+        exit 1
+    }
+
+    info "Running: claude plugin marketplace add ${mods_root} --scope user"
+    claude plugin marketplace add "${mods_root}" --scope user
+
+    local name count=0
+    while IFS= read -r name; do
+        [[ -n "${name}" ]] || continue
+        info "Running: claude plugin install ${name}@${MODS_MARKETPLACE_NAME} --scope user"
+        claude plugin install "${name}@${MODS_MARKETPLACE_NAME}" --scope user \
+            || warn "plugin install returned non-zero for '${name}' — check 'claude plugin list'"
+        count=$((count + 1))
+    done < <(mods_plugin_names)
+    info "Installed ${count} mod(s) from ${mods_root}"
+
+    warn_sideloaded_mods
+}
+
+# ---------------------------------------------------------------------------
 # Step selection
 # ---------------------------------------------------------------------------
 # step_enabled <step> <target_valid_steps_csv>
@@ -694,7 +784,7 @@ step_enabled() {
 # Echo the comma-separated steps <target> supports for --only.
 valid_steps_for_target() {
     case "$1" in
-        claude) echo "base,settings,rules,mcp,hooks" ;;
+        claude) echo "base,settings,rules,mcp,hooks,mods" ;;
         cursor) echo "base,settings,mcp,rules" ;;
         codex|opencode) echo "base,settings,rules,mcp" ;;
         *) err "valid_steps_for_target: unknown target '$1'"; exit 1 ;;
@@ -732,7 +822,7 @@ validate_only_steps() {
 # Intents describe WHAT the user wants synced; each target maps them onto the
 # steps it actually supports. An intent a target cannot execute is reported and
 # skipped rather than silently falling back to another step.
-VALID_INTENTS=(base settings rules mcp hooks plugins)
+VALID_INTENTS=(base settings rules mcp hooks plugins mods)
 
 # intent_steps_for_target <target> <intent>
 # Echo the comma-separated steps <intent> maps to for <target>. Empty output
@@ -749,10 +839,17 @@ intent_steps_for_target() {
         # extraKnownMarketplaces). Add 'base' explicitly to also run the CLI's
         # marketplace registration, which needs network access.
         claude:plugins) echo "settings" ;;
+        # Mods install from the ycc-mods marketplace via the claude CLI.
+        claude:mods) echo "mods" ;;
 
         cursor:base|cursor:rules|cursor:mcp) echo "${intent}" ;;
         cursor:settings) echo "settings" ;;
         cursor:hooks|cursor:plugins) echo "" ;;
+
+        # Mods are Claude Code only for now. A target gains them by mapping
+        # '<target>:mods' to a step that translates ycc/mods/<name> into that
+        # tool's extension format; until then the intent is reported and skipped.
+        cursor:mods|codex:mods|opencode:mods) echo "" ;;
 
         # MCP has its own scope-aware step; plugin enablement lives in the
         # target's main config file (config.toml / opencode.json).
@@ -905,6 +1002,12 @@ sync_claude_target() {
         # being silently clobbered.
         link_file "${SCRIPT_DIR}/ycc/settings/hooks" "${HOME}/.claude/hooks"
         ran=1
+    fi
+    if step_enabled mods; then
+        printf '\n%sClaude: install mods from the ycc-mods marketplace%s\n' "${BOLD}" "${NC}"
+        install_claude_mods
+        ran=1
+        warn "Run /reload-plugins or start a new Claude Code session to load the mods."
     fi
     if [[ $ran -eq 0 ]]; then
         warn "Claude target ran no steps (pass --settings, --rules, --mcp, --hooks, or --only ...)"

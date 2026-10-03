@@ -24,7 +24,7 @@ complete -c ycc -n $none -a cli -d 'Link install.sh onto PATH as ycc'
 complete -c ycc -n $none -a completion -d 'Print or install shell completion'
 
 complete -c ycc -n $isr -l target -x -a '(__ycc_csv "claude cursor codex opencode all")' -d Targets
-complete -c ycc -n $sr -l intent -x -a '(__ycc_csv "base settings rules mcp hooks plugins")' -d Intents
+complete -c ycc -n $sr -l intent -x -a '(__ycc_csv "base settings rules mcp hooks plugins mods")' -d Intents
 complete -c ycc -n $ir -l only -x -a '(__ycc_csv "base settings rules mcp hooks")' -d Steps
 complete -c ycc -n $is -l mode -x -a 'local repo' -d 'Marketplace source mode'
 complete -c ycc -n $inst -l settings -d 'Also merge settings'
