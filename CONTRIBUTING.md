@@ -144,9 +144,8 @@ generating one from the other would destroy UX content:
 | **Command** | Slash-menu label (concise, flag-aware)                        | Flag documentation tables, usage examples, sibling-command cross-references, agent-type pinning, `$ARGUMENTS` handling, slash-scoped `allowed-tools`. |
 
 **When to opt out with `command: false`**: the skill is passive guidance that
-is never directly slash-invoked (`karpathy-guidelines` is the canonical
-example — behavioral rules the model reads when relevant code work triggers,
-never via `/ycc:karpathy-guidelines`).
+is never directly slash-invoked — coding guidance the model reads when relevant
+work triggers it, rather than via `/ycc:<name>`.
 
 **When NOT to opt out**: if a user might ever type `/ycc:<name>` to run the
 skill deterministically, keep the command — even a minimal one. Argument
