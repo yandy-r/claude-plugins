@@ -141,6 +141,13 @@ ARGUMENTS="${ARGUMENTS//--visual/}"
 4. **--visual**: Boolean flag. Set `VISUAL_MODE=true` if present, else `false`. Terminal decorator — see [## Visual mode](#visual-mode).
 5. **feature-name**: First non-flag argument (required).
 
+**Mutual exclusion (abort before any write)**: If both `--research-only` and `--plan-only` are present, print a usage error and **STOP** — no directory creation, no file writes:
+
+```
+Error: --research-only and --plan-only are mutually exclusive
+Usage: /plan-workflow [--team] [--research-only | --plan-only] [--no-checkpoint] [--optimized] [--dry-run] [--no-worktree] [--visual] [feature-name]
+```
+
 Validate the feature name:
 
 - Must be provided
@@ -149,7 +156,7 @@ Validate the feature name:
 
 **Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools).
 
-**Team opt-in note**: If `--team` is passed and `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment, abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Use --parallel instead, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your Claude Code settings if you intentionally want agent-team dispatch.`
+**Team opt-in note**: If `--team` is passed and `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment, abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Omit --team for standalone dispatch, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your Claude Code settings if you intentionally want agent-team dispatch.`
 
 ### Step 2: Resolve Plans Directory
 
@@ -181,34 +188,70 @@ This script reports:
 
 Based on flags and detected state:
 
-| State                | --plan-only | --research-only | Action                                                             |
-| -------------------- | ----------- | --------------- | ------------------------------------------------------------------ |
-| No shared.md         | N/A         | N/A             | Full workflow from Phase 1; if --research-only, stop after Phase 4 |
-| Has shared.md        | Yes         | N/A             | Skip to Phase 5 (Analysis)                                         |
-| Has shared.md        | No          | Yes             | Skip (already done)                                                |
-| Has shared.md        | No          | No              | Full workflow from Phase 1 (regenerates shared.md)                 |
-| Has parallel-plan.md | Any         | Any             | Warn about overwrite                                               |
+| State                | --plan-only | --research-only | Action                                                                                              |
+| -------------------- | ----------- | --------------- | --------------------------------------------------------------------------------------------------- |
+| No shared.md         | No          | No              | Full workflow from Phase 1                                                                          |
+| No shared.md         | No          | Yes             | Full workflow from Phase 1, stop at Step 15A (research-only stop)                                   |
+| No shared.md         | Yes         | No              | Fail fast in Step 4B — never fall back to research                                                  |
+| Has shared.md        | Yes         | No              | Skip to Phase 5 (Analysis)                                                                          |
+| Has shared.md        | No          | Yes             | Regenerate only if overwrite chosen in Step 4C, then stop at Step 15A; else STOP and reuse existing |
+| Has shared.md        | No          | No              | Full workflow from Phase 1 (shared.md regenerates only if overwrite chosen in Step 4C)              |
+| Has parallel-plan.md | Any         | Any             | Warn about overwrite (Step 4C)                                                                      |
 
 **Note**: "Planning" in this workflow = Phase 8 (Plan Generation). "Analysis" = Phase 5.
 The `--plan-only` flag skips Research + Checkpoint (Phases 1-4) but NOT Analysis (Phase 5).
 
-### Step 5: Create Directory
+### Step 4A: Dry-Run Preview (when `--dry-run`, before anything else)
 
-If `${feature_dir}/` doesn't exist:
-
-```bash
-mkdir -p "${feature_dir}"
-```
-
-### Step 6: Handle Dry Run
-
-If `--dry-run` is present, read and display dry run template:
+If `--dry-run` is present, handle it FIRST — before the prereq gate, before the
+overwrite prompt, before any `mkdir`, write, agent dispatch, or rendering. Read and
+display the dry-run template:
 
 ```bash
 cat ${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/templates/checkpoint-messages.md
 ```
 
-Display the "Dry Run" section from the template with appropriate values substituted, then **STOP**.
+Display the "Dry Run" section with values substituted, then **STOP**. Dry run writes
+nothing, dispatches no agents (`Task`/`Agent`/`TeamCreate`), renders nothing, and never
+prompts. If `--plan-only` is also set and `check-state.sh` shows no `shared.md`, state
+in the preview that a real run would fail fast at Step 4B (missing prerequisite —
+see the fail-fast message there) and STOP.
+
+### Step 4B: Plan-Only Prerequisite Gate (when `--plan-only`, before any write)
+
+If `PLAN_ONLY=true` (and `--dry-run` is **not** set — dry run never reaches here), run
+the prerequisite check **before any `mkdir` or file write**:
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/scripts/check-prerequisites.sh "[feature-name]"
+```
+
+- **Exit 0** → proceed (overwrite choice, then directory creation).
+- **Non-zero** → print the script's output, then print:
+  `run /ycc:shared-context <feature> or /ycc:plan-workflow <feature> --research-only first`, and **STOP**. Never fall back to running research inline under `--plan-only`.
+
+**`--optimized --plan-only` restriction** (documented gate, smallest safe behavior):
+`--optimized --plan-only` requires the five unified analysis files above to already
+exist (from a prior `--optimized` full run); there is no standard-mode Phase 5 to
+regenerate them. After `check-prerequisites.sh` passes, verify the five unified files
+exist **before any write or dispatch**. If any is missing, STOP and tell the user:
+`--optimized --plan-only needs a prior --optimized full run. Run /ycc:plan-workflow <feature> --optimized first.` See also Phase 7 PRE-CHECK.
+
+### Step 4C: Overwrite Choice (when shared.md or parallel-plan.md exists)
+
+If `check-state.sh` reported an existing `shared.md` (full mode or `--research-only`) or `parallel-plan.md`:
+
+- **Interactive (checkpoint enabled)**: surface the matching warning from `templates/checkpoint-messages.md` ("Existing State Warnings") and let the user choose regenerate vs reuse/stop.
+- **Non-interactive (`--no-checkpoint`, including both thin aliases which force it)**: default is **regenerate (overwrite)** so pipelines stay non-blocking. State the choice when proceeding (e.g. "shared.md exists — regenerating (non-interactive default)").
+- **Research-only reuse**: report the existing `shared.md` path, state that no files were changed, print `/ycc:parallel-plan <feature>` as the next step, and **STOP** without dispatching agents.
+
+### Step 5: Create Directory
+
+Only reached when `--dry-run` is **not** set. If `${feature_dir}/` doesn't exist:
+
+```bash
+mkdir -p "${feature_dir}"
+```
 
 ---
 
@@ -308,10 +351,10 @@ Then run:
 
 ```bash
 # Standard mode (4-file research-*.md set):
-${CLAUDE_PLUGIN_ROOT}/skills/shared-context/scripts/validate-research-artifacts.sh "${feature_dir}"
+${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/scripts/validate-research-artifacts.sh "${feature_dir}"
 
 # Optimized mode (5-file unified analysis-*.md set):
-${CLAUDE_PLUGIN_ROOT}/skills/shared-context/scripts/validate-research-artifacts.sh "${feature_dir}" --optimized
+${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/scripts/validate-research-artifacts.sh "${feature_dir}" --optimized
 ```
 
 If `--optimized` was passed, you MUST append `--optimized` to this validator. The validator's default file set (`research-*.md`) does not exist in optimized mode.
@@ -336,12 +379,22 @@ SendMessage to each teammate: message={type: "shutdown_request"}
 
 ### Step 13: Read Research Results
 
-After verifying all files exist, read all research files:
+After verifying all files exist (Step 11 passed), read the input set for the active mode before synthesizing `shared.md`:
+
+**Standard mode (4 research files)**:
 
 1. `${feature_dir}/research-architecture.md`
 2. `${feature_dir}/research-patterns.md`
 3. `${feature_dir}/research-integration.md`
 4. `${feature_dir}/research-docs.md`
+
+**Optimized mode (5 unified analysis files — no `research-*.md` exist)**:
+
+1. `${feature_dir}/analysis-architecture.md`
+2. `${feature_dir}/analysis-patterns.md`
+3. `${feature_dir}/analysis-integration.md`
+4. `${feature_dir}/analysis-docs.md`
+5. `${feature_dir}/analysis-tasks.md`
 
 ### Step 14: Generate shared.md
 
@@ -362,6 +415,15 @@ ${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/scripts/validate-shared.sh "${feature
 ```
 
 Fix any errors before proceeding.
+
+### Step 15A: Research-Only Stop (if `--research-only`)
+
+If `RESEARCH_ONLY=true`, **STOP here** once `shared.md` exists and `validate-shared.sh` passed. Skip Phases 4–9.5 entirely (checkpoint, analysis, planning, validation, visual).
+
+1. If `AGENT_TEAM_MODE=true`, shut down any remaining teammates and call `TeamDelete` (same cleanup as Step 33). Standalone mode has no team.
+2. Print the research-only summary: use "Research Complete Summary" from `templates/checkpoint-messages.md` (standard or optimized variant), listing the artifacts this run actually created — standard: `research-*.md` (4) + `shared.md`; `--optimized`: the five unified `analysis-*.md` files (`analysis-architecture.md`, `analysis-patterns.md`, `analysis-integration.md`, `analysis-docs.md`, `analysis-tasks.md`) + `shared.md` — plus dispatch mode.
+3. Next step line: `/ycc:parallel-plan <feature>` or `/ycc:plan-workflow <feature> --plan-only`.
+4. **STOP** — do not write or dispatch anything further.
 
 ---
 
@@ -472,10 +534,10 @@ Then run:
 
 ```bash
 # Standard mode (3-file set: analysis-context, analysis-code, analysis-tasks):
-${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/validate-analysis-artifacts.sh "${feature_dir}"
+${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/scripts/validate-analysis-artifacts.sh "${feature_dir}"
 
 # Optimized mode (5-file unified set):
-${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/validate-analysis-artifacts.sh "${feature_dir}" --optimized
+${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/scripts/validate-analysis-artifacts.sh "${feature_dir}" --optimized
 ```
 
 If `--optimized` was passed, you MUST append `--optimized` to this validator.
@@ -489,10 +551,10 @@ Run the pre-generation gate script:
 
 ```bash
 # Standard mode:
-${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/persist-or-fail.sh "${feature_dir}"
+${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/scripts/persist-or-fail.sh "${feature_dir}"
 
 # Optimized mode:
-${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/persist-or-fail.sh "${feature_dir}" --optimized
+${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/scripts/persist-or-fail.sh "${feature_dir}" --optimized
 ```
 
 If `--optimized` was passed, you MUST append `--optimized` to the gate script. Without the flag, the gate looks for the standard 3-file set and will incorrectly fail in optimized mode.
@@ -512,16 +574,28 @@ Otherwise, send shutdown requests to all analysis teammates.
 
 ## Phase 7: Read Analysis Results
 
-> **PRE-CHECK**: If `analysis-context.md`, `analysis-code.md`, or `analysis-tasks.md` do not
-> exist in `${feature_dir}/`, Phase 5 was skipped in error. Go back and run Phase 5 now.
+> **PRE-CHECK — branch on execution mode**:
+>
+> - **Standard**: if `analysis-context.md`, `analysis-code.md`, or `analysis-tasks.md` do not exist in `${feature_dir}/`, Phase 5 was skipped in error. Go back and run Phase 5 now.
+> - **Optimized**: the five unified files below must exist (produced by Phase 1 unified agents, gated by Step 22). If any is missing, STOP and tell the user: `--optimized --plan-only needs a prior --optimized full run. Run /ycc:plan-workflow <feature> --optimized first.` Optimized mode has no Phase 5 to regenerate them.
 
 ### Step 24: Read Analysis Results
 
-After verifying all files exist, read all analysis files:
+After verifying all files exist, read the file set for the active mode:
+
+**Standard mode (3 files)**:
 
 1. `${feature_dir}/analysis-context.md`
 2. `${feature_dir}/analysis-code.md`
 3. `${feature_dir}/analysis-tasks.md`
+
+**Optimized mode (5 unified files)**:
+
+1. `${feature_dir}/analysis-architecture.md`
+2. `${feature_dir}/analysis-patterns.md`
+3. `${feature_dir}/analysis-integration.md`
+4. `${feature_dir}/analysis-docs.md`
+5. `${feature_dir}/analysis-tasks.md`
 
 ---
 
@@ -574,15 +648,9 @@ In the `--team` Path B additionally cross-reference
 shared-worktree team dispatch: all parallel teammates operate against the same
 feature worktree path, not separate per-task paths.
 
-### Step 27: Validate Plan Structure
+### Step 27: Plan Structure Check (deferred)
 
-Run the validation script:
-
-```bash
-${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/scripts/validate-workflow-plan.sh "${feature_dir}/parallel-plan.md"
-```
-
-Fix any structural issues found.
+Structural validation (`validate-workflow-plan.sh`) runs **once**, on the final artifact, in Step 31A — after validation-agent fixes. Do not run it against the pre-validation draft.
 
 ---
 
@@ -648,7 +716,16 @@ After validators complete:
   - Correct invalid file paths
   - Resolve circular dependencies
   - Add missing details to incomplete tasks
-- Re-run validation if significant changes made.
+
+### Step 31A: Validate Final Plan Structure
+
+After all fixes, run once on the final artifact (before visual/completion):
+
+```bash
+${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/scripts/validate-workflow-plan.sh "${feature_dir}/parallel-plan.md"
+```
+
+Fix any structural errors it reports (missing `### Phase` is an error); do not proceed until it exits 0.
 
 ### Step 32: Shut Down Validation Teammates (if `--team`)
 
@@ -692,7 +769,7 @@ TeamDelete
 
 ### Step 34: Display Completion Summary
 
-Provide a comprehensive summary:
+Skipped entirely when `RESEARCH_ONLY=true` (workflow ended at Step 15A with the research-only summary) or when the user stopped at the checkpoint. Otherwise provide a comprehensive summary — list only files this run actually created (`--plan-only`: omit Research Phase files; `--research-only` never reaches here):
 
 ```markdown
 # Plan Workflow Complete
@@ -705,6 +782,8 @@ Provide a comprehensive summary:
 
 ### Research Phase
 
+Standard: the four `research-*.md` files below. Optimized: omit them and list the five unified `analysis-*.md` files under Analysis Phase instead.
+
 - ${feature_dir}/research-architecture.md
 - ${feature_dir}/research-patterns.md
 - ${feature_dir}/research-integration.md
@@ -713,9 +792,13 @@ Provide a comprehensive summary:
 
 ### Analysis Phase
 
+Standard: three files. Optimized: five unified files.
+
 - ${feature_dir}/analysis-context.md
 - ${feature_dir}/analysis-code.md
 - ${feature_dir}/analysis-tasks.md
+
+Optimized set: `analysis-architecture.md`, `analysis-patterns.md`, `analysis-integration.md`, `analysis-docs.md`, `analysis-tasks.md`.
 
 ### Planning Phase
 
@@ -725,10 +808,10 @@ Provide a comprehensive summary:
 
 - Dispatch Mode: [standalone sub-agents | agent team pw-[feature-name]]
 - Execution Mode: [standard/optimized]
-- Research agents: 4
-- Analysis agents: [3/0 depending on execution mode]
-- Validation agents: [3/2 depending on execution mode]
-- Total agents: [10/7]
+- Research agents: [4 standard / 0 optimized (unified agents counted under Analysis)]
+- Analysis agents: [3 standard / 5 optimized (unified)]
+- Validation agents: [3 standard / 2 optimized]
+- Total agents: [10 standard / 7 optimized]
 - Inter-agent sharing: [Disabled (Path A) | Enabled — teammates shared findings within each phase (Path B)]
 
 ## Plan Overview
@@ -784,14 +867,16 @@ Dispatch follows the same Path A / Path B split as standard mode:
 
 **Total**: 7 agents instead of 10, 2 stages instead of 3.
 
+**`--optimized --plan-only`**: reuses the five unified artifacts from a prior `--optimized` full run; there is no Phase 5 to regenerate them. Enforced at Step 4B (before any write) and re-checked by the Phase 7 PRE-CHECK.
+
 ### Optimized Mode Validation
 
 Step 11 (research validator), Step 21 (analysis validator), and Step 22 (pre-generation gate) all accept an `--optimized` flag and MUST be invoked with it when `--optimized` was passed to the skill:
 
 ```bash
-${CLAUDE_PLUGIN_ROOT}/skills/shared-context/scripts/validate-research-artifacts.sh "${feature_dir}" --optimized
-${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/validate-analysis-artifacts.sh "${feature_dir}" --optimized
-${CLAUDE_PLUGIN_ROOT}/skills/parallel-plan/scripts/persist-or-fail.sh "${feature_dir}" --optimized
+${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/scripts/validate-research-artifacts.sh "${feature_dir}" --optimized
+${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/scripts/validate-analysis-artifacts.sh "${feature_dir}" --optimized
+${CLAUDE_PLUGIN_ROOT}/skills/plan-workflow/scripts/persist-or-fail.sh "${feature_dir}" --optimized
 ```
 
 In optimized mode, the gate's `MISSING_FILES` set is the 5 unified files: `analysis-architecture.md`, `analysis-patterns.md`, `analysis-integration.md`, `analysis-docs.md`, `analysis-tasks.md`. If any are missing, re-dispatch the failing agent — do NOT have the orchestrator write the file itself from a captured summary.

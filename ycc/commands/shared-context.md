@@ -5,6 +5,8 @@ argument-hint: '[--team] [feature-name] [--dry-run]'
 
 # Shared Context Command
 
+Thin alias for `ycc:plan-workflow --research-only` (research stage with `--no-checkpoint`).
+
 Build the shared context document for the specified feature.
 
 **Load and follow the `ycc:shared-context` skill**, passing through `$ARGUMENTS`.

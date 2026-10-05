@@ -179,7 +179,7 @@ fi
 # Check for pattern examples
 echo ""
 echo "Checking patterns..."
-PATTERN_COUNT=$(echo "$CONTENT" | sed -n '/^## Relevant Patterns/,/^## /p' | grep -c "^\*\*" || echo "0")
+PATTERN_COUNT=$(echo "$CONTENT" | sed -n '/^## Relevant Patterns/,/^## /p' | grep -c "^\*\*" || true)
 
 if [[ $PATTERN_COUNT -eq 0 ]]; then
   warning "No patterns found (format: **Pattern Name**: description)"
@@ -187,7 +187,7 @@ else
   success "Found $PATTERN_COUNT pattern(s)"
 
   # Check if patterns have example links
-  PATTERNS_WITH_LINKS=$(echo "$CONTENT" | sed -n '/^## Relevant Patterns/,/^## /p' | grep -c "\[.*\](.*)" || echo "0")
+  PATTERNS_WITH_LINKS=$(echo "$CONTENT" | sed -n '/^## Relevant Patterns/,/^## /p' | grep -c "\[.*\](.*)" || true)
   if [[ $PATTERNS_WITH_LINKS -lt $PATTERN_COUNT ]]; then
     warning "Some patterns missing example links"
   fi
@@ -196,7 +196,7 @@ fi
 # Check for must-read documentation
 echo ""
 echo "Checking documentation references..."
-MUST_READ_COUNT=$(echo "$CONTENT" | sed -n '/^## Relevant Docs/,/^## /p' | grep -c "_must_" || echo "0")
+MUST_READ_COUNT=$(echo "$CONTENT" | sed -n '/^## Relevant Docs/,/^## /p' | grep -c "_must_" || true)
 
 if [[ $MUST_READ_COUNT -eq 0 ]]; then
   warning "No 'must read' documentation marked (use: You _must_ read this...)"

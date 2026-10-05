@@ -1,13 +1,25 @@
 ---
 name: parallel-plan
-description: Create detailed parallel implementation plans by running analysis and
-  validation stages, then synthesizing dependency-aware tasks into parallel-plan.md.
-  Use after shared-context to prepare implementation-ready planning artifacts. Defaults
-  to standalone parallel sub-agents via the parallel agent workflow; pass `--team`
-  (Codex runtime only; not available in bundle invocations) to orchestrate the analysis
-  and validation stages as teammates under a shared create an agent group/the task
-  tracker with coordinated shutdown.
+description: Create detailed parallel implementation plans (alias for plan-workflow
+  plan-only). Runs analysis and validation stages, then synthesizes dependency-aware
+  tasks into parallel-plan.md. Use after shared-context to prepare implementation-ready
+  planning artifacts. Pass `--team` (Codex runtime only; not available in bundle invocations)
+  to orchestrate analysis and validation stages as teammates under a shared create
+  an agent group/the task tracker with coordinated shutdown.
 ---
+
+## MANDATORY FORCED MODE - READ FIRST
+
+This skill is a thin alias. It ALWAYS runs canonical `plan-workflow` with
+`--plan-only --no-checkpoint` (use existing `shared.md`, no interactive
+checkpoint), regardless of `$ARGUMENTS`.
+
+**Flag policy (unambiguous):**
+
+- Supported: the feature name, `--team`, `--dry-run`, `--no-worktree`, `--visual`.
+- Silent no-op (legacy): `--worktree`.
+- Redundant — silently ignored because already forced: `--plan-only`, `--no-checkpoint`.
+- Every other flag (including `--research-only`, `--optimized`, and any unknown `-`/`--` token) → abort with the usage error below. Do not read the canonical skill or write anything.
 
 ## SCOPE LIMITATION - READ FIRST
 
@@ -29,9 +41,7 @@ After creating planning artifacts and displaying the summary, **STOP COMPLETELY*
 
 ---
 
-# Parallel Implementation Plan Creator
-
-Create `parallel-plan.md` by running analysis and validation stages — standalone sub-agents by default, or agent teams with `--team` (Codex runtime only; not available in bundle invocations) where teammates share findings with each other — synthesizing implementation tasks, and validating plan quality.
+# Parallel Plan (alias)
 
 ## Workflow Integration
 
@@ -39,550 +49,60 @@ Create `parallel-plan.md` by running analysis and validation stages — standalo
 shared-context (step 1) -> parallel-plan (this skill) -> implement-plan (step 3)
 ```
 
-This skill requires `${feature_dir}/shared.md` and ends after producing analysis artifacts and `parallel-plan.md`.
+This skill requires `${feature_dir}/shared.md` and ends after producing
+analysis artifacts and `parallel-plan.md`. The user manually runs
+`/implement-plan` when ready.
 
-**BOUNDARY**: This skill ENDS after creating `parallel-plan.md`. The user manually runs `/implement-plan` when ready.
-
-**If shared.md doesn't exist**, run `/shared-context [feature-name]` first.
+**If shared.md doesn't exist**: canonical `plan-workflow/scripts/check-prerequisites.sh`
+fails fast in plan-only mode. Stop and tell the user to run
+`/shared-context [feature-name]` first. Do NOT fall back to research.
 
 ## Arguments
 
 **Target**: `$ARGUMENTS`
 
-Parse arguments (flags first, then the feature name):
-
-- **--team**: Optional. (Codex runtime only; not available in bundle invocations) Deploy the analysis and validation stages as teammates under a shared `create an agent group`/`the task tracker` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
-- **--worktree**: Optional. (legacy — now default; safe to omit) Worktree annotations are emitted by default. Accepted as a silent no-op so existing pipelines continue to work.
-- **--no-worktree**: Optional. Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.
+- **--team**: Optional. (Codex runtime only; not available in bundle invocations) Deploy analysis and validation stages as teammates. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
+- **--worktree**: Optional. (legacy — now default; safe to omit) Worktree annotations are emitted by default. Accepted as a silent no-op.
+- **--no-worktree**: Optional. Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section.
 - **--visual**: Optional. Render the finished plan as an Agent-Native visual artifact (MDX) via `visual-plan`; local-files by default, hosted link requires `--share`.
-- **--dry-run**: Show what would be created without making changes. With `--team`, also prints the team name and teammate roster.
+- **--dry-run**: Show what would be created without making changes. Writes nothing.
 - **feature-name**: Required. Matches directory name in `${PLANS_DIR}`.
 
-If no feature name provided, abort with usage instructions:
+If any unsupported flag is present (see Flag policy above), abort with a usage error and STOP:
 
 ```
 Usage: /parallel-plan [--team] [--no-worktree] [--visual] [feature-name] [--dry-run]
-
-Examples:
-  /parallel-plan user-authentication
-  /parallel-plan payment-integration --dry-run
-  /parallel-plan --team payment-integration
-  /parallel-plan --team --dry-run user-authentication
-  /parallel-plan user-authentication                     # worktree annotations included by default
-  /parallel-plan --no-worktree user-authentication       # skip worktree annotations
-  /parallel-plan --visual user-authentication            # also render the plan as a visual artifact
+This alias always runs plan-workflow --plan-only --no-checkpoint.
+Unsupported flag: <flag>
 ```
 
----
-
-## Visual mode
-
-`--visual` follows the canonical contract at `~/.codex/plugins/ycc/shared/references/visual-mode.md`. It is a **terminal decorator**, not a dispatch mode: it does not change how the plan is researched, dispatched, or written, and composes orthogonally with `--team` and `--no-worktree`.
-
-When `VISUAL_MODE` is set and not `--dry-run`, after the final phase (plan written in Phase 4, validated in Phase 6 Step 21) the skill invokes `visual-plan <absolute-plan-path>` on the **actual written plan path** — the absolute path of `${feature_dir}/parallel-plan.md`. The bootstrap invocation lives in Step 21.5.
-
-When `--dry-run` is also present, `--visual` is short-circuited (see Step 4): the skill prints `visual generation would run` and generates no artifact, directory, or link.
-
----
-
-## Phase 0: Prerequisites and Dry Run Check
-
-### Step 1: Resolve Plans Directory
-
-Use the shared resolver to determine the correct plans directory:
-
-```bash
-source ~/.codex/plugins/ycc/shared/scripts/resolve-plans-dir.sh
-feature_dir="$(get_feature_plan_dir "[feature-name]")"
-```
-
-### Step 2: Parse Arguments and Validate Prerequisites
-
-Extract from `$ARGUMENTS`:
-
-1. **--team**: Boolean flag. Set `AGENT_TEAM_MODE=true` if present, else `false`.
-2. **--dry-run**: Boolean flag. Set `DRY_RUN=true` if present, else `false`.
-3. **--no-worktree / --worktree**: Default `WORKTREE_MODE=true`. Set `WORKTREE_MODE=false` if `--no-worktree` is present. `--worktree` is accepted as a legacy no-op (matches the default).
-4. **--visual**: Boolean flag. Set `VISUAL_MODE=true` if present, else `false`.
-5. **feature-name**: First non-flag argument (required).
-
-```bash
-# Default ON; pass --no-worktree to opt out. --worktree accepted as legacy no-op.
-WORKTREE_MODE=true
-case " $ARGUMENTS " in
-  *" --no-worktree "*) WORKTREE_MODE=false ;;
-esac
-ARGUMENTS="${ARGUMENTS//--no-worktree/}"
-ARGUMENTS="${ARGUMENTS//--worktree/}"  # legacy no-op
-
-VISUAL_MODE=false
-case " $ARGUMENTS " in
-  *" --visual "*) VISUAL_MODE=true ;;
-esac
-ARGUMENTS="${ARGUMENTS//--visual/}"
-```
-
-`--visual` is orthogonal — it composes with `--team`/`--no-worktree` and runs after the plan is written and validated. `--dry-run` short-circuits it (prints intent only); see Step 4 and the `## Visual mode` section.
-
-**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools).
-
-**Team opt-in note**: If `--team` is passed and `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment, abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Use --parallel instead, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your Codex settings if you intentionally want agent-team dispatch.`
-
-Run the prerequisites check script:
-
-```bash
-~/.codex/plugins/ycc/skills/parallel-plan/scripts/check-prerequisites.sh [feature-name]
-```
-
-If the script exits with error:
-
-- Display the error message
-- Instruct user to run `/shared-context` first to create the shared context document
-- **STOP HERE** - do not proceed
-
-### Step 3: Verify Planning Documents
-
-Confirm these files exist in `${feature_dir}/`:
-
-- `shared.md` (required)
-- `requirements.md` (optional but helpful)
-
-### Step 4: Handle Dry Run
-
-If `--dry-run` is present in `$ARGUMENTS`:
-
-Display:
-
-```markdown
-# Dry Run: Parallel Plan for [feature-name]
-
-## Dispatch Mode
-
-Mode: [standalone sub-agents | agent team pp-[feature-name]]
-
-### Phase 1: Analysis Agents (3)
-
-1. context-synthesizer - Condense planning documentation
-2. code-analyzer - Extract code patterns from relevant files
-3. task-structurer - Suggest task breakdown and phases
-
-### Phase 2: Validation Agents (3)
-
-1. path-validator - Verify all paths exist
-2. dependency-validator - Check dependency graph
-3. completeness-validator - Ensure tasks are actionable
-
-## Files That Would Be Created
-
-- ${PLANS_DIR}/[feature-name]/analysis-context.md (by context-synthesizer)
-- ${PLANS_DIR}/[feature-name]/analysis-code.md (by code-analyzer)
-- ${PLANS_DIR}/[feature-name]/analysis-tasks.md (by task-structurer)
-- ${PLANS_DIR}/[feature-name]/parallel-plan.md (final plan)
-
-## Execution Model
-
-- Default (`AGENT_TEAM_MODE=false`): Phase 1 deploys 3 analysis agents as standalone sub-agents in a single message with multiple `Task` calls. No team coordination; each sub-agent writes its assigned `analysis-*.md`. Orchestrator validates, persists, and generates the plan. Phase 2 deploys 3 validation sub-agents the same way. No inter-agent sharing.
-- With `--team` (`AGENT_TEAM_MODE=true`): create team `pp-[feature-name]`, register analysis tasks, spawn 3 analysis teammates under the team, validate, generate plan, register validation tasks, spawn 3 validation teammates, review, then `close the agent group`. Teammates share findings via `send follow-up instructions`.
-
-## Worktree Annotations
-
-- `WORKTREE_MODE=true` (default): `parallel-plan.md` will include a `## Worktree Setup` section listing the single feature worktree (`**Parent**:` only). All tasks — parallel and sequential — run inside this one worktree path; no per-task annotations are emitted.
-- `WORKTREE_MODE=false` (`--no-worktree`): no worktree annotations in `parallel-plan.md`.
-
-## Next Steps
-
-Remove --dry-run flag to create the plan.
-```
-
-If `AGENT_TEAM_MODE=true`, additionally print the team roster block:
+If no feature name provided, abort with the same usage plus examples:
 
 ```
-Team name:      pp-<sanitized-feature-name>
-Teammates:      6 across 2 batches
-  Batch 1 (analysis):
-    - context-synthesizer    subagent_type=codebase-research-analyst  task=Condense planning docs
-    - code-analyzer          subagent_type=codebase-research-analyst  task=Extract code patterns
-    - task-structurer        subagent_type=codebase-research-analyst  task=Suggest task breakdown
-  Batch 2 (validation):
-    - path-validator         subagent_type=explore                     task=Verify file paths exist
-    - dependency-validator   subagent_type=explore                     task=Check dependency graph
-    - completeness-validator subagent_type=codebase-research-analyst   task=Ensure tasks actionable
+/parallel-plan user-authentication
+/parallel-plan payment-integration --dry-run
+/parallel-plan --team payment-integration
+/parallel-plan --no-worktree user-authentication
+/parallel-plan --visual user-authentication
 ```
 
-Do **not** call `create an agent group`, `record the task`, `Agent`, `Task`, `send follow-up instructions`, or `close the agent group` in dry-run mode.
+## Execution
 
-If `VISUAL_MODE=true`, the `--visual` step is **short-circuited** by `--dry-run`: print intent ONLY and generate no visual artifact (`--dry-run` always wins over `--visual`):
-
-```
-visual generation would run
-```
-
-Do **not** invoke `visual-plan` or create any `visual/` directory or link in dry-run mode.
-
-**STOP HERE** - do not write files or deploy agents.
-
----
-
-## Phase 1: Analysis Stage
-
-### Step 5: Team Setup (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step entirely — the default path dispatches standalone sub-agents in Step 8.
-
-If `AGENT_TEAM_MODE=true`, follow the universal lifecycle contract at
-`~/.codex/plugins/ycc/shared/references/agent-team-dispatch.md`.
-
-Create an agent team for the planning workflow:
+Build the **effective `$ARGUMENTS`** for canonical `plan-workflow`:
 
 ```
-create an agent group: team_name="pp-[feature-name]", description="Planning team for [feature-name] parallel plan"
+<feature-name> --plan-only --no-checkpoint [--team] [--dry-run] [--no-worktree] [--visual]
 ```
 
-On failure, abort the skill with the `create an agent group` error message. Do NOT silently fall back to sub-agent mode.
-
-### Step 6: Create Analysis Tasks (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step entirely — standalone `Task` dispatch does not use the shared task list.
-
-If `AGENT_TEAM_MODE=true`, create 3 tasks in the shared task list:
-
-1. **"Synthesize planning context for [feature-name]"** — Condense planning docs into actionable summary
-2. **"Analyze code patterns for [feature-name]"** — Extract code patterns from relevant files
-3. **"Suggest task structure for [feature-name]"** — Propose task breakdown and phases
-
-If `record the task` fails for any task, call `close the agent group` and abort.
-
-### Step 7: Read Analysis Prompt Templates
-
-Read the analysis prompt templates:
-
-```bash
-cat ~/.codex/plugins/ycc/skills/parallel-plan/templates/analysis-prompts.md
-```
-
-### Step 8: Spawn Analysis Agents
-
-| Name / Teammate `name` | Subagent Type               | Model  | Focus                  | Output File           |
-| ---------------------- | --------------------------- | ------ | ---------------------- | --------------------- |
-| `context-synthesizer`  | `codebase-research-analyst` | sonnet | Condense planning docs | `analysis-context.md` |
-| `code-analyzer`        | `codebase-research-analyst` | sonnet | Extract code patterns  | `analysis-code.md`    |
-| `task-structurer`      | `codebase-research-analyst` | sonnet | Suggest task breakdown | `analysis-tasks.md`   |
-
-**Model Assignment**: Pass `model: "sonnet"` for all analysis agents.
-
-Use the prompts from `analysis-prompts.md` with variables substituted:
-
-- `{{FEATURE_NAME}}` - The feature directory name
-- `{{FEATURE_DIR}}` - Full output directory path (`${feature_dir}`, resolved in Step 1)
-
-**Why this is parallelized**: This prevents loading 50-100K+ tokens of raw files into main context. The analysis agents read everything and return 5-10K tokens of condensed, actionable analysis.
-
-#### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
-
-**CRITICAL**: Deploy all 3 analysis agents in a **SINGLE message** with **MULTIPLE `Task` tool calls**. No `team_name` — standalone dispatch. Each `Task` call uses the `subagent_type` and `model` from the table above and the corresponding prompt from `analysis-prompts.md`.
-
-In this mode there is no shared task list; rely on each `Task`'s return value plus the artifact checks in Steps 10–11 to confirm completion. Inter-agent `send follow-up instructions` coordination is not available — each sub-agent works independently from the prompt alone.
-
-**WORKTREE MODE (Path A)**: By default (`WORKTREE_MODE=true`), append the following directive to the `task-structurer` prompt. Omit when `--no-worktree` was passed (`WORKTREE_MODE=false`):
-
-> WORKTREE MODE: In your `analysis-tasks.md` output, clearly label each task as **parallel** (can run concurrently with siblings) or **sequential** (must follow a predecessor). This labeling is used by the orchestrator for batch ordering. Follow `ycc/skills/_shared/references/worktree-strategy.md` for the single-worktree contract.
-
-#### Path B — Agent team (`AGENT_TEAM_MODE=true`)
-
-> **MANDATORY — AGENT TEAMS REQUIRED**
->
-> In Path B you MUST follow the agent-team lifecycle at
-> `~/.codex/plugins/ycc/shared/references/agent-team-dispatch.md`.
-> Do NOT mix standalone `Task` calls with team dispatch.
-
-All 3 `record the task` entries were registered up front in Step 6 — do not re-create them here.
-
-Spawn all 3 teammates in **ONE message** with **THREE `Agent` tool calls**. Every call MUST include:
-
-- `team_name = "pp-[feature-name]"`
-- `name = "<teammate-name>"` (from the table above — must match the `record the task` subject prefix)
-- `subagent_type` and `model` from the table above
-- The analysis-specific prompt from `analysis-prompts.md`
-
-**WORKTREE MODE (Path B)**: By default (`WORKTREE_MODE=true`), append the following directive to the `task-structurer` prompt (same directive as Path A above). Omit when `--no-worktree` was passed. Cross-reference `ycc/skills/_shared/references/worktree-strategy.md` (single-worktree contract) and `agent-team-dispatch.md` §7 in the teammate prompt.
-
-After spawning, use `the task tracker` to confirm all 3 tasks are `completed` before proceeding to Step 10.
-
-### Step 9: Monitor Analysis Progress
-
-Wait for all 3 analysis agents to complete their work.
-
-- **Path A (standalone, default)**: rely on `Task` return values; each sub-agent writes its `analysis-*.md` artifact before returning.
-- **Path B (`--team`)**: use `the task tracker` to check progress. Teammates share findings with each other via `send follow-up instructions`. If a teammate gets stuck, send them guidance via `send follow-up instructions`.
-
-When all 3 analysis tasks are complete, proceed to validation.
-
----
-
-## Phase 2: Validate and Persist Analysis Artifacts
-
-### Step 10: Validate Analysis Artifacts
-
-After teammates complete, validate all analysis files:
-
-```bash
-~/.codex/plugins/ycc/skills/parallel-plan/scripts/validate-analysis-artifacts.sh "${feature_dir}"
-```
-
-If validation fails, message the relevant teammate to fix their output and retry.
-
-### Step 11: Pre-Generation Gate (MANDATORY — cannot be skipped)
-
-Run the pre-generation gate script:
-
-```bash
-~/.codex/plugins/ycc/skills/parallel-plan/scripts/persist-or-fail.sh "${feature_dir}"
-```
-
-- **Exit 0** → proceed to Phase 3
-- **Exit 1** → the script prints `MISSING_FILES` and `ACTION_REQUIRED`. Message the failing teammate to re-write, then re-run this gate until it passes (exit 0)
-
-**Do NOT proceed to plan generation until `persist-or-fail.sh` exits 0.**
-
-### Step 12: Shut Down Analysis Teammates (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step — standalone sub-agents return on their own.
-
-Otherwise, send shutdown requests to all analysis teammates:
-
-```
-send follow-up instructions to each teammate: a shutdown request
-```
-
----
-
-## Phase 3: Read Analysis
-
-### Step 13: Read Condensed Analysis Files
-
-After verifying all files exist, read only the condensed analysis outputs:
-
-1. `${feature_dir}/analysis-context.md` - Planning context synthesis
-2. `${feature_dir}/analysis-code.md` - Code pattern analysis
-3. `${feature_dir}/analysis-tasks.md` - Task structure suggestions
-
-These files contain 60-80% compressed insights versus reading all source files directly.
-
----
-
-## Phase 4: Plan Generation
-
-### Step 14: Generate Implementation Plan
-
-Read the plan template structure:
-
-```bash
-cat ~/.codex/plugins/ycc/skills/parallel-plan/templates/plan-structure.md
-```
-
-Create `${feature_dir}/parallel-plan.md` following the template exactly:
-
-#### Required Sections
-
-**Title & Overview**
-
-- Feature name as title
-- 3-4 sentence information-dense breakdown
-- Explain what needs to be done and why
-
-**Critically Relevant Files and Documentation**
-
-```markdown
-## Critically Relevant Files and Documentation
-
-- /path/to/file: Brief description of relevance
-- /path/to/doc: When to reference this
-```
-
-**Implementation Plan**
-
-```markdown
-## Implementation Plan
-
-### Phase 1: [Phase Name]
-
-#### Task 1.1: [Task Title] Depends on [none]
-
-**READ THESE BEFORE TASK**
-
-- /file/path
-- /doc/path
-
-**Instructions**
-
-Files to Create
-
-- /file/path
-
-Files to Modify
-
-- /file/path
-
-[Concise instructions on implementation]
-```
-
-**Advice Section**
-
-```markdown
-## Advice
-
-- Insight that emerged from seeing the full picture
-- Cross-cutting concerns and gotchas
-- Specific warnings about code dependencies
-```
-
-#### WORKTREE MODE (default — `WORKTREE_MODE=true`; skipped when `--no-worktree`)
-
-By default, the generated `${feature_dir}/parallel-plan.md` must include a single
-worktree section. When `--no-worktree` was passed (`WORKTREE_MODE=false`), omit this
-section entirely. Follow `~/.codex/plugins/ycc/shared/references/worktree-strategy.md`
-exactly for the single-worktree contract.
-
-**Top-level `## Worktree Setup` section** — insert immediately after the title
-and overview, before the first phase heading:
-
-```markdown
-## Worktree Setup
-
-- **Parent**: <repo-root>/.codex/worktrees/<repo>-<feature-slug>/ (branch: feat/<feature-slug>)
-```
-
-All tasks — parallel and sequential — run inside this one feature worktree. No
-per-task `**Worktree**:` annotations are emitted. The `<feature-slug>` is the
-sanitized feature name already used in `${feature_dir}` (same slug, lowercase,
-hyphens).
-
-> **Plan-file handoff**: leave `parallel-plan.md` and `shared.md` in `docs/plans/<feature-slug>/` (main checkout). The implementor (`implement-plan`) will **move** them into the feature worktree once it's created — never copied. See `worktree-strategy.md` §7.
-
-### Step 15: Task Breakdown Guidelines
-
-For each task ensure:
-
-**Task Granularity**
-
-- Completable in single focused session
-- Modifies 1-3 files maximum
-- Clear, actionable instructions
-
-**Dependencies**
-
-- Use `Depends on [none]` for independent tasks (maximize parallelism)
-- Use `Depends on [1.1, 2.3]` for tasks requiring prior work
-- Avoid long dependency chains (prefer wide over deep)
-- Each phase should have at least one independent task
-
-**File References**
-
-- Use relative paths from project root
-- Include line numbers for specific code references
-- Group related files together
-- Link to documentation files for context
-
----
-
-## Phase 5: Validation Stage
-
-### Step 16: Create Validation Tasks (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step entirely — standalone `Task` dispatch does not use the shared task list.
-
-If `AGENT_TEAM_MODE=true`, create 3 validation tasks in the shared task list:
-
-1. **"Validate file paths in [feature-name] plan"** — Verify all referenced files exist
-2. **"Validate dependency graph in [feature-name] plan"** — Check for circular/invalid dependencies
-3. **"Validate task completeness in [feature-name] plan"** — Ensure tasks are actionable
-
-### Step 17: Read Validation Prompts
-
-```bash
-cat ~/.codex/plugins/ycc/skills/parallel-plan/templates/validation-prompts.md
-```
-
-### Step 18: Spawn Validation Agents
-
-| Name / Teammate `name`   | Subagent Type               | Model  | Focus                                   |
-| ------------------------ | --------------------------- | ------ | --------------------------------------- |
-| `path-validator`         | `explore`                   | haiku  | Verify all referenced files exist       |
-| `dependency-validator`   | `explore`                   | haiku  | Check for circular/invalid dependencies |
-| `completeness-validator` | `codebase-research-analyst` | sonnet | Ensure tasks are actionable             |
-
-**Model Assignment**: Pass `model: "haiku"` for path-validator and dependency-validator, `model: "sonnet"` for completeness-validator.
-
-#### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
-
-**CRITICAL**: Deploy all 3 validation agents in a **SINGLE message** with **MULTIPLE `Task` tool calls**. No `team_name`. Each `Task` call uses the `subagent_type` and `model` from the table above and the corresponding prompt from `validation-prompts.md`. Rely on each `Task`'s return value for validator findings.
-
-#### Path B — Agent team (`AGENT_TEAM_MODE=true`)
-
-Spawn all 3 validation teammates in **ONE message** with **THREE `Agent` tool calls**, each with `team_name="pp-[feature-name]"` and the matching `name=` from the table above. The 3 validation tasks registered in Step 16 are used here.
-
-After spawning, use `the task tracker` to confirm all 3 tasks are `completed`.
-
-### Step 19: Review Validation Results
-
-After validators complete:
-
-- **Path A (standalone, default)**: review each `Task` return value for validator findings.
-- **Path B (`--team`)**: review findings from each validator (check their messages and task completions).
-- Fix any issues identified:
-  - Correct invalid file paths
-  - Resolve circular dependencies
-  - Add missing details to incomplete tasks
-- Re-run validation if significant changes made.
-
-### Step 20: Shut Down Validation Teammates (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step — standalone sub-agents return on their own.
-
-Otherwise, send shutdown requests to all validation teammates.
-
----
-
-## Phase 6: Output & Summary
-
-### Step 21: Validate Plan Structure
-
-Run the validation script:
-
-```bash
-~/.codex/plugins/ycc/skills/parallel-plan/scripts/validate-parallel-plan.sh "${feature_dir}/parallel-plan.md"
-```
-
-Report any structural issues found.
-
-### Step 21.5: Visual Artifact (if `--visual`)
-
-If `VISUAL_MODE=false`, skip this step entirely.
-
-This step runs **only after** the plan has been written (Step 14) and validated (Step 21). Follow the canonical contract at `~/.codex/plugins/ycc/shared/references/visual-mode.md`. `--visual` is a terminal decorator: it never re-runs research, dispatch, or plan generation.
-
-- If `DRY_RUN=true`, this step was already short-circuited in Step 4 (printed `visual generation would run`); do **not** generate anything here.
-- Otherwise, when `VISUAL_MODE=true` and not `--dry-run`, invoke `visual-plan` on the **actual written plan path** (the absolute path of `${feature_dir}/parallel-plan.md`):
-
-```
-visual-plan <absolute-path-to-${feature_dir}/parallel-plan.md>
-```
-
-Surface whatever link `visual-plan` prints (hosted shareable URL with `--share`, localhost preview, or `local files only`). Do not re-derive the output path — `visual-plan` derives `visual/` relative to the plan path and leaves the plan file byte-for-byte intact.
-
-### Step 22: Clean Up Team (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step — there is no team to tear down.
-
-Otherwise, delete the team and its resources:
-
-```
-close the agent group
-```
-
-### Step 23: Display Summary
-
-Provide completion summary:
+(optional flags only if the user passed them; `--worktree` maps to nothing —
+it is a legacy no-op; user-supplied redundant `--plan-only` / `--no-checkpoint`
+are dropped, not duplicated.)
+
+1. Read `~/.codex/plugins/ycc/skills/plan-workflow/SKILL.md`.
+2. Execute as orchestrator with the effective `$ARGUMENTS` above substituted for `$ARGUMENTS`, so the canonical parser itself sets `PLAN_ONLY=true` and `NO_CHECKPOINT=true` (those variables are explanatory only — never invocation syntax).
+3. On completion print the plan summary and STOP. Never implement.
+
+## Summary
 
 ```markdown
 # Parallel Plan Created
@@ -593,151 +113,15 @@ ${feature_dir}/parallel-plan.md
 
 ## Analysis Files Generated
 
-- ${feature_dir}/analysis-context.md (Planning context synthesis)
-- ${feature_dir}/analysis-code.md (Code pattern analysis)
-- ${feature_dir}/analysis-tasks.md (Task structure suggestions)
-
-## Dispatch Summary
-
-- Mode: [standalone sub-agents | agent team pp-[feature-name]]
-- Phase 1: 3 analysis agents [standalone via Task | teammates that shared findings]
-- Phase 2: 3 validation agents [standalone via Task | teammates that cross-checked each other]
-- Worktree setup: [single feature worktree section included (default) | omitted (--no-worktree)]
-
-## Plan Overview
-
-- **Total Phases**: [count]
-- **Total Tasks**: [count]
-- **Independent Tasks**: [count that can run in parallel]
-- **Max Dependency Depth**: [deepest chain]
-
-## Task Breakdown by Phase
-
-Phase 1: [count] tasks ([X] independent)
-Phase 2: [count] tasks ([X] independent)
-...
-
-## Validation Results
-
-- File Path Validation: [summary]
-- Dependency Graph: [summary]
-- Task Completeness: [summary]
-
-## Context Efficiency
-
-- Analysis agents condensed context from ~50-100K tokens to ~5-10K tokens
-- Main context preserved for plan generation and validation
+- ${feature_dir}/analysis-context.md
+- ${feature_dir}/analysis-code.md
+- ${feature_dir}/analysis-tasks.md
 
 ## Next Steps (FOR USER - NOT FOR THIS SKILL)
 
 **THIS SKILL IS NOW COMPLETE. DO NOT PROCEED.**
 
-The user can manually run the implementation when ready:
-
 /implement-plan [feature-name]
-
-Review steps for user:
-
-1. Review the plan: ${feature_dir}/parallel-plan.md
-2. Review analysis files for detailed insights (optional)
-3. Refine tasks if needed
 ```
-
----
 
 **STOP**: Do not execute implement-plan. Do not write any more files. Do not modify any code. This skill is complete.
-
----
-
-## Quality Standards
-
-### Task Quality Checklist
-
-Each task must have:
-
-- [ ] Clear, descriptive title
-- [ ] Explicit dependencies listed
-- [ ] "READ THESE BEFORE TASK" section with relevant files
-- [ ] Files to Create list (if any)
-- [ ] Files to Modify list
-- [ ] Concise, actionable instructions
-- [ ] Gotchas and warnings documented
-
-### Plan Quality Checklist
-
-The overall plan must have:
-
-- [ ] Information-dense overview (3-4 sentences)
-- [ ] Complete list of critically relevant files
-- [ ] Tasks organized into logical phases
-- [ ] At least one independent task per phase
-- [ ] Advice section with implementation insights
-- [ ] No circular dependencies
-- [ ] All file paths verified
-
----
-
-## CRITICAL CONSTRAINTS
-
-- **PLANNING ONLY** - This skill creates documentation, never implementation
-- **NO CODE CHANGES** - Do not modify any application source files
-- **NO IMPLEMENTATION** - Do not execute tasks from the plan you create
-- **STOP AFTER SUMMARY** - After displaying the completion summary, stop completely
-- **DO NOT CHAIN** - Do not automatically proceed to implement-plan
-- **PERSIST ARTIFACTS** - All 3 analysis files must exist before plan generation
-- **CLEAN UP TEAM (Path B only)** - Always `close the agent group` before completing when a team was created
-
-## Output Contract
-
-All files are written to `${feature_dir}/` (resolved via `resolve-plans-dir.sh`).
-
-| File                  | Producer                     | Required Before             |
-| --------------------- | ---------------------------- | --------------------------- |
-| `analysis-context.md` | context-synthesizer teammate | parallel-plan.md generation |
-| `analysis-code.md`    | code-analyzer teammate       | parallel-plan.md generation |
-| `analysis-tasks.md`   | task-structurer teammate     | parallel-plan.md generation |
-| `parallel-plan.md`    | Team lead (this skill)       | Skill completion            |
-
-**Contract Rules**:
-
-1. Each analysis agent MUST write its own output file using the Write tool
-2. In Path B (`--team`), each teammate MUST share key findings with relevant teammates via send follow-up instructions. In Path A (standalone), inter-agent sharing is unavailable — each sub-agent works independently.
-3. The orchestrator MUST run `validate-analysis-artifacts.sh` after agents complete (Step 10)
-4. The orchestrator MUST run `persist-or-fail.sh` as a mandatory pre-generation gate (Step 11)
-5. If validation fails, the orchestrator MUST message the failing teammate (Path B) or re-dispatch the sub-agent (Path A) to fix their output
-6. No file may be skipped or deferred — `persist-or-fail.sh` must exit 0 before plan generation
-7. In Path B, the team MUST be cleaned up (close the agent group) before skill completion
-
-## Monorepo Support
-
-Always resolve plans via `resolve-plans-dir.sh`.
-
-Default:
-
-- Plans at repo-root `docs/plans/`
-
-Optional local scope via `.plans-config`:
-
-```yaml
-plans_dir: docs/plans
-scope: local
-```
-
-## Important Notes
-
-- **You are the planning orchestrator** - coordinate analysis and validation stages
-- **Choose dispatch mode from `$ARGUMENTS`** - default is standalone sub-agents via `Task`; `--team` switches to teammates under `create an agent group`/`the task tracker`; a single feature worktree section is included by default (`--no-worktree` suppresses it)
-- **Team setup first (Path B only)** - call `create an agent group` and register analysis tasks before spawning teammates
-- **Spawn in parallel** - a single message with multiple `Task` calls (Path A) or multiple `Agent` calls with `team_name=` + `name=` (Path B)
-- **Pass model parameters** - use `model: "sonnet"` for analysis agents, `model: "haiku"` for path/dependency validators, `model: "sonnet"` for completeness-validator
-- **Teammates share findings (Path B only)** - inter-teammate `send follow-up instructions` coordination is unavailable to standalone sub-agents
-- **Two stages** - analysis first, then validation
-- **Shut down between stages (Path B only)** - shut down analysis teammates before spawning validators
-- **Validate with scripts** - run validation scripts after agents complete
-- **Message on failure (Path B)** - if validation fails, message the relevant teammate; in Path A, re-dispatch a sub-agent
-- **Preserve main context** - read condensed analysis files (~5-10K tokens) instead of raw source files (~50-100K+ tokens)
-- **Maximize parallelism** - prefer independent tasks over sequential chains
-- **Be specific** - include exact file paths and clear instructions
-- **Quality over speed** - a well-structured plan saves time during implementation
-- **Clean up team (Path B only)** - always `close the agent group` before completing when a team was created
-- **Monorepo aware** - automatically resolves correct plans directory

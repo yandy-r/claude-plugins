@@ -10,6 +10,8 @@ description: 'Generate a detailed parallel implementation plan with task depende
 
 # Parallel Plan Command
 
+Thin alias for `plan-workflow --plan-only` (planning stage with `--no-checkpoint`).
+
 Generate a parallel implementation plan for the specified feature.
 
 **Load and follow the `parallel-plan` skill**, passing through `$ARGUMENTS`.

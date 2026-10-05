@@ -30,6 +30,12 @@ SHARED_DIR="${SCRIPT_DIR}/../../_shared/scripts"
 if [[ -f "${SHARED_DIR}/resolve-plans-dir.sh" ]]; then
   # shellcheck source=../../_shared/scripts/resolve-plans-dir.sh
   source "${SHARED_DIR}/resolve-plans-dir.sh"
+else
+  # ponytail: resolver ships with the plugin; failing beats resolving a
+  # relative plan path against the wrong cwd. Upgrade: restore the resolver.
+  echo "ERROR: resolve-plans-dir.sh not found at ${SHARED_DIR}" >&2
+  echo "Cannot resolve PLANS_ROOT safely; refusing to guess." >&2
+  exit 1
 fi
 
 # Colors for output
@@ -106,7 +112,7 @@ if echo "$CONTENT" | grep -q "## Critically Relevant Files"; then
   success "Critically Relevant Files section present"
 
   # Count files listed (absolute or relative paths)
-  FILE_COUNT=$(echo "$CONTENT" | sed -n '/^## Critically Relevant Files/,/^## /p' | grep -c "^- " || echo "0")
+  FILE_COUNT=$(echo "$CONTENT" | sed -n '/^## Critically Relevant Files/,/^## /p' | grep -c "^- " || true)
   if [[ $FILE_COUNT -eq 0 ]]; then
     warning "No files listed in Critically Relevant Files section"
   else
@@ -128,7 +134,7 @@ if echo "$CONTENT" | grep -q "## Advice"; then
   success "Advice section present"
 
   # Count advice items
-  ADVICE_COUNT=$(echo "$CONTENT" | sed -n '/^## Advice/,/^## /p' | grep -c "^- " || echo "0")
+  ADVICE_COUNT=$(echo "$CONTENT" | sed -n '/^## Advice/,/^## /p' | grep -c "^- " || true)
   if [[ $ADVICE_COUNT -eq 0 ]]; then
     warning "No advice items found (expected bullet points)"
   else
@@ -144,7 +150,7 @@ echo ""
 echo "Checking optional worktree annotations..."
 if echo "$CONTENT" | grep -q "^## Worktree Setup"; then
   success "Worktree Setup section present (single feature worktree — see worktree-strategy.md)"
-  WORKTREE_TASK_FIELDS=$(echo "$CONTENT" | grep -c '\*\*Worktree\*\*:' || echo "0")
+  WORKTREE_TASK_FIELDS=$(echo "$CONTENT" | grep -c '\*\*Worktree\*\*:' || true)
   success "  $WORKTREE_TASK_FIELDS legacy per-task **Worktree** field(s) (expected 0 in new plans)"
 else
   echo "       (no ## Worktree Setup — plan was generated with --no-worktree)"
@@ -153,7 +159,7 @@ fi
 # Phase structure
 echo ""
 echo "Checking phase structure..."
-PHASE_COUNT=$(echo "$CONTENT" | grep -c "^### Phase" || echo "0")
+PHASE_COUNT=$(echo "$CONTENT" | grep -c "^### Phase" || true)
 if [[ $PHASE_COUNT -eq 0 ]]; then
   error "No phases found (expected ### Phase N)"
 else
@@ -168,7 +174,7 @@ fi
 # Task structure
 echo ""
 echo "Checking task structure..."
-TASK_COUNT=$(echo "$CONTENT" | grep -c "^#### Task" || echo "0")
+TASK_COUNT=$(echo "$CONTENT" | grep -c "^#### Task" || true)
 if [[ $TASK_COUNT -eq 0 ]]; then
   error "No tasks found (expected #### Task N.N)"
 else
@@ -178,7 +184,7 @@ fi
 # Task dependencies
 echo ""
 echo "Checking task dependencies..."
-DEPENDS_COUNT=$(echo "$CONTENT" | grep -c "Depends on" || echo "0")
+DEPENDS_COUNT=$(echo "$CONTENT" | grep -c "Depends on" || true)
 if [[ $DEPENDS_COUNT -eq 0 ]]; then
   warning "No task dependencies found"
   echo "       Tasks should include 'Depends on [none]' or 'Depends on [1.1, 2.3]'"
@@ -190,7 +196,7 @@ else
 fi
 
 # Count independent tasks
-INDEPENDENT_COUNT=$(echo "$CONTENT" | grep -c "Depends on \[none\]" || echo "0")
+INDEPENDENT_COUNT=$(echo "$CONTENT" | grep -c "Depends on \[none\]" || true)
 if [[ $INDEPENDENT_COUNT -eq 0 ]]; then
   warning "No independent tasks (Depends on [none]) found"
   echo "       Plans should have at least some tasks that can run in parallel"
@@ -201,7 +207,7 @@ fi
 # Check for READ THESE BEFORE TASK sections
 echo ""
 echo "Checking task content..."
-READ_BEFORE_COUNT=$(echo "$CONTENT" | grep -c "READ THESE BEFORE TASK" || echo "0")
+READ_BEFORE_COUNT=$(echo "$CONTENT" | grep -c "READ THESE BEFORE TASK" || true)
 if [[ $READ_BEFORE_COUNT -lt $TASK_COUNT ]]; then
   warning "Only $READ_BEFORE_COUNT of $TASK_COUNT tasks have 'READ THESE BEFORE TASK' section"
 else
@@ -209,8 +215,8 @@ else
 fi
 
 # Check for Files to Create / Files to Modify
-FILES_CREATE_COUNT=$(echo "$CONTENT" | grep -c "Files to Create" || echo "0")
-FILES_MODIFY_COUNT=$(echo "$CONTENT" | grep -c "Files to Modify" || echo "0")
+FILES_CREATE_COUNT=$(echo "$CONTENT" | grep -c "Files to Create" || true)
+FILES_MODIFY_COUNT=$(echo "$CONTENT" | grep -c "Files to Modify" || true)
 
 if [[ $((FILES_CREATE_COUNT + FILES_MODIFY_COUNT)) -lt $TASK_COUNT ]]; then
   warning "Some tasks may be missing file change lists"

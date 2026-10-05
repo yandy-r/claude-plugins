@@ -83,6 +83,13 @@ You are part of a research team. Your teammates are:
 
 **Output File**: {{FEATURE_DIR}}/research-architecture.md
 
+Before completing this task:
+
+1. Create the output file using the Write tool
+2. Verify the file was created successfully
+3. Share key findings with teammates
+4. Mark your task as complete
+
 Structure your report as:
 
 ```markdown
@@ -132,10 +139,25 @@ Research the coding patterns and conventions used in this codebase that are rele
 
 Identify and document:
 
-1. **Architectural Patterns** - Repository pattern, service layer, abstractions
-2. **Code Conventions** - Naming, file organization, import/export
-3. **Error Handling** - Error propagation, types, logging
-4. **Testing Patterns** - Test structure, mocking, organization
+1. **Architectural Patterns**
+   - Repository pattern, service layer, etc.
+   - How are similar features structured?
+   - What abstraction patterns are used?
+
+2. **Code Conventions**
+   - Naming conventions (files, functions, classes)
+   - File organization within modules
+   - Import/export patterns
+
+3. **Error Handling**
+   - How are errors propagated?
+   - What error types are used?
+   - Logging conventions
+
+4. **Testing Patterns**
+   - How are similar features tested?
+   - Test file organization
+   - Mocking patterns
 
 ## Team Communication
 
@@ -171,6 +193,13 @@ You are part of a research team. Your teammates are:
 
 **Output File**: {{FEATURE_DIR}}/research-patterns.md
 
+Before completing this task:
+
+1. Create the output file using the Write tool
+2. Verify the file was created successfully
+3. Share key findings with teammates
+4. Mark your task as complete
+
 Structure your report as:
 
 ```markdown
@@ -179,6 +208,10 @@ Structure your report as:
 ## Architectural Patterns
 
 **Pattern Name**: Description of how it's used
+
+- Example: /path/to/example.ext
+
+**Another Pattern**: Description
 
 - Example: /path/to/example.ext
 
@@ -214,17 +247,31 @@ Find concrete examples for each pattern. Include file paths.
 
 **Prompt Template**:
 
-```markdown
+````markdown
 Research the APIs, databases, and external integrations relevant to implementing "{{FEATURE_NAME}}".
 
 ## Your Task
 
 Investigate:
 
-1. **API Endpoints** - Existing related endpoints, route organization, middleware
-2. **Database Schema** - Relevant tables, relationships, migrations
-3. **External Services** - Third-party integrations, credentials, config
-4. **Internal Services** - Internal service communication patterns
+1. **API Endpoints**
+   - What existing endpoints are related?
+   - How are routes organized?
+   - What middleware is used?
+
+2. **Database Schema**
+   - What tables are involved?
+   - What are the relationships?
+   - Are there migrations to reference?
+
+3. **External Services**
+   - What third-party services are used?
+   - How are they integrated?
+   - What credentials/config is needed?
+
+4. **Internal Services**
+   - What internal services are called?
+   - How is inter-service communication handled?
 
 ## Team Communication
 
@@ -238,11 +285,11 @@ You are part of a research team. Your teammates are:
 
 **Share these findings via send follow-up instructions:**
 
-- Message `architecture-researcher` with: service boundaries, data flow patterns, or component dependencies you discover
-- Message `patterns-researcher` with: middleware patterns, database access patterns, or API conventions
-- Message `docs-researcher` with: API documentation, schema documentation, or configuration docs you encounter
+- Message `architecture-researcher` with: any service boundaries, data flow patterns, or component dependencies you discover through API/database analysis
+- Message `patterns-researcher` with: any middleware patterns, database access patterns, or API conventions you find
+- Message `docs-researcher` with: any API documentation, schema documentation, or configuration docs you encounter
 
-**Listen for messages from teammates** — especially from `architecture-researcher` and `patterns-researcher`.
+**Listen for messages from teammates** — especially from `architecture-researcher` and `patterns-researcher` who may share relevant integration points.
 
 ## Task Coordination
 
@@ -261,10 +308,55 @@ You are part of a research team. Your teammates are:
 
 **Output File**: {{FEATURE_DIR}}/research-integration.md
 
-Structure your report following the integration research format with API endpoints, database schema, external/internal services, and configuration sections.
+Before completing this task:
+
+1. Create the output file using the Write tool
+2. Verify the file was created successfully
+3. Share key findings with teammates
+4. Mark your task as complete
+
+Structure your report as:
+
+```markdown
+# Integration Research: {{FEATURE_NAME}}
+
+## API Endpoints
+
+### Existing Related Endpoints
+
+- GET /api/path: Description
+- POST /api/path: Description
+
+### Route Organization
+
+[How routes are structured]
+
+## Database
+
+### Relevant Tables
+
+- table_name: Description of data
+- another_table: Description
+
+### Schema Details
+
+[Key columns, relationships, indexes]
+
+## External Services
+
+[Third-party integrations relevant to feature]
+
+## Internal Services
+
+[Internal services that may be called]
+
+## Configuration
+
+[Environment variables, config files needed]
+```
 
 Be thorough with database schema - this informs data modeling decisions.
-```
+````
 
 ---
 
@@ -278,17 +370,33 @@ Be thorough with database schema - this informs data modeling decisions.
 
 **Prompt Template**:
 
-```markdown
+````markdown
 Find all documentation files relevant to implementing "{{FEATURE_NAME}}".
 
 ## Your Task
 
 Search for documentation in:
 
-1. **docs/ Directory** - Architecture, API, feature, development guides
-2. **README Files** - Root, directory-level, module READMEs
-3. **Code Comments** - Well-documented modules, API docs in code
-4. **External References** - Links to external docs, specs, library docs
+1. **docs/ Directory**
+   - Architecture documentation
+   - API documentation
+   - Feature guides
+   - Development guides
+
+2. **README Files**
+   - Root README.md
+   - Directory-level READMEs
+   - Module READMEs
+
+3. **Code Comments**
+   - Well-documented modules
+   - API documentation in code
+   - Configuration documentation
+
+4. **External References**
+   - Links to external docs in code
+   - Referenced specifications
+   - Library documentation needs
 
 ## Team Communication
 
@@ -302,11 +410,11 @@ You are part of a research team. Your teammates are:
 
 **Share these findings via send follow-up instructions:**
 
-- Message `architecture-researcher` with: architecture documentation (design docs, ADRs, system diagrams)
-- Message `patterns-researcher` with: coding guidelines, style guides, convention documentation
-- Message `integration-researcher` with: API documentation, database docs, integration guides
+- Message `architecture-researcher` with: any architecture documentation you find (design docs, ADRs, system diagrams)
+- Message `patterns-researcher` with: any coding guidelines, style guides, or convention documentation
+- Message `integration-researcher` with: any API documentation, database documentation, or integration guides
 
-**Listen for messages from teammates** — they may point you to documentation files they encountered.
+**Listen for messages from teammates** — they may point you to documentation files they encountered during their research.
 
 ## Task Coordination
 
@@ -325,11 +433,46 @@ You are part of a research team. Your teammates are:
 
 **Output File**: {{FEATURE_DIR}}/research-docs.md
 
-Structure your report with Architecture Docs, API Docs, Development Guides, README Files, Must-Read Documents, and Documentation Gaps sections.
+Before completing this task:
+
+1. Create the output file using the Write tool
+2. Verify the file was created successfully
+3. Share key findings with teammates
+4. Mark your task as complete
+
+Structure your report as:
+
+```markdown
+# Documentation Research: {{FEATURE_NAME}}
+
+## Architecture Docs
+
+- /docs/path/file.md: What it covers
+
+## API Docs
+
+- /docs/api/file.md: What it covers
+
+## Development Guides
+
+- /docs/dev/file.md: What it covers
+
+## README Files
+
+- /path/README.md: What it covers
+
+## Must-Read Documents
+
+[List documents that implementers MUST read, with topics]
+
+## Documentation Gaps
+
+[Areas where documentation is missing or outdated]
+```
 
 Focus on documents that would help someone implement {{FEATURE_NAME}}.
 Identify which documents are REQUIRED reading vs nice-to-have.
-```
+````
 
 ---
 
