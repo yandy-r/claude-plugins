@@ -4,11 +4,13 @@ A single Claude Code plugin (`ycc`) bundling workflow orchestration, parallel pl
 
 > **2.0.0 breaking change.** Versions ≤ 1.x shipped 9 separate plugins (`ask`, `plan-workflow`, `git-workflow`, `implement-plan`, `code-report`, `deep-research`, `orchestrate`, `write-docs`, `project`). 2.0.0 collapses all of them into a single `ycc` plugin so every skill is accessible via `ycc:{skill}`. Re-install after upgrading.
 
+> **Migration: `/ycc:ask` and `ycc:ask` retired.** For read-only codebase questions, ask the main session to delegate to `ycc:codebase-advisor`. Request explicit search gaps, assumptions, and analyzed/skipped scope in the answer. Request implementation separately.
+
 ## What's inside
 
 <!-- BEGIN:GENERATED-COUNTS -->
 
-The source plugin ships **52 skills**, **51 slash commands** (most skills have a matching command), and **55 agents**.
+The source plugin ships **51 skills**, **50 slash commands** (most skills have a matching command), and **55 agents**.
 
 <!-- END:GENERATED-COUNTS -->
 
@@ -16,7 +18,6 @@ The source plugin ships **52 skills**, **51 slash commands** (most skills have a
 
 | Command / Skill            | Purpose                                                                                                                                                                                 |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/ycc:ask`                 | Ask questions about the codebase without making changes - get guidance, impact analysis, or comparisons                                                                                 |
 | `/ycc:backport`            | Cherry-pick merged trunk PRs onto active maintenance branches (release/X.Y) and open backport PRs, following RELEASING.md and its backport:X.Y labels.                                  |
 | `/ycc:blueprint`           | Whole-project source-of-truth spec generator.                                                                                                                                           |
 | `/ycc:bundle-author`       | Scaffold new source-of-truth content in the ycc bundle (skill, optional matching command and agent)                                                                                     |

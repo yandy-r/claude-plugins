@@ -1,7 +1,7 @@
 {
   "name": "ycc",
   "version": "5.1.1",
-  "description": "Yandy's Codex plugin bundle: planning, implementation, git workflow, research, docs, orchestration, ask, and project utilities \u2014 all under the ycc: namespace.",
+  "description": "Yandy's Codex plugin bundle: planning, implementation, git workflow, research, docs, orchestration, and project utilities \u2014 all under the ycc: namespace.",
   "author": {
     "name": "yandy-r"
   },
