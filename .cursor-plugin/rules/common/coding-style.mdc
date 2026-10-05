@@ -36,7 +36,9 @@ Rationale: Immutable data prevents hidden side effects, makes debugging easier, 
 - Avoid speculative generality
 - Start simple, then refactor when the pressure is real
 
-Assumption, scope, and verification guidance adapted from [Andrej Karpathy’s observations](https://x.com/karpathy/status/2015883857489522876) on LLM coding pitfalls.
+## Assumptions, Scope, and Verification
+
+Guidance adapted from [Andrej Karpathy’s observations](https://x.com/karpathy/status/2015883857489522876) on LLM coding pitfalls.
 
 ### Think Before Coding
 
