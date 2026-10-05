@@ -10,7 +10,7 @@ A single Claude Code plugin (`ycc`) bundling workflow orchestration, parallel pl
 
 <!-- BEGIN:GENERATED-COUNTS -->
 
-The source plugin ships **51 skills**, **50 slash commands** (most skills have a matching command), and **55 agents**.
+The source plugin ships **50 skills**, **50 slash commands** (most skills have a matching command), and **55 agents**.
 
 <!-- END:GENERATED-COUNTS -->
 
