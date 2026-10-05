@@ -188,15 +188,15 @@ This script reports:
 
 Based on flags and detected state:
 
-| State                | --plan-only | --research-only | Action                                                                          |
-| -------------------- | ----------- | --------------- | ------------------------------------------------------------------------------- |
-| No shared.md         | No          | No              | Full workflow from Phase 1                                                      |
-| No shared.md         | No          | Yes             | Full workflow from Phase 1, stop at Step 15A (research-only stop)               |
-| No shared.md         | Yes         | No              | Fail fast in Step 4B — never fall back to research                              |
-| Has shared.md        | Yes         | No              | Skip to Phase 5 (Analysis)                                                      |
+| State                | --plan-only | --research-only | Action                                                                                              |
+| -------------------- | ----------- | --------------- | --------------------------------------------------------------------------------------------------- |
+| No shared.md         | No          | No              | Full workflow from Phase 1                                                                          |
+| No shared.md         | No          | Yes             | Full workflow from Phase 1, stop at Step 15A (research-only stop)                                   |
+| No shared.md         | Yes         | No              | Fail fast in Step 4B — never fall back to research                                                  |
+| Has shared.md        | Yes         | No              | Skip to Phase 5 (Analysis)                                                                          |
 | Has shared.md        | No          | Yes             | Regenerate only if overwrite chosen in Step 4C, then stop at Step 15A; else STOP and reuse existing |
-| Has shared.md        | No          | No              | Full workflow from Phase 1 (shared.md regenerates only if overwrite chosen in Step 4C) |
-| Has parallel-plan.md | Any         | Any             | Warn about overwrite (Step 4C)                                                  |
+| Has shared.md        | No          | No              | Full workflow from Phase 1 (shared.md regenerates only if overwrite chosen in Step 4C)              |
+| Has parallel-plan.md | Any         | Any             | Warn about overwrite (Step 4C)                                                                      |
 
 **Note**: "Planning" in this workflow = Phase 8 (Plan Generation). "Analysis" = Phase 5.
 The `--plan-only` flag skips Research + Checkpoint (Phases 1-4) but NOT Analysis (Phase 5).
@@ -565,6 +565,7 @@ Otherwise, send shutdown requests to all analysis teammates.
 ## Phase 7: Read Analysis Results
 
 > **PRE-CHECK — branch on execution mode**:
+>
 > - **Standard**: if `analysis-context.md`, `analysis-code.md`, or `analysis-tasks.md` do not exist in `${feature_dir}/`, Phase 5 was skipped in error. Go back and run Phase 5 now.
 > - **Optimized**: the five unified files below must exist (produced by Phase 1 unified agents, gated by Step 22). If any is missing, STOP and tell the user: `run /plan-workflow <feature> --optimized (full workflow) first` — optimized mode has no Phase 5 to regenerate them.
 
