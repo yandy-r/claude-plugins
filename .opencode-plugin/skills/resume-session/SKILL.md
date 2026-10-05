@@ -31,26 +31,25 @@ This skill is the counterpart to `/save-session`.
 
 ## Process
 
+### Step 0 — Read the session-state contract
+
+**Before locating any file, read `~/.config/opencode/shared/references/session-state.md`.** It is the single source of truth for the session store (`~/.config/opencode/session-data/`, legacy fallback `~/.config/opencode/sessions/`), the filename forms, and the selection rules for blank / date / path arguments. Follow its "Discovery" section — do not restate or duplicate it here.
+
 ### Step 1 — Find the session file
 
-If no argument provided:
+Locate the file using the contract's Discovery section:
 
-1. Check `~/.config/opencode/session-data/`
-2. Pick the most recently modified `*-session.tmp` file
-3. If the folder does not exist or has no matching files, tell the user:
+- **No argument:** most recent file in the canonical store. If none found, tell the user:
 
-   ```
-   No session files found in ~/.config/opencode/session-data/
-   Run /save-session at the end of a session to create one.
-   ```
+  ```
+  No session files found in ~/.config/opencode/session-data/
+  Run /save-session at the end of a session to create one.
+  ```
 
-   Then stop.
+  Then stop.
 
-If an argument is provided:
-
-- If it looks like a date (`YYYY-MM-DD`), search `~/.config/opencode/session-data/` first, then the legacy `~/.config/opencode/sessions/`, for files matching `YYYY-MM-DD-session.tmp` (legacy format) or `YYYY-MM-DD-<shortid>-session.tmp` (current format), and load the most recently modified variant for that date
-- If it looks like a file path, read that file directly
-- If not found, report clearly and stop
+- **Date or path argument:** apply the contract's selection rules.
+- **Not found:** report clearly and stop.
 
 ### Step 2 — Read the entire session file
 
@@ -100,17 +99,11 @@ If no next step is defined — ask the user where to start, and optionally sugge
 
 ## Edge Cases
 
-**Multiple sessions for the same date** (`2024-01-15-session.tmp`, `2024-01-15-abc123de-session.tmp`):
-Load the most recently modified matching file for that date, regardless of whether it uses the legacy no-id format or the current short-id format.
-
 **Session file references files that no longer exist:**
 Note this during the briefing — "WARNING: `path/to/file.ts` referenced in session but not found on disk."
 
 **Session file is from more than 7 days ago:**
 Note the gap — "WARNING: This session is from N days ago (threshold: 7 days). Things may have changed." — then proceed normally.
-
-**User provides a file path directly (e.g., forwarded from a teammate):**
-Read it and follow the same briefing process — the format is the same regardless of source.
 
 **Session file is empty or malformed:**
 Report: "Session file found but appears empty or unreadable. You may need to create a new one with `/save-session`."

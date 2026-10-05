@@ -1,6 +1,6 @@
 ---
-description: 'Load the most recent session file from ~/.config/opencode/session-data/
-  and resume work with full context. Counterpart to /save-session. Usage: [YYYY-MM-DD
+description: 'Load a saved session and produce a structured briefing; wait for user
+  direction before starting work. Counterpart to /save-session. Usage: [YYYY-MM-DD
   | path/to/session.tmp] (blank = most recent)'
 ---
 
