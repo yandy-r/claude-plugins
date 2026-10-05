@@ -10,7 +10,7 @@ Persist the current session's work, decisions, failures, and next steps.
 
 **Load and follow the `save-session` skill, passing through `$ARGUMENTS`.**
 
-The skill writes to `~/.config/opencode/session-data/YYYY-MM-DD-{shortid}-session.tmp`. The file is read by `/resume-session` at the start of the next session.
+The saved file is read by `/resume-session` at the start of the next session.
 
 ```
 Usage: /save-session [optional topic]

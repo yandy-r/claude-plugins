@@ -1,5 +1,5 @@
 ---
-description: Load the most recent session file from ~/.claude/session-data/ and resume work with full context. Counterpart to /ycc:save-session.
+description: Load a saved session and produce a structured briefing; wait for user direction before starting work. Counterpart to /ycc:save-session.
 argument-hint: '[YYYY-MM-DD | path/to/session.tmp] (blank = most recent)'
 allowed-tools:
   - Read

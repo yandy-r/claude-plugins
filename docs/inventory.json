@@ -372,7 +372,7 @@
     },
     {
       "name": "resume-session",
-      "description": "Load the most recent session file from ~/.claude/session-data/ and resume work with full context. Counterpart to /ycc:save-session."
+      "description": "Load a saved session and produce a structured briefing; wait for user direction before starting work. Counterpart to /ycc:save-session."
     },
     {
       "name": "review-fix",
