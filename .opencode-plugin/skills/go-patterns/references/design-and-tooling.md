@@ -238,7 +238,7 @@ func ProcessRequest(data []byte) []byte {
 
     buf.Write(data)
     // Process...
-    return buf.Bytes()
+    return append([]byte(nil), buf.Bytes()...)
 }
 ```
 

@@ -42,18 +42,18 @@ Python prefers exception handling over checking conditions.
 
 ```python
 # Good: EAFP style
-def get_value(dictionary: dict, key: str) -> Any:
+def get_value(dictionary: dict, key: str, default: Any = None) -> Any:
     try:
         return dictionary[key]
     except KeyError:
-        return default_value
+        return default
 
 # Bad: LBYL (Look Before You Leap) style
-def get_value(dictionary: dict, key: str) -> Any:
+def get_value(dictionary: dict, key: str, default: Any = None) -> Any:
     if key in dictionary:
         return dictionary[key]
     else:
-        return default_value
+        return default
 ```
 
 ## Type Hints

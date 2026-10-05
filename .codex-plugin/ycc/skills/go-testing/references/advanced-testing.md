@@ -224,11 +224,10 @@ func FuzzCompare(f *testing.F) {
 
         // Property: Compare(a, b) and Compare(b, a) should have opposite signs
         reverse := Compare(b, a)
-        if (result > 0 && reverse >= 0) || (result < 0 && reverse <= 0) {
-            if result != 0 || reverse != 0 {
-                t.Errorf("Compare(%q, %q) = %d, Compare(%q, %q) = %d; inconsistent",
-                    a, b, result, b, a, reverse)
-            }
+        if (result > 0 && reverse >= 0) || (result < 0 && reverse <= 0) ||
+            (result == 0 && reverse != 0) {
+            t.Errorf("Compare(%q, %q) = %d, Compare(%q, %q) = %d; inconsistent",
+                a, b, result, b, a, reverse)
         }
     })
 }

@@ -15,11 +15,23 @@ for (const r of results) {
   else logError(r.reason);
 }
 
-// Good: race with timeout
-await Promise.race([
-  longRunningTask(),
-  new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
-]);
+// Good: race with timeout — abort the loser so it stops running
+const taskController = new AbortController();
+let timeout: ReturnType<typeof setTimeout>;
+try {
+  await Promise.race([
+    longRunningTask(taskController.signal),
+    new Promise<never>((_, reject) => {
+      timeout = setTimeout(() => {
+        reject(new Error('timeout'));
+        taskController.abort();
+      }, 5000);
+    }),
+  ]);
+} finally {
+  clearTimeout(timeout!);
+  taskController.abort();
+}
 
 // Good: `Promise.any` — first success wins, all failures aggregate
 const fastest = await Promise.any([
@@ -96,8 +108,12 @@ const byId = users.reduce<Record<string, User>>((acc, u) => {
   return acc;
 }, {});
 
-// Good: `Object.groupBy` (ES2024) for grouping
-const byRole = Object.groupBy(users, (u) => u.role);
+// Good: group with `reduce` on the ES2022 baseline
+// (`Object.groupBy` needs an ES2024 lib and runtime)
+const byRole = users.reduce<Record<string, User[]>>((acc, u) => {
+  (acc[u.role] ??= []).push(u);
+  return acc;
+}, {});
 
 // Bad: mutable accumulator with an imperative loop
 const activeEmailsBad: string[] = [];
@@ -111,6 +127,7 @@ for (const u of users) {
 ```ts
 // Good: lazy range without allocating an array
 function* range(start: number, end: number, step = 1): Generator<number> {
+  if (!Number.isFinite(step) || step <= 0) throw new Error('step must be a positive finite number');
   for (let i = start; i < end; i += step) yield i;
 }
 

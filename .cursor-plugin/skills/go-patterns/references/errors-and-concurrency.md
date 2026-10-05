@@ -174,8 +174,10 @@ func WorkerPool(jobs <-chan Job, results chan<- Result, numWorkers int) {
         }()
     }
 
-    wg.Wait()
-    close(results)
+    go func() {
+        wg.Wait()
+        close(results)
+    }()
 }
 ```
 
@@ -264,15 +266,18 @@ func leakyFetch(ctx context.Context, url string) <-chan []byte {
 }
 
 // Good: Properly handles cancellation
-func safeFetch(ctx context.Context, url string) <-chan []byte {
-    ch := make(chan []byte, 1) // Buffered channel
+type fetchResult struct {
+    Data []byte
+    Err  error
+}
+
+func safeFetch(ctx context.Context, url string) <-chan fetchResult {
+    ch := make(chan fetchResult, 1) // Buffered channel
     go func() {
+        defer close(ch)
         data, err := fetch(url)
-        if err != nil {
-            return
-        }
         select {
-        case ch <- data:
+        case ch <- fetchResult{Data: data, Err: err}:
         case <-ctx.Done():
         }
     }()

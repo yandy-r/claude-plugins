@@ -131,7 +131,9 @@ async def test_async_with_fixture(async_client):
 ### Async Fixtures
 
 ```python
-@pytest.fixture
+import pytest_asyncio
+
+@pytest_asyncio.fixture
 async def async_client():
     """Async fixture providing async test client."""
     app = create_app()
@@ -272,7 +274,7 @@ class TestUserService:
 
 ## Common Patterns
 
-### Testing API Endpoints (FastAPI/Flask)
+### Testing Flask API Endpoints
 
 ```python
 @pytest.fixture
@@ -299,12 +301,20 @@ def test_create_user(client):
 ```python
 @pytest.fixture
 def db_session():
-    """Create a transactional test database session."""
-    session = Session(bind=engine)
-    session.begin_nested()
-    yield session
-    session.rollback()
-    session.close()
+    """Create a transactional test database session (SQLAlchemy 2.x)."""
+    connection = engine.connect()
+    outer_transaction = connection.begin()
+    try:
+        with Session(
+            bind=connection,
+            join_transaction_mode="create_savepoint",
+        ) as session:
+            yield session
+    finally:
+        try:
+            outer_transaction.rollback()
+        finally:
+            connection.close()
 
 def test_create_user(db_session):
     user = User(name="Alice", email="alice@example.com")

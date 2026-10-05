@@ -198,11 +198,16 @@ async def fetch_async(url: str) -> str:
         async with session.get(url) as response:
             return await response.text()
 
-async def fetch_all(urls: list[str]) -> dict[str, str]:
-    """Fetch multiple URLs concurrently."""
+async def fetch_all(urls: list[str]) -> dict[str, str | None]:
+    """Fetch multiple URLs concurrently, mapping failures to None."""
     tasks = [fetch_async(url) for url in urls]
     results = await asyncio.gather(*tasks, return_exceptions=True)
-    return dict(zip(urls, results))
+    out: dict[str, str | None] = {}
+    for url, result in zip(urls, results):
+        if isinstance(result, asyncio.CancelledError):
+            raise result
+        out[url] = None if isinstance(result, Exception) else result
+    return out
 ```
 
 ### Choosing a Concurrency Model

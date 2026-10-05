@@ -251,9 +251,25 @@ describe('async operations', () => {
   });
 
   it('races against a timeout', async () => {
-    await expect(
-      Promise.race([slowOp(), new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 100))])
-    ).rejects.toThrow('timeout');
+    // Abort the loser so slowOp stops running after the timeout wins
+    const controller = new AbortController();
+    let timeout: ReturnType<typeof setTimeout>;
+    try {
+      await expect(
+        Promise.race([
+          slowOp(controller.signal),
+          new Promise<never>((_, reject) => {
+            timeout = setTimeout(() => {
+              reject(new Error('timeout'));
+              controller.abort();
+            }, 100);
+          }),
+        ])
+      ).rejects.toThrow('timeout');
+    } finally {
+      clearTimeout(timeout!);
+      controller.abort();
+    }
   });
 });
 ```

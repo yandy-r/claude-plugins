@@ -108,15 +108,17 @@ for msg in rx {
 use tokio::time::Duration;
 
 async fn fetch_with_timeout(url: &str) -> Result<String> {
-    let response = tokio::time::timeout(
-        Duration::from_secs(5),
-        reqwest::get(url),
-    )
+    // Time both the request and the body read — a stalled body also times out
+    tokio::time::timeout(Duration::from_secs(5), async {
+        reqwest::get(url)
+            .await
+            .context("request failed")?
+            .text()
+            .await
+            .context("failed to read body")
+    })
     .await
     .context("request timed out")?
-    .context("request failed")?;
-
-    response.text().await.context("failed to read body")
 }
 
 // Spawn concurrent tasks
@@ -143,6 +145,8 @@ async fn fetch_all(urls: Vec<String>) -> Vec<Result<String>> {
 // Acceptable: FFI boundary with documented invariants (Rust 2024+)
 /// # Safety
 /// `ptr` must be a valid, aligned pointer to an initialized `Widget`.
+/// The `Widget` must stay valid (not moved out of or dropped) for the whole
+/// returned lifetime `'a` — a raw pointer cannot bound it itself.
 unsafe fn widget_from_raw<'a>(ptr: *const Widget) -> &'a Widget {
     // SAFETY: caller guarantees ptr is valid and aligned
     unsafe { &*ptr }
