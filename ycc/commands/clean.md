@@ -5,7 +5,7 @@ argument-hint: '[target-directory] [--dry-run] [--report-only] [--safe-mode]'
 
 Clean unnecessary files from a project directory using parallel analysis agents.
 
-Invoke the **clean** skill to:
+Invoke the **clean** skill first. Follow its scope check: Git-only requests stop before Phase 0 with routing guidance and no agent deployment. Only when project-file cleanup is in scope:
 
 1. Detect project type and load safety configuration
 2. Deploy 6 parallel cleanup agents (code files, binaries, assets, docs, config, Docker)
