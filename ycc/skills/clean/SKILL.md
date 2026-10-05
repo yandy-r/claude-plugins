@@ -1,7 +1,7 @@
 ---
 name: clean
 description: This skill should be used when the user asks to "clean project files", "remove unnecessary files", "clean up project", "find unused files", "project cleanup", or mentions removing build artifacts, temp files, or old code from a project directory. Orchestrates parallel cleanup agents with safety measures.
-argument-hint: '[target-directory] [--dry-run] [--report-only] [--safe-mode] [--include-git]'
+argument-hint: '[target-directory] [--dry-run] [--report-only] [--safe-mode]'
 allowed-tools:
   - Read
   - Grep
@@ -32,7 +32,20 @@ Parse `$ARGUMENTS` for:
 - **--dry-run**: Preview only, no changes
 - **--report-only**: Generate report without deletions
 - **--safe-mode**: Extra confirmation per category
-- **--include-git**: Analyze git artifacts (large files, stale branches)
+
+### Deprecated: `--include-git`
+
+If `$ARGUMENTS` contains `--include-git`: ignore the flag, keep every other argument unchanged, and display this notice exactly once, before Phase 0 (including before any `--dry-run` stop):
+
+> `--include-git` is deprecated and ignored. This skill cleans project-directory files only — it performs no Git audit and no Git cleanup. For branches, worktrees, remotes, stashes, tags, PRs, or issues, run `/ycc:git-cleanup` separately. Never invoked automatically on your behalf.
+
+Never auto-chain `/ycc:git-cleanup`, and never treat `--include-git` as consent to run it.
+
+### Scope and Git-only requests
+
+This skill cleans files present in the project directory only. It never audits or changes Git refs, history, or submodules, and `.git` metadata stays protected.
+
+If the request concerns only Git resources, STOP before Phase 0 and deploy no agents. Route branches, worktrees, remotes, stashes, tags, PRs, or issues to `/ycc:git-cleanup`; say history rewriting and submodule cleanup are out of scope for both skills.
 
 ## Phase 0: Setup
 
