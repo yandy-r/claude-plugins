@@ -618,15 +618,8 @@
     }
   ],
   "counts": {
-    "skills": 50,
-<<<<<<< HEAD
-    "commands": 50,
-||||||| parent of 3950427 (refactor(skills): remove frontend-slides, mark maintainer-only workflows, link frontend skills)
-    "skills": 51,
-    "commands": 50,
-=======
+    "skills": 49,
     "commands": 49,
->>>>>>> 3950427 (refactor(skills): remove frontend-slides, mark maintainer-only workflows, link frontend skills)
     "agents": 55
   },
   "parity": {

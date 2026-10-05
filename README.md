@@ -10,13 +10,7 @@ A single Claude Code plugin (`ycc`) bundling workflow orchestration, parallel pl
 
 <!-- BEGIN:GENERATED-COUNTS -->
 
-<<<<<<< HEAD
-The source plugin ships **50 skills**, **50 slash commands** (most skills have a matching command), and **55 agents**.
-||||||| parent of 3950427 (refactor(skills): remove frontend-slides, mark maintainer-only workflows, link frontend skills)
-The source plugin ships **51 skills**, **50 slash commands** (most skills have a matching command), and **55 agents**.
-=======
-The source plugin ships **50 skills**, **49 slash commands** (most skills have a matching command), and **55 agents**.
->>>>>>> 3950427 (refactor(skills): remove frontend-slides, mark maintainer-only workflows, link frontend skills)
+The source plugin ships **49 skills**, **49 slash commands** (most skills have a matching command), and **55 agents**.
 
 <!-- END:GENERATED-COUNTS -->
 
@@ -81,8 +75,9 @@ The source plugin ships **50 skills**, **49 slash commands** (most skills have a
 `/ycc:bundle-author`, `/ycc:bundle-release`, and `/ycc:compatibility-audit`
 are maintainer-only workflows for this repo's layout. General users can ignore
 them — they are not general-purpose tooling. They stay shipped in the single
-`ycc` plugin because the generators, validators, and the release flow in
-[RELEASING.md](RELEASING.md) depend on them.
+`ycc` plugin (not excluded from generated targets): `/ycc:bundle-release` backs
+the release flow in [RELEASING.md](RELEASING.md), and the other two stay for
+single-plugin parity rather than because scripts import them.
 
 ### Agents
 

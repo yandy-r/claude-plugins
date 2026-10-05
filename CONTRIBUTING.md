@@ -117,9 +117,9 @@ Three workflows are maintainer-only for this repo's layout — `bundle-author`,
 `bundle-release`, and `compatibility-audit` (their descriptions carry a
 "Maintainer-only (ycc repo)" prefix). They operate on this repo's `ycc/`
 source-of-truth layout and are not general-purpose tooling. They are still
-shipped in the single `ycc` plugin (not excluded from generated targets),
-because the validators/generators and RELEASING.md's release flow depend on
-them — `bundle-release` most directly.
+shipped in the single `ycc` plugin (not excluded from generated targets):
+`bundle-release` backs the release flow in RELEASING.md, and the other two
+stay for single-plugin parity rather than because scripts import them.
 
 ## Structure Requirements
 
