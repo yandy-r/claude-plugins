@@ -1,10 +1,11 @@
 ---
 name: bundle-author
-description: This skill should be used when the user asks to "scaffold a new ycc skill",
-  "add a skill to the bundle", "extend ycc", "create a new command under ycc", "add
-  an agent to ycc", or when the user wants to author new source-of-truth content in
-  the ycc/ bundle (skills, commands, agents). Contributor workflow — not a generic
-  plugin scaffolder. Respects the source-of-truth / regenerated-bundle split.
+description: Maintainer-only (ycc repo) — This skill should be used when the user
+  asks to "scaffold a new ycc skill", "add a skill to the bundle", "extend ycc", "create
+  a new command under ycc", "add an agent to ycc", or when the user wants to author
+  new source-of-truth content in the ycc/ bundle (skills, commands, agents). Contributor
+  workflow — not a generic plugin scaffolder. Respects the source-of-truth / regenerated-bundle
+  split.
 ---
 
 # ycc Bundle Author

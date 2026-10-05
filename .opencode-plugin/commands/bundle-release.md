@@ -1,6 +1,7 @@
 ---
-description: 'Prepare a ycc bundle release — preflight, bump, regenerate, validate,
-  draft notes (no auto-commit) Usage: <new-version> [--dry-run] [--skip-notes] [--no-publish]'
+description: 'Maintainer-only (ycc repo) — prepare a ycc bundle release: preflight,
+  bump, regenerate, validate, draft notes (no auto-commit) Usage: <new-version> [--dry-run]
+  [--skip-notes] [--no-publish]'
 ---
 
 Prepare a `ycc` bundle release. Runs pre-flight, bumps the version in the two hand-edited source-of-truth JSON files, regenerates derived Cursor + Codex + opencode bundles (plus inventory), validates all targets, and drafts release notes. **Never auto-commits or publishes.**

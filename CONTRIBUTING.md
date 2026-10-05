@@ -111,6 +111,16 @@ See also: [`ycc/skills/bundle-author/references/when-not-to-scaffold.md`](ycc/sk
 for the skill-author-facing anti-patterns (duplication, one-off tasks, shared-logic
 misplacement, agents without consumers, etc.) that complement this policy.
 
+### Maintainer-only workflows
+
+Three workflows are maintainer-only for this repo's layout — `bundle-author`,
+`bundle-release`, and `compatibility-audit` (their descriptions carry a
+"Maintainer-only (ycc repo)" prefix). They operate on this repo's `ycc/`
+source-of-truth layout and are not general-purpose tooling. They are still
+shipped in the single `ycc` plugin (not excluded from generated targets):
+`bundle-release` backs the release flow in RELEASING.md, and the other two
+stay for single-plugin parity rather than because scripts import them.
+
 ## Structure Requirements
 
 - Claude source plugin manifest: `ycc/.claude-plugin/plugin.json`

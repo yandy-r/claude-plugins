@@ -700,3 +700,7 @@ export function Modal({ isOpen, onClose, children }: ModalProps) {
 | Radix / Headless UI                      | Accessible primitives for dialogs, popovers, menus |
 
 **Remember**: Modern frontend patterns enable maintainable, performant user interfaces. Choose patterns that fit your project complexity — and reach for proven libraries before hand-rolling primitives.
+
+## Related ycc Skills
+
+- `frontend-design` — visual direction, typography, color, and motion intent to pair with these implementation patterns

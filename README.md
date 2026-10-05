@@ -10,7 +10,7 @@ A single Claude Code plugin (`ycc`) bundling workflow orchestration, parallel pl
 
 <!-- BEGIN:GENERATED-COUNTS -->
 
-The source plugin ships **50 skills**, **50 slash commands** (most skills have a matching command), and **55 agents**.
+The source plugin ships **49 skills**, **49 slash commands** (most skills have a matching command), and **55 agents**.
 
 <!-- END:GENERATED-COUNTS -->
 
@@ -20,18 +20,17 @@ The source plugin ships **50 skills**, **50 slash commands** (most skills have a
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `/ycc:backport`            | Cherry-pick merged trunk PRs onto active maintenance branches (release/X.Y) and open backport PRs, following RELEASING.md and its backport:X.Y labels.                                  |
 | `/ycc:blueprint`           | Whole-project source-of-truth spec generator.                                                                                                                                           |
-| `/ycc:bundle-author`       | Scaffold new source-of-truth content in the ycc bundle (skill, optional matching command and agent)                                                                                     |
-| `/ycc:bundle-release`      | Prepare a ycc bundle release — preflight, bump, regenerate, validate, draft notes (no auto-commit)                                                                                      |
+| `/ycc:bundle-author`       | Maintainer-only (ycc repo) — scaffold new source-of-truth content in the ycc bundle (skill, optional matching command and agent)                                                        |
+| `/ycc:bundle-release`      | Maintainer-only (ycc repo) — prepare a ycc bundle release: preflight, bump, regenerate, validate, draft notes (no auto-commit)                                                          |
 | `/ycc:clean`               | Orchestrate parallel cleanup agents to find and remove unnecessary project files                                                                                                        |
 | `/ycc:code-report`         | Generate structured implementation reports documenting changes made during plan execution.                                                                                              |
 | `/ycc:code-review`         | Code review — local uncommitted changes or a GitHub PR (pass PR number/URL for PR mode).                                                                                                |
-| `/ycc:compatibility-audit` | Audit cross-target compatibility of the ycc bundle across Claude, Cursor, Codex, and opencode targets                                                                                   |
+| `/ycc:compatibility-audit` | Maintainer-only (ycc repo) — audit cross-target compatibility of the ycc bundle across Claude, Cursor, Codex, and opencode targets                                                      |
 | `/ycc:deep-research`       | Conduct strategic multi-perspective research using the Asymmetric Research Squad methodology — 8 specialized personas (historical, contrarian, analogical, systems, journalistic, ar... |
 | `/ycc:feature-research`    | Research a feature comprehensively before implementation — analyzes requirements, gathers external API context, and produces a feature-spec.md ready for plan-workflow.                 |
 | `/ycc:formatters`          | Bootstrap a best-practices lint/format environment — installs a self-contained scripts/style.sh bundle, per-language tool configs, runnable aliases (package.json/Makefile/justfile)... |
 | `/ycc:frontend-design`     | Create distinctive, production-grade frontend interfaces with intentional visual direction — typography, color, spacing rhythm, layout composition, motion, and atmosphere.             |
 | `/ycc:frontend-patterns`   | Frontend patterns for React and Next.js — composition, compound components, render props, custom hooks, state management with Context+useReducer, data fetching, performance optimiz... |
-| `/ycc:frontend-slides`     | Create stunning, animation-rich, zero-dependency HTML presentations from scratch or by converting PowerPoint files.                                                                     |
 | `/ycc:git-cleanup`         | Audit and clean up stale git resources (branches, worktrees, remote-tracking refs, stashes, tags, PRs, issues) on GitHub/GitLab.                                                        |
 | `/ycc:git-workflow`        | Git commit and documentation workflow manager.                                                                                                                                          |
 | `/ycc:go-patterns`         | Idiomatic Go patterns, best practices, and conventions for building robust, efficient, and maintainable Go applications.                                                                |
@@ -70,6 +69,15 @@ The source plugin ships **50 skills**, **50 slash commands** (most skills have a
 | `/ycc:write-docs`          | Orchestrate 5 specialized documentation agents in parallel to analyze codebase and create comprehensive documentation.                                                                  |
 
 <!-- END:GENERATED-COMMANDS -->
+
+### Maintainer-only workflows
+
+`/ycc:bundle-author`, `/ycc:bundle-release`, and `/ycc:compatibility-audit`
+are maintainer-only workflows for this repo's layout. General users can ignore
+them — they are not general-purpose tooling. They stay shipped in the single
+`ycc` plugin (not excluded from generated targets): `/ycc:bundle-release` backs
+the release flow in [RELEASING.md](RELEASING.md), and the other two stay for
+single-plugin parity rather than because scripts import them.
 
 ### Agents
 
