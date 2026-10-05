@@ -17,9 +17,11 @@ if [[ -f "${SHARED_DIR}/resolve-plans-dir.sh" ]]; then
   # shellcheck source=../../../shared/scripts/resolve-plans-dir.sh
   source "${SHARED_DIR}/resolve-plans-dir.sh"
 else
-  # Fallback if shared resolver not found
-  echo "WARNING: resolve-plans-dir.sh not found, using default path" >&2
-  PLANS_DIR="docs/plans"
+  # ponytail: resolver ships with the plugin; failing beats guessing a wrong
+  # relative docs/plans. Upgrade path: restore resolver alongside this script.
+  echo "ERROR: resolve-plans-dir.sh not found at ${SHARED_DIR}" >&2
+  echo "Cannot resolve plans directory safely; refusing to guess." >&2
+  exit 1
 fi
 
 PLAN_DIR="${PLANS_DIR}/${FEATURE_NAME}"

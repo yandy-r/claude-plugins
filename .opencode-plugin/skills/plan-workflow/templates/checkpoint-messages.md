@@ -130,16 +130,27 @@ Display after research phase (if --research-only or user stops at checkpoint):
 
 ## Files Created
 
+Standard mode:
+
 - {{FEATURE_DIR}}/research-architecture.md - System structure analysis
 - {{FEATURE_DIR}}/research-patterns.md - Coding patterns identified
 - {{FEATURE_DIR}}/research-integration.md - APIs and integrations
 - {{FEATURE_DIR}}/research-docs.md - Relevant documentation
 - {{FEATURE_DIR}}/shared.md - Consolidated shared context
 
+Optimized mode (`--research-only --optimized`) — no `research-*.md`; the unified artifacts are:
+
+- {{FEATURE_DIR}}/analysis-architecture.md
+- {{FEATURE_DIR}}/analysis-patterns.md
+- {{FEATURE_DIR}}/analysis-integration.md
+- {{FEATURE_DIR}}/analysis-docs.md
+- {{FEATURE_DIR}}/analysis-tasks.md
+- {{FEATURE_DIR}}/shared.md
+
 ## Agent Summary
 
-- Research agents deployed: 4
-- Mode: Standard research
+- Research agents deployed: [4 standard / 5 unified]
+- Mode: [Standard research / Optimized unified]
 
 ## Shared Context Overview
 
@@ -189,6 +200,14 @@ Display after all phases complete:
 - {{FEATURE_DIR}}/analysis-code.md
 - {{FEATURE_DIR}}/analysis-tasks.md
 
+Optimized mode — the five unified files replace both the research and analysis sets:
+
+- {{FEATURE_DIR}}/analysis-architecture.md
+- {{FEATURE_DIR}}/analysis-patterns.md
+- {{FEATURE_DIR}}/analysis-integration.md
+- {{FEATURE_DIR}}/analysis-docs.md
+- {{FEATURE_DIR}}/analysis-tasks.md
+
 ### Planning Phase
 
 - {{FEATURE_DIR}}/parallel-plan.md
@@ -196,8 +215,8 @@ Display after all phases complete:
 ## Agent Deployment Summary
 
 - Mode: [Standard / Optimized]
-- Research agents: 4
-- Analysis agents: [3 / 0]
+- Research agents: [4 standard / 0 optimized (unified agents counted below)]
+- Analysis agents: [3 standard / 5 optimized (unified)]
 - Validation agents: [3 / 2]
 - Total agents: [10 / 7]
 
@@ -293,10 +312,9 @@ Error: Cannot use --plan-only without existing shared.md
 
 {{FEATURE_DIR}}/shared.md not found.
 
-Either:
-1. Remove --plan-only flag to run full workflow
-2. Run /shared-context {{FEATURE_NAME}} first
-3. Create shared.md manually
+--plan-only never runs research inline. Either:
+1. Run /shared-context {{FEATURE_NAME}} first (or: /plan-workflow {{FEATURE_NAME}} --research-only)
+2. Create shared.md manually, then re-run with --plan-only
 ```
 
 ### Invalid Feature Name

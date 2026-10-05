@@ -9,6 +9,8 @@ description: 'Build shared context documentation for a feature — gathers files
 
 # Shared Context Command
 
+Thin alias for `plan-workflow --research-only` (research stage with `--no-checkpoint`).
+
 Build the shared context document for the specified feature.
 
 **Load and follow the `shared-context` skill**, passing through `$ARGUMENTS`.

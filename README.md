@@ -167,7 +167,7 @@ ycc:feature-research → ycc:shared-context → ycc:parallel-plan → ycc:implem
    (research)            (gather files)       (design tasks)      (deploy agents)      (document)         (commit/PR)
 ```
 
-Use `ycc:plan-workflow` to run the full pipeline, or invoke individual stages.
+Use `ycc:plan-workflow` to run the full pipeline, or invoke individual stages. `ycc:shared-context` and `ycc:parallel-plan` are thin aliases over `ycc:plan-workflow --research-only` and `--plan-only` respectively; the pipeline and its artifacts are unchanged.
 
 ## Development Sync
 

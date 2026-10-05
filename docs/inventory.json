@@ -98,7 +98,7 @@
     },
     {
       "name": "parallel-plan",
-      "description": "Create detailed parallel implementation plans by running analysis and validation stages, then synthesizing dependency-aware tasks into parallel-plan.md. Use after shared-context to prepare implementation-ready planning artifacts. Defaults to standalone parallel sub-agents via the Task tool; pass `--team` (Claude Code only) to orchestrate the analysis and validation stages as teammates under a shared TeamCreate/TaskList with coordinated shutdown."
+      "description": "Create detailed parallel implementation plans (alias for plan-workflow plan-only). Runs analysis and validation stages, then synthesizes dependency-aware tasks into parallel-plan.md. Use after shared-context to prepare implementation-ready planning artifacts. Pass `--team` (Claude Code only) to orchestrate analysis and validation stages as teammates under a shared TeamCreate/TaskList with coordinated shutdown."
     },
     {
       "name": "plan",
@@ -186,7 +186,7 @@
     },
     {
       "name": "shared-context",
-      "description": "Create shared context documentation for a feature by deploying 4 researchers (architecture, patterns, integration, docs) that write research artifacts, then synthesizing verified findings into shared.md. Use as Step 1 before parallel-plan when preparing implementation context. Default is standalone parallel sub-agents via the Task tool. Pass `--team` (Claude Code only) to deploy the 4 researchers as teammates under a shared TeamCreate/TaskList with coordinated shutdown."
+      "description": "Create shared context documentation for a feature (alias for plan-workflow research-only). Deploys researchers that write research artifacts, then synthesizes verified findings into shared.md. Use as Step 1 before parallel-plan when preparing implementation context. Pass `--team` (Claude Code only) to deploy researchers as teammates under a shared TeamCreate/TaskList with coordinated shutdown."
     },
     {
       "name": "ts-patterns",

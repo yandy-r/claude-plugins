@@ -1,6 +1,16 @@
 # Validation Agent Prompts
 
-These prompts are used to spawn validation teammates after creating a parallel plan. This is Phase 9 of the unified planning workflow. Validators cross-check each other's findings via messages.
+These prompts are used to spawn validation sub-agents or teammates after creating a parallel plan. This is Phase 9 of the unified planning workflow.
+
+## Global Output Contract
+
+Apply this contract to every prompt in this file:
+
+- Validators **report** findings; they never write or edit any artifact file (the orchestrator applies fixes to `parallel-plan.md`).
+- Do not touch files under `{{FEATURE_DIR}}` or anywhere else.
+- Read only `{{FEATURE_DIR}}/parallel-plan.md` (and `shared.md` where listed).
+- **Path A (standalone, default)**: no `send follow-up instructions`, `the todo tracker`, `update the todo tracker` — report all findings in your final response.
+- **Path B (`--team`)**: share cross-check findings with teammates via `send follow-up instructions` and coordinate via `the todo tracker`/`update the todo tracker` (sections marked Path B only).
 
 ---
 
@@ -27,25 +37,62 @@ Read: {{FEATURE_DIR}}/parallel-plan.md
 
 Scan the plan and check:
 
-1. **Critically Relevant Files section** - Verify paths exist, check relative to project root
-2. **Task Instructions** - Verify "READ THESE BEFORE TASK", "Files to Create" (check conflicts), "Files to Modify" (must exist)
-3. **Documentation References** - Check /docs/ references
+1. **Critically Relevant Files section**
+   - Verify each listed file path exists
+   - Check if paths are relative to project root
+
+2. **Task Instructions**
+   - Verify files in "READ THESE BEFORE TASK" sections
+   - Check "Files to Create" for conflicts with existing files
+   - Verify "Files to Modify" exist
+
+3. **Documentation References**
+   - Check any /docs/ references are valid
 
 ## Team Communication
 
-Your teammates are:
-- **dependency-validator**: Checking the task dependency graph
-- **completeness-validator**: Evaluating task quality
+> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `send follow-up instructions`, `update the todo tracker`, or `the todo tracker`, ignore this section entirely and just report your findings in your final response.
 
-Share missing file info with `dependency-validator` (may indicate dependency issues) and placeholder paths with `completeness-validator`.
+You are part of a validation team. Your teammates are:
+
+- **dependency-validator**: Checking the task dependency graph
+- **completeness-validator**: Evaluating task quality and completeness
+
+**Share these findings via send follow-up instructions:**
+
+- Message `dependency-validator` with: any tasks that reference files that don't exist (this may indicate dependency issues)
+- Message `completeness-validator` with: any tasks with placeholder file paths or ambiguous references
 
 ## Task Coordination
 
-Claim your task, do validation, share findings, mark complete.
+> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `the todo tracker` / `update the todo tracker`, ignore this section entirely; report your findings in your final response.
+
+1. Check the todo tracker for your assigned task
+2. Claim your task with update the todo tracker (set status to in_progress, owner to your name)
+3. Do your validation
+4. Share findings with teammates
+5. Mark your task complete with update the todo tracker
 
 ## Output Format
 
-Report with: Valid Paths, Missing Paths, Potential Issues, Suggestions.
+Provide a report with:
+
+**Valid Paths** (checkmark)
+- /path/to/file.ext
+- /path/to/another.ext
+
+**Missing Paths** (X)
+- /path/to/nonexistent.ext - File not found
+- /path/to/missing.ext - File not found
+
+**Potential Issues** (warning)
+- /path/to/file.ext - Listed in "Files to Create" but already exists
+- /path/to/ambiguous - Multiple files match pattern
+
+**Suggestions**
+- Correct path for /wrong/path.ext might be /correct/path.ext
+- Consider adding missing file references
+
 Focus on accuracy - verify each path exists before marking valid.
 ```
 
@@ -70,29 +117,84 @@ Read: {{FEATURE_DIR}}/parallel-plan.md
 
 ## Your Task
 
-Extract all tasks and dependencies, check for:
+Extract all tasks and their dependencies, then check for:
 
-1. **Circular Dependencies** - Direct or indirect cycles
-2. **Missing Dependencies** - Tasks modifying files created by prior tasks without declaring dependency
-3. **Orphaned Tasks** - Tasks with no downstream consumers
-4. **Parallelization Opportunities** - Falsely sequential tasks
+1. **Circular Dependencies**
+   - Tasks that depend on each other (directly or indirectly)
+   - Example: Task 2.1 depends on 3.1, and 3.1 depends on 2.1
+
+2. **Missing Dependencies**
+   - Tasks that reference or modify files created by prior tasks
+   - Tasks that should depend on each other but don't
+
+3. **Orphaned Tasks**
+   - Tasks that nothing depends on and don't contribute to later work
+
+4. **Parallelization Opportunities**
+   - Tasks marked as dependent that could actually run in parallel
+   - Tasks that share no file modifications or data dependencies
 
 ## Team Communication
 
-Your teammates are:
-- **path-validator**: Verifying file paths
-- **completeness-validator**: Evaluating task quality
+> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `send follow-up instructions`, `update the todo tracker`, or `the todo tracker`, ignore this section entirely and just report your findings in your final response.
 
-Share file creation chains with `path-validator` and orphaned/bottleneck tasks with `completeness-validator`.
-Listen for missing file reports from `path-validator`.
+You are part of a validation team. Your teammates are:
+
+- **path-validator**: Verifying file paths exist
+- **completeness-validator**: Evaluating task quality and completeness
+
+**Share these findings via send follow-up instructions:**
+
+- Message `path-validator` with: any tasks that create files used by dependent tasks (so path-validator can verify those files don't already exist)
+- Message `completeness-validator` with: any orphaned tasks or bottleneck tasks that may need scope adjustment
+
+**Listen for messages from teammates** — `path-validator` may report missing files that indicate dependency issues.
 
 ## Task Coordination
 
-Claim your task, do validation, share findings, mark complete.
+> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `the todo tracker` / `update the todo tracker`, ignore this section entirely; report your findings in your final response.
+
+1. Check the todo tracker for your assigned task
+2. Claim your task with update the todo tracker (set status to in_progress, owner to your name)
+3. Do your validation
+4. Share findings with teammates
+5. Mark your task complete with update the todo tracker
 
 ## Output Format
 
-Dependency Graph (text visualization), Issues Found, Parallelization Analysis, Recommendations.
+**Dependency Graph** (text visualization, indented — no nested code fence)
+
+    Phase 1:
+    1.1 [none] ----+
+    1.2 [none] ----+--> Phase 2
+    1.3 [1.1] ----+
+
+    Phase 2:
+    2.1 [1.1, 1.2] ---> 2.3
+    2.2 [none] ---> 2.3
+    2.3 [2.1, 2.2]
+
+**Issues Found**
+
+Circular Dependencies: [count]
+- Task 2.1 -> 3.1 -> 2.1 (circular)
+
+Missing Dependencies: [count]
+- Task 3.1 modifies file created in 2.2 but doesn't depend on it
+
+Orphaned Tasks: [count]
+- Task 1.3 creates file never used
+
+**Parallelization Analysis**
+
+Current parallelizable tasks: [count]
+Potential additional parallel tasks: [count]
+- Tasks 2.1 and 2.2 could run in parallel (no shared dependencies)
+
+**Recommendations**
+- Add dependency: 3.1 depends on [2.2]
+- Consider removing orphaned task 1.3 or clarify its purpose
+- Tasks 2.1 and 2.2 can be marked [none] to increase parallelism
 ```
 
 ---
@@ -118,24 +220,93 @@ Read:
 
 ## Your Task
 
-For each task, evaluate: Clear Purpose, Specific File Changes, Actionable Instructions, Gotchas Documented, Appropriate Scope (1-3 files).
+For each task, evaluate:
+
+1. **Clear Purpose**
+   - Is it obvious what this task accomplishes?
+   - Is the task title descriptive?
+
+2. **Specific File Changes**
+   - Are file paths specific (not placeholders)?
+   - Are both creation and modification clear?
+
+3. **Actionable Instructions**
+   - Can a developer implement without guessing?
+   - Are integration points clear?
+   - Are patterns to follow specified?
+
+4. **Gotchas Documented**
+   - Are non-obvious issues mentioned?
+   - Are dependencies on existing code noted?
+   - Are edge cases addressed?
+
+5. **Appropriate Scope**
+   - Is the task small enough (1-3 files)?
+   - Should it be broken into subtasks?
 
 ## Team Communication
 
-Your teammates are:
-- **path-validator**: Verifying file paths
-- **dependency-validator**: Checking dependency graph
+> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `send follow-up instructions`, `update the todo tracker`, or `the todo tracker`, ignore this section entirely and just report your findings in your final response.
 
-Share suspicious file paths with `path-validator` and scope issues with `dependency-validator`.
-Listen for missing files and orphaned tasks from teammates.
+You are part of a validation team. Your teammates are:
+
+- **path-validator**: Verifying file paths exist
+- **dependency-validator**: Checking the task dependency graph
+
+**Share these findings via send follow-up instructions:**
+
+- Message `path-validator` with: any tasks you find with placeholder or suspicious file paths
+- Message `dependency-validator` with: any tasks whose scope suggests they should have additional dependencies
+
+**Listen for messages from teammates** — `path-validator` may report tasks with missing file references, and `dependency-validator` may report orphaned tasks that need scope review.
 
 ## Task Coordination
 
-Claim your task, do validation, share findings, mark complete.
+> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `the todo tracker` / `update the todo tracker`, ignore this section entirely; report your findings in your final response.
+
+1. Check the todo tracker for your assigned task
+2. Claim your task with update the todo tracker (set status to in_progress, owner to your name)
+3. Do your validation
+4. Share findings with teammates
+5. Mark your task complete with update the todo tracker
 
 ## Output Format
 
-Task Quality Summary, Detailed Findings (per task), Recommendations, Overall Assessment.
+**Task Quality Summary**
+
+Total Tasks: [count]
+High Quality: [count] (checkmark)
+Needs Minor Improvements: [count] (warning)
+Needs Significant Work: [count] (X)
+
+**Detailed Findings**
+
+(checkmark) Task 1.1: [Title] - Well-defined and actionable
+(checkmark) Task 1.2: [Title] - Clear purpose and instructions
+
+(warning) Task 2.1: [Title]
+  - Missing: Gotchas or edge cases
+  - Suggestion: Mention how this integrates with existing auth system
+
+(warning) Task 2.3: [Title]
+  - Issue: Scope too large (modifies 5 files)
+  - Suggestion: Split into 2.3a and 2.3b
+
+(X) Task 3.1: [Title]
+  - Missing: Specific file paths (uses placeholders)
+  - Missing: Clear instructions for implementation
+  - Missing: Pattern to follow
+  - Needs: Complete rewrite with specific details
+
+**Recommendations**
+
+Priority Improvements:
+1. Task 3.1 - Add specific file paths and detailed instructions
+2. Task 2.3 - Split into smaller tasks
+3. Task 2.1 - Document integration gotchas
+
+Overall Assessment:
+[Summary of plan quality and readiness for implementation]
 ```
 
 ---
@@ -169,11 +340,15 @@ Extract tasks and dependencies. Check for: circular dependencies, missing depend
 
 ## Team Communication
 
+> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `send follow-up instructions`, `update the todo tracker`, or `the todo tracker`, ignore this section entirely and just report your findings in your final response.
+
 Your teammate is: **completeness-validator**
 
 Share tasks with path issues or dependency problems for their quality assessment.
 
 ## Task Coordination
+
+> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `the todo tracker` / `update the todo tracker`, ignore this section entirely; report your findings in your final response.
 
 Claim your task, do validation, share findings, mark complete.
 
@@ -209,11 +384,15 @@ For each task evaluate: Clear Purpose, Specific Files, Actionable Instructions, 
 
 ## Team Communication
 
+> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `send follow-up instructions`, `update the todo tracker`, or `the todo tracker`, ignore this section entirely and just report your findings in your final response.
+
 Your teammate is: **path-dep-validator**
 
 Listen for path/dependency issues they find and factor into your quality assessment.
 
 ## Task Coordination
+
+> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `the todo tracker` / `update the todo tracker`, ignore this section entirely; report your findings in your final response.
 
 Claim your task, do validation, share findings, mark complete.
 
@@ -226,12 +405,21 @@ Task Quality Summary, Detailed Findings, Priority Improvements, Overall Assessme
 
 ## Usage Instructions
 
-When spawning validation teammates:
+Common to both paths:
 
 1. **Read this file** to get the prompt templates
 2. **Substitute variables**:
    - `{{FEATURE_NAME}}` - The feature directory name
    - `{{FEATURE_DIR}}` - Full output directory path
+
+**Path A — standalone sub-agents (default)**:
+
+3. **Spawn in parallel** with the Task/opencode `task` tool, one sub-agent per prompt; strip the Path B sections' `send follow-up instructions`/`the todo tracker`/`update the todo tracker` instructions — agents report findings in their final response only
+4. **Collect results** from each sub-agent's final response
+5. **Review results** - Address issues found before finalizing plan
+
+**Path B — `--team` (validation teammates)**:
+
 3. **Create tasks** - Use track the task for validation tasks
 4. **Spawn in parallel** - Use a single message with parallel subagent invocations, each with `team_name` and `name`
 5. **Monitor progress** - Use the todo tracker to check when all tasks complete

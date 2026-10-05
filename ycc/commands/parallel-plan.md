@@ -5,6 +5,8 @@ argument-hint: '[--team] [--no-worktree] [--visual] [feature-name] [--dry-run]'
 
 # Parallel Plan Command
 
+Thin alias for `ycc:plan-workflow --plan-only` (planning stage with `--no-checkpoint`).
+
 Generate a parallel implementation plan for the specified feature.
 
 **Load and follow the `ycc:parallel-plan` skill**, passing through `$ARGUMENTS`.
