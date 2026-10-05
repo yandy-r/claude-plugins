@@ -28,4 +28,4 @@ if (!apiKey) {
 
 ## Agent Support
 
-- Use **security-reviewer** skill for comprehensive security audits
+- Use the `code-review` skill for security-focused reviews; see [common/security.mdc](../common/security.mdc) for the mandatory security checklist

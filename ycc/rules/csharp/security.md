@@ -56,4 +56,4 @@ await connection.QueryAsync<Order>(sql, new { customerId });
 
 ## References
 
-See skill: `security-review` for broader application security review checklists.
+See [common/security.md](../common/security.md) for the mandatory security checklist, and run the `code-review` skill for a security-focused review.

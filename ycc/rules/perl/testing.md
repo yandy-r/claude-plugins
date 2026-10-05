@@ -52,4 +52,4 @@ cover -test
 
 ## Reference
 
-See skill: `perl-testing` for detailed Perl TDD patterns with Test2::V0, prove, and Devel::Cover.
+See [common/testing.md](../common/testing.md) for the TDD workflow and coverage requirements.

@@ -46,4 +46,4 @@ perlcritic --severity 3 --theme 'core || pbp || security' lib/
 
 ## Reference
 
-See skill: `perl-patterns` for comprehensive modern Perl idioms and best practices.
+See [common/coding-style.mdc](../common/coding-style.mdc) for the language-agnostic coding standards.

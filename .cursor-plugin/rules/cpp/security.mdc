@@ -55,4 +55,4 @@ globs:
 
 ## Reference
 
-See skill: `cpp-coding-standards` for detailed security guidelines.
+See [common/security.mdc](../common/security.mdc) for the mandatory security checklist.

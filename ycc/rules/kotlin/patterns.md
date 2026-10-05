@@ -143,5 +143,4 @@ val client = httpClient {
 
 ## References
 
-See skill: `kotlin-coroutines-flows` for detailed coroutine patterns.
-See skill: `android-clean-architecture` for module and layer patterns.
+See [common/patterns.md](../common/patterns.md) for language-agnostic design patterns.

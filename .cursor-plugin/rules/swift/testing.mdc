@@ -45,4 +45,4 @@ swift test --enable-code-coverage
 
 ## Reference
 
-See skill: `swift-protocol-di-testing` for protocol-based dependency injection and mock patterns with Swift Testing.
+See [common/testing.mdc](../common/testing.mdc) for the TDD workflow and coverage requirements.

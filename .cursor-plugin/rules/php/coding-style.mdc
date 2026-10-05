@@ -40,4 +40,4 @@ globs:
 
 ## Reference
 
-See skill: `backend-patterns` for broader service/repository layering guidance.
+See [common/patterns.mdc](../common/patterns.mdc) for repository and service layering guidance.

@@ -32,5 +32,4 @@ globs:
 
 ## Reference
 
-See skill: `api-design` for endpoint conventions and response-shape guidance.
-See skill: `laravel-patterns` for Laravel-specific architecture guidance.
+See [common/patterns.mdc](../common/patterns.mdc) for the repository pattern and API response format.

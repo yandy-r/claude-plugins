@@ -42,4 +42,4 @@ paths:
 
 ## Reference
 
-See skill: `cpp-coding-standards` for comprehensive C++ coding standards and guidelines.
+See [common/coding-style.md](../common/coding-style.md) for the language-agnostic coding standards.

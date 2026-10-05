@@ -35,4 +35,4 @@ paths:
 
 ## Reference
 
-See skill: `laravel-security` for Laravel-specific security guidance.
+See [common/security.md](../common/security.md) for the mandatory security checklist.

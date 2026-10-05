@@ -38,4 +38,4 @@ paths:
 
 ## Reference
 
-See skill: `backend-patterns` for broader service/repository layering guidance.
+See [common/patterns.md](../common/patterns.md) for repository and service layering guidance.
