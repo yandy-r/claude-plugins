@@ -23,7 +23,7 @@ Parse `$ARGUMENTS`:
   trailing hyphens.
 - **--skill-only** — suppress the matching command and stamp `command: false` into
   the skill frontmatter. Use only for passive skills that are never slash-invoked
-  (e.g., `karpathy-guidelines` behavioral rules). Without this flag, the scaffolder
+  (e.g., passive coding guidance loaded when relevant). Without this flag, the scaffolder
   **always** creates the paired command because every normal skill pairs with a
   slash command under the `validate-ycc-commands.sh` policy.
 - **--with-agent** — also scaffold `ycc/agents/<skill-name>.md`.

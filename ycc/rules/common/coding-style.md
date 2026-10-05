@@ -32,6 +32,29 @@ Rationale: Immutable data prevents hidden side effects, makes debugging easier, 
 - Avoid speculative generality
 - Start simple, then refactor when the pressure is real
 
+## Assumptions, Scope, and Verification
+
+Guidance adapted from [Andrej Karpathy’s observations](https://x.com/karpathy/status/2015883857489522876) on LLM coding pitfalls.
+
+### Think Before Coding
+
+- State material assumptions before implementing
+- Present competing interpretations; ask when uncertainty affects correctness or scope
+
+### Surgical Changes
+
+- Tie each changed line to the request; no adjacent cleanup, unrelated refactors, or format changes
+- Match existing style
+- Remove only imports, variables, or functions made unused by the change; report pre-existing dead code unless deletion was requested
+- Preserve trust-boundary validation, necessary error handling, security, and accessibility
+
+### Observable Success Criteria
+
+- Define observable criteria and corresponding checks before coding; pair plan steps with checks
+- Bugs: reproduce the failure with a test, then verify it passes
+- Refactors: run relevant tests before and after
+- Run relevant checks and report results against the criteria; unrelated passing checks are not success
+
 ## File Organization
 
 MANY SMALL FILES > FEW LARGE FILES:
