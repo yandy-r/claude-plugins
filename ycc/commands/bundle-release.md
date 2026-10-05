@@ -1,5 +1,5 @@
 ---
-description: Prepare a ycc bundle release — preflight, bump, regenerate, validate, draft notes (no auto-commit)
+description: 'Maintainer-only (ycc repo) — prepare a ycc bundle release: preflight, bump, regenerate, validate, draft notes (no auto-commit)'
 argument-hint: '<new-version> [--dry-run] [--skip-notes] [--no-publish]'
 ---
 

@@ -10,11 +10,11 @@
     },
     {
       "name": "bundle-author",
-      "description": "This skill should be used when the user asks to \"scaffold a new ycc skill\", \"add a skill to the bundle\", \"extend ycc\", \"create a new command under ycc\", \"add an agent to ycc\", or when the user wants to author new source-of-truth content in the ycc/ bundle (skills, commands, agents). Contributor workflow \u2014 not a generic plugin scaffolder. Respects the source-of-truth / regenerated-bundle split."
+      "description": "Maintainer-only (ycc repo) \u2014 This skill should be used when the user asks to \"scaffold a new ycc skill\", \"add a skill to the bundle\", \"extend ycc\", \"create a new command under ycc\", \"add an agent to ycc\", or when the user wants to author new source-of-truth content in the ycc/ bundle (skills, commands, agents). Contributor workflow \u2014 not a generic plugin scaffolder. Respects the source-of-truth / regenerated-bundle split."
     },
     {
       "name": "bundle-release",
-      "description": "This skill should be used when the user asks to \"release ycc\", \"bump ycc version\", \"prepare a ycc release\", \"cut a new ycc release\", \"tag a ycc release\", or when the user wants to version, regenerate, validate, and produce release notes for the ycc bundle. Orchestrates existing generators/validators; never auto-commits."
+      "description": "Maintainer-only (ycc repo) \u2014 This skill should be used when the user asks to \"release ycc\", \"bump ycc version\", \"prepare a ycc release\", \"cut a new ycc release\", \"tag a ycc release\", or when the user wants to version, regenerate, validate, and produce release notes for the ycc bundle. Orchestrates existing generators/validators; never auto-commits."
     },
     {
       "name": "clean",
@@ -30,7 +30,7 @@
     },
     {
       "name": "compatibility-audit",
-      "description": "This skill should be used when the user asks to \"audit ycc compatibility\", \"check Cursor/Codex bundle health\", \"verify cross-target parity\", \"run a compatibility report for ycc\", \"is ycc ready to release\", \"are the generated bundles up to date\", \"check if the bundles are in sync\", \"validate generated targets\", \"are Cursor and Codex bundles current\", \"check bundle drift\", \"report on target feature gaps\", or when the user wants a structured per-target health report covering drift detection, install-assumption validation, and feature-capability gaps across the Claude, Cursor, Codex, and opencode targets without bumping versions or committing anything.\n"
+      "description": "Maintainer-only (ycc repo) \u2014 This skill should be used when the user asks to \"audit ycc compatibility\", \"check Cursor/Codex bundle health\", \"verify cross-target parity\", \"run a compatibility report for ycc\", \"is ycc ready to release\", \"are the generated bundles up to date\", \"check if the bundles are in sync\", \"validate generated targets\", \"are Cursor and Codex bundles current\", \"check bundle drift\", \"report on target feature gaps\", or when the user wants a structured per-target health report covering drift detection, install-assumption validation, and feature-capability gaps across the Claude, Cursor, Codex, and opencode targets without bumping versions or committing anything.\n"
     },
     {
       "name": "deep-research",
@@ -51,10 +51,6 @@
     {
       "name": "frontend-patterns",
       "description": "Frontend patterns for React and Next.js \u2014 composition, compound components, render props, custom hooks, state management with Context+useReducer, data fetching, performance optimization (React.memo/useMemo/useCallback, lazy/Suspense, virtualization), forms with validation, error boundaries, animation with Framer Motion, and accessibility patterns (keyboard nav, focus management). Use when the user is building React components, asks about useState/useReducer/Context, asks about useMemo/useCallback/React.memo, asks about code splitting with React.lazy and Suspense, asks about long-list virtualization with @tanstack/react-virtual, asks about form validation, error boundaries, custom hooks, Framer Motion animations, keyboard navigation/focus management, or wants modern React/Next.js idioms."
-    },
-    {
-      "name": "frontend-slides",
-      "description": "Create stunning, animation-rich, zero-dependency HTML presentations from scratch or by converting PowerPoint files. Enforces viewport-fit (one slide = one viewport, no scrolling), distinctive design presets, and a discovery-by-preview workflow. Use when the user asks to build a presentation/talk/pitch deck, convert a .ppt or .pptx to HTML, improve an existing HTML deck, asks about slide layout, slide animations, keyboard/touch navigation, viewport fitting with clamp() and 100dvh, presentation themes/style presets, or python-pptx for PPTX extraction."
     },
     {
       "name": "git-cleanup",
@@ -212,11 +208,11 @@
     },
     {
       "name": "bundle-author",
-      "description": "Scaffold new source-of-truth content in the ycc bundle (skill, optional matching command and agent)"
+      "description": "Maintainer-only (ycc repo) \u2014 scaffold new source-of-truth content in the ycc bundle (skill, optional matching command and agent)"
     },
     {
       "name": "bundle-release",
-      "description": "Prepare a ycc bundle release \u2014 preflight, bump, regenerate, validate, draft notes (no auto-commit)"
+      "description": "Maintainer-only (ycc repo) \u2014 prepare a ycc bundle release: preflight, bump, regenerate, validate, draft notes (no auto-commit)"
     },
     {
       "name": "clean",
@@ -232,7 +228,7 @@
     },
     {
       "name": "compatibility-audit",
-      "description": "Audit cross-target compatibility of the ycc bundle across Claude, Cursor, Codex, and opencode targets"
+      "description": "Maintainer-only (ycc repo) \u2014 audit cross-target compatibility of the ycc bundle across Claude, Cursor, Codex, and opencode targets"
     },
     {
       "name": "deep-research",
@@ -253,10 +249,6 @@
     {
       "name": "frontend-patterns",
       "description": "Frontend patterns for React and Next.js \u2014 composition, compound components, render props, custom hooks, state management with Context+useReducer, data fetching, performance optimization (React.memo/useMemo/useCallback, lazy/Suspense, virtualization), forms with validation, error boundaries, animation with Framer Motion, and accessibility patterns (keyboard nav, focus management). Use when the user is building React components, asks about useState/useReducer/Context, asks about useMemo/useCallback/React.memo, asks about code splitting with React.lazy and Suspense, asks about long-list virtualization with @tanstack/react-virtual, asks about form validation, error boundaries, custom hooks, Framer Motion animations, keyboard navigation/focus management, or wants modern React/Next.js idioms."
-    },
-    {
-      "name": "frontend-slides",
-      "description": "Create stunning, animation-rich, zero-dependency HTML presentations from scratch or by converting PowerPoint files. Enforces viewport-fit (one slide = one viewport, no scrolling), distinctive design presets, and a discovery-by-preview workflow. Use when the user asks to build a presentation/talk/pitch deck, convert a .ppt or .pptx to HTML, improve an existing HTML deck, asks about slide layout, slide animations, keyboard/touch navigation, viewport fitting with clamp() and 100dvh, presentation themes/style presets, or python-pptx for PPTX extraction."
     },
     {
       "name": "git-cleanup",
@@ -627,7 +619,14 @@
   ],
   "counts": {
     "skills": 50,
+<<<<<<< HEAD
     "commands": 50,
+||||||| parent of 3950427 (refactor(skills): remove frontend-slides, mark maintainer-only workflows, link frontend skills)
+    "skills": 51,
+    "commands": 50,
+=======
+    "commands": 49,
+>>>>>>> 3950427 (refactor(skills): remove frontend-slides, mark maintainer-only workflows, link frontend skills)
     "agents": 55
   },
   "parity": {

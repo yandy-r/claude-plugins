@@ -1,7 +1,8 @@
 ---
 name: compatibility-audit
 description: >
-  This skill should be used when the user asks to "audit ycc compatibility",
+  Maintainer-only (ycc repo) — This skill should be used when the user asks to
+  "audit ycc compatibility",
   "check Cursor/Codex bundle health", "verify cross-target parity", "run a
   compatibility report for ycc", "is ycc ready to release", "are the generated
   bundles up to date", "check if the bundles are in sync", "validate generated

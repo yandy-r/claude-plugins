@@ -1,5 +1,5 @@
 ---
-description: Audit cross-target compatibility of the ycc bundle across Claude, Cursor, Codex, and opencode targets
+description: Maintainer-only (ycc repo) — audit cross-target compatibility of the ycc bundle across Claude, Cursor, Codex, and opencode targets
 argument-hint: '[--target=claude|cursor|codex|opencode|all] [--json] [--fail-fast] [--dry-run]'
 ---
 

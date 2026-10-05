@@ -1,7 +1,7 @@
 ---
-description: 'Scaffold new source-of-truth content in the ycc bundle (skill, optional
-  matching command and agent) Usage: <skill-name> [--with-command] [--with-agent]
-  [--dry-run]'
+description: 'Maintainer-only (ycc repo) — scaffold new source-of-truth content in
+  the ycc bundle (skill, optional matching command and agent) Usage: <skill-name>
+  [--with-command] [--with-agent] [--dry-run]'
 ---
 
 Scaffold a new skill (and optionally a matching command and/or agent) in the `ycc/` source-of-truth tree.

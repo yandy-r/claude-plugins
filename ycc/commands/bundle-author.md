@@ -1,5 +1,5 @@
 ---
-description: Scaffold new source-of-truth content in the ycc bundle (skill, optional matching command and agent)
+description: 'Maintainer-only (ycc repo) — scaffold new source-of-truth content in the ycc bundle (skill, optional matching command and agent)'
 argument-hint: '<skill-name> [--with-command] [--with-agent] [--dry-run]'
 ---
 

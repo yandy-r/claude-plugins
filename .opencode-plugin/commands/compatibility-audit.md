@@ -1,7 +1,7 @@
 ---
-description: 'Audit cross-target compatibility of the ycc bundle across Claude, Cursor,
-  Codex, and opencode targets Usage: [--target=claude|cursor|codex|opencode|all] [--json]
-  [--fail-fast] [--dry-run]'
+description: 'Maintainer-only (ycc repo) — audit cross-target compatibility of the
+  ycc bundle across Claude, Cursor, Codex, and opencode targets Usage: [--target=claude|cursor|codex|opencode|all]
+  [--json] [--fail-fast] [--dry-run]'
 ---
 
 Audit the `ycc` bundle for cross-target compatibility. Compares the source-of-truth under `ycc/` against the generated bundles for each target, runs the per-target validator sweep, checks install and packaging assumptions, and reports any features used in source that a given target does not support.
