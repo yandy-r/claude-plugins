@@ -21,8 +21,9 @@ new one. If the name no longer fits the expanded scope, rename the directory.
 **Rationale:** Scaffolding a skill for a task you will run once creates permanent
 maintenance surface with no ongoing value.
 
-**Do this instead:** Run the task using a direct prompt or an existing general-purpose
-skill such as `ycc:ask`. Only scaffold when the same workflow will be reused repeatedly.
+**Do this instead:** Run the task using a direct prompt. For read-only codebase
+questions, delegate directly to the `ycc:codebase-advisor` agent. Only scaffold when the
+same workflow will be reused repeatedly.
 
 ---
 

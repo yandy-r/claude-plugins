@@ -63,8 +63,8 @@ Minimal body (scaffolded by `bundle-author`):
 Invoke the **<kebab-name>** skill with `$ARGUMENTS` passed through.
 ```
 
-Many commands grow beyond the minimal form — see `.opencode-plugin/commands/plan.md` or
-`.opencode-plugin/commands/ask.md` for examples with flag tables, cross-refs, or agent pinning.
+Many commands grow beyond the minimal form — see `.opencode-plugin/commands/plan.md` for an
+example with flag tables, cross-refs, or agent pinning.
 
 ---
 
