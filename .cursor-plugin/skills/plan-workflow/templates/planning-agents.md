@@ -384,7 +384,7 @@ Based on the codebase structure and planning context:
    - Integration tasks (API, UI, tests)
    - Documentation tasks
 
-5. **Label Parallel vs Sequential** - In your output, clearly label each task as **parallel** (can run concurrently with siblings) or **sequential** (must follow a predecessor). The orchestrator uses this labeling for batch ordering. Follow `ycc/skills/_shared/references/worktree-strategy.md` for the single-worktree contract.
+5. **Label Parallel vs Sequential** - In your output, clearly label each task as **parallel** (can run concurrently with siblings) or **sequential** (must follow a predecessor). The orchestrator uses this labeling for batch ordering. Follow `${CURSOR_PLUGIN_ROOT}/skills/_shared/references/worktree-strategy.md` for the single-worktree contract.
 
 ## Team Communication
 

@@ -379,12 +379,22 @@ SendMessage to each teammate: message={type: "shutdown_request"}
 
 ### Step 13: Read Research Results
 
-After verifying all files exist, read all research files:
+After verifying all files exist (Step 11 passed), read the input set for the active mode before synthesizing `shared.md`:
+
+**Standard mode (4 research files)**:
 
 1. `${feature_dir}/research-architecture.md`
 2. `${feature_dir}/research-patterns.md`
 3. `${feature_dir}/research-integration.md`
 4. `${feature_dir}/research-docs.md`
+
+**Optimized mode (5 unified analysis files — no `research-*.md` exist)**:
+
+1. `${feature_dir}/analysis-architecture.md`
+2. `${feature_dir}/analysis-patterns.md`
+3. `${feature_dir}/analysis-integration.md`
+4. `${feature_dir}/analysis-docs.md`
+5. `${feature_dir}/analysis-tasks.md`
 
 ### Step 14: Generate shared.md
 
@@ -567,7 +577,7 @@ Otherwise, send shutdown requests to all analysis teammates.
 > **PRE-CHECK — branch on execution mode**:
 >
 > - **Standard**: if `analysis-context.md`, `analysis-code.md`, or `analysis-tasks.md` do not exist in `${feature_dir}/`, Phase 5 was skipped in error. Go back and run Phase 5 now.
-> - **Optimized**: the five unified files below must exist (produced by Phase 1 unified agents, gated by Step 22). If any is missing, STOP and tell the user: `run /ycc:plan-workflow <feature> --optimized (full workflow) first` — optimized mode has no Phase 5 to regenerate them.
+> - **Optimized**: the five unified files below must exist (produced by Phase 1 unified agents, gated by Step 22). If any is missing, STOP and tell the user: `--optimized --plan-only needs a prior --optimized full run. Run /ycc:plan-workflow <feature> --optimized first.` Optimized mode has no Phase 5 to regenerate them.
 
 ### Step 24: Read Analysis Results
 
