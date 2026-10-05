@@ -38,7 +38,7 @@ Before marking code complete:
 
 ## Security Review Triggers
 
-**STOP and use security-reviewer agent when:**
+**STOP and use code-reviewer for a security-focused review when changing:**
 
 - Authentication or authorization code
 - User input handling
@@ -61,14 +61,12 @@ Before marking code complete:
 
 Use these agents for code review:
 
-| Agent                   | Purpose                                        |
-| ----------------------- | ---------------------------------------------- |
-| **code-reviewer**       | General code quality, patterns, best practices |
-| **security-reviewer**   | Security vulnerabilities, OWASP Top 10         |
-| **typescript-reviewer** | TypeScript/JavaScript specific issues          |
-| **python-reviewer**     | Python specific issues                         |
-| **go-reviewer**         | Go specific issues                             |
-| **rust-reviewer**       | Rust specific issues                           |
+| Agent             | Purpose                                                  |
+| ----------------- | -------------------------------------------------------- |
+| **code-reviewer** | General code quality, security, patterns, best practices |
+| **rust-reviewer** | Rust specific issues                                     |
+
+For TypeScript/JavaScript, Python, and Go, request language-specific checks from code-reviewer using the applicable language rules.
 
 ## Review Workflow
 
