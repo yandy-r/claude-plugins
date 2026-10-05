@@ -53,4 +53,4 @@ paths:
 
 ## Reference
 
-See skill: `cpp-coding-standards` for detailed security guidelines.
+See [common/security.md](../common/security.md) for the mandatory security checklist.

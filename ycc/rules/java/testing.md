@@ -112,7 +112,7 @@ class OrderRepositoryIT {
 }
 ```
 
-For Spring Boot integration tests, see skill: `springboot-tdd`.
+For Spring Boot integration tests, use `@SpringBootTest` with Testcontainers for real dependencies and MockMvc for the web layer.
 
 ## Test Naming
 
@@ -129,5 +129,4 @@ Use descriptive names with `@DisplayName`:
 
 ## References
 
-See skill: `springboot-tdd` for Spring Boot TDD patterns with MockMvc and Testcontainers.
-See skill: `java-coding-standards` for testing expectations.
+See [common/testing.md](../common/testing.md) for the TDD workflow and coverage requirements.

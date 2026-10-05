@@ -27,6 +27,17 @@ while IFS= read -r -d '' f; do
   fi
 done < <(find "$RULES_DIR" -type f -print0)
 
+echo "== Skill references (source rules) =="
+# ponytail: skill citations use backticks or bold kebab-case names on lines mentioning skills; widen if rules adopt another form.
+while IFS= read -r name; do
+  if [[ ! -f "${REPO_ROOT}/ycc/skills/${name}/SKILL.md" ]]; then
+    echo "Unknown skill reference '${name}' in ycc/rules:" >&2
+    grep -rnE "(\`|\*\*)${name}(\`|\*\*)" "${REPO_ROOT}/ycc/rules" >&2 || true
+    BAD=1
+  fi
+done < <(grep -rhiE 'skill' "${REPO_ROOT}/ycc/rules" |
+  grep -oE '`[a-z0-9-]+`|\*\*[a-z0-9-]+\*\*' | tr -d '`*' | sort -u)
+
 if [[ "$BAD" -ne 0 ]]; then
   echo "validate-cursor-rules.sh: content policy failed." >&2
   exit 1

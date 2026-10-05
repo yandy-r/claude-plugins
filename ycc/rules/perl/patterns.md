@@ -74,4 +74,4 @@ carton exec prove -lr t/
 
 ## Reference
 
-See skill: `perl-patterns` for comprehensive modern Perl patterns and idioms.
+See [common/patterns.md](../common/patterns.md) for language-agnostic design patterns.

@@ -37,4 +37,4 @@ globs:
 
 ## Reference
 
-See skill: `laravel-security` for Laravel-specific security guidance.
+See [common/security.mdc](../common/security.mdc) for the mandatory security checklist.

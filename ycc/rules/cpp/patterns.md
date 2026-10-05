@@ -49,4 +49,4 @@ private:
 
 ## Reference
 
-See skill: `cpp-coding-standards` for comprehensive C++ patterns and anti-patterns.
+See [common/patterns.md](../common/patterns.md) for language-agnostic design patterns.

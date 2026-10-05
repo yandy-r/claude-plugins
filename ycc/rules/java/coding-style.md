@@ -113,5 +113,4 @@ public class OrderNotFoundException extends RuntimeException {
 
 ## References
 
-See skill: `java-coding-standards` for full coding standards with examples.
-See skill: `jpa-patterns` for JPA/Hibernate entity design patterns.
+See [common/coding-style.md](../common/coding-style.md) for the language-agnostic coding standards.

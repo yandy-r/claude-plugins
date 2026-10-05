@@ -26,4 +26,4 @@ if (!apiKey) {
 
 ## Agent Support
 
-- Use **security-reviewer** skill for comprehensive security audits
+- Use the `code-review` skill for security-focused reviews; see [common/security.md](../common/security.md) for the mandatory security checklist

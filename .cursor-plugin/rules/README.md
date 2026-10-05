@@ -82,7 +82,7 @@ cp -r .cursor-plugin/rules/typescript ~/.cursor/rules/typescript
 ## Rules vs Skills
 
 - **Rules** define standards, conventions, and checklists that apply broadly (e.g., "80% test coverage", "no hardcoded secrets").
-- **Skills** (`skills/` directory) provide deep, actionable reference material for specific tasks (e.g., `python-patterns`, `golang-testing`).
+- **Skills** (`skills/` directory) provide deep, actionable reference material for specific tasks (e.g., `python-patterns`, `go-testing`).
 
 Language-specific rule files reference relevant skills where appropriate. Rules tell you _what_ to do; skills tell you _how_ to do it.
 
@@ -103,7 +103,7 @@ To add support for a new language (e.g., `rust/`):
    > This file extends [common/xxx.mdc](../common/xxx.mdc) with <Language> specific content.
    ```
 
-4. Reference existing skills if available, or create new ones under `skills/`.
+4. Reference existing skills (`ycc/skills/<name>/SKILL.md`) only; never cite a skill that is not in the bundle.
 
 For non-language domains like `web/`, follow the same layered pattern when there is enough reusable domain-specific guidance to justify a standalone ruleset.
 

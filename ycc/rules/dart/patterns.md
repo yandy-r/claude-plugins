@@ -258,5 +258,4 @@ final router = GoRouter(
 
 ## References
 
-See skill: `flutter-dart-code-review` for the comprehensive review checklist.
-See skill: `compose-multiplatform-patterns` for Kotlin Multiplatform/Flutter interop patterns.
+See [common/code-review.md](../common/code-review.md) for the review checklist and [common/patterns.md](../common/patterns.md) for language-agnostic design patterns.

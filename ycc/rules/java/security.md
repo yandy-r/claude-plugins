@@ -97,5 +97,4 @@ try {
 
 ## References
 
-See skill: `springboot-security` for Spring Security authentication and authorization patterns.
-See skill: `security-review` for general security checklists.
+See [common/security.md](../common/security.md) for the mandatory security checklist, and run the `code-review` skill for a security-focused review.

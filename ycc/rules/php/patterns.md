@@ -30,5 +30,4 @@ paths:
 
 ## Reference
 
-See skill: `api-design` for endpoint conventions and response-shape guidance.
-See skill: `laravel-patterns` for Laravel-specific architecture guidance.
+See [common/patterns.md](../common/patterns.md) for the repository pattern and API response format.
