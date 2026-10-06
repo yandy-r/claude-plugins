@@ -27,6 +27,9 @@ info()  { printf "${GREEN}[ok]${NC}  %s\n" "$1"; }
 warn()  { printf "${YELLOW}[!!]${NC}  %s\n" "$1"; }
 err()   { printf "${RED}[err]${NC} %s\n" "$1" >&2; }
 
+# shellcheck source=scripts/lib/install-remove.sh
+source "${SCRIPT_DIR}/scripts/lib/install-remove.sh"
+
 # link_file <src> <dest>
 # - Ensures parent of <dest> exists.
 # - If <dest> is already a symlink pointing at <src>, does nothing.
@@ -206,13 +209,26 @@ Intents (valid: base, settings, rules, mcp, hooks, plugins, mods):
               plugins → settings (opencode.json)  mods → no-op
 
 Remove ('remove' subcommand):
-  Strips what the installer manages from the selected steps' config files.
-  Requires --only or --intent; never runs 'base'. Supported steps today: mcp
-  (every target). Servers you added are never touched; a managed server you
-  edited is kept with a warning unless --force. A file left empty is deleted.
+  Undoes what the selected steps installed, for every target and intent (same
+  intent → step mapping as 'sync'). Requires --only or --intent; rejects
+  --mode. Only installer-owned things go:
+    settings/plugins/hooks/mcp  managed config keys; keys you added are never
+                                touched, a managed value you edited is kept
+                                with a warning unless --force. A config file
+                                left empty is deleted.
+    rules, claude hooks dir     symlinks, only while they still point here.
+    claude statusline script    only while identical to the repo (or --force).
+    base                        claude: 'claude plugin uninstall ycc@ycc' +
+                                marketplace remove; cursor/opencode: the
+                                bundle entries from the synced dirs; codex:
+                                plugin links, plugin cache, custom agents
+                                and the marketplace.json entry.
+    mods (claude)               uninstall each mod + the ycc-mods marketplace.
 
   $(basename "$0") remove --target claude --only mcp            # project scope
   $(basename "$0") remove --target all --intent mcp --global    # user-global
+  $(basename "$0") remove --target codex --intent settings,rules
+  $(basename "$0") remove --target all --intent base,settings,rules,hooks,plugins,mods
 
 Scope (--project | --global, mutually exclusive):
   Without a flag, steps that support project scope use it; all others stay
@@ -456,13 +472,9 @@ run_repo_style_format_modified() {
 # Steps that can write into the current project instead of the user-global
 # config. Without an explicit flag, these default to project scope and every
 # other step stays global.
-# ponytail: mcp only; widen these per step as project/remove support lands for
+# ponytail: mcp only; widen this per step as project support lands for
 # settings, hooks, rules.
 step_supports_project() {
-    [[ "$2" == "mcp" ]]
-}
-
-step_supports_remove() {
     [[ "$2" == "mcp" ]]
 }
 
@@ -1754,18 +1766,14 @@ preflight_targets() {
 }
 
 # preflight_step_support <target>
-# Every step selected for <target> must support 'remove' (remove command) and
-# project scope (explicit --project).
+# Every step selected for <target> must support project scope (explicit
+# --project).
 preflight_step_support() {
     local target="$1"
     local step valid_csv
     valid_csv="$(valid_steps_for_target "${target}")"
     for step in ${valid_csv//,/ }; do
         step_enabled "${step}" || continue
-        if [[ "${COMMAND}" == "remove" ]] && ! step_supports_remove "${target}" "${step}"; then
-            err "remove does not support step '${step}' for target '${target}' (remove currently supports: mcp)"
-            exit 1
-        fi
         if [[ "${SCOPE}" == "project" ]] && ! step_supports_project "${target}" "${step}"; then
             err "--project is not supported by step '${step}' for target '${target}' (project scope currently supports: mcp)"
             err "  use --global, or select only project-capable steps with --only / --intent."
@@ -1876,6 +1884,7 @@ run_completion_command() {
 TARGET=""
 TARGETS=()
 MODE="local"
+MODE_SET=0
 COMMAND=""
 MCP=0
 SETTINGS=0
@@ -1913,6 +1922,7 @@ while [[ $# -gt 0 ]]; do
         --mode)
             [[ $# -lt 2 ]] && { err "--mode requires an argument (local|repo)"; exit 1; }
             MODE="$2"
+            MODE_SET=1
             if [[ ! "$MODE" =~ ^(local|repo)$ ]]; then
                 err "Invalid --mode: ${MODE} (supported: local, repo)"
                 exit 1
@@ -1980,9 +1990,13 @@ if [[ -z "${TARGET}" ]]; then
 fi
 
 if [[ "${COMMAND}" == "remove" ]]; then
-    # remove never runs 'base' and never guesses: say exactly what to remove.
+    # remove never guesses: say exactly what to remove.
     if [[ "${SETTINGS}" == "1" || "${RULES}" == "1" || "${MCP}" == "1" || "${HOOKS}" == "1" ]]; then
         err "remove does not accept --settings, --rules, --mcp, or --hooks (use --only or --intent)"
+        exit 1
+    fi
+    if [[ "${MODE_SET}" == "1" ]]; then
+        err "remove does not accept --mode (it undoes local and repo installs alike)"
         exit 1
     fi
     if [[ ${#ONLY_STEPS[@]} -eq 0 && ${#INTENTS[@]} -eq 0 ]]; then
@@ -2044,6 +2058,8 @@ fi
 
 resolve_targets "${TARGET}"
 preflight_targets
+action="sync"
+[[ "${COMMAND}" == "remove" ]] && action="remove"
 for target in "${TARGETS[@]}"; do
-    run_target "${target}" "sync_${target}_target"
+    run_target "${target}" "${action}_${target}_target"
 done

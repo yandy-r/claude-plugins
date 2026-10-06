@@ -37,7 +37,8 @@ cannot do.
 ```
 
 `mcp` defaults to project scope on every target; see
-[Project Vs Global Scope](#project-vs-global-scope).
+[Project Vs Global Scope](#project-vs-global-scope). To undo any of it, see
+[Removing Installed Config](#removing-installed-config).
 
 ### `ycc` Command On PATH
 
@@ -135,22 +136,33 @@ rejected before anything runs: the error is about `settings`, not `mcp`. Drop
 > and Codex/opencode MCP servers moved from the `settings` step to the `mcp`
 > step.
 
-### Removing MCP Servers
+### Removing Installed Config
 
 ```bash
-./install.sh remove --target claude --only mcp             # project scope
-./install.sh remove --target all --intent mcp --global     # user-global
+./install.sh remove --target claude --only mcp                  # project scope
+./install.sh remove --target all --intent mcp --global          # user-global
+./install.sh remove --target codex --intent settings,plugins,rules
+./install.sh remove --target all --intent base,settings,rules,hooks,plugins,mods
 ```
 
-- Requires `--only` or `--intent`, rejects `--settings`/`--rules`/`--mcp`/`--hooks`,
-  and never runs `base`. Only the `mcp` step is removable today; any other step
-  fails before anything runs.
-- Removes installer-managed servers: those in the repo config plus ones it
-  installed earlier that the repo has since dropped. Servers you added are never
-  touched.
-- A managed server you edited is kept with a warning; `--force` removes it.
-- A file left empty is deleted. Codex TOML removal keeps comments and unrelated
-  tables.
+`remove` undoes any intent on any target, using the same intent → step mapping
+as `sync` (an intent a target does not support is reported and skipped). It
+requires `--only` or `--intent`, and rejects `--mode` and the additive
+`--settings`/`--rules`/`--mcp`/`--hooks` flags. Only what the installer owns is
+taken back:
+
+| Step / intent                  | What `remove` does                                                                                                                                                                                                      |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `settings`, `plugins`, `hooks` | Strips repo-managed keys from the structured config (`settings.json`, `cli-config.json`, `config.toml`, `opencode.json`). List entries (plugin lists, Cursor permissions) lose only the items the installer appended.   |
+| `mcp`                          | Strips managed MCP servers, including ones the repo has since dropped. Servers you added are never touched.                                                                                                             |
+| `rules`, claude `hooks` dir    | Removes the symlinks, only while they still point at this checkout. A real file you put there is never deleted.                                                                                                         |
+| claude statusline script       | Removed while identical to the repo copy; an edited copy needs `--force`.                                                                                                                                               |
+| `base`                         | claude: `claude plugin uninstall ycc@ycc` + marketplace remove. cursor / opencode: the bundle's entries in the synced dirs (your own skills stay). codex: plugin links, plugin cache, custom agents, marketplace entry. |
+| `mods` (claude)                | Uninstalls each mod and the `ycc-mods` marketplace.                                                                                                                                                                     |
+
+- A managed value you edited is kept with a warning; `--force` removes it.
+- A config file left empty is deleted. Codex TOML removal keeps comments,
+  trusted projects and unrelated tables.
 
 ### Legacy Flag Form
 

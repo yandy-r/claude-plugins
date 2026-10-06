@@ -75,7 +75,7 @@ MCP servers are merged, not symlinked, so servers you add survive; a symlink
 left at `~/.cursor/mcp.json` by older installers becomes a real file on the
 next `--global` run. See
 [Project Vs Global Scope](README.md#project-vs-global-scope) and
-[Removing MCP Servers](README.md#removing-mcp-servers).
+[Removing Installed Config](README.md#removing-installed-config).
 
 `--mode repo` is not supported for Cursor. Cursor reads files from local config
 directories, so use the default local mode.

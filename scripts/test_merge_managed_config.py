@@ -734,6 +734,64 @@ class MergeHelperTestCase(unittest.TestCase):
         self.assertIn("# keep", text)
         self.assertEqual(tomllib.loads(text), {"model": "m", "mcp_servers": {"mine": {"url": "https://mine"}}})
 
+    # -- --remove: list-union ----------------------------------------------
+
+    def remove_plugins(self, source: Path, destination: Path, **kwargs) -> subprocess.CompletedProcess[str]:
+        return self.run_merge("opencode-config", source, destination, "plugins", extra=("--remove",), **kwargs)
+
+    def test_remove_list_union_takes_back_only_appended_items(self) -> None:
+        source = self.write_json(self.tmp / "src.json", {"plugins": ["repo-a", "repo-b"]})
+        destination = self.write_json(self.tmp / "dest.json", {"plugins": ["mine", "repo-b"], "x": 1})
+        self.run_merge("opencode-config", source, destination, "plugins")
+
+        result = self.remove_plugins(source, destination)
+
+        # repo-b predates the merge, so it is the user's and stays.
+        self.assertEqual(json.loads(destination.read_text()), {"plugins": ["mine", "repo-b"], "x": 1})
+        self.assertIn("kept your local value at /plugins", result.stdout)
+
+    def test_remove_list_union_force_takes_repo_values(self) -> None:
+        source = self.write_json(self.tmp / "src.json", {"plugins": ["repo-a", "repo-b"]})
+        destination = self.write_json(self.tmp / "dest.json", {"plugins": ["mine", "repo-b"]})
+        self.run_merge("opencode-config", source, destination, "plugins")
+
+        self.remove_plugins(source, destination, force=True)
+
+        self.assertEqual(json.loads(destination.read_text()), {"plugins": ["mine"]})
+
+    def test_remove_list_union_drops_list_it_created(self) -> None:
+        source = self.write_json(self.tmp / "src.json", {"plugins": ["repo-a"]})
+        destination = self.write_json(self.tmp / "dest.json", {"x": 1})
+        self.run_merge("opencode-config", source, destination, "plugins")
+
+        self.remove_plugins(source, destination)
+
+        self.assertEqual(json.loads(destination.read_text()), {"x": 1})
+        self.assertNotIn(f"opencode-config:{destination}", json.loads(self.state.read_text()))
+
+    def test_remove_keep_empty_list_survives(self) -> None:
+        source = self.write_json(
+            self.tmp / "src.json", {"version": 1, "permissions": {"allow": ["Shell(git)"], "deny": []}}
+        )
+        destination = self.write_json(self.tmp / "dest.json", {"privacyMode": 1})
+        self.run_merge("cursor-cli", source, destination, "settings")
+
+        self.run_merge("cursor-cli", source, destination, "settings", extra=("--remove",))
+
+        self.assertEqual(
+            json.loads(destination.read_text()), {"privacyMode": 1, "permissions": {"allow": [], "deny": []}}
+        )
+
+    def test_remove_keep_empty_lists_alone_count_as_empty_file(self) -> None:
+        source = self.write_json(self.tmp / "src.json", {"version": 1, "permissions": {"allow": [], "deny": []}})
+        destination = self.tmp / "dest.json"
+        self.run_merge("cursor-cli", source, destination, "settings")
+
+        result = self.run_merge("cursor-cli", source, destination, "settings", extra=("--remove",))
+
+        self.assertIn("removed empty file", result.stdout)
+        self.assertFalse(destination.exists())
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

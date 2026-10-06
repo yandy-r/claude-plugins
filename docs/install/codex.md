@@ -107,7 +107,7 @@ Codex loads a project `.codex/config.toml` only when the project is trusted in
 `~/.codex/config.toml`. MCP servers moved from the `settings` step to the `mcp`
 step; pass `--global` to keep writing the user config. See
 [Project Vs Global Scope](README.md#project-vs-global-scope) and
-[Removing MCP Servers](README.md#removing-mcp-servers).
+[Removing Installed Config](README.md#removing-installed-config).
 
 If `~/.codex/plugins/ycc/` already exists as a real directory from an older
 install flow, remove it before rerunning the local-mode base step:

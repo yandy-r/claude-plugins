@@ -97,7 +97,7 @@ the current directory, else the current directory). Pass `--global` for
 ```
 
 See [Project Vs Global Scope](README.md#project-vs-global-scope) and
-[Removing MCP Servers](README.md#removing-mcp-servers) for the rules shared by
+[Removing Installed Config](README.md#removing-installed-config) for the rules shared by
 every target.
 
 ## Live Iteration

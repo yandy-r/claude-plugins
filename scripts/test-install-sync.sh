@@ -380,8 +380,12 @@ out="$(run_install "${home}" remove --target claude --mcp)"
 assert_contains "${out}" "remove does not accept --settings" "remove rejects additive flags"
 
 home="$(new_home)"
-out="$(run_install "${home}" remove --target claude --only settings)"
-assert_contains "${out}" "remove does not support step 'settings'" "remove rejects unsupported steps"
+out="$(run_install "${home}" remove --target claude --only mcp --mode repo)"
+assert_contains "${out}" "remove does not accept --mode" "remove rejects --mode"
+
+home="$(new_home)"
+out="$(run_install "${home}" remove --target claude --only settings --project)"
+assert_contains "${out}" "--project is not supported by step 'settings'" "remove keeps the --project guard"
 
 home="$(new_home)"
 cat > "${home}/project/.mcp.json" <<'JSON'
@@ -413,6 +417,172 @@ merged="$(cat "${home}/.codex/config.toml")"
 assert_contains "${merged}" "# keep me" "codex remove keeps comments"
 assert_contains "${merged}" "[mcp_servers.internal]" "codex remove keeps user server"
 assert_not_contains "${merged}" "[mcp_servers.playwright]" "codex remove drops managed server"
+
+echo
+echo "== install.sh remove: settings, rules, hooks, plugins =="
+
+home="$(new_home)"
+cat > "${home}/.claude/settings.json" <<'JSON'
+{ "editorMode": "vim", "env": { "MY_LOCAL_TOKEN": "keep-me" } }
+JSON
+run_install "${home}" sync --target claude --intent settings,rules,hooks,plugins >/dev/null
+out="$(run_install "${home}" remove --target claude --intent settings,rules,hooks,plugins)"
+assert_contains "${out}" "Claude remove complete" "claude remove of every config intent completes"
+merged="$(cat "${home}/.claude/settings.json")"
+assert_contains "${merged}" '"editorMode": "vim"' "claude remove keeps unmanaged keys"
+assert_contains "${merged}" '"MY_LOCAL_TOKEN": "keep-me"' "claude remove keeps unmanaged env leaf"
+assert_not_contains "${merged}" '"claude-fable-5-1"' "claude remove drops managed model"
+assert_not_contains "${merged}" '"pluginMarketplaces"' "claude remove takes back appended list items"
+assert_not_contains "${merged}" '"hooks"' "claude remove drops managed hooks"
+for f in CLAUDE.md AGENTS.md hooks statusline-command.sh; do
+    if [[ ! -e "${home}/.claude/${f}" && ! -L "${home}/.claude/${f}" ]]; then ok "claude remove cleans ~/.claude/${f}"; else ko "claude remove cleans ~/.claude/${f}"; fi
+done
+
+home="$(new_home)"
+run_install "${home}" sync --target claude --intent settings,plugins >/dev/null
+python3 - "${home}/.claude/settings.json" <<'PY2'
+import json, sys, pathlib
+p = pathlib.Path(sys.argv[1])
+data = json.loads(p.read_text())
+data["model"] = "my-own-model"
+p.write_text(json.dumps(data, indent=2) + "\n")
+PY2
+out="$(run_install "${home}" remove --target claude --intent settings)"
+assert_contains "${out}" "kept your local value at /model" "remove keeps an edited managed value"
+assert_contains "$(cat "${home}/.claude/settings.json")" '"enabledPlugins"' "remove --intent settings leaves the plugins group"
+run_install "${home}" remove --target claude --intent settings,plugins --force >/dev/null
+if [[ ! -e "${home}/.claude/settings.json" ]]; then ok "remove --force takes edited values too"; else ko "remove --force takes edited values too" "$(cat "${home}/.claude/settings.json")"; fi
+
+home="$(new_home)"
+echo "# mine" > "${home}/.claude/CLAUDE.md"
+echo "custom" > "${home}/.claude/statusline-command.sh"
+out="$(run_install "${home}" remove --target claude --intent rules,settings --force)"
+assert_contains "$(cat "${home}/.claude/CLAUDE.md")" "# mine" "remove never deletes a real rules file"
+assert_contains "${out}" "not installed by ycc" "remove reports foreign rules file"
+if [[ ! -e "${home}/.claude/statusline-command.sh" ]]; then ok "remove --force takes an edited statusline"; else ko "remove --force takes an edited statusline"; fi
+
+home="$(new_home)"
+echo "custom" > "${home}/.claude/statusline-command.sh"
+out="$(run_install "${home}" remove --target claude --intent settings)"
+assert_contains "${out}" "kept ${home}/.claude/statusline-command.sh" "remove keeps an edited statusline"
+
+home="$(new_home)"
+cat > "${home}/.cursor/cli-config.json" <<'JSON'
+{ "privacyMode": 1, "permissions": { "allow": ["Shell(ls)"], "deny": [] } }
+JSON
+run_install "${home}" sync --target cursor --intent settings,rules >/dev/null
+run_install "${home}" remove --target cursor --intent settings,rules >/dev/null
+merged="$(cat "${home}/.cursor/cli-config.json")"
+assert_contains "${merged}" '"privacyMode": 1' "cursor remove keeps unmanaged keys"
+assert_contains "${merged}" '"Shell(ls)"' "cursor remove keeps user permission entries"
+assert_contains "${merged}" '"deny": []' "cursor remove keeps required permission keys"
+assert_not_contains "${merged}" '"modelId"' "cursor remove drops managed model"
+if [[ ! -L "${home}/.cursor/CLAUDE.md" ]]; then ok "cursor remove unlinks rules"; else ko "cursor remove unlinks rules"; fi
+
+home="$(new_home)"
+cat > "${home}/.codex/config.toml" <<'TOML'
+# local machine notes
+[projects."/home/me/secret-project"]
+trust_level = "trusted"
+TOML
+run_install "${home}" sync --target codex --intent settings,plugins,rules >/dev/null
+run_install "${home}" remove --target codex --intent settings,plugins,rules >/dev/null
+merged="$(cat "${home}/.codex/config.toml")"
+assert_contains "${merged}" "# local machine notes" "codex settings remove keeps comments"
+assert_contains "${merged}" '[projects."/home/me/secret-project"]' "codex settings remove keeps trusted projects"
+assert_not_contains "${merged}" "model =" "codex settings remove drops managed model"
+assert_not_contains "${merged}" "[plugins." "codex plugins remove drops managed plugin tables"
+for f in .codex/rules/default.rules .codex/CLAUDE.md .codex/AGENTS.md; do
+    if [[ ! -L "${home}/${f}" ]]; then ok "codex remove unlinks ${f}"; else ko "codex remove unlinks ${f}"; fi
+done
+
+home="$(new_home)"
+cat > "${home}/.config/opencode/opencode.json" <<'JSON'
+{
+  "provider": { "9router": { "options": { "apiKey": "sk-local-secret" } } },
+  "plugins": ["@user/local-plugin"]
+}
+JSON
+run_install "${home}" sync --target opencode --intent settings,plugins,rules >/dev/null
+run_install "${home}" remove --target opencode --intent settings,plugins,rules >/dev/null
+merged="$(cat "${home}/.config/opencode/opencode.json")"
+assert_contains "${merged}" "sk-local-secret" "opencode remove keeps provider credentials"
+assert_contains "${merged}" "@user/local-plugin" "opencode remove keeps user plugin"
+assert_not_contains "${merged}" "@prevalentware/opencode-goal-plugin" "opencode remove takes back repo plugin"
+if [[ ! -L "${home}/.config/opencode/AGENTS.md" ]]; then ok "opencode remove unlinks AGENTS.md"; else ko "opencode remove unlinks AGENTS.md"; fi
+
+echo
+echo "== install.sh remove: base and mods =="
+
+REPO_REAL="$(realpath "${REPO_ROOT}")"
+
+home="$(new_home)"
+out="$(run_install_stubbed "${home}" remove --target claude --intent base,mods)"
+calls="$(cat "${home}/claude-calls.log" 2>/dev/null)"
+assert_contains "${calls}" "plugin uninstall ycc@ycc --scope user" "claude base remove uninstalls ycc"
+assert_contains "${calls}" "plugin marketplace remove ycc --scope user" "claude base remove drops the ycc marketplace"
+assert_contains "${calls}" "plugin uninstall status-bar@ycc-mods --scope user" "claude mods remove uninstalls each mod"
+assert_contains "${calls}" "plugin marketplace remove ycc-mods --scope user" "claude mods remove drops the ycc-mods marketplace"
+assert_contains "${out}" "Claude remove complete" "claude base/mods remove completes"
+
+# Base installs are simulated (copies + links shaped like the real step) so
+# the test never runs the generators.
+home="$(new_home)"
+for unit in skills agents rules; do
+    mkdir -p "${home}/.cursor/${unit}"
+    cp -R "${REPO_ROOT}/.cursor-plugin/${unit}/." "${home}/.cursor/${unit}/"
+done
+mkdir -p "${home}/.cursor/skills/my-own-skill"
+run_install "${home}" remove --target cursor --intent base >/dev/null
+if [[ -d "${home}/.cursor/skills/my-own-skill" ]]; then ok "cursor base remove keeps user skills"; else ko "cursor base remove keeps user skills"; fi
+leftover="$(find "${home}/.cursor/skills" -mindepth 1 -maxdepth 1 -printf '%f\n')"
+if [[ "${leftover}" == "my-own-skill" ]]; then ok "cursor base remove drops bundle skills"; else ko "cursor base remove drops bundle skills" "${leftover}"; fi
+if [[ ! -e "${home}/.cursor/agents" ]]; then ok "cursor base remove drops emptied agents dir"; else ko "cursor base remove drops emptied agents dir"; fi
+
+home="$(new_home)"
+for unit in skills agents commands shared; do
+    mkdir -p "${home}/.config/opencode/${unit}"
+    cp -R "${REPO_ROOT}/.opencode-plugin/${unit}/." "${home}/.config/opencode/${unit}/"
+done
+run_install "${home}" remove --target opencode --intent base >/dev/null
+leftover="$(find "${home}/.config/opencode" -mindepth 1 | head -3)"
+if [[ -z "${leftover}" ]]; then ok "opencode base remove drops the bundle"; else ko "opencode base remove drops the bundle" "${leftover}"; fi
+
+home="$(new_home)"
+mkdir -p "${home}/.codex/plugins/cache/local-ycc-plugins/ycc/skills" "${home}/.agents/plugins" "${home}/.codex/agents"
+ln -s "${REPO_REAL}/.codex-plugin/ycc" "${home}/.codex/plugins/ycc"
+ln -s "${REPO_REAL}/.codex-plugin/ycc" "${home}/.agents/plugins/ycc"
+cp -R "${REPO_ROOT}/.codex-plugin/agents/." "${home}/.codex/agents/"
+echo 'name = "mine"' > "${home}/.codex/agents/mine.toml"
+cat > "${home}/.agents/plugins/marketplace.json" <<'JSON'
+{
+  "name": "local-ycc-plugins",
+  "interface": { "displayName": "Local YCC Plugins" },
+  "plugins": [{ "name": "ycc", "source": { "source": "local", "path": "./plugins/ycc" } }, { "name": "other" }]
+}
+JSON
+run_install "${home}" remove --target codex --intent base >/dev/null
+for f in .codex/plugins/ycc .agents/plugins/ycc .codex/plugins/cache/local-ycc-plugins; do
+    if [[ ! -e "${home}/${f}" && ! -L "${home}/${f}" ]]; then ok "codex base remove cleans ${f}"; else ko "codex base remove cleans ${f}"; fi
+done
+if [[ "$(find "${home}/.codex/agents" -mindepth 1 -maxdepth 1 -printf '%f\n')" == "mine.toml" ]]; then ok "codex base remove keeps only user agents"; else ko "codex base remove keeps only user agents"; fi
+merged="$(cat "${home}/.agents/plugins/marketplace.json")"
+assert_contains "${merged}" '"other"' "codex base remove keeps other marketplace plugins"
+assert_not_contains "${merged}" '"ycc"' "codex base remove drops the ycc marketplace entry"
+
+home="$(new_home)"
+mkdir -p "${home}/.agents/plugins"
+cat > "${home}/.agents/plugins/marketplace.json" <<'JSON'
+{ "name": "local-ycc-plugins", "interface": { "displayName": "Local YCC Plugins" }, "plugins": [{ "name": "ycc" }] }
+JSON
+run_install "${home}" remove --target codex --intent base >/dev/null
+if [[ ! -e "${home}/.agents/plugins/marketplace.json" ]]; then ok "codex base remove deletes a marketplace left empty"; else ko "codex base remove deletes a marketplace left empty"; fi
+
+home="$(new_home)"
+mkdir -p "${home}/.codex/plugins"
+ln -s /elsewhere "${home}/.codex/plugins/ycc"
+out="$(run_install "${home}" remove --target codex --intent base)"
+if [[ -L "${home}/.codex/plugins/ycc" ]]; then ok "codex base remove keeps a foreign link"; else ko "codex base remove keeps a foreign link"; fi
 
 echo
 echo "== install.sh cli / completion =="

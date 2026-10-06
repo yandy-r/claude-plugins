@@ -57,7 +57,10 @@ STATE_PATH = Path(
 #   map-entries  — named scalar entries; unknown entries are preserved
 #   deep         — recursively manage leaves inside named entries (MCP servers,
 #                  providers, plugin tables) while preserving unknown siblings
-#   list-union   — append missing source values, preserve destination order
+#   list-union   — append missing source values, preserve destination order.
+#                  Items this tool appended are recorded (by hash) so --remove
+#                  can take back exactly those; ``keep_empty`` keeps the key as
+#                  ``[]`` after removal for tools that require it.
 PROFILES: dict[str, dict[str, Any]] = {
     "claude-settings": {
         "format": "json",
@@ -111,8 +114,8 @@ PROFILES: dict[str, dict[str, Any]] = {
                 {"path": ["editor"], "policy": "object"},
                 # Cursor treats permissions.allow/deny as required; seed them
                 # without managing their contents (list-union never removes).
-                {"path": ["permissions", "allow"], "policy": "list-union"},
-                {"path": ["permissions", "deny"], "policy": "list-union"},
+                {"path": ["permissions", "allow"], "policy": "list-union", "keep_empty": True},
+                {"path": ["permissions", "deny"], "policy": "list-union", "keep_empty": True},
             ],
         },
     },
@@ -165,6 +168,10 @@ PROFILES: dict[str, dict[str, Any]] = {
         },
     },
 }
+
+
+# State field listing the hashes of list-union items this tool appended.
+ADDED_ITEMS_KEY = "added_item_sha256"
 
 
 class MergeError(RuntimeError):
@@ -376,14 +383,16 @@ def plan_merge(
     destination: dict[str, Any],
     state_entry: dict[str, Any],
     force: bool,
-) -> tuple[list[tuple[list[str], Any]], list[str], list[list[str]]]:
+) -> tuple[list[tuple[list[str], Any]], list[str], list[list[str]], dict[str, list[str]]]:
     """Decide, per managed leaf, whether the repo value may be applied.
 
-    Returns updates, conflicts, and stale managed leaves to delete.
+    Returns updates, conflicts, stale managed leaves to delete, and the hashes
+    of list-union items appended per list pointer.
     """
     updates: list[tuple[list[str], Any]] = []
     conflicts: list[str] = []
     managed_now: set[str] = set()
+    list_additions: dict[str, list[str]] = {}
 
     for path, source_value in collect_managed_leaves(profile, groups, source):
         managed_now.add(pointer(path))
@@ -397,6 +406,7 @@ def plan_merge(
             # the merged list is empty (Cursor requires permissions.allow/deny).
             if merged != current_list or not found:
                 updates.append((path, merged))
+                list_additions[key] = [value_hash(item) for item in merged if item not in current_list]
             continue
 
         if not found:
@@ -433,7 +443,7 @@ def plan_merge(
         if found and last_applied == value_hash(current_value):
             deletions.append(path)
 
-    return updates, conflicts, deletions
+    return updates, conflicts, deletions, list_additions
 
 
 # ---------------------------------------------------------------------------
@@ -725,6 +735,53 @@ def entry_policy_rules(profile: dict[str, Any], groups: list[str]) -> list[dict[
     return rules
 
 
+def plan_list_removals(
+    rules: list[dict[str, Any]],
+    source: dict[str, Any],
+    destination: dict[str, Any],
+    state_entry: dict[str, Any],
+    force: bool,
+) -> tuple[list[tuple[list[str], list[Any]]], list[list[str]], list[str], list[str]]:
+    """Take back list-union items this tool appended.
+
+    Items are owned when their hash was recorded at merge time; ``force`` also
+    takes every item that equals a repo value. A list left empty is deleted
+    unless its rule says ``keep_empty``. Returns list rewrites, paths to
+    delete, conflicts and spent state keys.
+    """
+    rewrites: list[tuple[list[str], list[Any]]] = []
+    deletes: list[list[str]] = []
+    conflicts: list[str] = []
+    spent: list[str] = []
+    for rule in rules:
+        path = rule["path"]
+        key = pointer(path)
+        found, current = read_nested(destination, path)
+        if not found or not isinstance(current, list):
+            if key in state_entry:
+                spent.append(key)
+            continue
+        _, source_value = read_nested(source, path)
+        source_items = source_value if isinstance(source_value, list) else []
+        owned_hashes = set(state_entry.get(key, {}).get(ADDED_ITEMS_KEY, []))
+        kept = [
+            item for item in current if value_hash(item) not in owned_hashes and not (force and item in source_items)
+        ]
+        if any(item in source_items for item in kept):
+            conflicts.append(key)
+        if key in state_entry:
+            spent.append(key)
+        keep_key = bool(kept) or bool(rule.get("keep_empty"))
+        # An empty list is dropped only when this tool emptied or seeded it.
+        if kept == current and (keep_key or key not in state_entry):
+            continue
+        if keep_key:
+            rewrites.append((path, kept))
+        else:
+            deletes.append(path)
+    return rewrites, deletes, conflicts, spent
+
+
 def plan_remove(
     profile: dict[str, Any],
     groups: list[str],
@@ -732,16 +789,14 @@ def plan_remove(
     destination: dict[str, Any],
     state_entry: dict[str, Any],
     force: bool,
-) -> tuple[list[list[str]], list[str], list[str]]:
-    """Decide which managed entries can be deleted from the destination."""
+) -> tuple[list[list[str]], list[tuple[list[str], list[Any]]], list[str], list[str]]:
+    """Decide which managed entries can be deleted from the destination.
+
+    Returns entry paths to delete, list-union rewrites, conflicts and the
+    state keys that no longer track anything.
+    """
     rules = entry_policy_rules(profile, groups)
-    for rule in rules:
-        if rule["policy"] == "list-union":
-            found, _ = read_nested(source, rule["path"])
-            if found:
-                # ponytail: list items lack ownership identity; add index-aware
-                # state tracking if removal is ever needed there.
-                raise MergeError(f"remove not supported for list-union rule at {pointer(rule['path'])}")
+    list_rules = [rule for rule in rules if rule["policy"] == "list-union"]
     managed = [rule for rule in rules if rule["policy"] != "list-union"]
 
     candidates: dict[tuple[str, ...], dict[str, Any]] = {}
@@ -810,7 +865,14 @@ def plan_remove(
             stale_keys.extend(under)
         else:
             conflicts.append(pointer(entry_path))
-    return to_remove, conflicts, sorted(set(stale_keys))
+
+    rewrites, list_deletes, list_conflicts, spent = plan_list_removals(
+        list_rules, source, destination, state_entry, force
+    )
+    to_remove.extend(list_deletes)
+    conflicts.extend(list_conflicts)
+    stale_keys.extend(spent)
+    return to_remove, rewrites, conflicts, sorted(set(stale_keys))
 
 
 def remove_json(
@@ -831,14 +893,17 @@ def remove_json(
     if not isinstance(destination, dict):
         raise MergeError(f"{destination_path}: expected a JSON object at the root")
 
-    to_remove, conflicts, stale_keys = plan_remove(profile, groups, source, destination, state_entry, force)
-    if not to_remove:
-        return None, to_remove, conflicts, stale_keys
+    to_remove, rewrites, conflicts, stale_keys = plan_remove(profile, groups, source, destination, state_entry, force)
+    if not to_remove and not rewrites:
+        return None, [], conflicts, stale_keys
 
     pruned = json.loads(json.dumps(destination))
     for path in to_remove:
         delete_nested(pruned, path)
-    return json.dumps(pruned, indent=2, ensure_ascii=False) + "\n", to_remove, conflicts, stale_keys
+    for path, items in rewrites:
+        write_nested(pruned, path, items)
+    changed = to_remove + [path for path, _ in rewrites]
+    return json.dumps(pruned, indent=2, ensure_ascii=False) + "\n", changed, conflicts, stale_keys
 
 
 def delete_toml_entries(text: str, entries: list[list[str]]) -> str:
@@ -881,17 +946,22 @@ def remove_toml(
     destination_text = destination_path.read_text(encoding="utf-8")
     destination = tomllib.loads(destination_text)
 
-    to_remove, conflicts, stale_keys = plan_remove(profile, groups, source, destination, state_entry, force)
-    if not to_remove:
-        return None, to_remove, conflicts, stale_keys
+    to_remove, rewrites, conflicts, stale_keys = plan_remove(profile, groups, source, destination, state_entry, force)
+    if not to_remove and not rewrites:
+        return None, [], conflicts, stale_keys
 
     rendered = delete_toml_entries(destination_text, to_remove)
+    if rewrites:
+        rendered = apply_toml_updates(rendered, list(rewrites))
     # Re-parse so a bad patch can never reach the user's config.
     reparsed = tomllib.loads(rendered)
     for path in to_remove:
         if read_nested(reparsed, path)[0]:
             raise MergeError(f"TOML remove verification failed for {pointer(path)}")
-    return rendered, to_remove, conflicts, stale_keys
+    for path, items in rewrites:
+        if read_nested(reparsed, path) != (True, items):
+            raise MergeError(f"TOML remove verification failed for {pointer(path)}")
+    return rendered, to_remove + [path for path, _ in rewrites], conflicts, stale_keys
 
 
 def is_empty_config(value: Any) -> bool:
@@ -900,9 +970,17 @@ def is_empty_config(value: Any) -> bool:
 
 
 def rendered_is_empty(profile: dict[str, Any], rendered: str) -> bool:
-    """Whether a post-removal file holds nothing worth keeping on disk."""
+    """Whether a post-removal file holds nothing worth keeping on disk.
+
+    Empty ``keep_empty`` lists are tool scaffolding, not content.
+    """
     if profile["format"] == "json":
-        return json.loads(rendered) == {}
+        data = json.loads(rendered)
+        for rules in profile["groups"].values():
+            for rule in rules:
+                if rule.get("keep_empty") and read_nested(data, rule["path"]) == (True, []):
+                    delete_nested(data, rule["path"])
+        return data == {}
     # Only bare (now empty) table headers may remain; comments are user content.
     only_headers = all(not line.strip() or TOML_TABLE_RE.match(line) for line in rendered.splitlines())
     return only_headers and is_empty_config(tomllib.loads(rendered))
@@ -915,7 +993,7 @@ def merge_json(
     groups: list[str],
     state_entry: dict[str, Any],
     force: bool,
-) -> tuple[str | None, list[tuple[list[str], Any]], list[str]]:
+) -> tuple[str | None, list[tuple[list[str], Any]], list[str], list[list[str]], dict[str, list[str]]]:
     source = json.loads(source_path.read_text(encoding="utf-8"))
     if not isinstance(source, dict):
         raise MergeError(f"{source_path}: expected a JSON object at the root")
@@ -928,16 +1006,16 @@ def merge_json(
     else:
         destination = {}
 
-    updates, conflicts, deletions = plan_merge(profile, groups, source, destination, state_entry, force)
+    updates, conflicts, deletions, additions = plan_merge(profile, groups, source, destination, state_entry, force)
     if not updates and not deletions:
-        return None, updates, conflicts, deletions
+        return None, updates, conflicts, deletions, additions
 
     merged = json.loads(json.dumps(destination))
     for path, value in updates:
         write_nested(merged, path, value)
     for path in deletions:
         delete_nested(merged, path)
-    return json.dumps(merged, indent=2, ensure_ascii=False) + "\n", updates, conflicts, deletions
+    return json.dumps(merged, indent=2, ensure_ascii=False) + "\n", updates, conflicts, deletions, additions
 
 
 def merge_toml(
@@ -947,7 +1025,7 @@ def merge_toml(
     groups: list[str],
     state_entry: dict[str, Any],
     force: bool,
-) -> tuple[str | None, list[tuple[list[str], Any]], list[str]]:
+) -> tuple[str | None, list[tuple[list[str], Any]], list[str], list[list[str]], dict[str, list[str]]]:
     source = tomllib.loads(source_path.read_text(encoding="utf-8"))
 
     if destination_path.exists():
@@ -964,9 +1042,9 @@ def merge_toml(
         destination_text = ""
         destination = {}
 
-    updates, conflicts, deletions = plan_merge(profile, groups, source, destination, state_entry, force)
+    updates, conflicts, deletions, additions = plan_merge(profile, groups, source, destination, state_entry, force)
     if not updates and not deletions:
-        return None, updates, conflicts, deletions
+        return None, updates, conflicts, deletions, additions
 
     merged_text = apply_toml_updates(destination_text, updates, deletions)
 
@@ -977,7 +1055,7 @@ def merge_toml(
         if not found or actual != value:
             raise MergeError(f"TOML merge verification failed for {pointer(path)}")
 
-    return merged_text, updates, conflicts, deletions
+    return merged_text, updates, conflicts, deletions, additions
 
 
 def run_remove(
@@ -1087,7 +1165,7 @@ def main() -> int:
 
     merge = merge_json if profile["format"] == "json" else merge_toml
     try:
-        rendered, updates, conflicts, deletions = merge(
+        rendered, updates, conflicts, deletions, additions = merge(
             source_path, destination_path, profile, groups, state_entry, args.force
         )
     except (MergeError, json.JSONDecodeError, tomllib.TOMLDecodeError) as error:
@@ -1119,7 +1197,12 @@ def main() -> int:
     # the config rename, restore the original bytes (or remove the new file),
     # keeping config and ownership metadata consistent.
     for path, value in updates:
-        state_entry[pointer(path)] = {"last_applied_sha256": value_hash(value)}
+        key = pointer(path)
+        ownership: dict[str, Any] = {"last_applied_sha256": value_hash(value)}
+        if key in additions:
+            previous = state_entry.get(key, {}).get(ADDED_ITEMS_KEY, [])
+            ownership[ADDED_ITEMS_KEY] = sorted({*previous, *additions[key]})
+        state_entry[key] = ownership
     for path in deletions:
         state_entry.pop(pointer(path), None)
     state[state_key] = state_entry
