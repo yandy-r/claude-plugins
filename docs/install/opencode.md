@@ -43,6 +43,9 @@ Step behavior:
 | Step       | Effect                                                                                                                                             |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `base`     | Generates and validates `.opencode-plugin/{skills,agents,commands}/`, then rsyncs them into `~/.config/opencode/`.                                 |
+| `skills`   | Generates the skills and installs each into `skills/<name>`, plus the `shared/` helpers.                                                           |
+| `agents`   | Generates the agents and installs each into `agents/<name>.md`.                                                                                    |
+| `commands` | Generates the commands and installs each into `commands/<name>.md`.                                                                                |
 | `settings` | Merges managed keys from `.opencode-plugin/opencode.json` into `~/.config/opencode/opencode.json`. Plugins live in this same file.                 |
 | `mcp`      | Merges `mcp.servers` from `.opencode-plugin/opencode.json` into `<project>/opencode.json` (or `~/.config/opencode/opencode.json` with `--global`). |
 | `rules`    | Symlinks `.opencode-plugin/AGENTS.md` into `~/.config/opencode/AGENTS.md`.                                                                         |

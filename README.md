@@ -139,6 +139,7 @@ and desktop app notes, use the dedicated install guides. Recommended sync form:
 ./install.sh sync --target claude --intent hooks,settings,mcp,plugins
 ./install.sh sync --target claude --intent mods                          # Claude Code mods (ycc/mods)
 ./install.sh sync --target all --intent settings,rules
+./install.sh install --target all --only agents                         # standalone agents, no plugin
 ./install.sh sync --target codex,claude,opencode --intent mcp            # current project
 ./install.sh sync --target codex,claude,opencode --intent mcp --global   # user-global
 ./install.sh remove --target all --only mcp                              # undo project MCP
@@ -147,9 +148,14 @@ and desktop app notes, use the dedicated install guides. Recommended sync form:
 ```
 
 The `mcp` step defaults to the current project; pass `--global` for user-global
-config. `remove` undoes any intent on any target (`base`, `settings`, `rules`,
-`mcp`, `hooks`, `plugins`, `mods`), taking back only what the installer owns and
-leaving your own keys, files and servers alone. See
+config. `base` ships a target's whole bundle (the `ycc` plugin for Claude and
+Codex). `skills`, `agents` and `commands` instead install standalone entries,
+one per skill/agent/command, into each tool's own directories
+(`~/.claude/skills/<name>`, `~/.codex/agents/<name>.toml`, ...) with no plugin;
+your own entries there are never touched. `remove` undoes any intent on any target
+(`base`, `skills`, `agents`, `commands`, `settings`, `rules`, `mcp`, `hooks`,
+`plugins`, `mods`), taking back only what the installer owns and leaving your
+own keys, files and servers alone. See
 [Project Vs Global Scope](docs/install/README.md#project-vs-global-scope).
 
 `--target` takes a comma-separated list (or `all`); every target is validated

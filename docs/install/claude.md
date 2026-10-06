@@ -35,14 +35,15 @@ install the plugin marketplace. The step-flag `install` form is equivalent:
 
 Step behavior:
 
-| Step       | Effect                                                                                                                                                            |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `base`     | Runs `claude plugin marketplace add <repo> --scope user` and `claude plugin install ycc@ycc --scope user`.                                                        |
-| `settings` | Merges managed keys from `ycc/settings/settings.json` into `~/.claude/settings.json` and copies `ycc/settings/statusline-command.sh` into `~/.claude/`.           |
-| `rules`    | Symlinks `ycc/settings/rules/CLAUDE.md` and `AGENTS.md` into `~/.claude/`.                                                                                        |
-| `mcp`      | Merges `mcp-configs/mcp.json` into `<project>/.mcp.json` (or `~/.claude.json` with `--global`).                                                                   |
-| `hooks`    | Symlinks `ycc/settings/hooks/` into `~/.claude/hooks/`.                                                                                                           |
-| `mods`     | Registers `ycc/mods/` as the local `ycc-mods` marketplace and installs every mod it lists. Sync with `--intent mods`; see [`ycc/mods`](../../ycc/mods/README.md). |
+| Step                           | Effect                                                                                                                                                                                                                                   |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `base`                         | Runs `claude plugin marketplace add <repo> --scope user` and `claude plugin install ycc@ycc --scope user`.                                                                                                                               |
+| `settings`                     | Merges managed keys from `ycc/settings/settings.json` into `~/.claude/settings.json` and copies `ycc/settings/statusline-command.sh` into `~/.claude/`.                                                                                  |
+| `rules`                        | Symlinks `ycc/settings/rules/CLAUDE.md` and `AGENTS.md` into `~/.claude/`.                                                                                                                                                               |
+| `mcp`                          | Merges `mcp-configs/mcp.json` into `<project>/.mcp.json` (or `~/.claude.json` with `--global`).                                                                                                                                          |
+| `hooks`                        | Symlinks `ycc/settings/hooks/` into `~/.claude/hooks/`.                                                                                                                                                                                  |
+| `skills`, `agents`, `commands` | Copies each ycc skill / agent / command into `~/.claude/skills/`, `~/.claude/agents/`, `~/.claude/commands/` as standalone entries (paths re-pointed, `ycc:` dropped) — no plugin. See [Standalone Slices](README.md#standalone-slices). |
+| `mods`                         | Registers `ycc/mods/` as the local `ycc-mods` marketplace and installs every mod it lists. Sync with `--intent mods`; see [`ycc/mods`](../../ycc/mods/README.md).                                                                        |
 
 Settings are merge-safe: unmanaged local keys are preserved, and managed keys
 you changed locally are kept unless `--force` is passed. Model defaults are

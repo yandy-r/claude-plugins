@@ -585,6 +585,95 @@ out="$(run_install "${home}" remove --target codex --intent base)"
 if [[ -L "${home}/.codex/plugins/ycc" ]]; then ok "codex base remove keeps a foreign link"; else ko "codex base remove keeps a foreign link"; fi
 
 echo
+echo "== install.sh: skills / agents / commands slices =="
+
+# Claude slices need no generation, so they run for real in the sandbox.
+home="$(new_home)"
+mkdir -p "${home}/.claude/skills/my-own-skill"
+out="$(run_install "${home}" install --target claude --only skills,agents,commands)"
+assert_not_contains "${out}" "register repo checkout" "claude slices do not run base"
+for d in skills/git-workflow skills/_shared agents/codebase-advisor.md commands/clean.md; do
+    if [[ -e "${home}/.claude/${d}" ]]; then ok "claude slice installs ~/.claude/${d}"; else ko "claude slice installs ~/.claude/${d}"; fi
+done
+if [[ ! -e "${home}/.claude/plugins" ]]; then ok "claude slices register no plugin"; else ko "claude slices register no plugin"; fi
+skill="$(cat "${home}/.claude/skills/git-workflow/SKILL.md")"
+assert_not_contains "${skill}" 'CLAUDE_PLUGIN_ROOT}/skills' "claude slice rewrites plugin-root paths"
+assert_contains "${skill}" "${home}/.claude/skills/" "claude slice points paths at ~/.claude/skills"
+assert_not_contains "$(cat "${home}/.claude/commands/"*.md)" '/ycc:clean' "claude slice strips the ycc: namespace"
+if [[ -d "${home}/.claude/skills/my-own-skill" ]]; then ok "claude slice leaves user skills alone"; else ko "claude slice leaves user skills alone"; fi
+out="$(run_install "${home}" install --target claude --only skills)"
+assert_contains "${out}" "entries up to date" "claude slice rerun is idempotent"
+
+home="$(new_home)"
+mkdir -p "${home}/.claude/skills/git-workflow" && echo "# mine" > "${home}/.claude/skills/git-workflow/SKILL.md"
+out="$(run_install "${home}" install --target claude --only skills)"
+assert_contains "${out}" "refusing to replace ${home}/.claude/skills/git-workflow" "claude slice refuses a foreign entry"
+assert_contains "$(cat "${home}/.claude/skills/git-workflow/SKILL.md")" "# mine" "claude slice keeps the foreign entry"
+run_install "${home}" install --target claude --only skills --force >/dev/null
+assert_not_contains "$(cat "${home}/.claude/skills/git-workflow/SKILL.md")" "# mine" "claude slice --force replaces it"
+
+run_install "${home}" remove --target claude --intent skills >/dev/null
+if [[ ! -e "${home}/.claude/skills" ]]; then ok "claude skills remove takes back every entry"; else ko "claude skills remove takes back every entry" "$(ls "${home}/.claude/skills")"; fi
+
+home="$(new_home)"
+out="$(run_install "${home}" sync --target cursor,codex --intent commands)"
+assert_contains "${out}" "intent 'commands' is not supported by target 'cursor'" "cursor skips commands intent"
+assert_contains "${out}" "intent 'commands' is not supported by target 'codex'" "codex skips commands intent"
+assert_not_contains "${out}" "Generate" "unsupported commands intent generates nothing"
+
+home="$(new_home)"
+out="$(run_install "${home}" install --target claude,cursor --only commands)"
+assert_contains "${out}" "step 'commands' is not supported by target 'cursor' — skipping" "install --only skips a slice a target lacks"
+if [[ -e "${home}/.claude/commands/clean.md" ]]; then ok "install --only commands still runs where supported"; else ko "install --only commands still runs where supported" "${out}"; fi
+
+# A copy the 'base' step mirrored is identical to the bundle, so a slice
+# remove takes it back even without a recorded install.
+home="$(new_home)"
+for unit in skills agents rules; do
+    mkdir -p "${home}/.cursor/${unit}"
+    cp -R "${REPO_ROOT}/.cursor-plugin/${unit}/." "${home}/.cursor/${unit}/"
+done
+mkdir -p "${home}/.cursor/skills/my-own-skill"
+run_install "${home}" remove --target cursor --intent skills >/dev/null
+leftover="$(find "${home}/.cursor/skills" -mindepth 1 -maxdepth 1 -printf '%f\n')"
+if [[ "${leftover}" == "my-own-skill" ]]; then ok "cursor skills remove drops only bundle skills"; else ko "cursor skills remove drops only bundle skills" "${leftover}"; fi
+if [[ -n "$(ls -A "${home}/.cursor/agents")" && -n "$(ls -A "${home}/.cursor/rules")" ]]; then ok "cursor skills remove keeps agents + rules"; else ko "cursor skills remove keeps agents + rules"; fi
+
+home="$(new_home)"
+for unit in skills agents commands shared; do
+    mkdir -p "${home}/.config/opencode/${unit}"
+    cp -R "${REPO_ROOT}/.opencode-plugin/${unit}/." "${home}/.config/opencode/${unit}/"
+done
+run_install "${home}" remove --target opencode --intent agents,commands >/dev/null
+leftover="$(find "${home}/.config/opencode" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort | tr '\n' ' ')"
+if [[ "${leftover}" == "shared skills " ]]; then ok "opencode agents,commands remove keeps skills + shared"; else ko "opencode agents,commands remove keeps skills + shared" "${leftover}"; fi
+run_install "${home}" remove --target opencode --intent skills >/dev/null
+leftover="$(find "${home}/.config/opencode" -mindepth 1 | head -3)"
+if [[ -z "${leftover}" ]]; then ok "opencode skills remove takes shared/ too"; else ko "opencode skills remove takes shared/ too" "${leftover}"; fi
+
+# The slice helper directly (no generators): Codex skills land in
+# ~/.codex/skills with plugin paths re-pointed there.
+home="$(new_home)"
+HOME="${home}" YCC_MANAGED_CONFIG_STATE="${home}/.config/ycc/managed-config-state.json" \
+    python3 "${REPO_ROOT}/scripts/install_slices.py" install --target codex --slice skills >/dev/null
+if [[ -f "${home}/.codex/skills/git-workflow/SKILL.md" && -d "${home}/.codex/skills/_shared/scripts" ]]; then ok "codex skills slice installs into ~/.codex/skills"; else ko "codex skills slice installs into ~/.codex/skills"; fi
+if [[ ! -e "${home}/.codex/plugins" ]]; then ok "codex skills slice links no plugin"; else ko "codex skills slice links no plugin"; fi
+if ! grep -rq '[~]/.codex/plugins/ycc/s' "${home}/.codex/skills"; then ok "codex skills slice re-points plugin paths"; else ko "codex skills slice re-points plugin paths"; fi
+if ! grep -rq '\.\./\.\./\.\./shared/' "${home}/.codex/skills"; then ok "codex skills slice re-points relative shared paths"; else ko "codex skills slice re-points relative shared paths"; fi
+
+# Codex slices are standalone: removing them never touches the plugin.
+home="$(new_home)"
+mkdir -p "${home}/.agents/plugins" "${home}/.codex/agents" "${home}/.codex/plugins"
+ln -s "${REPO_REAL}/.codex-plugin/ycc" "${home}/.codex/plugins/ycc"
+cp -R "${REPO_ROOT}/.codex-plugin/agents/." "${home}/.codex/agents/"
+echo 'name = "mine"' > "${home}/.codex/agents/mine.toml"
+echo '{ "name": "local-ycc-plugins", "plugins": [{ "name": "ycc" }] }' > "${home}/.agents/plugins/marketplace.json"
+run_install "${home}" remove --target codex --intent agents,skills >/dev/null
+if [[ "$(find "${home}/.codex/agents" -mindepth 1 -printf '%f\n')" == "mine.toml" ]]; then ok "codex agents remove keeps only user agents"; else ko "codex agents remove keeps only user agents"; fi
+if [[ -L "${home}/.codex/plugins/ycc" ]]; then ok "codex slice remove keeps the plugin link"; else ko "codex slice remove keeps the plugin link"; fi
+assert_contains "$(cat "${home}/.agents/plugins/marketplace.json")" '"ycc"' "codex slice remove keeps the marketplace entry"
+
+echo
 echo "== install.sh cli / completion =="
 
 home="$(new_home)"
@@ -636,6 +725,21 @@ if ! command -v zsh >/dev/null || zsh -n "${REPO_ROOT}/scripts/completions/_ycc"
 if ! command -v fish >/dev/null || fish -n "${REPO_ROOT}/scripts/completions/ycc.fish"; then ok "fish completion parses"; else ko "fish completion parses"; fi
 out="$(bash -c 'source "$1"; COMP_WORDS=(ycc sync --target claude,co); COMP_CWORD=3; _ycc; echo "${COMPREPLY[*]}"' _ "${REPO_ROOT}/scripts/completions/ycc.bash")"
 assert_contains "${out}" "claude,codex" "bash completion completes comma lists"
+
+# Completion lists must track install.sh: every intent, and every step any
+# target accepts for --only.
+intents="$(sed -n 's/^VALID_INTENTS=(\(.*\))$/\1/p' "${INSTALL}")"
+steps="$(bash -c 'source <(sed -n "/^valid_steps_for_target() {/,/^}/p" "$1"); err() { :; }; for t in claude cursor codex opencode; do valid_steps_for_target "$t"; done' _ "${INSTALL}" \
+    | tr ',' '\n' | awk '!seen[$0]++' | tr '\n' ' ')"
+for f in _ycc ycc.bash ycc.fish; do
+    assert_contains "$(cat "${REPO_ROOT}/scripts/completions/${f}")" "${intents}" "${f} completes every intent"
+    only_line="$(grep -E -- 'only' "${REPO_ROOT}/scripts/completions/${f}" | grep -E 'base' | head -1)"
+    missing=""
+    for word in ${steps}; do
+        [[ " ${only_line//[\"\']/ } " == *" ${word} "* ]] || missing+=" ${word}"
+    done
+    if [[ -z "${missing}" ]]; then ok "${f} --only completes every step"; else ko "${f} --only completes every step" "missing:${missing}"; fi
+done
 
 echo
 printf 'test-install-sync: %d passed, %d failed\n' "${PASS}" "${FAIL}"

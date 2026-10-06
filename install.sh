@@ -27,6 +27,8 @@ info()  { printf "${GREEN}[ok]${NC}  %s\n" "$1"; }
 warn()  { printf "${YELLOW}[!!]${NC}  %s\n" "$1"; }
 err()   { printf "${RED}[err]${NC} %s\n" "$1" >&2; }
 
+# shellcheck source=scripts/lib/install-bundle.sh
+source "${SCRIPT_DIR}/scripts/lib/install-bundle.sh"
 # shellcheck source=scripts/lib/install-remove.sh
 source "${SCRIPT_DIR}/scripts/lib/install-remove.sh"
 
@@ -184,9 +186,25 @@ step-flag form used for first-time setup.
   $(basename "$0") sync --target claude --intent hooks,settings,mcp,plugins
   $(basename "$0") sync --target codex,claude,opencode --intent mcp
   $(basename "$0") sync --target claude --intent mods
+  $(basename "$0") sync --target claude,codex --intent skills,agents
 
-Intents (valid: base, settings, rules, mcp, hooks, plugins, mods):
-  base      Install/register the target's bundle.
+Intents (valid: base, skills, agents, commands, settings, rules, mcp, hooks,
+plugins, mods):
+  base      Install/register the target's whole bundle (claude/codex: the
+            ycc plugin; cursor/opencode: the mirrored bundle dirs).
+  skills    Standalone skills, one entry each, in the tool's own skills dir.
+  agents    Standalone agents, one entry each, in the tool's own agents dir.
+  commands  Standalone slash commands (claude, opencode).
+
+  Slices (skills/agents/commands) need no plugin. Each entry is copied with
+  plugin-root paths and 'ycc:' prefixes rewritten so it works on its own;
+  only entries ycc installed (or identical copies) are ever replaced or
+  removed, so your own skills/agents in those dirs are left alone (--force
+  overrides). Destinations:
+    claude    ~/.claude/{skills,agents,commands}/<name>
+    cursor    ~/.cursor/{skills,agents}/<name>
+    codex     ~/.codex/skills/<name> (+ _shared), ~/.codex/agents/<name>.toml
+    opencode  ~/.config/opencode/{skills,agents,commands}/<name> (+ shared/)
   settings  Merge repo-managed config keys (models, effort levels, ...).
   rules     Symlink the shared CLAUDE.md / AGENTS.md ruleset.
   mcp       Merge MCP server definitions.
@@ -201,12 +219,16 @@ Intents (valid: base, settings, rules, mcp, hooks, plugins, mods):
   Intent → step mapping per target:
     claude    base→base  settings→settings  rules→rules  mcp→mcp
               hooks→settings+hooks  plugins→settings  mods→mods
-    cursor    base→base  settings→settings  rules→rules  mcp→mcp
-              hooks, plugins, mods → no-op
-    codex     base→base  settings→settings  rules→rules  mcp→mcp
-              plugins → settings (config.toml)  mods → no-op
-    opencode  base→base  settings→settings  rules→rules  mcp→mcp
-              plugins → settings (opencode.json)  mods → no-op
+              skills→skills  agents→agents  commands→commands
+    cursor    base→base  skills→skills  agents→agents  settings→settings
+              rules→rules  mcp→mcp
+              commands, hooks, plugins, mods → no-op
+    codex     base→base  skills→skills  agents→agents  settings→settings
+              rules→rules  mcp→mcp  plugins → settings (config.toml)
+              commands, hooks, mods → no-op
+    opencode  base→base  skills→skills  agents→agents  commands→commands
+              settings→settings  rules→rules  mcp→mcp
+              plugins → settings (opencode.json)  hooks, mods → no-op
 
 Remove ('remove' subcommand):
   Undoes what the selected steps installed, for every target and intent (same
@@ -223,12 +245,16 @@ Remove ('remove' subcommand):
                                 bundle entries from the synced dirs; codex:
                                 plugin links, plugin cache, custom agents
                                 and the marketplace.json entry.
+    skills / agents / commands  the standalone entries ycc installed (or
+                                that are still identical to the bundle);
+                                never the plugin, never your own entries.
     mods (claude)               uninstall each mod + the ycc-mods marketplace.
 
   $(basename "$0") remove --target claude --only mcp            # project scope
   $(basename "$0") remove --target all --intent mcp --global    # user-global
   $(basename "$0") remove --target codex --intent settings,rules
   $(basename "$0") remove --target all --intent base,settings,rules,hooks,plugins,mods
+  $(basename "$0") remove --target opencode --intent agents,commands
 
 Scope (--project | --global, mutually exclusive):
   Without a flag, steps that support project scope use it; all others stay
@@ -311,6 +337,8 @@ Options:
   --only <steps>      Exclusive: run only the comma-separated steps
                       (e.g. --only settings, --only rules,settings).
                       Overrides defaults and --settings/--rules/--mcp/--hooks.
+                      A skills/agents/commands step a target has no home for
+                      is skipped with a notice (e.g. commands on cursor).
   --intent <intents>  'sync' / 'remove' subcommands only. Comma-separated intents (see
                       above). Cannot be combined with --only or the additive
                       --settings/--rules/--mcp/--hooks flags.
@@ -331,7 +359,7 @@ install semantics:
                           without --force.
 
 Target steps:
-  claude    base | settings | rules | mcp | hooks | mods
+  claude    base | skills | agents | commands | settings | rules | mcp | hooks | mods
             base:     invoke 'claude plugin marketplace add <repo> --scope user'
                       + 'claude plugin install ycc@ycc --scope user'. Breaks
                       ~/.claude/settings.json symlink (if any) first so the CLI
@@ -352,8 +380,14 @@ Target steps:
                       (the local 'ycc-mods' marketplace) + 'claude plugin
                       install <mod>@ycc-mods --scope user' for each mod it
                       lists. Mods load in place; edits apply on /reload-plugins.
-  cursor    base | settings | mcp | rules
+            skills / agents / commands:
+                      copy ycc/{skills,agents,commands} entries into
+                      ~/.claude/<slice>/ (paths re-pointed, 'ycc:' dropped).
+                      With the ycc plugin also installed they appear twice.
+  cursor    base | skills | agents | settings | mcp | rules
             base:     generate + validate + format + rsync bundle to ~/.cursor/.
+            skills:   generate + install each skill into ~/.cursor/skills/.
+            agents:   generate + install each agent into ~/.cursor/agents/.
             settings: merge .cursor-plugin/config/cli-config.json into
                       ~/.cursor/cli-config.json (main CLI model preference).
             mcp:      merge mcp-configs/mcp.json mcpServers into
@@ -363,7 +397,7 @@ Target steps:
                       is rsynced with --delete during 'base').
                       Cursor sub-agent models are set per generated agent file
                       in .cursor-plugin/agents/, not in cli-config.json.
-  codex     base | settings | rules | mcp
+  codex     base | skills | agents | settings | rules | mcp
             base:     generate + validate + format + sync custom agents, then
                       register the repo's .codex-plugin/ycc/ as a local
                       marketplace source in ~/.agents/plugins/marketplace.json
@@ -373,6 +407,10 @@ Target steps:
                       ./scripts/sync.sh --only codex to refresh the generated
                       bundle, and rerun this step after clearing the Codex
                       plugin cache.
+            skills:   generate + install each skill into ~/.codex/skills/
+                      (shared helpers at ~/.codex/skills/_shared). No plugin
+                      link, cache or marketplace entry.
+            agents:   generate + install each custom agent into ~/.codex/agents/.
             settings: MERGE managed keys from .codex-plugin/config/config.toml
                       into ~/.codex/config.toml. Comments, trusted projects,
                       MCP bearer tokens, connector entries and unknown tables
@@ -381,9 +419,12 @@ Target steps:
                       into <project>/.codex/config.toml or ~/.codex/config.toml.
             rules:    symlink .codex-plugin/config/default.rules AND
                       ycc/settings/rules/{CLAUDE.md,AGENTS.md} into ~/.codex/.
-  opencode  base | settings | rules | mcp
+  opencode  base | skills | agents | commands | settings | rules | mcp
             base:     generate + validate + format + rsync skills/agents/commands
                       into ~/.config/opencode/.
+            skills:   generate + install each skill into skills/ (+ shared/).
+            agents:   generate + install each agent into agents/.
+            commands: generate + install each command into commands/.
             settings: MERGE managed keys from .opencode-plugin/opencode.json
                       into ~/.config/opencode/opencode.json. Local model
                       choices, provider credentials and unknown keys are
@@ -417,6 +458,9 @@ Examples:
   $(basename "$0") install --target codex --only rules             # link default.rules + CLAUDE.md + AGENTS.md
   $(basename "$0") install --target opencode                       # base only
   $(basename "$0") install --target opencode --settings --rules    # base + merge opencode.json + link AGENTS.md
+  $(basename "$0") install --target opencode --only skills,agents  # just skills + agents
+  $(basename "$0") install --target codex --only agents            # just ~/.codex/agents
+  $(basename "$0") install --target all --only agents              # agents everywhere, no plugins
   $(basename "$0") install --target all --settings --rules --mcp
   $(basename "$0") install --target claude,codex --only rules      # rules for two targets
   $(basename "$0") install --target all --rules --force            # force-replace user-authored rules files
@@ -623,6 +667,13 @@ register_claude_marketplace() {
     cleanup_claude_local_orphans
 }
 
+# claude_ycc_plugin_installed — print the registry file when ycc@ycc is installed.
+claude_ycc_plugin_installed() {
+    local registry="${HOME}/.claude/plugins/installed_plugins.json"
+    [[ -f "${registry}" ]] && grep -q '"ycc@ycc"' "${registry}" && echo "${registry}"
+    return 0
+}
+
 # Remove 'local-ycc-plugins' detritus from earlier (broken) versions of the
 # installer that wrote to the wrong files with the wrong schema.
 cleanup_claude_local_orphans() {
@@ -796,17 +847,21 @@ step_enabled() {
 # Echo the comma-separated steps <target> supports for --only.
 valid_steps_for_target() {
     case "$1" in
-        claude) echo "base,settings,rules,mcp,hooks,mods" ;;
-        cursor) echo "base,settings,mcp,rules" ;;
-        codex|opencode) echo "base,settings,rules,mcp" ;;
+        claude) echo "base,skills,agents,commands,settings,rules,mcp,hooks,mods" ;;
+        cursor|codex) echo "base,skills,agents,settings,rules,mcp" ;;
+        opencode) echo "base,skills,agents,commands,settings,rules,mcp" ;;
         *) err "valid_steps_for_target: unknown target '$1'"; exit 1 ;;
     esac
 }
 
-# validate_only_steps <target>
+# validate_only_steps <target> [quiet]
 # If --only was passed, ensure every requested step is valid for the target.
+# A slice step (skills/agents/commands) the target has no home for is skipped
+# with a notice instead, so '--target all --only commands' still works; pass
+# 'quiet' to suppress that notice (preflight).
 validate_only_steps() {
     local target="$1"
+    local quiet="${2:-}"
     local valid_csv
     valid_csv="$(valid_steps_for_target "${target}")"
     if [[ "${EXCLUSIVE_STEPS:-0}" != "1" && ${#ONLY_STEPS[@]} -eq 0 ]]; then
@@ -821,7 +876,9 @@ validate_only_steps() {
         for v in "${valid[@]}"; do
             [[ "$v" == "$requested" ]] && { found=1; break; }
         done
-        if [[ $found -eq 0 ]]; then
+        if [[ $found -eq 0 && " skills agents commands " == *" ${requested} "* ]]; then
+            [[ -n "${quiet}" ]] || warn "step '${requested}' is not supported by target '${target}' — skipping"
+        elif [[ $found -eq 0 ]]; then
             err "--only step '${requested}' is not valid for target '${target}' (valid: ${valid_csv})"
             exit 1
         fi
@@ -834,7 +891,7 @@ validate_only_steps() {
 # Intents describe WHAT the user wants synced; each target maps them onto the
 # steps it actually supports. An intent a target cannot execute is reported and
 # skipped rather than silently falling back to another step.
-VALID_INTENTS=(base settings rules mcp hooks plugins mods)
+VALID_INTENTS=(base skills agents commands settings rules mcp hooks plugins mods)
 
 # intent_steps_for_target <target> <intent>
 # Echo the comma-separated steps <intent> maps to for <target>. Empty output
@@ -853,6 +910,13 @@ intent_steps_for_target() {
         claude:plugins) echo "settings" ;;
         # Mods install from the ycc-mods marketplace via the claude CLI.
         claude:mods) echo "mods" ;;
+        # skills/agents/commands install standalone entries into the tool's
+        # own user dirs; 'base' ships the whole bundle/plugin. Cursor and Codex
+        # have no command layer.
+        claude:skills|claude:agents|claude:commands) echo "${intent}" ;;
+        cursor:skills|cursor:agents|codex:skills|codex:agents) echo "${intent}" ;;
+        opencode:skills|opencode:agents|opencode:commands) echo "${intent}" ;;
+        cursor:commands|codex:commands) echo "" ;;
 
         cursor:base|cursor:rules|cursor:mcp) echo "${intent}" ;;
         cursor:settings) echo "settings" ;;
@@ -1021,6 +1085,15 @@ sync_claude_target() {
         ran=1
         warn "Run /reload-plugins or start a new Claude Code session to load the mods."
     fi
+    local slice
+    for slice in $(selected_slices skills agents commands); do
+        printf '\n%sClaude: install standalone %s into ~/.claude/%s%s\n' "${BOLD}" "${slice}" "${slice}" "${NC}"
+        run_slice claude "${slice}"
+        ran=1
+        if [[ -n "$(claude_ycc_plugin_installed)" ]]; then
+            warn "The ycc plugin is also installed; its ${slice} now appear twice (ycc:<name> and <name>). Drop one: ${CLI_NAME} remove --target claude --intent base"
+        fi
+    done
     if [[ $ran -eq 0 ]]; then
         warn "Claude target ran no steps (pass --settings, --rules, --mcp, --hooks, or --only ...)"
     fi
@@ -1169,69 +1242,55 @@ sync_cursor_target() {
 
     mkdir -p "${cursor_dir}"
 
-    local do_base=0 do_settings=0 do_mcp=0 do_rules=0
-    step_enabled base && do_base=1
+    # 'base' ships every bundle unit; 'skills' / 'agents' ship one each.
+    local -a units=()
+    read -r -a units <<< "$(selected_bundle_units skills agents rules)"
+    local do_bundle=0 do_settings=0 do_mcp=0 do_rules=0
+    [[ ${#units[@]} -gt 0 ]] && do_bundle=1
     step_enabled settings && do_settings=1
     step_enabled mcp && do_mcp=1
     step_enabled rules && do_rules=1
 
-    [[ $do_base -eq 1 ]] && { command -v rsync >/dev/null 2>&1 || { err "rsync is required but not found"; exit 1; }; }
+    [[ $do_bundle -eq 1 ]] && { command -v rsync >/dev/null 2>&1 || { err "rsync is required but not found"; exit 1; }; }
 
-    if [[ $do_base -eq 0 && $do_settings -eq 0 && $do_mcp -eq 0 && $do_rules -eq 0 ]]; then
+    if [[ $do_bundle -eq 0 && $do_settings -eq 0 && $do_mcp -eq 0 && $do_rules -eq 0 ]]; then
         warn "Cursor target ran no steps"
         printf '\n%sCursor %s complete.%s\n' "${BOLD}" "${COMMAND}" "${NC}"
         return 0
     fi
 
     local total=0
-    [[ $do_base -eq 1 ]] && total=$((total + 4))
+    [[ $do_bundle -eq 1 ]] && total=$((total + 4))
     [[ $do_settings -eq 1 ]] && total=$((total + 1))
     [[ $do_mcp -eq 1 ]] && total=$((total + 1))
     [[ $do_rules -eq 1 ]] && total=$((total + 1))
     local step=0
 
-    if [[ $do_base -eq 1 ]]; then
+    if [[ $do_bundle -eq 1 ]]; then
         if [[ ! -d "${CURSOR_PLUGIN_DIR}" ]]; then
             err "Cursor plugin source directory not found: ${CURSOR_PLUGIN_DIR}"
             exit 1
         fi
 
-        local gen_agents="${scripts_dir}/generate-cursor-agents.sh"
-        local gen_skills="${scripts_dir}/generate-cursor-skills.sh"
-        local gen_rules="${scripts_dir}/generate-cursor-rules.sh"
-        local val_agents="${scripts_dir}/validate-cursor-agents.sh"
-        local val_skills="${scripts_dir}/validate-cursor-skills.sh"
-        local val_rules="${scripts_dir}/validate-cursor-rules.sh"
-
-        local s
-        for s in "${gen_agents}" "${gen_skills}" "${gen_rules}" "${val_agents}" "${val_skills}" "${val_rules}"; do
-            if [[ ! -f "${s}" ]]; then
-                err "Missing required script: ${s}"
-                exit 1
-            fi
-            if [[ ! -r "${s}" ]]; then
-                err "Script not readable: ${s}"
-                exit 1
-            fi
+        # Each unit has its own generator + validator: generate-cursor-<unit>.sh.
+        local unit
+        for unit in "${units[@]}"; do
+            require_scripts "${scripts_dir}/generate-cursor-${unit}.sh" "${scripts_dir}/validate-cursor-${unit}.sh"
         done
 
         step=$((step + 1))
-        printf '\n%s[%d/%d] Generate Cursor-native bundle%s\n' "${BOLD}" "$step" "$total" "${NC}"
-        info "Running generate-cursor-agents.sh"
-        bash "${gen_agents}"
-        info "Running generate-cursor-skills.sh"
-        bash "${gen_skills}"
-        info "Running generate-cursor-rules.sh"
-        bash "${gen_rules}"
+        printf '\n%s[%d/%d] Generate Cursor-native bundle (%s)%s\n' "${BOLD}" "$step" "$total" "${units[*]}" "${NC}"
+        for unit in "${units[@]}"; do
+            info "Running generate-cursor-${unit}.sh"
+            bash "${scripts_dir}/generate-cursor-${unit}.sh"
+        done
 
         step=$((step + 1))
         printf '\n%s[%d/%d] Validate generated bundle%s\n' "${BOLD}" "$step" "$total" "${NC}"
-        info "Running validate-cursor-agents.sh"
-        bash "${val_agents}"
-        info "Running validate-cursor-skills.sh"
-        bash "${val_skills}"
-        info "Running validate-cursor-rules.sh"
-        bash "${val_rules}"
+        for unit in "${units[@]}"; do
+            info "Running validate-cursor-${unit}.sh"
+            bash "${scripts_dir}/validate-cursor-${unit}.sh"
+        done
 
         step=$((step + 1))
         printf '\n%s[%d/%d] Format modified repository files%s\n' "${BOLD}" "$step" "$total" "${NC}"
@@ -1239,23 +1298,13 @@ sync_cursor_target() {
 
         step=$((step + 1))
         printf '\n%s[%d/%d] Sync bundle to ~/.cursor%s\n' "${BOLD}" "$step" "$total" "${NC}"
-
-        local managed_units=(skills agents rules)
-        local unit
-        for unit in "${managed_units[@]}"; do
-            local src_unit="${CURSOR_PLUGIN_DIR}/${unit}/"
-            local dest_unit="${cursor_dir}/${unit}/"
-
-            if [[ -d "${src_unit}" ]]; then
-                mkdir -p "${dest_unit}"
-                rsync -av --delete "${src_unit}" "${dest_unit}"
-                info "Synced ${unit}/ → ${dest_unit}"
-            elif [[ -d "${dest_unit}" ]]; then
-                rm -rf "${dest_unit}"
-                warn "Removed ${dest_unit} (missing from .cursor-plugin)"
-            else
-                warn "Source not found, skipping: ${src_unit}"
-            fi
+        # base mirrors every unit dir; a slice installs just its entries.
+        if step_enabled base; then
+            sync_bundle_units "${CURSOR_PLUGIN_DIR}" "${cursor_dir}" "${units[@]}"
+        fi
+        local slice
+        for slice in $(selected_slices skills agents); do
+            run_slice cursor "${slice}"
         done
     fi
 
@@ -1300,51 +1349,49 @@ sync_codex_target() {
     local codex_agents_dest="${HOME}/.codex/agents"
     local scripts_dir="${SCRIPT_DIR}/scripts"
 
-    local do_base=0 do_settings=0 do_rules=0 do_mcp=0
-    step_enabled base && do_base=1
+    # 'base' registers the whole plugin and mirrors the custom agents (repo
+    # mode: the marketplace entry only, as Codex pulls the bundle from github).
+    # The 'skills' / 'agents' slices install standalone entries into
+    # ~/.codex/skills/<name> and ~/.codex/agents/<name>.toml — no plugin.
+    local do_plugin=0 do_agents=0 do_settings=0 do_rules=0 do_mcp=0
+    step_enabled base && do_plugin=1
+    [[ $do_plugin -eq 1 && "${MODE:-local}" == "local" ]] && do_agents=1
+    local -a slices=()
+    read -r -a slices <<< "$(selected_slices skills agents)"
     step_enabled settings && do_settings=1
     step_enabled rules && do_rules=1
     step_enabled mcp && do_mcp=1
 
-    if [[ $do_base -eq 0 && $do_settings -eq 0 && $do_rules -eq 0 && $do_mcp -eq 0 ]]; then
+    if [[ $do_plugin -eq 0 && ${#slices[@]} -eq 0 && $do_settings -eq 0 && $do_rules -eq 0 && $do_mcp -eq 0 ]]; then
         warn "Codex target ran no steps"
         printf '\n%sCodex %s complete.%s\n' "${BOLD}" "${COMMAND}" "${NC}"
         return 0
     fi
 
+    # The local plugin, the mirrored agents and the slices are built from this
+    # checkout; repo-mode plugin registration only writes JSON.
+    local do_local_plugin=0 do_build=0
+    [[ $do_plugin -eq 1 && "${MODE:-local}" == "local" ]] && do_local_plugin=1
+    [[ $do_local_plugin -eq 1 || $do_agents -eq 1 || ${#slices[@]} -gt 0 ]] && do_build=1
+
     command -v python3 >/dev/null 2>&1 || { err "python3 is required but not found"; exit 1; }
-    # Local-mode base needs rsync + realpath for the symlink + agents sync.
-    # Repo-mode base only writes the marketplace JSON, so those tools are not required.
-    if [[ $do_base -eq 1 && "${MODE:-local}" == "local" ]]; then
+    if [[ $do_build -eq 1 ]]; then
         command -v rsync >/dev/null 2>&1 || { err "rsync is required but not found"; exit 1; }
         command -v realpath >/dev/null 2>&1 || { err "realpath is required but not found"; exit 1; }
     fi
 
-    local local_base_steps=5
-    local repo_base_steps=1
     local total=0
-    if [[ $do_base -eq 1 ]]; then
-        if [[ "${MODE:-local}" == "repo" ]]; then
-            total=$((total + repo_base_steps))
-        else
-            total=$((total + local_base_steps))
-        fi
-    fi
+    [[ $do_build -eq 1 ]] && total=$((total + 3))
+    [[ $do_local_plugin -eq 1 ]] && total=$((total + 1))
+    [[ $do_agents -eq 1 ]] && total=$((total + 1))
+    [[ $do_plugin -eq 1 ]] && total=$((total + 1))
+    total=$((total + ${#slices[@]}))
     [[ $do_settings -eq 1 ]] && total=$((total + 1))
     [[ $do_rules -eq 1 ]] && total=$((total + 1))
     [[ $do_mcp -eq 1 ]] && total=$((total + 1))
     local step=0
 
-    if [[ $do_base -eq 1 && "${MODE:-local}" == "repo" ]]; then
-        # Repo mode: Codex resolves the bundle from the github ref on install.
-        # We only need to write the marketplace entry. Bundle regeneration stays
-        # out-of-band via ./scripts/sync.sh --only codex.
-        step=$((step + 1))
-        printf '\n%s[%d/%d] Register github repo as marketplace source (yandy-r/claude-plugins@main)%s\n' "${BOLD}" "$step" "$total" "${NC}"
-        merge_codex_marketplace_json "repo"
-    elif [[ $do_base -eq 1 ]]; then
-        mkdir -p "${codex_agents_dest}"
-
+    if [[ $do_build -eq 1 ]]; then
         if [[ ! -d "${SCRIPT_DIR}/.codex-plugin" ]]; then
             err "Codex plugin source directory not found: ${SCRIPT_DIR}/.codex-plugin"
             exit 1
@@ -1358,49 +1405,42 @@ sync_codex_target() {
             exit 1
         fi
 
-        local gen_plugin="${scripts_dir}/generate-codex-plugin.sh"
-        local gen_skills="${scripts_dir}/generate-codex-skills.sh"
-        local gen_agents="${scripts_dir}/generate-codex-agents.sh"
-        local val_plugin="${scripts_dir}/validate-codex-plugin.sh"
-        local val_skills="${scripts_dir}/validate-codex-skills.sh"
-        local val_agents="${scripts_dir}/validate-codex-agents.sh"
-
-        local s
-        for s in "${gen_plugin}" "${gen_skills}" "${gen_agents}" "${val_plugin}" "${val_skills}" "${val_agents}"; do
-            if [[ ! -f "${s}" ]]; then
-                err "Missing required script: ${s}"
-                exit 1
-            fi
-            if [[ ! -r "${s}" ]]; then
-                err "Script not readable: ${s}"
-                exit 1
-            fi
+        # Generator/validator passes: generate-codex-<pass>.sh.
+        local -a passes=()
+        if [[ $do_local_plugin -eq 1 || " ${slices[*]} " == *" skills "* ]]; then
+            passes+=(skills)
+        fi
+        if [[ $do_agents -eq 1 || " ${slices[*]} " == *" agents "* ]]; then
+            passes+=(agents)
+        fi
+        [[ $do_local_plugin -eq 1 ]] && passes+=(plugin)
+        local pass
+        for pass in "${passes[@]}"; do
+            require_scripts "${scripts_dir}/generate-codex-${pass}.sh" "${scripts_dir}/validate-codex-${pass}.sh"
         done
 
         step=$((step + 1))
-        printf '\n%s[%d/%d] Generate Codex-native bundle%s\n' "${BOLD}" "$step" "$total" "${NC}"
-        info "Running generate-codex-skills.sh"
-        bash "${gen_skills}"
-        info "Running generate-codex-agents.sh"
-        bash "${gen_agents}"
-        info "Running generate-codex-plugin.sh"
-        bash "${gen_plugin}"
+        printf '\n%s[%d/%d] Generate Codex-native bundle (%s)%s\n' "${BOLD}" "$step" "$total" "${passes[*]}" "${NC}"
+        for pass in "${passes[@]}"; do
+            info "Running generate-codex-${pass}.sh"
+            bash "${scripts_dir}/generate-codex-${pass}.sh"
+        done
 
         step=$((step + 1))
         printf '\n%s[%d/%d] Validate generated bundle%s\n' "${BOLD}" "$step" "$total" "${NC}"
-        info "Running validate-codex-skills.sh"
-        bash "${val_skills}"
-        info "Running validate-codex-agents.sh"
-        bash "${val_agents}"
-        info "Running validate-codex-plugin.sh"
-        bash "${val_plugin}"
+        for pass in "${passes[@]}"; do
+            info "Running validate-codex-${pass}.sh"
+            bash "${scripts_dir}/validate-codex-${pass}.sh"
+        done
 
         step=$((step + 1))
         printf '\n%s[%d/%d] Format modified repository files%s\n' "${BOLD}" "$step" "$total" "${NC}"
         run_repo_style_format_modified
+    fi
 
+    if [[ $do_local_plugin -eq 1 ]]; then
         step=$((step + 1))
-        printf '\n%s[%d/%d] Link plugin tree + sync custom agents%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        printf '\n%s[%d/%d] Link plugin tree + refresh plugin cache%s\n' "${BOLD}" "$step" "$total" "${NC}"
         # Symlink (not rsync) the plugin tree so edits in .codex-plugin/ycc/ are
         # live for Codex after regeneration. Generated skill bodies reference
         # ~/.codex/plugins/ycc/... as absolute paths; the symlink keeps those
@@ -1453,14 +1493,35 @@ for child in sorted((cache_root / "skills").iterdir()):
     link.symlink_to(child, target_is_directory=True)
 PY
         info "Wrote Codex cache compatibility manifest → ${codex_plugin_cache_container}/skills/.codex-plugin/plugin.json"
+    fi
+
+    if [[ $do_agents -eq 1 ]]; then
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Sync custom agents%s\n' "${BOLD}" "$step" "$total" "${NC}"
         mkdir -p "${codex_agents_dest}"
         rsync -av --delete "${CODEX_AGENTS_DIR}/" "${codex_agents_dest}/"
         info "Synced Codex custom agents → ${codex_agents_dest}"
-
-        step=$((step + 1))
-        printf '\n%s[%d/%d] Register repo as local marketplace source%s\n' "${BOLD}" "$step" "$total" "${NC}"
-        merge_codex_marketplace_json "local" "./plugins/ycc"
     fi
+
+    if [[ $do_plugin -eq 1 ]]; then
+        step=$((step + 1))
+        if [[ "${MODE:-local}" == "repo" ]]; then
+            # Repo mode: Codex resolves the bundle from the github ref on install.
+            # Bundle regeneration stays out-of-band via ./scripts/sync.sh --only codex.
+            printf '\n%s[%d/%d] Register github repo as marketplace source (yandy-r/claude-plugins@main)%s\n' "${BOLD}" "$step" "$total" "${NC}"
+            merge_codex_marketplace_json "repo"
+        else
+            printf '\n%s[%d/%d] Register repo as local marketplace source%s\n' "${BOLD}" "$step" "$total" "${NC}"
+            merge_codex_marketplace_json "local" "./plugins/ycc"
+        fi
+    fi
+
+    local slice
+    for slice in "${slices[@]}"; do
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Install standalone %s into ~/.codex/%s%s\n' "${BOLD}" "$step" "$total" "${slice}" "${slice}" "${NC}"
+        run_slice codex "${slice}"
+    done
 
     if [[ $do_settings -eq 1 ]]; then
         step=$((step + 1))
@@ -1493,7 +1554,13 @@ PY
     fi
 
     printf '\n%sCodex %s complete.%s\n' "${BOLD}" "${COMMAND}" "${NC}"
-    if [[ $do_base -eq 1 ]]; then
+    if [[ ${#slices[@]} -gt 0 ]]; then
+        warn "Restart Codex to pick up the standalone ${slices[*]}."
+        if [[ " ${slices[*]} " == *" skills "* && -L "${codex_plugin_dest}" ]]; then
+            warn "The ycc plugin is also linked at ${codex_plugin_dest}; its skills will appear twice. Remove it with: ${CLI_NAME} remove --target codex --intent base"
+        fi
+    fi
+    if [[ $do_plugin -eq 1 ]]; then
         if [[ "${MODE:-local}" == "repo" ]]; then
             warn "Restart Codex; the 'local-ycc-plugins' marketplace in ~/.agents/plugins/marketplace.json now tracks the github source yandy-r/claude-plugins@main."
             warn "Updates: install ycc through the Codex /plugins UI to pull the latest published commit. No local symlink, no agents rsync."
@@ -1518,79 +1585,73 @@ sync_opencode_target() {
     local opencode_dir="${HOME}/.config/opencode"
     local scripts_dir="${SCRIPT_DIR}/scripts"
 
-    local do_base=0 do_settings=0 do_rules=0 do_mcp=0
+    # 'base' ships every bundle unit; 'skills' (plus the shared/ helpers skill
+    # bodies reference), 'agents' and 'commands' ship one each.
+    # `shared/` carries the cross-skill scripts and references that
+    # ycc/skills/_shared/... gets rewritten to at generation time
+    # (~/.config/opencode/shared/...). It MUST stay in this list — see
+    # scripts/validate-opencode-install-coverage.sh which enforces that
+    # every <dir> referenced in the bundle is either in this unit list or
+    # explicitly allowlisted as a user-global/runtime path.
+    local -a units=()
+    read -r -a units <<< "$(selected_bundle_units skills agents commands shared)"
+    local do_base=0 do_bundle=0 do_settings=0 do_rules=0 do_mcp=0
     step_enabled base && do_base=1
+    [[ ${#units[@]} -gt 0 ]] && do_bundle=1
     step_enabled settings && do_settings=1
     step_enabled rules && do_rules=1
     step_enabled mcp && do_mcp=1
 
-    if [[ $do_base -eq 0 && $do_settings -eq 0 && $do_rules -eq 0 && $do_mcp -eq 0 ]]; then
+    if [[ $do_bundle -eq 0 && $do_settings -eq 0 && $do_rules -eq 0 && $do_mcp -eq 0 ]]; then
         warn "opencode target ran no steps"
         printf '\n%sopencode %s complete.%s\n' "${BOLD}" "${COMMAND}" "${NC}"
         return 0
     fi
 
     command -v python3 >/dev/null 2>&1 || { err "python3 is required but not found"; exit 1; }
-    [[ $do_base -eq 1 ]] && { command -v rsync >/dev/null 2>&1 || { err "rsync is required but not found"; exit 1; }; }
+    [[ $do_bundle -eq 1 ]] && { command -v rsync >/dev/null 2>&1 || { err "rsync is required but not found"; exit 1; }; }
 
     local total=0
-    [[ $do_base -eq 1 ]] && total=$((total + 4))
+    [[ $do_bundle -eq 1 ]] && total=$((total + 4))
     [[ $do_settings -eq 1 ]] && total=$((total + 1))
     [[ $do_rules -eq 1 ]] && total=$((total + 1))
     [[ $do_mcp -eq 1 ]] && total=$((total + 1))
     local step=0
 
-    if [[ $do_base -eq 1 ]]; then
+    if [[ $do_bundle -eq 1 ]]; then
         if [[ ! -d "${OPENCODE_PLUGIN_DIR}" ]]; then
             err "opencode plugin source directory not found: ${OPENCODE_PLUGIN_DIR}"
             exit 1
         fi
 
-        local gen_skills="${scripts_dir}/generate-opencode-skills.sh"
-        local gen_agents="${scripts_dir}/generate-opencode-agents.sh"
-        local gen_commands="${scripts_dir}/generate-opencode-commands.sh"
-        local gen_plugin="${scripts_dir}/generate-opencode-plugin.sh"
-        local val_skills="${scripts_dir}/validate-opencode-skills.sh"
-        local val_agents="${scripts_dir}/validate-opencode-agents.sh"
-        local val_commands="${scripts_dir}/validate-opencode-commands.sh"
-        local val_plugin="${scripts_dir}/validate-opencode-plugin.sh"
-
-        local s
-        for s in "${gen_skills}" "${gen_agents}" "${gen_commands}" "${gen_plugin}" \
-                 "${val_skills}" "${val_agents}" "${val_commands}" "${val_plugin}"; do
-            if [[ ! -f "${s}" ]]; then
-                err "Missing required script: ${s}"
-                exit 1
-            fi
-            if [[ ! -r "${s}" ]]; then
-                err "Script not readable: ${s}"
-                exit 1
-            fi
+        # Generators run per unit (shared/ is written by the skills generator);
+        # 'base' also regenerates opencode.json + AGENTS.md (the 'plugin' pass).
+        local -a passes=()
+        local unit
+        for unit in "${units[@]}"; do
+            [[ "${unit}" == "shared" ]] || passes+=("${unit}")
+        done
+        [[ $do_base -eq 1 ]] && passes+=(plugin)
+        local pass
+        for pass in "${passes[@]}"; do
+            require_scripts "${scripts_dir}/generate-opencode-${pass}.sh" "${scripts_dir}/validate-opencode-${pass}.sh"
         done
 
         mkdir -p "${opencode_dir}"
 
         step=$((step + 1))
-        printf '\n%s[%d/%d] Generate opencode-native bundle%s\n' "${BOLD}" "$step" "$total" "${NC}"
-        info "Running generate-opencode-skills.sh"
-        bash "${gen_skills}"
-        info "Running generate-opencode-agents.sh"
-        bash "${gen_agents}"
-        info "Running generate-opencode-commands.sh"
-        bash "${gen_commands}"
-        info "Running generate-opencode-plugin.sh"
-        bash "${gen_plugin}"
+        printf '\n%s[%d/%d] Generate opencode-native bundle (%s)%s\n' "${BOLD}" "$step" "$total" "${passes[*]}" "${NC}"
+        for pass in "${passes[@]}"; do
+            info "Running generate-opencode-${pass}.sh"
+            bash "${scripts_dir}/generate-opencode-${pass}.sh"
+        done
 
         step=$((step + 1))
         printf '\n%s[%d/%d] Validate generated bundle%s\n' "${BOLD}" "$step" "$total" "${NC}"
-        info "Running validate-opencode-skills.sh"
-        bash "${val_skills}"
-        info "Running validate-opencode-agents.sh"
-        bash "${val_agents}"
-        info "Running validate-opencode-commands.sh"
-        bash "${val_commands}"
-        info "Running validate-opencode-plugin.sh"
-        bash "${val_plugin}"
+        for pass in "${passes[@]}"; do
+            info "Running validate-opencode-${pass}.sh"
+            bash "${scripts_dir}/validate-opencode-${pass}.sh"
+        done
 
         step=$((step + 1))
         printf '\n%s[%d/%d] Format modified repository files%s\n' "${BOLD}" "$step" "$total" "${NC}"
@@ -1598,29 +1659,13 @@ sync_opencode_target() {
 
         step=$((step + 1))
         printf '\n%s[%d/%d] Sync bundle to ~/.config/opencode%s\n' "${BOLD}" "$step" "$total" "${NC}"
-
-        # `shared/` carries the cross-skill scripts and references that
-        # ycc/skills/_shared/... gets rewritten to at generation time
-        # (~/.config/opencode/shared/...). It MUST stay in this list — see
-        # scripts/validate-opencode-install-coverage.sh which enforces that
-        # every <dir> referenced in the bundle is either rsynced here or
-        # explicitly allowlisted as a user-global/runtime path.
-        local managed_units=(skills agents commands shared)
-        local unit
-        for unit in "${managed_units[@]}"; do
-            local src_unit="${OPENCODE_PLUGIN_DIR}/${unit}/"
-            local dest_unit="${opencode_dir}/${unit}/"
-
-            if [[ -d "${src_unit}" ]]; then
-                mkdir -p "${dest_unit}"
-                rsync -av --delete "${src_unit}" "${dest_unit}"
-                info "Synced ${unit}/ → ${dest_unit}"
-            elif [[ -d "${dest_unit}" ]]; then
-                rm -rf "${dest_unit}"
-                warn "Removed ${dest_unit} (missing from .opencode-plugin)"
-            else
-                warn "Source not found, skipping: ${src_unit}"
-            fi
+        # base mirrors every unit dir; a slice installs just its entries.
+        if [[ $do_base -eq 1 ]]; then
+            sync_bundle_units "${OPENCODE_PLUGIN_DIR}" "${opencode_dir}" "${units[@]}"
+        fi
+        local slice
+        for slice in $(selected_slices skills agents commands); do
+            run_slice opencode "${slice}"
         done
 
         # opencode ALSO reads bundles from the Claude-compat path .claude/skills.
@@ -1665,8 +1710,8 @@ sync_opencode_target() {
     fi
 
     printf '\n%sopencode %s complete.%s\n' "${BOLD}" "${COMMAND}" "${NC}"
-    if [[ $do_base -eq 1 ]]; then
-        warn "Restart opencode to pick up the new skills/agents/commands."
+    if [[ $do_bundle -eq 1 ]]; then
+        warn "Restart opencode to pick up the new ${units[*]}."
     fi
 }
 
@@ -1759,7 +1804,7 @@ preflight_targets() {
             # Warnings for unsupported intents are printed when the target runs.
             configure_intents_for_target "${target}" >/dev/null
         else
-            validate_only_steps "${target}"
+            validate_only_steps "${target}" quiet
         fi
         preflight_step_support "${target}"
     done

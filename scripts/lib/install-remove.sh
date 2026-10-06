@@ -3,14 +3,17 @@
 #
 # Sourced by install.sh (never run directly); relies on its helpers (info,
 # warn, err, step_enabled, merge_settings_config, config_groups_for_target,
-# run_mcp_step, mods_plugin_names, ...) and globals (SCRIPT_DIR, FORCE, ...).
+# run_mcp_step, mods_plugin_names, selected_slices, run_slice, ...) and globals
+# (SCRIPT_DIR, FORCE, ...).
 #
 # Every step undoes what the matching install step wrote and nothing else:
 #   - structured config: managed entries only, via merge_managed_config.py
 #     --remove (user-edited values survive unless --force)
 #   - symlinks: removed only while they still point at this checkout
 #   - copied files: removed only while byte-identical to the repo (or --force)
-#   - mirrored bundles: only the entries the bundle ships
+#   - mirrored bundles ('base'): only the entries the bundle ships
+#   - standalone slices (skills/agents/commands): entries ycc recorded as
+#     installed, or still identical to the bundle (see install_slices.py)
 #   - CLI registrations: undone through the same CLI that made them
 
 # unlink_owned_link <src> <dest> — remove <dest> if it is our symlink to <src>.
@@ -75,6 +78,16 @@ remove_mirrored_entries() {
     fi
 }
 
+# remove_slices <target> <slice...> — take back each enabled standalone slice.
+remove_slices() {
+    local target="$1" slice
+    shift
+    for slice in $(selected_slices "$@"); do
+        printf '\n%s%s: remove standalone %s%s\n' "${BOLD}" "${target}" "${slice}" "${NC}"
+        run_slice "${target}" "${slice}"
+    done
+}
+
 # remove_settings <profile> <src> <dest> <groups> — strip managed config keys.
 remove_settings() {
     [[ -n "$4" ]] || return 0
@@ -127,6 +140,7 @@ remove_claude_target() {
             remove_copied_file "${SCRIPT_DIR}/ycc/settings/statusline-command.sh" "${claude_dir}/statusline-command.sh"
         fi
     fi
+    remove_slices claude skills agents commands
     if step_enabled base; then
         printf '\n%sClaude: uninstall ycc + the ycc marketplace%s\n' "${BOLD}" "${NC}"
         require_claude_cli
@@ -153,6 +167,7 @@ remove_cursor_target() {
         printf '\n%sCursor: remove managed CLI settings%s\n' "${BOLD}" "${NC}"
         remove_settings "cursor-cli" "${CURSOR_CLI_CONFIG_SRC}" "${cursor_dir}/cli-config.json" "settings"
     fi
+    remove_slices cursor skills agents
     if step_enabled base; then
         printf '\n%sCursor: remove bundle from ~/.cursor%s\n' "${BOLD}" "${NC}"
         local unit
@@ -211,6 +226,7 @@ remove_codex_target() {
         remove_settings "codex-config" "${SCRIPT_DIR}/.codex-plugin/config/config.toml" \
             "${codex_dir}/config.toml" "$(config_groups_for_target codex)"
     fi
+    remove_slices codex skills agents
     if step_enabled base; then
         printf '\n%sCodex: remove plugin links, cache, custom agents + marketplace entry%s\n' "${BOLD}" "${NC}"
         unlink_owned_link "${CODEX_PLUGIN_DIR}" "${codex_dir}/plugins/ycc"
@@ -245,6 +261,7 @@ remove_opencode_target() {
         remove_settings "opencode-config" "${OPENCODE_PLUGIN_DIR}/opencode.json" \
             "${opencode_dir}/opencode.json" "$(config_groups_for_target opencode)"
     fi
+    remove_slices opencode skills agents commands
     if step_enabled base; then
         printf '\n%sopencode: remove bundle from ~/.config/opencode%s\n' "${BOLD}" "${NC}"
         local unit

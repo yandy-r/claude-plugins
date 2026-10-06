@@ -33,11 +33,14 @@ Step behavior:
 | Step       | Effect                                                                                                     |
 | ---------- | ---------------------------------------------------------------------------------------------------------- |
 | `base`     | Generates and validates `.cursor-plugin/{skills,agents,rules}/`, then rsyncs them into `~/.cursor/`.       |
+| `skills`   | Generates the skills and installs each into `~/.cursor/skills/<name>`, leaving your own skills alone.      |
+| `agents`   | Generates the agents and installs each into `~/.cursor/agents/<name>.md`.                                  |
 | `settings` | Merges `.cursor-plugin/config/cli-config.json` into `~/.cursor/cli-config.json`.                           |
 | `rules`    | Symlinks `ycc/settings/rules/CLAUDE.md` and `AGENTS.md` into `~/.cursor/`.                                 |
 | `mcp`      | Merges `mcp-configs/mcp.json` into `<project>/.cursor/mcp.json` (or `~/.cursor/mcp.json` with `--global`). |
 
-Cursor has no `hooks` or `plugins` step; those intents are reported as no-ops.
+Cursor has no `commands`, `hooks` or `plugins` step; those intents are reported
+as no-ops. The generated `rules/` bundle unit ships with `base` only.
 
 ## Model Configuration
 

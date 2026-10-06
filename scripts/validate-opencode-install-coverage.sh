@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Verifies that every ~/.config/opencode/<root>/... reference inside
 # the .opencode-plugin/ bundle is either:
-#   (a) installable: <root> is in install.sh's managed_units array AND
+#   (a) installable: <root> is in install.sh's opencode bundle units AND
 #       the backing file exists under .opencode-plugin/<root>/...
 #   (b) intentionally not bundle-shipped (a user-global or runtime path
 #       on the explicit allowlist).
@@ -34,25 +34,22 @@ from pathlib import Path
 bundle_root = Path(sys.argv[1])
 install_script = Path(sys.argv[2])
 
-# Single source of truth: parse the managed_units=(...) array out of
-# install.sh's opencode sync step specifically. install.sh has multiple
-# managed_units arrays (cursor and opencode each declare their own); we
-# anchor on the "Sync bundle to ~/.config/opencode" marker that appears
-# in the opencode sync step's progress banner so we always pick up the
-# opencode-targeted array.
+# Single source of truth: parse the bundle units install.sh's opencode sync
+# step ships — the `selected_bundle_units <unit...>` call inside
+# sync_opencode_target() (the full list is what 'base' rsyncs).
 text = install_script.read_text(encoding="utf-8")
-anchor = text.find("Sync bundle to ~/.config/opencode")
+anchor = text.find("sync_opencode_target() {")
 if anchor < 0:
     print(
-        "FAIL: could not find the opencode sync banner in install.sh — "
-        "validator cannot locate the opencode managed_units array.",
+        "FAIL: could not find sync_opencode_target() in install.sh — "
+        "validator cannot locate the opencode bundle units.",
         file=sys.stderr,
     )
     sys.exit(1)
-match = re.search(r"managed_units=\(([^)]*)\)", text[anchor:])
+match = re.search(r"selected_bundle_units ([a-z_ ]+)\)", text[anchor:])
 if not match:
     print(
-        "FAIL: could not find managed_units=(...) in install.sh's "
+        "FAIL: could not find selected_bundle_units <units> in install.sh's "
         "opencode block — validator cannot determine what install.sh "
         "actually copies.",
         file=sys.stderr,
@@ -69,7 +66,7 @@ ALLOWLIST_ROOTS = {
     "session-data",     # runtime session state
     "plugins",          # opencode's own plugin install/cache location (read at runtime, not bundle-shipped)
 }
-# Top-level files installed directly (bypassing the managed_units
+# Top-level files installed directly (bypassing the bundle-unit
 # rsync). These exist at .opencode-plugin/<file> as plain top-level
 # files; install.sh copies / symlinks them in dedicated steps.
 ALLOWLIST_FILES = {
@@ -126,7 +123,7 @@ if unknown_roots:
     failed = True
     print(
         "FAIL: bundle references roots that are neither in install.sh's "
-        "managed_units nor on the allowlist:",
+        "bundle units nor on the allowlist:",
         file=sys.stderr,
     )
     for root, src in sorted(unknown_roots.items()):
@@ -136,7 +133,7 @@ if unknown_roots:
             file=sys.stderr,
         )
     print(
-        "  Fix: either add the dir to install.sh's managed_units array "
+        "  Fix: either add the dir to install.sh's opencode bundle units "
         "(if the plugin should ship it) or add it to ALLOWLIST_ROOTS / "
         "ALLOWLIST_FILES in this validator (if it is user-global).",
         file=sys.stderr,
