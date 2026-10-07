@@ -1,0 +1,195 @@
+#!/usr/bin/env bash
+# install.sh tests — claude: settings merge, mods, local edits, remove, slices.
+#
+# Runs alone (bash scripts/tests/install/claude.sh) or from scripts/test-install-sync.sh.
+# shellcheck source=scripts/tests/install/lib.sh
+source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
+
+echo "== install.sh sync: claude settings merge =="
+
+home="$(new_home)"
+cat > "${home}/.claude/settings.json" <<'JSON'
+{
+  "tui": "fullscreen",
+  "editorMode": "vim",
+  "env": { "MY_LOCAL_TOKEN": "keep-me" }
+}
+JSON
+out="$(run_install "${home}" sync --target claude --intent settings)"
+merged="$(cat "${home}/.claude/settings.json")"
+assert_contains "${merged}" '"editorMode": "vim"' "unmanaged local key preserved"
+assert_contains "${merged}" '"MY_LOCAL_TOKEN": "keep-me"' "unmanaged env leaf preserved"
+assert_contains "${merged}" '"claude-fable-5-1"' "managed model applied"
+assert_contains "${merged}" '"CLAUDE_CODE_SUBAGENT_MODEL": "opus[1m]"' "subagent model applied"
+
+# The marketplace entry the Claude CLI writes must survive a settings sync;
+# this is the regression the old copy-based flow could not avoid.
+home="$(new_home)"
+cat > "${home}/.claude/settings.json" <<'JSON'
+{
+  "extraKnownMarketplaces": {
+    "cli-written": { "source": { "source": "github", "repo": "someone/else" } }
+  }
+}
+JSON
+run_install "${home}" sync --target claude --intent settings,plugins >/dev/null
+merged="$(cat "${home}/.claude/settings.json")"
+assert_contains "${merged}" '"cli-written"' "CLI-written marketplace entry preserved"
+assert_contains "${merged}" '"ycc"' "repo marketplace entry added"
+
+echo
+echo "== install.sh sync: claude mods =="
+
+home="$(new_home)"
+out="$(run_install_stubbed "${home}" sync --target claude --intent mods)"
+calls="$(cat "${home}/claude-calls.log" 2>/dev/null)"
+assert_contains "${calls}" "plugin marketplace add $(realpath "${REPO_ROOT}/ycc/mods") --scope user" "mods registers the ycc-mods marketplace from the checkout"
+assert_contains "${calls}" "plugin install status-bar@ycc-mods --scope user" "mods installs each listed mod"
+assert_not_contains "${calls}" "ycc@ycc" "mods does not run base"
+assert_not_contains "${out}" "merge settings" "mods does not merge settings"
+assert_contains "${out}" "Claude sync complete" "mods sync completes"
+
+home="$(new_home)"
+cat > "${home}/.claude/settings.json" <<'JSON'
+{ "env": { "CLAUDE_CODE_PLUGIN_DIRS": "~/.claude/mods/status-bar" } }
+JSON
+out="$(run_install_stubbed "${home}" sync --target claude --intent mods)"
+assert_contains "${out}" "also loads a 'status-bar' folder" "sideloaded copy of a mod is flagged"
+
+home="$(new_home)"
+out="$(run_install_stubbed "${home}" sync --target codex,cursor,opencode --intent mods)"
+assert_contains "${out}" "intent 'mods' is not supported by target 'codex'" "codex mods is a no-op"
+assert_contains "${out}" "intent 'mods' is not supported by target 'opencode'" "opencode mods is a no-op"
+assert_not_contains "$(cat "${home}/claude-calls.log" 2>/dev/null)" "plugin" "non-claude targets never call the claude CLI"
+
+home="$(new_home)"
+out="$(run_install_stubbed "${home}" install --target claude --only mods)"
+assert_not_contains "${out}" "is not valid for target 'claude'" "--only mods is valid for claude"
+assert_contains "$(cat "${home}/claude-calls.log" 2>/dev/null)" "status-bar@ycc-mods" "install --only mods installs the mods"
+
+echo
+echo "== install.sh sync: local edits are respected =="
+
+home="$(new_home)"
+run_install "${home}" sync --target claude --intent settings >/dev/null
+python3 - "${home}/.claude/settings.json" <<'PY'
+import json, sys, pathlib
+p = pathlib.Path(sys.argv[1])
+data = json.loads(p.read_text())
+data["model"] = "my-own-model"
+p.write_text(json.dumps(data, indent=2) + "\n")
+PY
+out="$(run_install "${home}" sync --target claude --intent settings)"
+assert_contains "${out}" "kept your local value at /model" "local edit preserved with warning"
+assert_contains "$(cat "${home}/.claude/settings.json")" '"my-own-model"' "local model value intact"
+
+out="$(run_install "${home}" sync --target claude --intent settings --force)"
+assert_contains "$(cat "${home}/.claude/settings.json")" '"claude-fable-5-1"' "--force restores repo value"
+
+echo
+echo "== install.sh remove: settings, rules, hooks, plugins =="
+
+home="$(new_home)"
+cat > "${home}/.claude/settings.json" <<'JSON'
+{ "editorMode": "vim", "env": { "MY_LOCAL_TOKEN": "keep-me" } }
+JSON
+run_install "${home}" sync --target claude --intent settings,rules,hooks,plugins >/dev/null
+out="$(run_install "${home}" remove --target claude --intent settings,rules,hooks,plugins)"
+assert_contains "${out}" "Claude remove complete" "claude remove of every config intent completes"
+merged="$(cat "${home}/.claude/settings.json")"
+assert_contains "${merged}" '"editorMode": "vim"' "claude remove keeps unmanaged keys"
+assert_contains "${merged}" '"MY_LOCAL_TOKEN": "keep-me"' "claude remove keeps unmanaged env leaf"
+assert_not_contains "${merged}" '"claude-fable-5-1"' "claude remove drops managed model"
+assert_not_contains "${merged}" '"pluginMarketplaces"' "claude remove takes back appended list items"
+assert_not_contains "${merged}" '"hooks"' "claude remove drops managed hooks"
+for f in CLAUDE.md AGENTS.md hooks statusline-command.sh; do
+    if [[ ! -e "${home}/.claude/${f}" && ! -L "${home}/.claude/${f}" ]]; then ok "claude remove cleans ~/.claude/${f}"; else ko "claude remove cleans ~/.claude/${f}"; fi
+done
+
+home="$(new_home)"
+run_install "${home}" sync --target claude --intent settings,plugins >/dev/null
+python3 - "${home}/.claude/settings.json" <<'PY2'
+import json, sys, pathlib
+p = pathlib.Path(sys.argv[1])
+data = json.loads(p.read_text())
+data["model"] = "my-own-model"
+p.write_text(json.dumps(data, indent=2) + "\n")
+PY2
+out="$(run_install "${home}" remove --target claude --intent settings)"
+assert_contains "${out}" "kept your local value at /model" "remove keeps an edited managed value"
+assert_contains "$(cat "${home}/.claude/settings.json")" '"enabledPlugins"' "remove --intent settings leaves the plugins group"
+run_install "${home}" remove --target claude --intent settings,plugins --force >/dev/null
+if [[ ! -e "${home}/.claude/settings.json" ]]; then ok "remove --force takes edited values too"; else ko "remove --force takes edited values too" "$(cat "${home}/.claude/settings.json")"; fi
+
+home="$(new_home)"
+echo "# mine" > "${home}/.claude/CLAUDE.md"
+echo "custom" > "${home}/.claude/statusline-command.sh"
+out="$(run_install "${home}" remove --target claude --intent rules,settings --force)"
+assert_contains "$(cat "${home}/.claude/CLAUDE.md")" "# mine" "remove never deletes a real rules file"
+assert_contains "${out}" "not installed by ycc" "remove reports foreign rules file"
+if [[ ! -e "${home}/.claude/statusline-command.sh" ]]; then ok "remove --force takes an edited statusline"; else ko "remove --force takes an edited statusline"; fi
+
+home="$(new_home)"
+echo "custom" > "${home}/.claude/statusline-command.sh"
+out="$(run_install "${home}" remove --target claude --intent settings)"
+assert_contains "${out}" "kept ${home}/.claude/statusline-command.sh" "remove keeps an edited statusline"
+
+echo "== install.sh remove: base and mods =="
+
+
+home="$(new_home)"
+out="$(run_install_stubbed "${home}" remove --target claude --intent base,mods)"
+calls="$(cat "${home}/claude-calls.log" 2>/dev/null)"
+assert_contains "${calls}" "plugin uninstall ycc@ycc --scope user" "claude base remove uninstalls ycc"
+assert_contains "${calls}" "plugin marketplace remove ycc --scope user" "claude base remove drops the ycc marketplace"
+assert_contains "${calls}" "plugin uninstall status-bar@ycc-mods --scope user" "claude mods remove uninstalls each mod"
+assert_contains "${calls}" "plugin marketplace remove ycc-mods --scope user" "claude mods remove drops the ycc-mods marketplace"
+assert_contains "${out}" "Claude remove complete" "claude base/mods remove completes"
+
+# Base installs are simulated (copies + links shaped like the real step) so
+# the test never runs the generators.
+echo "== install.sh: skills / agents / commands slices =="
+
+# Claude slices need no generation, so they run for real in the sandbox.
+home="$(new_home)"
+mkdir -p "${home}/.claude/skills/my-own-skill"
+out="$(run_install "${home}" install --target claude --only skills,agents,commands)"
+assert_not_contains "${out}" "register repo checkout" "claude slices do not run base"
+for d in skills/git-workflow skills/_shared agents/codebase-advisor.md commands/clean.md; do
+    if [[ -e "${home}/.claude/${d}" ]]; then ok "claude slice installs ~/.claude/${d}"; else ko "claude slice installs ~/.claude/${d}"; fi
+done
+if [[ ! -e "${home}/.claude/plugins" ]]; then ok "claude slices register no plugin"; else ko "claude slices register no plugin"; fi
+skill="$(cat "${home}/.claude/skills/git-workflow/SKILL.md")"
+assert_not_contains "${skill}" 'CLAUDE_PLUGIN_ROOT}/skills' "claude slice rewrites plugin-root paths"
+assert_contains "${skill}" "${home}/.claude/skills/" "claude slice points paths at ~/.claude/skills"
+assert_not_contains "$(cat "${home}/.claude/commands/"*.md)" '/ycc:clean' "claude slice strips the ycc: namespace"
+if [[ -d "${home}/.claude/skills/my-own-skill" ]]; then ok "claude slice leaves user skills alone"; else ko "claude slice leaves user skills alone"; fi
+out="$(run_install "${home}" install --target claude --only skills)"
+assert_contains "${out}" "entries up to date" "claude slice rerun is idempotent"
+
+home="$(new_home)"
+mkdir -p "${home}/.claude/skills/git-workflow" && echo "# mine" > "${home}/.claude/skills/git-workflow/SKILL.md"
+out="$(run_install "${home}" install --target claude --only skills)"
+assert_contains "${out}" "refusing to replace ${home}/.claude/skills/git-workflow" "claude slice refuses a foreign entry"
+assert_contains "$(cat "${home}/.claude/skills/git-workflow/SKILL.md")" "# mine" "claude slice keeps the foreign entry"
+run_install "${home}" install --target claude --only skills --force >/dev/null
+assert_not_contains "$(cat "${home}/.claude/skills/git-workflow/SKILL.md")" "# mine" "claude slice --force replaces it"
+
+run_install "${home}" remove --target claude --intent skills >/dev/null
+if [[ ! -e "${home}/.claude/skills" ]]; then ok "claude skills remove takes back every entry"; else ko "claude skills remove takes back every entry" "$(ls "${home}/.claude/skills")"; fi
+
+home="$(new_home)"
+out="$(run_install "${home}" sync --target cursor,codex --intent commands)"
+assert_contains "${out}" "intent 'commands' is not supported by target 'cursor'" "cursor skips commands intent"
+assert_contains "${out}" "intent 'commands' is not supported by target 'codex'" "codex skips commands intent"
+assert_not_contains "${out}" "Generate" "unsupported commands intent generates nothing"
+
+home="$(new_home)"
+out="$(run_install "${home}" install --target claude,cursor --only commands)"
+assert_contains "${out}" "step 'commands' is not supported by target 'cursor' — skipping" "install --only skips a slice a target lacks"
+if [[ -e "${home}/.claude/commands/clean.md" ]]; then ok "install --only commands still runs where supported"; else ko "install --only commands still runs where supported" "${out}"; fi
+
+# A copy the 'base' step mirrored is identical to the bundle, so a slice
+# remove takes it back even without a recorded install.
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then install_tests_finish; fi
