@@ -31,6 +31,21 @@ new_home() {
     echo "${home}"
 }
 
+# Stub 'claude' and 'codex' CLIs record their arguments, so plugin steps are
+# checked without touching a real plugin registry.
+STUB_BIN="${SANDBOX_ROOT}/stub-bin"
+mkdir -p "${STUB_BIN}"
+cat > "${STUB_BIN}/claude" <<'SH'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "${CLAUDE_STUB_LOG}"
+SH
+cat > "${STUB_BIN}/codex" <<'SH'
+#!/usr/bin/env bash
+[[ " $* " == *" --help "* ]] && exit 0
+printf 'codex %s\n' "$*" >> "${CLAUDE_STUB_LOG}"
+SH
+chmod +x "${STUB_BIN}/claude" "${STUB_BIN}/codex"
+
 # run_install <home> <args...> — run install.sh sandboxed; capture output.
 # Runs from <home>/project (not a git repo) so project-scoped steps write
 # there and never into this checkout.
@@ -40,6 +55,8 @@ run_install() {
     (
         cd "${home}/project" || exit 1
         HOME="${home}" \
+        PATH="${STUB_BIN}:${PATH}" \
+        CLAUDE_STUB_LOG="${home}/claude-calls.log" \
         YCC_MANAGED_CONFIG_STATE="${home}/.config/ycc/managed-config-state.json" \
             bash "${INSTALL}" "$@" 2>&1
     )
@@ -216,21 +233,9 @@ assert_contains "${merged}" '"ycc"' "repo marketplace entry added"
 echo
 echo "== install.sh sync: claude mods =="
 
-# A stub 'claude' CLI records its arguments, so the mods step is checked
-# without touching the real plugin registry.
-STUB_BIN="${SANDBOX_ROOT}/stub-bin"
-mkdir -p "${STUB_BIN}"
-cat > "${STUB_BIN}/claude" <<'SH'
-#!/usr/bin/env bash
-printf '%s\n' "$*" >> "${CLAUDE_STUB_LOG}"
-SH
-chmod +x "${STUB_BIN}/claude"
-
-# run_install_stubbed <home> <args...> — run_install with the stub claude first on PATH.
+# run_install already puts the stub claude/codex CLIs first on PATH.
 run_install_stubbed() {
-    local home="$1"
-    shift
-    PATH="${STUB_BIN}:${PATH}" CLAUDE_STUB_LOG="${home}/claude-calls.log" run_install "${home}" "$@"
+    run_install "$@"
 }
 
 home="$(new_home)"
@@ -562,6 +567,7 @@ cat > "${home}/.agents/plugins/marketplace.json" <<'JSON'
 }
 JSON
 run_install "${home}" remove --target codex --intent base >/dev/null
+assert_contains "$(cat "${home}/claude-calls.log" 2>/dev/null)" "codex plugin remove ycc@local-ycc-plugins" "codex base remove uninstalls through the codex CLI"
 for f in .codex/plugins/ycc .agents/plugins/ycc .codex/plugins/cache/local-ycc-plugins; do
     if [[ ! -e "${home}/${f}" && ! -L "${home}/${f}" ]]; then ok "codex base remove cleans ${f}"; else ko "codex base remove cleans ${f}"; fi
 done
@@ -583,6 +589,19 @@ mkdir -p "${home}/.codex/plugins"
 ln -s /elsewhere "${home}/.codex/plugins/ycc"
 out="$(run_install "${home}" remove --target codex --intent base)"
 if [[ -L "${home}/.codex/plugins/ycc" ]]; then ok "codex base remove keeps a foreign link"; else ko "codex base remove keeps a foreign link"; fi
+
+# Codex plugin install through the CLI (lib level; the full base step runs
+# the generators). The legacy flat cache must go so Codex's versioned
+# snapshot is the only copy.
+home="$(new_home)"
+mkdir -p "${home}/.codex/plugins/cache/local-ycc-plugins/ycc/.codex-plugin" "${home}/.agents/plugins"
+echo '{ "name": "local-ycc-plugins", "plugins": [] }' > "${home}/.agents/plugins/marketplace.json"
+out="$(cd "${home}" && HOME="${home}" PATH="${STUB_BIN}:${PATH}" CLAUDE_STUB_LOG="${home}/claude-calls.log" bash -c '
+    info() { echo "[ok] $1"; }; warn() { echo "[!!] $1"; }; err() { echo "[err] $1"; }
+    source "$1/scripts/lib/install-codex.sh"; install_codex_plugin' _ "${REPO_ROOT}" 2>&1)"
+assert_contains "$(cat "${home}/claude-calls.log" 2>/dev/null)" "codex plugin add ycc@local-ycc-plugins" "codex base installs ycc through the codex CLI"
+if [[ ! -e "${home}/.codex/plugins/cache/local-ycc-plugins/ycc" ]]; then ok "codex base drops the legacy flat cache"; else ko "codex base drops the legacy flat cache" "${out}"; fi
+assert_contains "$(cat "${INSTALL}")" 'merge_codex_marketplace_json "local" "./.agents/plugins/ycc"' "codex marketplace path resolves from the marketplace root"
 
 echo
 echo "== install.sh: skills / agents / commands slices =="

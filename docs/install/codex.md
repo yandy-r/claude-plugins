@@ -12,14 +12,20 @@ From the repository root:
 
 The default `base` step generates and validates the Codex bundle, links the
 plugin tree into `~/.codex/plugins/ycc/`, syncs custom agents into
-`~/.codex/agents/`, and registers the bundle in
-`~/.agents/plugins/marketplace.json`.
-It also refreshes the enabled-plugin cache copy at
-`~/.codex/plugins/cache/local-ycc-plugins/ycc`, which is required after clearing
-the Codex plugin cache.
+`~/.codex/agents/`, registers the bundle in
+`~/.agents/plugins/marketplace.json`, and installs + enables it with
+`codex plugin add ycc@local-ycc-plugins` (Codex 0.160+). Codex snapshots the
+plugin into `~/.codex/plugins/cache/local-ycc-plugins/ycc/<version>/`, so rerun
+the base step after regenerating the bundle.
 
-Restart Codex after the install. Open `/plugins` and install `ycc` from the
-registered marketplace if it is not already installed.
+The marketplace entry's path is `./.agents/plugins/ycc`: Codex resolves local
+sources against the marketplace root (the directory holding
+`.agents/plugins/marketplace.json`, here `$HOME`), not against the JSON file.
+Older entries written as `./plugins/ycc` resolve to a missing `~/plugins/ycc`
+and show "Failed to load plugin details"; rerunning the base step rewrites
+them.
+
+Restart Codex after the install.
 
 ## Add Settings And Rules
 
@@ -67,12 +73,11 @@ In local mode, the installer symlinks:
 ~/.agents/plugins/ycc -> <repo>/.codex-plugin/ycc/
 ```
 
-It also refreshes `~/.codex/plugins/cache/local-ycc-plugins/ycc` as a real copy
-of the generated bundle, because Codex treats that cache root as the installed
-plugin record. The cache copy includes a compatibility manifest under
-`skills/.codex-plugin/plugin.json` plus a `skills/_skills/` symlink index for
-Codex versions that resolve the plugin root through the manifest's `skills`
-path.
+`codex plugin add` then copies the plugin into Codex's versioned cache. Codex
+builds without the plugin CLI fall back to the legacy hand-written cache at
+`~/.codex/plugins/cache/local-ycc-plugins/ycc` (a flat copy with a
+`skills/.codex-plugin/plugin.json` compatibility manifest); the installer
+removes that flat copy once the CLI is available.
 
 After editing source files under `ycc/`, regenerate the Codex bundle before
 reloading Codex:
@@ -119,8 +124,8 @@ rm -rf ~/.codex/plugins/ycc
 ./install.sh install --target codex --only base
 ```
 
-If you clear `~/.codex/plugins/cache/`, rerun the base step to refresh the
-`local-ycc-plugins/ycc` cache root:
+If you clear `~/.codex/plugins/cache/`, rerun the base step so
+`codex plugin add` re-creates the snapshot:
 
 ```bash
 ./install.sh install --target codex --only base
@@ -131,14 +136,14 @@ If you clear `~/.codex/plugins/cache/`, rerun the base step to refresh the
 Codex Desktop uses the same installed plugin and custom-agent locations when it
 reads the standard Codex config directories:
 
-| Surface            | Location                                       |
-| ------------------ | ---------------------------------------------- |
-| Plugin tree        | `~/.codex/plugins/ycc/`                        |
-| Marketplace source | `~/.agents/plugins/ycc`                        |
-| Enabled cache      | `~/.codex/plugins/cache/local-ycc-plugins/ycc` |
-| Custom agents      | `~/.codex/agents/`                             |
-| Config             | `~/.codex/config.toml`                         |
-| Marketplace        | `~/.agents/plugins/marketplace.json`           |
+| Surface            | Location                                                  |
+| ------------------ | --------------------------------------------------------- |
+| Plugin tree        | `~/.codex/plugins/ycc/`                                   |
+| Marketplace source | `~/.agents/plugins/ycc`                                   |
+| Enabled cache      | `~/.codex/plugins/cache/local-ycc-plugins/ycc/<version>/` |
+| Custom agents      | `~/.codex/agents/`                                        |
+| Config             | `~/.codex/config.toml`                                    |
+| Marketplace        | `~/.agents/plugins/marketplace.json`                      |
 
 Recommended desktop install:
 

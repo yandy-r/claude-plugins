@@ -29,6 +29,8 @@ err()   { printf "${RED}[err]${NC} %s\n" "$1" >&2; }
 
 # shellcheck source=scripts/lib/install-bundle.sh
 source "${SCRIPT_DIR}/scripts/lib/install-bundle.sh"
+# shellcheck source=scripts/lib/install-codex.sh
+source "${SCRIPT_DIR}/scripts/lib/install-codex.sh"
 # shellcheck source=scripts/lib/install-remove.sh
 source "${SCRIPT_DIR}/scripts/lib/install-remove.sh"
 
@@ -287,10 +289,10 @@ Options:
                                 local path as a directory marketplace; codex
                                 target symlinks .codex-plugin/ycc/ into
                                 ~/.codex/plugins/ycc/ and
-                                ~/.agents/plugins/ycc, refreshes the
-                                enabled-plugin cache path, then writes a
-                                {source: local, path: ./plugins/ycc} marketplace
-                                entry. cursor/opencode rsync the bundles.
+                                ~/.agents/plugins/ycc, writes a {source:
+                                local, path: ./.agents/plugins/ycc}
+                                marketplace entry, then runs 'codex plugin
+                                add'. cursor/opencode rsync the bundles.
                         repo  — register the upstream github repo
                                 yandy-r/claude-plugins as the marketplace
                                 source. claude target adds the github slug
@@ -401,12 +403,12 @@ Target steps:
             base:     generate + validate + format + sync custom agents, then
                       register the repo's .codex-plugin/ycc/ as a local
                       marketplace source in ~/.agents/plugins/marketplace.json
-                      via ~/.agents/plugins/ycc -> .codex-plugin/ycc/.
-                      Also refreshes the Codex enabled-plugin cache copy at
-                      ~/.codex/plugins/cache/local-ycc-plugins/ycc. Rerun
-                      ./scripts/sync.sh --only codex to refresh the generated
-                      bundle, and rerun this step after clearing the Codex
-                      plugin cache.
+                      via ~/.agents/plugins/ycc -> .codex-plugin/ycc/, then
+                      installs + enables it with 'codex plugin add
+                      ycc@local-ycc-plugins' (Codex 0.160+; older builds get
+                      the legacy hand-written cache).
+                      Rerun this step after ./scripts/sync.sh --only codex to
+                      refresh Codex's snapshot of the plugin.
             skills:   generate + install each skill into ~/.codex/skills/
                       (shared helpers at ~/.codex/skills/_shared). No plugin
                       link, cache or marketplace entry.
@@ -1118,10 +1120,11 @@ sync_claude_target() {
 # Codex marketplace (~/.agents/plugins/marketplace.json)
 # Registers ycc as a marketplace source for Codex.
 #
-#   local mode: registers ./plugins/ycc relative to ~/.agents/plugins/marketplace.json.
-#               The installer creates ~/.agents/plugins/ycc as a symlink to the
-#               generated bundle so Codex accepts the marketplace schema while
-#               still reading live local repo output.
+#   local mode: registers ./.agents/plugins/ycc. Codex resolves local paths
+#               against the marketplace root — the directory that holds
+#               .agents/plugins/marketplace.json, i.e. $HOME — not against the
+#               JSON file. ~/.agents/plugins/ycc is a symlink to the generated
+#               bundle.
 #   repo  mode: registers yandy-r/claude-plugins@main as a github source.
 #               Codex resolves the bundle from the remote git ref on install.
 # ---------------------------------------------------------------------------
@@ -1345,7 +1348,6 @@ sync_codex_target() {
 
     local codex_plugin_dest="${HOME}/.codex/plugins/ycc"
     local codex_marketplace_plugin_dest="${HOME}/.agents/plugins/ycc"
-    local codex_plugin_cache_container="${HOME}/.codex/plugins/cache/local-ycc-plugins/ycc"
     local codex_agents_dest="${HOME}/.codex/agents"
     local scripts_dir="${SCRIPT_DIR}/scripts"
 
@@ -1440,7 +1442,7 @@ sync_codex_target() {
 
     if [[ $do_local_plugin -eq 1 ]]; then
         step=$((step + 1))
-        printf '\n%s[%d/%d] Link plugin tree + refresh plugin cache%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        printf '\n%s[%d/%d] Link plugin tree%s\n' "${BOLD}" "$step" "$total" "${NC}"
         # Symlink (not rsync) the plugin tree so edits in .codex-plugin/ycc/ are
         # live for Codex after regeneration. Generated skill bodies reference
         # ~/.codex/plugins/ycc/... as absolute paths; the symlink keeps those
@@ -1457,42 +1459,8 @@ sync_codex_target() {
             err "Then re-run this command. The symlink will be created in its place."
             exit 1
         fi
-        if [[ -L "${codex_plugin_cache_container}" ]]; then
-            rm "${codex_plugin_cache_container}"
-        elif [[ -e "${codex_plugin_cache_container}" && ! -d "${codex_plugin_cache_container}" ]]; then
-            err "Stale Codex plugin cache path at ${codex_plugin_cache_container}."
-            err "Remove it with:  rm -f ${codex_plugin_cache_container}"
-            err "Then re-run this command. A directory will be created in its place."
-            exit 1
-        fi
         link_file "${CODEX_PLUGIN_DIR}" "${codex_plugin_dest}"
         link_file "${CODEX_PLUGIN_DIR}" "${codex_marketplace_plugin_dest}"
-        mkdir -p "${codex_plugin_cache_container}"
-        rsync -a --delete "${CODEX_PLUGIN_DIR}/" "${codex_plugin_cache_container}/"
-        info "Synced Codex enabled-plugin cache → ${codex_plugin_cache_container}"
-        python3 - "${codex_plugin_cache_container}" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-cache_root = Path(sys.argv[1])
-source_manifest = cache_root / ".codex-plugin" / "plugin.json"
-skills_manifest = cache_root / "skills" / ".codex-plugin" / "plugin.json"
-skills_index = cache_root / "skills" / "_skills"
-payload = json.loads(source_manifest.read_text(encoding="utf-8"))
-payload["skills"] = "./_skills/"
-skills_manifest.parent.mkdir(parents=True, exist_ok=True)
-skills_manifest.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-skills_index.mkdir(exist_ok=True)
-for child in sorted((cache_root / "skills").iterdir()):
-    if not child.is_dir() or child.name in {".codex-plugin", "_skills"}:
-        continue
-    link = skills_index / child.name
-    if link.exists() or link.is_symlink():
-        link.unlink()
-    link.symlink_to(child, target_is_directory=True)
-PY
-        info "Wrote Codex cache compatibility manifest → ${codex_plugin_cache_container}/skills/.codex-plugin/plugin.json"
     fi
 
     if [[ $do_agents -eq 1 ]]; then
@@ -1511,9 +1479,13 @@ PY
             printf '\n%s[%d/%d] Register github repo as marketplace source (yandy-r/claude-plugins@main)%s\n' "${BOLD}" "$step" "$total" "${NC}"
             merge_codex_marketplace_json "repo"
         else
-            printf '\n%s[%d/%d] Register repo as local marketplace source%s\n' "${BOLD}" "$step" "$total" "${NC}"
-            merge_codex_marketplace_json "local" "./plugins/ycc"
+            printf '\n%s[%d/%d] Register repo as local marketplace source + install ycc%s\n' "${BOLD}" "$step" "$total" "${NC}"
+            # Codex resolves local sources against the marketplace root (the
+            # directory holding .agents/plugins/marketplace.json, here $HOME),
+            # so the path names the ~/.agents/plugins/ycc link from there.
+            merge_codex_marketplace_json "local" "./.agents/plugins/ycc"
         fi
+        install_codex_plugin
     fi
 
     local slice
@@ -1563,14 +1535,13 @@ PY
     if [[ $do_plugin -eq 1 ]]; then
         if [[ "${MODE:-local}" == "repo" ]]; then
             warn "Restart Codex; the 'local-ycc-plugins' marketplace in ~/.agents/plugins/marketplace.json now tracks the github source yandy-r/claude-plugins@main."
-            warn "Updates: install ycc through the Codex /plugins UI to pull the latest published commit. No local symlink, no agents rsync."
+            warn "Updates: rerun this step (or use the Codex /plugins UI) to pull the latest published commit. No local symlink, no agents rsync."
             warn "If you also want to iterate on ycc/ source locally, regenerate the bundle with ./scripts/sync.sh --only codex and switch back to --mode local."
         else
             local codex_plugin_src_msg
             codex_plugin_src_msg="$(realpath "${CODEX_PLUGIN_DIR}")"
-            warn "Restart Codex; the plugin tree at ${codex_plugin_dest} now symlinks into ${codex_plugin_src_msg} and is registered via the 'local-ycc-plugins' marketplace."
-            warn "Local marketplace source uses ${codex_marketplace_plugin_dest} -> ${codex_plugin_src_msg}; the enabled-plugin cache root is refreshed at ${codex_plugin_cache_container}."
-            warn "Rerun ./scripts/sync.sh --only codex after editing ycc/ to refresh the Codex bundle."
+            warn "Restart Codex; ycc is installed from the 'local-ycc-plugins' marketplace (${codex_marketplace_plugin_dest} -> ${codex_plugin_src_msg})."
+            warn "Codex runs a snapshot of the plugin: after editing ycc/, rerun ${CLI_NAME} sync --target codex --intent base to refresh it."
             warn "If you move or rename this repo, rerun ./install.sh install --target codex --only base to refresh the symlinks."
         fi
     fi

@@ -106,14 +106,14 @@ Generated bundle lives at `.cursor-plugin/`; consumed by Cursor from the repo ro
 **INSTALL_PATH:codex**
 `install.sh install --target codex` symlinks `~/.codex/plugins/ycc/` to the repo's
 `.codex-plugin/ycc/`, also symlinks `~/.agents/plugins/ycc` to the same bundle,
-refreshes the `~/.codex/plugins/cache/local-ycc-plugins/ycc` plugin-root copy,
-adds a cache-only compatibility manifest at `skills/.codex-plugin/plugin.json`
-with a `skills/_skills/` symlink index, rsyncs custom agents to
-`~/.codex/agents/`, and registers `./plugins/ycc` as the local marketplace
-source in
-`~/.agents/plugins/marketplace.json`. Edits are live after regenerating the
-bundle via `./scripts/sync.sh --only codex`; rerun the base install step after
-clearing `~/.codex/plugins/cache/`.
+rsyncs custom agents to `~/.codex/agents/`, registers `./.agents/plugins/ycc`
+(resolved from the marketplace root, `$HOME`) as the local marketplace source in
+`~/.agents/plugins/marketplace.json`, and installs + enables the plugin with
+`codex plugin add ycc@local-ycc-plugins`, which snapshots it into
+`~/.codex/plugins/cache/local-ycc-plugins/ycc/<version>/`. Codex builds without
+the plugin CLI get the legacy hand-written flat cache instead. Rerun the base
+install step after regenerating the bundle via `./scripts/sync.sh --only codex`
+or after clearing `~/.codex/plugins/cache/`.
 
 **INSTALL_PATH:opencode**
 Generated bundle lives at `.opencode-plugin/` (skills, agents, commands, AGENTS.md,

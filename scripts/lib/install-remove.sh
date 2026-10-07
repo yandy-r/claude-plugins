@@ -229,15 +229,16 @@ remove_codex_target() {
     remove_slices codex skills agents
     if step_enabled base; then
         printf '\n%sCodex: remove plugin links, cache, custom agents + marketplace entry%s\n' "${BOLD}" "${NC}"
+        uninstall_codex_plugin
         unlink_owned_link "${CODEX_PLUGIN_DIR}" "${codex_dir}/plugins/ycc"
         unlink_owned_link "${CODEX_PLUGIN_DIR}" "${HOME}/.agents/plugins/ycc"
-        # The enabled-plugin cache is an installer-made copy; it is ours whole.
-        local cache="${codex_dir}/plugins/cache/local-ycc-plugins/ycc"
-        if [[ -e "${cache}" || -L "${cache}" ]]; then
-            rm -rf "${cache}"
-            info "removed ${cache}"
-            rmdir "$(dirname "${cache}")" 2>/dev/null || true
+        # Whatever cache is left (the legacy hand-written copy, or a snapshot
+        # the CLI could not remove) belongs to this marketplace entry.
+        if [[ -e "${CODEX_PLUGIN_CACHE}" || -L "${CODEX_PLUGIN_CACHE}" ]]; then
+            rm -rf "${CODEX_PLUGIN_CACHE}"
+            info "removed ${CODEX_PLUGIN_CACHE}"
         fi
+        rmdir "$(dirname "${CODEX_PLUGIN_CACHE}")" 2>/dev/null || true
         remove_mirrored_entries "${CODEX_AGENTS_DIR}" "${codex_dir}/agents"
         remove_codex_marketplace_entry
     fi
