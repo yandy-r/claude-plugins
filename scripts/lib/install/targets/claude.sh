@@ -114,10 +114,10 @@ claude_ycc_plugin_installed() {
     return 0
 }
 
-# ponytail: the inline Python here and in warn_sideloaded_mods stays inline;
-# move it to a tested scripts/*.py helper if it grows or gains branches.
 # Remove 'local-ycc-plugins' detritus from earlier (broken) versions of the
 # installer that wrote to the wrong files with the wrong schema.
+# ponytail: the inline Python here and in warn_sideloaded_mods stays inline;
+# move it to a tested scripts/*.py helper if it grows or gains branches.
 cleanup_claude_local_orphans() {
     local files=("${HOME}/.claude.json" "${HOME}/.claude/settings.local.json")
     local f

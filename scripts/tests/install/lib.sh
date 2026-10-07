@@ -24,7 +24,19 @@ NC=$'\033[0m'
 unset XDG_BIN_HOME XDG_DATA_HOME XDG_CONFIG_HOME BASH_COMPLETION_USER_DIR
 
 SANDBOX_ROOT="$(mktemp -d)"
-trap 'rm -rf "${SANDBOX_ROOT}"' EXIT
+INSTALL_TESTS_FINISHED=0
+# on_exit — drop the sandbox; a run that exits before install_tests_finish
+# (an 'exit' or 'set -u' abort inside a suite) fails instead of passing silently.
+on_exit() {
+    local rc=$?
+    rm -rf "${SANDBOX_ROOT}"
+    if [[ ${INSTALL_TESTS_FINISHED} -eq 0 ]]; then
+        printf '%s[FAIL]%s install tests aborted before the totals (exit %d)\n' "${RED}" "${NC}" "${rc}" >&2
+        [[ ${rc} -eq 0 ]] && rc=1
+    fi
+    exit "${rc}"
+}
+trap on_exit EXIT
 
 # new_home — create an isolated HOME and echo its path.
 new_home() {
@@ -116,6 +128,7 @@ source_install_libs() {
 
 # install_tests_finish — print the totals line; fail on any failure.
 install_tests_finish() {
+    INSTALL_TESTS_FINISHED=1
     echo
     printf 'test-install-sync: %d passed, %d failed\n' "${PASS}" "${FAIL}"
     [[ ${FAIL} -eq 0 ]]
