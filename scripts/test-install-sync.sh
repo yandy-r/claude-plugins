@@ -760,7 +760,8 @@ source_install_libs() {
 missing="$(bash -c 'REPO_ROOT="$1"; INSTALL="$2"; '"$(declare -f source_install_libs)"'
     source_install_libs
     for t in "${ALL_TARGETS[@]}"; do
-        for fn in "${t}_valid_steps" "${t}_intent_steps" "${t}_config_groups" "${t}_supports_repo_mode"; do
+        for fn in "${t}_valid_steps" "${t}_intent_steps" "${t}_config_groups" "${t}_supports_repo_mode" \
+            "sync_${t}_target" "remove_${t}_target"; do
             declare -F "${fn}" >/dev/null || printf " %s" "${fn}"
         done
     done' _ "${REPO_ROOT}" "${INSTALL}" 2>&1)"

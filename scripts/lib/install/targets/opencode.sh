@@ -10,6 +10,14 @@
 # shellcheck disable=SC2034  # read by the opencode sync/remove and MCP steps.
 OPENCODE_PLUGIN_DIR="${SCRIPT_DIR}/.opencode-plugin"
 
+# Bundle units 'base' mirrors into ~/.config/opencode. `shared/` carries the
+# cross-skill scripts and references that ycc/skills/_shared/... is rewritten
+# to at generation time (~/.config/opencode/shared/...). It MUST stay in this
+# list: scripts/validate-opencode-install-coverage.sh parses this line and
+# checks every <dir> the bundle references is either listed here or explicitly
+# allowlisted as a user-global/runtime path.
+OPENCODE_BUNDLE_UNITS=(skills agents commands shared)
+
 # opencode_valid_steps — comma-separated steps opencode accepts for --only.
 opencode_valid_steps() { echo "base,skills,agents,commands,settings,rules,mcp"; }
 
@@ -34,3 +42,168 @@ opencode_config_groups() { echo "settings,plugins"; }
 
 # opencode reads bundles from local directories only.
 opencode_supports_repo_mode() { return 1; }
+
+# ---------------------------------------------------------------------------
+# opencode sync (base: skills + agents + commands; settings: config + rules)
+# ---------------------------------------------------------------------------
+sync_opencode_target() {
+    validate_only_steps "opencode"
+
+    local opencode_dir="${HOME}/.config/opencode"
+    local scripts_dir="${SCRIPT_DIR}/scripts"
+
+    # 'base' ships every unit in OPENCODE_BUNDLE_UNITS; 'skills' (plus the
+    # shared/ helpers skill bodies reference), 'agents' and 'commands' ship
+    # one each.
+    local -a units=()
+    read -r -a units <<< "$(selected_bundle_units "${OPENCODE_BUNDLE_UNITS[@]}")"
+    local do_base=0 do_bundle=0 do_settings=0 do_rules=0 do_mcp=0
+    step_enabled base && do_base=1
+    [[ ${#units[@]} -gt 0 ]] && do_bundle=1
+    step_enabled settings && do_settings=1
+    step_enabled rules && do_rules=1
+    step_enabled mcp && do_mcp=1
+
+    if [[ $do_bundle -eq 0 && $do_settings -eq 0 && $do_rules -eq 0 && $do_mcp -eq 0 ]]; then
+        warn "opencode target ran no steps"
+        printf '\n%sopencode %s complete.%s\n' "${BOLD}" "${COMMAND}" "${NC}"
+        return 0
+    fi
+
+    command -v python3 >/dev/null 2>&1 || { err "python3 is required but not found"; exit 1; }
+    [[ $do_bundle -eq 1 ]] && { command -v rsync >/dev/null 2>&1 || { err "rsync is required but not found"; exit 1; }; }
+
+    local total=0
+    [[ $do_bundle -eq 1 ]] && total=$((total + 4))
+    [[ $do_settings -eq 1 ]] && total=$((total + 1))
+    [[ $do_rules -eq 1 ]] && total=$((total + 1))
+    [[ $do_mcp -eq 1 ]] && total=$((total + 1))
+    local step=0
+
+    if [[ $do_bundle -eq 1 ]]; then
+        if [[ ! -d "${OPENCODE_PLUGIN_DIR}" ]]; then
+            err "opencode plugin source directory not found: ${OPENCODE_PLUGIN_DIR}"
+            exit 1
+        fi
+
+        # Generators run per unit (shared/ is written by the skills generator);
+        # 'base' also regenerates opencode.json + AGENTS.md (the 'plugin' pass).
+        local -a passes=()
+        local unit
+        for unit in "${units[@]}"; do
+            [[ "${unit}" == "shared" ]] || passes+=("${unit}")
+        done
+        [[ $do_base -eq 1 ]] && passes+=(plugin)
+        local pass
+        for pass in "${passes[@]}"; do
+            require_scripts "${scripts_dir}/generate-opencode-${pass}.sh" "${scripts_dir}/validate-opencode-${pass}.sh"
+        done
+
+        mkdir -p "${opencode_dir}"
+
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Generate opencode-native bundle (%s)%s\n' "${BOLD}" "$step" "$total" "${passes[*]}" "${NC}"
+        for pass in "${passes[@]}"; do
+            info "Running generate-opencode-${pass}.sh"
+            bash "${scripts_dir}/generate-opencode-${pass}.sh"
+        done
+
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Validate generated bundle%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        for pass in "${passes[@]}"; do
+            info "Running validate-opencode-${pass}.sh"
+            bash "${scripts_dir}/validate-opencode-${pass}.sh"
+        done
+
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Format modified repository files%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        run_repo_style_format_modified
+
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Sync bundle to ~/.config/opencode%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        # base mirrors every unit dir; a slice installs just its entries.
+        if [[ $do_base -eq 1 ]]; then
+            sync_bundle_units "${OPENCODE_PLUGIN_DIR}" "${opencode_dir}" "${units[@]}"
+        fi
+        local slice
+        for slice in $(selected_slices skills agents commands); do
+            run_slice opencode "${slice}"
+        done
+
+        # opencode ALSO reads bundles from the Claude-compat path .claude/skills.
+        # We deliberately do not write to that path from the opencode target so
+        # users who also run `--target claude` don't end up with two copies.
+    fi
+
+    if [[ $do_settings -eq 1 ]]; then
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Merge opencode config (opencode.json)%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        mkdir -p "${opencode_dir}"
+        # Merge managed keys only: per-machine model overrides, provider
+        # credentials and unknown keys in the user's opencode.json are kept.
+        local opencode_groups
+        opencode_groups="$(config_groups_for_target opencode)"
+        if [[ -n "${opencode_groups}" ]]; then
+            merge_settings_config \
+                "opencode-config" \
+                "${OPENCODE_PLUGIN_DIR}/opencode.json" \
+                "${opencode_dir}/opencode.json" \
+                "${opencode_groups}"
+        fi
+    fi
+
+    if [[ $do_rules -eq 1 ]]; then
+        step=$((step + 1))
+        printf '\n%s[%d/%d] Link opencode rules (AGENTS.md)%s\n' "${BOLD}" "$step" "$total" "${NC}"
+        mkdir -p "${opencode_dir}"
+        # opencode's AGENTS.md is generator-produced from
+        # ycc/settings/rules/CLAUDE.md (the same user-global ruleset the other
+        # targets symlink directly). See scripts/generate_opencode_plugin.py
+        # for the text transforms applied during generation. We link to the
+        # bundle's AGENTS.md — not directly to ycc/settings/rules/ — so the
+        # transformed copy is what lands in ~/.config/opencode/.
+        link_file "${OPENCODE_PLUGIN_DIR}/AGENTS.md" "${opencode_dir}/AGENTS.md"
+    fi
+
+    if [[ $do_mcp -eq 1 ]]; then
+        step=$((step + 1))
+        printf '\n%s[%d/%d] %s MCP servers%s\n' "${BOLD}" "$step" "$total" "${COMMAND}" "${NC}"
+        run_mcp_step opencode
+    fi
+
+    printf '\n%sopencode %s complete.%s\n' "${BOLD}" "${COMMAND}" "${NC}"
+    if [[ $do_bundle -eq 1 ]]; then
+        warn "Restart opencode to pick up the new ${units[*]}."
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# opencode remove
+# ---------------------------------------------------------------------------
+remove_opencode_target() {
+    validate_only_steps "opencode"
+    local opencode_dir="${HOME}/.config/opencode"
+
+    if step_enabled mcp; then
+        printf '\n%sopencode: remove MCP servers%s\n' "${BOLD}" "${NC}"
+        run_mcp_step opencode
+    fi
+    if step_enabled rules; then
+        printf '\n%sopencode: unlink rules (AGENTS.md)%s\n' "${BOLD}" "${NC}"
+        unlink_owned_link "${OPENCODE_PLUGIN_DIR}/AGENTS.md" "${opencode_dir}/AGENTS.md"
+    fi
+    if step_enabled settings; then
+        printf '\n%sopencode: remove managed config (opencode.json)%s\n' "${BOLD}" "${NC}"
+        remove_settings "opencode-config" "${OPENCODE_PLUGIN_DIR}/opencode.json" \
+            "${opencode_dir}/opencode.json" "$(config_groups_for_target opencode)"
+    fi
+    remove_slices opencode skills agents commands
+    if step_enabled base; then
+        printf '\n%sopencode: remove bundle from ~/.config/opencode%s\n' "${BOLD}" "${NC}"
+        local unit
+        for unit in "${OPENCODE_BUNDLE_UNITS[@]}"; do
+            remove_mirrored_entries "${OPENCODE_PLUGIN_DIR}/${unit}" "${opencode_dir}/${unit}"
+        done
+    fi
+    printf '\n%sopencode remove complete.%s\n' "${BOLD}" "${NC}"
+}
