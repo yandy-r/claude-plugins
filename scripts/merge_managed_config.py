@@ -38,6 +38,7 @@ import os
 import re
 import sys
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -149,6 +150,8 @@ PROFILES: dict[str, dict[str, Any]] = {
     },
     "opencode-config": {
         "format": "json",
+        # opencode parses its config as JSONC (comments, trailing commas).
+        "jsonc": True,
         "groups": {
             "settings": [
                 {"path": ["$schema"], "policy": "scalar"},
@@ -172,6 +175,69 @@ PROFILES: dict[str, dict[str, Any]] = {
 
 # State field listing the hashes of list-union items this tool appended.
 ADDED_ITEMS_KEY = "added_item_sha256"
+
+
+def _scan_outside_strings(text: str, handle: Callable[[str, int], tuple[str, int]]) -> str:
+    """Copy text, letting handle(text, i) rewrite spans that start outside strings."""
+    out: list[str] = []
+    i, n = 0, len(text)
+    in_string = False
+    while i < n:
+        ch = text[i]
+        if in_string:
+            if ch == "\\" and i + 1 < n:
+                out.append(text[i : i + 2])
+                i += 2
+                continue
+            in_string = ch != '"'
+            out.append(ch)
+            i += 1
+        elif ch == '"':
+            in_string = True
+            out.append(ch)
+            i += 1
+        else:
+            emitted, i = handle(text, i)
+            out.append(emitted)
+    return "".join(out)
+
+
+def _drop_comment(text: str, i: int) -> tuple[str, int]:
+    if text.startswith("//", i):
+        newline = text.find("\n", i)
+        return "", len(text) if newline < 0 else newline
+    if text.startswith("/*", i):
+        end = text.find("*/", i + 2)
+        if end < 0:
+            raise MergeError("unterminated /* comment */")
+        return "", end + 2
+    return text[i], i + 1
+
+
+def _drop_trailing_comma(text: str, i: int) -> tuple[str, int]:
+    if text[i] == "," and text[i + 1 :].lstrip()[:1] in ("}", "]"):
+        return "", i + 1
+    return text[i], i + 1
+
+
+def strip_jsonc(text: str) -> str:
+    """Drop // and /* */ comments, then trailing commas, outside JSON strings."""
+    return _scan_outside_strings(_scan_outside_strings(text, _drop_comment), _drop_trailing_comma)
+
+
+def load_json_config(raw: str, path: Path, profile: dict[str, Any]) -> Any:
+    """Parse a destination config; JSONC profiles accept comments + trailing commas."""
+    if not raw.strip():
+        return {}
+    if not profile.get("jsonc"):
+        return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+    data = json.loads(strip_jsonc(raw))
+    print(f"  [!!] {path} is JSONC (comments or trailing commas); they are dropped when it is rewritten")
+    return data
 
 
 class MergeError(RuntimeError):
@@ -264,7 +330,7 @@ def adopt_matching_values(
     """
     if profile["format"] == "json":
         source = json.loads(source_path.read_text(encoding="utf-8"))
-        destination = json.loads(destination_path.read_text(encoding="utf-8"))
+        destination = load_json_config(destination_path.read_text(encoding="utf-8"), destination_path, profile)
     else:
         source = tomllib.loads(source_path.read_text(encoding="utf-8"))
         destination = tomllib.loads(destination_path.read_text(encoding="utf-8"))
@@ -889,7 +955,7 @@ def remove_json(
     if not destination_path.exists():
         return None, [], [], []
     raw = destination_path.read_text(encoding="utf-8").strip()
-    destination = json.loads(raw) if raw else {}
+    destination = load_json_config(raw, destination_path, profile)
     if not isinstance(destination, dict):
         raise MergeError(f"{destination_path}: expected a JSON object at the root")
 
@@ -1000,7 +1066,7 @@ def merge_json(
 
     if destination_path.exists():
         raw = destination_path.read_text(encoding="utf-8").strip()
-        destination = json.loads(raw) if raw else {}
+        destination = load_json_config(raw, destination_path, profile)
         if not isinstance(destination, dict):
             raise MergeError(f"{destination_path}: expected a JSON object at the root")
     else:

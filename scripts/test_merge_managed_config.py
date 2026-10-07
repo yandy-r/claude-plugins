@@ -473,6 +473,32 @@ class MergeHelperTestCase(unittest.TestCase):
         self.assertIn("private", servers)
         self.assertIn("github", servers)
 
+    def test_opencode_accepts_jsonc_destination(self) -> None:
+        source = REPO_ROOT / ".opencode-plugin" / "opencode.json"
+        destination = self.tmp / "opencode.json"
+        destination.write_text(
+            '{\n  // mine\n  "mcp": {\n    "servers": {\n'
+            '      "private": { "type": "remote", "url": "https://x/a,}//b" },\n'
+            "    }, /* block */\n  },\n}\n",
+            encoding="utf-8",
+        )
+
+        result = self.run_merge("opencode-config", source, destination, "mcp")
+
+        self.assertIn("JSONC", result.stdout)
+        servers = json.loads(destination.read_text())["mcp"]["servers"]
+        self.assertEqual(servers["private"]["url"], "https://x/a,}//b")
+        self.assertIn("github", servers)
+
+    def test_strict_json_profiles_reject_trailing_commas(self) -> None:
+        source = self.write_json(self.tmp / "src.json", {"model": "claude-fable-5-1"})
+        destination = self.tmp / "dest.json"
+        destination.write_text('{"tui": "fullscreen",}\n', encoding="utf-8")
+
+        result = self.run_merge("claude-settings", source, destination, "settings", expect_success=False)
+
+        self.assertNotEqual(result.returncode, 0)
+
     def test_dry_run_does_not_touch_symlink(self) -> None:
         source = self.write_json(self.tmp / "src.json", {"model": "claude-fable-5-1"})
         target = self.write_json(self.tmp / "target.json", {"tui": "fullscreen"})
