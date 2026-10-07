@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Verifies that every ~/.config/opencode/<root>/... reference inside
 # the .opencode-plugin/ bundle is either:
-#   (a) installable: <root> is in install.sh's opencode bundle units AND
+#   (a) installable: <root> is in OPENCODE_BUNDLE_UNITS
+#       (scripts/lib/install/targets/opencode.sh) AND
 #       the backing file exists under .opencode-plugin/<root>/...
 #   (b) intentionally not bundle-shipped (a user-global or runtime path
 #       on the explicit allowlist).
@@ -14,7 +15,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BUNDLE_ROOT="${REPO_ROOT}/.opencode-plugin"
-INSTALL_SCRIPT="${REPO_ROOT}/install.sh"
+INSTALL_SCRIPT="${REPO_ROOT}/scripts/lib/install/targets/opencode.sh"
 
 if [[ ! -d "${BUNDLE_ROOT}" ]]; then
     echo "validate-opencode-install-coverage: ${BUNDLE_ROOT} not found" >&2
@@ -34,24 +35,14 @@ from pathlib import Path
 bundle_root = Path(sys.argv[1])
 install_script = Path(sys.argv[2])
 
-# Single source of truth: parse the bundle units install.sh's opencode sync
-# step ships — the `selected_bundle_units <unit...>` call inside
-# sync_opencode_target() (the full list is what 'base' rsyncs).
+# Single source of truth: OPENCODE_BUNDLE_UNITS in the opencode target lib
+# (the full list is what 'base' rsyncs; sync and remove both read it).
 text = install_script.read_text(encoding="utf-8")
-anchor = text.find("sync_opencode_target() {")
-if anchor < 0:
-    print(
-        "FAIL: could not find sync_opencode_target() in install.sh — "
-        "validator cannot locate the opencode bundle units.",
-        file=sys.stderr,
-    )
-    sys.exit(1)
-match = re.search(r"selected_bundle_units ([a-z_ ]+)\)", text[anchor:])
+match = re.search(r"^OPENCODE_BUNDLE_UNITS=\(([a-z_ ]+)\)$", text, re.M)
 if not match:
     print(
-        "FAIL: could not find selected_bundle_units <units> in install.sh's "
-        "opencode block — validator cannot determine what install.sh "
-        "actually copies.",
+        f"FAIL: could not find OPENCODE_BUNDLE_UNITS=(...) in {install_script} — "
+        "validator cannot determine what the installer actually copies.",
         file=sys.stderr,
     )
     sys.exit(1)
@@ -122,8 +113,8 @@ failed = False
 if unknown_roots:
     failed = True
     print(
-        "FAIL: bundle references roots that are neither in install.sh's "
-        "bundle units nor on the allowlist:",
+        "FAIL: bundle references roots that are neither in "
+        "OPENCODE_BUNDLE_UNITS nor on the allowlist:",
         file=sys.stderr,
     )
     for root, src in sorted(unknown_roots.items()):
@@ -133,7 +124,8 @@ if unknown_roots:
             file=sys.stderr,
         )
     print(
-        "  Fix: either add the dir to install.sh's opencode bundle units "
+        "  Fix: either add the dir to OPENCODE_BUNDLE_UNITS in "
+        "scripts/lib/install/targets/opencode.sh "
         "(if the plugin should ship it) or add it to ALLOWLIST_ROOTS / "
         "ALLOWLIST_FILES in this validator (if it is user-global).",
         file=sys.stderr,
