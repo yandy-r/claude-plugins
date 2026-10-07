@@ -16,34 +16,6 @@
 #     installed, or still identical to the bundle (see install_slices.py)
 #   - CLI registrations: undone through the same CLI that made them
 
-remove_cursor_target() {
-    validate_only_steps "cursor"
-    local cursor_dir="${HOME}/.cursor"
-
-    if step_enabled rules; then
-        printf '\n%sCursor: unlink rules (CLAUDE.md + AGENTS.md)%s\n' "${BOLD}" "${NC}"
-        unlink_owned_link "${SCRIPT_DIR}/ycc/settings/rules/CLAUDE.md" "${cursor_dir}/CLAUDE.md"
-        unlink_owned_link "${SCRIPT_DIR}/ycc/settings/rules/AGENTS.md" "${cursor_dir}/AGENTS.md"
-    fi
-    if step_enabled mcp; then
-        printf '\n%sCursor: remove MCP servers%s\n' "${BOLD}" "${NC}"
-        run_mcp_step cursor
-    fi
-    if step_enabled settings; then
-        printf '\n%sCursor: remove managed CLI settings%s\n' "${BOLD}" "${NC}"
-        remove_settings "cursor-cli" "${CURSOR_CLI_CONFIG_SRC}" "${cursor_dir}/cli-config.json" "settings"
-    fi
-    remove_slices cursor skills agents
-    if step_enabled base; then
-        printf '\n%sCursor: remove bundle from ~/.cursor%s\n' "${BOLD}" "${NC}"
-        local unit
-        for unit in skills agents rules; do
-            remove_mirrored_entries "${CURSOR_PLUGIN_DIR}/${unit}" "${cursor_dir}/${unit}"
-        done
-    fi
-    printf '\n%sCursor remove complete.%s\n' "${BOLD}" "${NC}"
-}
-
 # remove_codex_marketplace_entry — drop the ycc entry from
 # ~/.agents/plugins/marketplace.json; delete the file if the installer's
 # scaffold is all that is left.
