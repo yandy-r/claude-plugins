@@ -16,61 +16,6 @@
 #     installed, or still identical to the bundle (see install_slices.py)
 #   - CLI registrations: undone through the same CLI that made them
 
-# run_claude_cli <args...> — a failed uninstall is reported, not fatal: the
-# plugin or marketplace may simply not be registered.
-run_claude_cli() {
-    info "Running: claude $*"
-    claude "$@" || warn "'claude $*' returned non-zero — check 'claude plugin list'"
-}
-
-require_claude_cli() {
-    command -v claude >/dev/null 2>&1 || { err "'claude' CLI is required but not found in PATH"; exit 1; }
-}
-
-remove_claude_target() {
-    validate_only_steps "claude"
-    local claude_dir="${HOME}/.claude"
-
-    if step_enabled mods; then
-        printf '\n%sClaude: uninstall mods + the ycc-mods marketplace%s\n' "${BOLD}" "${NC}"
-        require_claude_cli
-        local name
-        while IFS= read -r name; do
-            [[ -n "${name}" ]] && run_claude_cli plugin uninstall "${name}@${MODS_MARKETPLACE_NAME}" --scope user
-        done < <(mods_plugin_names)
-        run_claude_cli plugin marketplace remove "${MODS_MARKETPLACE_NAME}" --scope user
-    fi
-    if step_enabled hooks; then
-        printf '\n%sClaude: unlink hooks directory%s\n' "${BOLD}" "${NC}"
-        unlink_owned_link "${SCRIPT_DIR}/ycc/settings/hooks" "${claude_dir}/hooks"
-    fi
-    if step_enabled mcp; then
-        printf '\n%sClaude: remove MCP servers%s\n' "${BOLD}" "${NC}"
-        run_mcp_step claude
-    fi
-    if step_enabled rules; then
-        printf '\n%sClaude: unlink rules (CLAUDE.md + AGENTS.md)%s\n' "${BOLD}" "${NC}"
-        unlink_owned_link "${SCRIPT_DIR}/ycc/settings/rules/CLAUDE.md" "${claude_dir}/CLAUDE.md"
-        unlink_owned_link "${SCRIPT_DIR}/ycc/settings/rules/AGENTS.md" "${claude_dir}/AGENTS.md"
-    fi
-    if step_enabled settings; then
-        printf '\n%sClaude: remove managed settings + statusline%s\n' "${BOLD}" "${NC}"
-        remove_settings "claude-settings" "${SCRIPT_DIR}/ycc/settings/settings.json" \
-            "${claude_dir}/settings.json" "$(config_groups_for_target claude)"
-        if [[ ${#INTENTS[@]} -eq 0 ]] || intent_requested settings; then
-            remove_copied_file "${SCRIPT_DIR}/ycc/settings/statusline-command.sh" "${claude_dir}/statusline-command.sh"
-        fi
-    fi
-    remove_slices claude skills agents commands
-    if step_enabled base; then
-        printf '\n%sClaude: uninstall ycc + the ycc marketplace%s\n' "${BOLD}" "${NC}"
-        require_claude_cli
-        run_claude_cli plugin uninstall ycc@ycc --scope user
-        run_claude_cli plugin marketplace remove ycc --scope user
-    fi
-    printf '\n%sClaude remove complete.%s\n' "${BOLD}" "${NC}"
-}
-
 remove_cursor_target() {
     validate_only_steps "cursor"
     local cursor_dir="${HOME}/.cursor"
