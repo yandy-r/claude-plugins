@@ -79,7 +79,7 @@ class CodexMarketplaceTestCase(unittest.TestCase):
         self.assertEqual(data["name"], "custom")
         self.assertEqual(data["interface"], {"displayName": "Custom"})
         self.assertEqual([p["name"] for p in data["plugins"]], ["other", "ycc"])
-        self.assertEqual(other["source"], {"source": "github", "repo": "a/b"})
+        self.assertEqual(data["plugins"][0], other)
 
     def test_merge_rejects_root_array(self) -> None:
         self.dest.write_text("[]", encoding="utf-8")

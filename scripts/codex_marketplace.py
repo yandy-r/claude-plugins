@@ -16,17 +16,19 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 MARKETPLACE_NAME = "local-ycc-plugins"
 INTERFACE = {"displayName": "Local YCC Plugins"}
 SCAFFOLD = {"name": MARKETPLACE_NAME, "interface": INTERFACE, "plugins": []}
+USAGE = "usage: codex_marketplace.py merge <dest> <local|repo> [<plugin_src>] | remove <dest>"
 
 
 def _is_ycc(item: object) -> bool:
     return isinstance(item, dict) and item.get("name") == "ycc"
 
 
-def build_entry(mode: str, plugin_src: str) -> dict:
+def build_entry(mode: str, plugin_src: str) -> dict[str, Any]:
     if mode == "local":
         if not plugin_src.startswith("./"):
             sys.stderr.write("error: Codex local plugin source path must start with ./\n")
@@ -106,7 +108,7 @@ def main(argv: list[str]) -> int:
     if len(argv) == 2 and argv[0] == "remove":
         remove(Path(argv[1]))
         return 0
-    sys.stderr.write(__doc__.split("\n\n")[1] + "\n")
+    sys.stderr.write(USAGE + "\n")
     return 2
 
 
