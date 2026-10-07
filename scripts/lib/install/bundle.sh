@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-# install-bundle.sh — bundle selection for the install/sync/remove steps.
+# shellcheck shell=bash
+# bundle.sh — bundle selection, mirroring and removal for the install/sync/remove steps.
 #
 # Sourced by install.sh (never run directly); relies on its helpers (info,
 # warn, err, step_enabled) and globals (SCRIPT_DIR, COMMAND, FORCE).
@@ -85,5 +85,40 @@ sync_bundle_units() {
         else
             warn "Source not found, skipping: ${src_unit}"
         fi
+    done
+}
+
+# remove_mirrored_entries <src_dir> <dest_dir> — delete each top-level entry
+# the bundle ships from the installed mirror, then the mirror if left empty.
+# Entries a newer or older bundle shipped under other names are not touched.
+remove_mirrored_entries() {
+    local src_dir="$1" dest_dir="$2"
+    if [[ ! -d "${dest_dir}" ]]; then
+        info "nothing to remove: ${dest_dir}"
+        return 0
+    fi
+    [[ -d "${src_dir}" ]] || { warn "bundle source missing, skipping: ${src_dir}"; return 0; }
+    local entry name count=0
+    for entry in "${src_dir}"/* "${src_dir}"/.[!.]*; do
+        [[ -e "${entry}" || -L "${entry}" ]] || continue
+        name="$(basename "${entry}")"
+        if [[ -e "${dest_dir}/${name}" || -L "${dest_dir}/${name}" ]]; then
+            rm -rf "${dest_dir:?}/${name}"
+            count=$((count + 1))
+        fi
+    done
+    info "removed ${count} bundle entr$([[ ${count} -eq 1 ]] && echo y || echo ies) from ${dest_dir}"
+    if rmdir "${dest_dir}" 2>/dev/null; then
+        info "removed empty directory ${dest_dir}"
+    fi
+}
+
+# remove_slices <target> <slice...> — take back each enabled standalone slice.
+remove_slices() {
+    local target="$1" slice
+    shift
+    for slice in $(selected_slices "$@"); do
+        printf '\n%s%s: remove standalone %s%s\n' "${BOLD}" "${target}" "${slice}" "${NC}"
+        run_slice "${target}" "${slice}"
     done
 }

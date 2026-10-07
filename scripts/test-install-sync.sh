@@ -747,8 +747,9 @@ assert_contains "${out}" "claude,codex" "bash completion completes comma lists"
 
 # Completion lists must track install.sh: every intent, and every step any
 # target accepts for --only.
-intents="$(sed -n 's/^VALID_INTENTS=(\(.*\))$/\1/p' "${INSTALL}")"
-steps="$(bash -c 'source <(sed -n "/^valid_steps_for_target() {/,/^}/p" "$1"); err() { :; }; for t in claude cursor codex opencode; do valid_steps_for_target "$t"; done' _ "${INSTALL}" \
+install_steps="${REPO_ROOT}/scripts/lib/install/steps.sh"
+intents="$(sed -n 's/^VALID_INTENTS=(\(.*\))$/\1/p' "${install_steps}")"
+steps="$(bash -c 'source <(sed -n "/^valid_steps_for_target() {/,/^}/p" "$1"); err() { :; }; for t in claude cursor codex opencode; do valid_steps_for_target "$t"; done' _ "${install_steps}" \
     | tr ',' '\n' | awk '!seen[$0]++' | tr '\n' ' ')"
 for f in _ycc ycc.bash ycc.fish; do
     assert_contains "$(cat "${REPO_ROOT}/scripts/completions/${f}")" "${intents}" "${f} completes every intent"
