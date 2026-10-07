@@ -21,7 +21,7 @@ jobs:
           python-version: '3.12'
 
       - name: Install Python deps
-        run: pip install pyyaml
+        run: pip install pyyaml black ruff
 
       - name: Install pinned shellcheck
         run: ./scripts/install-shellcheck.sh

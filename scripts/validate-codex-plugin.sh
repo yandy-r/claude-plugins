@@ -39,11 +39,11 @@ LOCAL_PLAN_DOCS=(
     "${REPO_ROOT}"/ycc/skills/visual-plan/references/*.md
     "${REPO_ROOT}"/ycc/skills/visual-recap/references/*.md
 )
-if rg -n 'Bash\(plan:\*\)|(^|`)plan (blocks|local (check|serve|verify|preview))' "${LOCAL_PLAN_DOCS[@]}"; then
+if grep -En 'Bash\(plan:\*\)|(^|`)plan (blocks|local (check|serve|verify|preview))' "${LOCAL_PLAN_DOCS[@]}"; then
     echo "Local-files visual planning must use the pinned Agent-Native npx command." >&2
     exit 1
 fi
-if rg -n 'Connected:.*get-plan-blocks|call `get-plan-blocks`' \
+if grep -En 'Connected:.*get-plan-blocks|call `get-plan-blocks`' \
     "${REPO_ROOT}/ycc/skills/visual-recap/SKILL.md"; then
     echo "Local-only visual recap must not depend on the Plan MCP connector." >&2
     exit 1

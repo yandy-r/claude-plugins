@@ -59,7 +59,17 @@ cat > "${STUB_BIN}/codex" <<'SH'
 [[ " $* " == *" --help "* ]] && exit 0
 printf 'codex %s\n' "$*" >> "${CLAUDE_STUB_LOG}"
 SH
-chmod +x "${STUB_BIN}/claude" "${STUB_BIN}/codex"
+# style.sh needs ruff/black on PATH when install runs its repo-style step;
+# the tests assert placement, not formatting, so no-op them.
+cat > "${STUB_BIN}/ruff" <<'SH'
+#!/usr/bin/env bash
+exit 0
+SH
+cat > "${STUB_BIN}/black" <<'SH'
+#!/usr/bin/env bash
+exit 0
+SH
+chmod +x "${STUB_BIN}/claude" "${STUB_BIN}/codex" "${STUB_BIN}/ruff" "${STUB_BIN}/black"
 
 # run_install <home> <args...> — run install.sh sandboxed; capture output.
 # Runs from <home>/project (not a git repo) so project-scoped steps write
