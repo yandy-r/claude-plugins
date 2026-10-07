@@ -1,6 +1,9 @@
 # shellcheck shell=bash
 # steps.sh — step and intent selection, target resolution and preflight.
 #
+# Per-target data comes from scripts/lib/install/targets/<t>.sh; the
+# *_for_target functions and supports_repo_mode dispatch to them by name.
+#
 # Sourced by install.sh (never run directly); reads its arg globals (INTENTS,
 # ONLY_STEPS, EXCLUSIVE_STEPS, SETTINGS, RULES, MCP, HOOKS, SCOPE, MODE) and
 # ALL_TARGETS at call time.
@@ -48,12 +51,11 @@ step_enabled() {
 # valid_steps_for_target <target>
 # Echo the comma-separated steps <target> supports for --only.
 valid_steps_for_target() {
-    case "$1" in
-        claude) echo "base,skills,agents,commands,settings,rules,mcp,hooks,mods" ;;
-        cursor|codex) echo "base,skills,agents,settings,rules,mcp" ;;
-        opencode) echo "base,skills,agents,commands,settings,rules,mcp" ;;
-        *) err "valid_steps_for_target: unknown target '$1'"; exit 1 ;;
-    esac
+    if ! is_known_target "$1"; then
+        err "valid_steps_for_target: unknown target '$1'"
+        exit 1
+    fi
+    "${1}_valid_steps"
 }
 
 # validate_only_steps <target> [quiet]
@@ -98,48 +100,8 @@ validate_only_steps() {
 # Echo the comma-separated steps <intent> maps to for <target>. Empty output
 # means the intent is a no-op there.
 intent_steps_for_target() {
-    local target="$1"
-    local intent="$2"
-
-    case "${target}:${intent}" in
-        claude:base|claude:settings|claude:rules|claude:mcp) echo "${intent}" ;;
-        # Hook activation lives in settings.json; hook scripts live in hooks/.
-        claude:hooks) echo "settings,hooks" ;;
-        # Claude plugin enablement is pure settings.json state (enabledPlugins,
-        # extraKnownMarketplaces). Add 'base' explicitly to also run the CLI's
-        # marketplace registration, which needs network access.
-        claude:plugins) echo "settings" ;;
-        # Mods install from the ycc-mods marketplace via the claude CLI.
-        claude:mods) echo "mods" ;;
-        # skills/agents/commands install standalone entries into the tool's
-        # own user dirs; 'base' ships the whole bundle/plugin. Cursor and Codex
-        # have no command layer.
-        claude:skills|claude:agents|claude:commands) echo "${intent}" ;;
-        cursor:skills|cursor:agents|codex:skills|codex:agents) echo "${intent}" ;;
-        opencode:skills|opencode:agents|opencode:commands) echo "${intent}" ;;
-        cursor:commands|codex:commands) echo "" ;;
-
-        cursor:base|cursor:rules|cursor:mcp) echo "${intent}" ;;
-        cursor:settings) echo "settings" ;;
-        cursor:hooks|cursor:plugins) echo "" ;;
-
-        # Mods are Claude Code only for now. A target gains them by mapping
-        # '<target>:mods' to a step that translates ycc/mods/<name> into that
-        # tool's extension format; until then the intent is reported and skipped.
-        cursor:mods|codex:mods|opencode:mods) echo "" ;;
-
-        # MCP has its own scope-aware step; plugin enablement lives in the
-        # target's main config file (config.toml / opencode.json).
-        codex:base|codex:settings|codex:rules|codex:mcp) echo "${intent}" ;;
-        codex:plugins) echo "settings" ;;
-        codex:hooks) echo "" ;;
-
-        opencode:base|opencode:settings|opencode:rules|opencode:mcp) echo "${intent}" ;;
-        opencode:plugins) echo "settings" ;;
-        opencode:hooks) echo "" ;;
-
-        *) echo "" ;;
-    esac
+    is_known_target "$1" || { echo ""; return 0; }
+    "${1}_intent_steps" "$2"
 }
 
 # configure_intents_for_target <target>
@@ -187,26 +149,21 @@ intent_requested() {
 # Return managed config groups selected for a structured settings file.
 config_groups_for_target() {
     local target="$1"
+    is_known_target "${target}" || return 0
+    local defaults
+    defaults="$("${target}_config_groups")"
     if [[ ${#INTENTS[@]} -eq 0 ]]; then
-        case "${target}" in
-            claude) echo "settings,hooks,plugins" ;;
-            cursor) echo "settings" ;;
-            # MCP servers are owned by the scope-aware 'mcp' step.
-            codex|opencode) echo "settings,plugins" ;;
-        esac
+        echo "${defaults}"
         return 0
     fi
 
+    # Filtered order is always settings,plugins,hooks (kept from the original
+    # table); only groups the target manages by default are eligible.
     local -a groups=()
     local group
     for group in settings plugins hooks; do
         intent_requested "${group}" || continue
-        case "${target}:${group}" in
-            claude:settings|claude:plugins|claude:hooks) groups+=("${group}") ;;
-            cursor:settings) groups+=("settings") ;;
-            codex:settings|codex:plugins) groups+=("${group}") ;;
-            opencode:settings|opencode:plugins) groups+=("${group}") ;;
-        esac
+        [[ ",${defaults}," == *",${group},"* ]] && groups+=("${group}")
     done
     local IFS=','
     echo "${groups[*]}"
@@ -237,9 +194,9 @@ is_known_target() {
 }
 
 # supports_repo_mode <target>
-# cursor and opencode read bundles from local directories only.
+# Whether <target> can install from the GitHub repo (--mode repo).
 supports_repo_mode() {
-    [[ "$1" == "claude" || "$1" == "codex" ]]
+    is_known_target "$1" && "${1}_supports_repo_mode"
 }
 
 # resolve_targets <csv>

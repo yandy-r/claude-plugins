@@ -8,11 +8,6 @@ set -euo pipefail
 # Resolve symlinks so the linked `ycc` command (see 'cli') still finds the repo.
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 CLI_NAME="ycc"
-CURSOR_PLUGIN_DIR="${SCRIPT_DIR}/.cursor-plugin"
-CODEX_PLUGIN_DIR="${SCRIPT_DIR}/.codex-plugin/ycc"
-CODEX_AGENTS_DIR="${SCRIPT_DIR}/.codex-plugin/agents"
-OPENCODE_PLUGIN_DIR="${SCRIPT_DIR}/.opencode-plugin"
-CURSOR_CLI_CONFIG_SRC="${SCRIPT_DIR}/.cursor-plugin/config/cli-config.json"
 # shellcheck disable=SC2034  # read by steps.sh (target resolution).
 ALL_TARGETS=(claude cursor codex opencode)
 
@@ -24,6 +19,12 @@ source "${SCRIPT_DIR}/scripts/lib/install/steps.sh"
 source "${SCRIPT_DIR}/scripts/lib/install/bundle.sh"
 # shellcheck source=scripts/lib/install/cli.sh
 source "${SCRIPT_DIR}/scripts/lib/install/cli.sh"
+# Each target implements the contract described in its targets/<t>.sh header.
+for _target in "${ALL_TARGETS[@]}"; do
+    # shellcheck source=/dev/null
+    source "${SCRIPT_DIR}/scripts/lib/install/targets/${_target}.sh"
+done
+unset _target
 # shellcheck source=scripts/lib/install-codex.sh
 source "${SCRIPT_DIR}/scripts/lib/install-codex.sh"
 # shellcheck source=scripts/lib/install-remove.sh

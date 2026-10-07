@@ -745,11 +745,33 @@ if ! command -v fish >/dev/null || fish -n "${REPO_ROOT}/scripts/completions/ycc
 out="$(bash -c 'source "$1"; COMP_WORDS=(ycc sync --target claude,co); COMP_CWORD=3; _ycc; echo "${COMPREPLY[*]}"' _ "${REPO_ROOT}/scripts/completions/ycc.bash")"
 assert_contains "${out}" "claude,codex" "bash completion completes comma lists"
 
+# source_install_libs — load install.sh's libs (no side effects at source time)
+# into the current shell, the same way install.sh does.
+# shellcheck disable=SC1090,SC1091  # paths are built from REPO_ROOT at runtime.
+source_install_libs() {
+    SCRIPT_DIR="${REPO_ROOT}"
+    eval "$(sed -n 's/^ALL_TARGETS=(\(.*\))$/ALL_TARGETS=(\1)/p' "${INSTALL}")"
+    local f
+    for f in core steps bundle cli; do source "${REPO_ROOT}/scripts/lib/install/${f}.sh"; done
+    for f in "${ALL_TARGETS[@]}"; do source "${REPO_ROOT}/scripts/lib/install/targets/${f}.sh"; done
+}
+
+# Every target in ALL_TARGETS implements the per-target lib contract.
+missing="$(bash -c 'REPO_ROOT="$1"; INSTALL="$2"; '"$(declare -f source_install_libs)"'
+    source_install_libs
+    for t in "${ALL_TARGETS[@]}"; do
+        for fn in "${t}_valid_steps" "${t}_intent_steps" "${t}_config_groups" "${t}_supports_repo_mode"; do
+            declare -F "${fn}" >/dev/null || printf " %s" "${fn}"
+        done
+    done' _ "${REPO_ROOT}" "${INSTALL}" 2>&1)"
+if [[ -z "${missing}" ]]; then ok "every target defines the lib contract"; else ko "every target defines the lib contract" "missing:${missing}"; fi
+
 # Completion lists must track install.sh: every intent, and every step any
 # target accepts for --only.
-install_steps="${REPO_ROOT}/scripts/lib/install/steps.sh"
-intents="$(sed -n 's/^VALID_INTENTS=(\(.*\))$/\1/p' "${install_steps}")"
-steps="$(bash -c 'source <(sed -n "/^valid_steps_for_target() {/,/^}/p" "$1"); err() { :; }; for t in claude cursor codex opencode; do valid_steps_for_target "$t"; done' _ "${install_steps}" \
+intents="$(bash -c 'REPO_ROOT="$1"; INSTALL="$2"; '"$(declare -f source_install_libs)"'
+    source_install_libs; echo "${VALID_INTENTS[*]}"' _ "${REPO_ROOT}" "${INSTALL}")"
+steps="$(bash -c 'REPO_ROOT="$1"; INSTALL="$2"; '"$(declare -f source_install_libs)"'
+    source_install_libs; for t in "${ALL_TARGETS[@]}"; do valid_steps_for_target "$t"; done' _ "${REPO_ROOT}" "${INSTALL}" \
     | tr ',' '\n' | awk '!seen[$0]++' | tr '\n' ' ')"
 for f in _ycc ycc.bash ycc.fish; do
     assert_contains "$(cat "${REPO_ROOT}/scripts/completions/${f}")" "${intents}" "${f} completes every intent"
