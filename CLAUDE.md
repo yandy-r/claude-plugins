@@ -15,6 +15,7 @@ compatibility bundles for Cursor, Codex, and opencode:
 - Codex bundle: `.codex-plugin/ycc/`
 - Codex custom agents: `.codex-plugin/agents/`
 - opencode bundle: `.opencode-plugin/` (skills, agents, commands, AGENTS.md, opencode.json)
+- Cross-tool skills bundle: `.agents-plugin/` (skills + `ycc-shared/` → `~/.agents/`; see `docs/install/agents.md`)
 
 > Pre-2.0 versions shipped 9 separate `ycc` sub-plugins. 2.0.0 collapsed them into
 > one `ycc` bundle so every ycc skill is reachable via the same `ycc:` namespace
@@ -44,6 +45,9 @@ claude-plugins/
 │   ├── commands/             # → ~/.config/opencode/commands/
 │   ├── AGENTS.md             # opencode rules file
 │   └── opencode.json         # schema + default model + MCP translation
+├── .agents-plugin/           # cross-tool skills bundle
+│   ├── skills/               # → ~/.agents/skills/
+│   └── ycc-shared/           # → ~/.agents/ycc-shared/
 ├── ycc/                      # ycc plugin source (dev workflows)
 │   ├── .claude-plugin/
 │   │   └── plugin.json       # name: "ycc", version bumped by /ycc:bundle-release

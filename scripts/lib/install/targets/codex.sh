@@ -2,7 +2,7 @@
 # codex.sh — the Codex target: implements the per-target contract that install.sh
 # dispatches through (see scripts/lib/install/steps.sh):
 #   codex_valid_steps, codex_intent_steps <intent>, codex_config_groups,
-#   codex_supports_repo_mode, sync_codex_target, remove_codex_target
+#   codex_supports_repo_mode, codex_reads_agents_skills, sync_codex_target, remove_codex_target
 #
 # Sourced by install.sh (never run directly); inherits SCRIPT_DIR and the
 # shared helpers from core.sh / steps.sh / bundle.sh.
@@ -35,6 +35,11 @@ codex_intent_steps() {
 codex_config_groups() { echo "settings,plugins"; }
 
 codex_supports_repo_mode() { return 0; }
+
+# Codex reads ~/.agents/skills plus its own skills; installing both duplicates them.
+codex_reads_agents_skills() { return 0; }
+# codex_native_skills_dirs — where this target installs ycc skills natively.
+codex_native_skills_dirs() { printf '%s\n' "${HOME}/.codex/plugins/ycc/skills" "${HOME}/.codex/skills"; }
 
 # ---------------------------------------------------------------------------
 # Codex plugin CLI
@@ -197,9 +202,15 @@ sync_codex_target() {
     # ~/.codex/skills/<name> and ~/.codex/agents/<name>.toml — no plugin.
     local do_plugin=0 do_agents=0 do_settings=0 do_rules=0 do_mcp=0
     step_enabled base && do_plugin=1
-    [[ $do_plugin -eq 1 && "${MODE:-local}" == "local" ]] && do_agents=1
     local -a slices=()
-    read -r -a slices <<< "$(selected_slices skills agents)"
+    read -r -a slices <<< "$(skills_filter codex "$(selected_slices skills agents)")"
+    # Choice 1 (skills → ~/.agents/skills): drop plugin registration; install
+    # the agents slice (~/.codex/agents) instead.
+    if skills_consolidated codex && [[ $do_plugin -eq 1 && ${#slices[@]} -eq 0 ]]; then
+        warn "codex skills consolidated into ~/.agents/skills — skipped plugin registration"
+        slices=(agents)
+        do_plugin=0
+    fi
     step_enabled settings && do_settings=1
     step_enabled rules && do_rules=1
     step_enabled mcp && do_mcp=1

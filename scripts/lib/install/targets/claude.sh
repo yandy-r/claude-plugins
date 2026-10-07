@@ -2,7 +2,7 @@
 # claude.sh — the Claude target: implements the per-target contract that install.sh
 # dispatches through (see scripts/lib/install/steps.sh):
 #   claude_valid_steps, claude_intent_steps <intent>, claude_config_groups,
-#   claude_supports_repo_mode, sync_claude_target, remove_claude_target
+#   claude_supports_repo_mode, claude_reads_agents_skills, sync_claude_target, remove_claude_target
 #
 # Sourced by install.sh (never run directly); inherits SCRIPT_DIR and the
 # shared helpers from core.sh / steps.sh / bundle.sh.
@@ -34,6 +34,9 @@ claude_intent_steps() {
 claude_config_groups() { echo "settings,hooks,plugins"; }
 
 claude_supports_repo_mode() { return 0; }
+
+# Claude Code does not read ~/.agents/skills.
+claude_reads_agents_skills() { return 1; }
 
 # ---------------------------------------------------------------------------
 # Claude marketplace — registers ycc as a marketplace via the canonical CLI:

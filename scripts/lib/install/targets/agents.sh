@@ -1,0 +1,138 @@
+# shellcheck shell=bash
+# agents.sh — the cross-tool agents target: implements the per-target contract
+# that install.sh dispatches through (see scripts/lib/install/steps.sh):
+#   agents_valid_steps, agents_intent_steps <intent>, agents_config_groups,
+#   agents_supports_repo_mode, agents_reads_agents_skills, sync_agents_target, remove_agents_target
+#
+# Sourced by install.sh (never run directly); inherits SCRIPT_DIR and the
+# shared helpers from core.sh / steps.sh / bundle.sh.
+#
+# Ships ycc SKILLS ONLY into ~/.agents/skills/, the flat cross-tool user skill
+# directory read by Zed, Codex, opencode, Cursor, Gemini CLI, VS Code/Copilot,
+# Amp, Goose and Windsurf. Shared helpers land in the sibling
+# ~/.agents/ycc-shared/ (a flat skills dir cannot hold a _shared/ entry).
+# Slices (install_slices.py entry mirroring) are used so pre-existing foreign
+# skills in ~/.agents/skills/ are never touched; ~/.agents/plugins/ (owned by
+# Codex) is never touched either.
+
+# shellcheck disable=SC2034  # read by the agents sync/remove steps.
+AGENTS_PLUGIN_DIR="${SCRIPT_DIR}/.agents-plugin"
+
+# Bundle units 'base' mirrors plus the slice sizes. `ycc-shared` carries the
+# cross-skill scripts and references that ycc/skills/_shared/... is rewritten
+# to at generation time (~/.agents/ycc-shared/...). It MUST stay in this list:
+# scripts/validate-agents-install-coverage.sh parses this line and checks
+# every <dir> the bundle references is either listed here or explicitly
+# allowlisted.
+AGENTS_BUNDLE_UNITS=(skills ycc-shared)
+
+# agents_valid_steps — comma-separated steps agents accepts for --only.
+agents_valid_steps() { echo "base,skills"; }
+
+# agents_intent_steps <intent> — steps <intent> maps to; empty means no-op.
+agents_intent_steps() {
+    case "$1" in
+        skills|base) echo "skills" ;;
+        *) echo "" ;;
+    esac
+}
+
+# agents_config_groups — no managed config file for this target.
+agents_config_groups() { echo ""; }
+
+# ~/.agents/skills/ is a local directory (no marketplace behind it).
+agents_supports_repo_mode() { return 1; }
+
+# This target IS ~/.agents/skills.
+agents_reads_agents_skills() { return 1; }
+
+# agents_skills_present — true when ~/.agents/skills already holds a ycc skill.
+agents_skills_present() {
+    local skill
+    for skill in "${AGENTS_PLUGIN_DIR}"/skills/*/; do
+        [[ -d "${skill}" ]] || continue
+        [[ -d "${HOME}/.agents/skills/$(basename "${skill}")" ]] && return 0
+    done
+    return 1
+}
+
+# agents_duplicate_hint — print (to stderr) a one-line warning when ycc skills
+# also sit in the native dir of any target that reads ~/.agents/skills
+# (<t>_reads_agents_skills + <t>_native_skills_dirs). Warn only, never block.
+agents_duplicate_hint() {
+    local dup=()
+    local t dir skill
+    for t in "${ALL_TARGETS[@]}"; do
+        reads_agents_skills "${t}" || continue
+        while IFS= read -r dir; do
+            for skill in "${AGENTS_PLUGIN_DIR}"/skills/*/; do
+                [[ -d "${dir}/$(basename "${skill}")" ]] && { dup+=("${t}"); continue 3; }
+            done
+        done < <("${t}_native_skills_dirs")
+    done
+    if [[ ${#dup[@]} -gt 0 ]]; then
+        warn "ycc skills also installed via ${dup[*]} — tools reading both that dir and ~/.agents/skills may list them twice (harmless)." >&2
+    fi
+}
+
+# ---------------------------------------------------------------------------
+# agents sync (skills (+ sibling ycc-shared/) — the only thing this target ships)
+# ---------------------------------------------------------------------------
+sync_agents_target() {
+    validate_only_steps "agents"
+
+    local agents_dir="${HOME}/.agents"
+    local scripts_dir="${SCRIPT_DIR}/scripts"
+
+    local do_bundle=0
+    step_enabled base && do_bundle=1
+    step_enabled skills && do_bundle=1
+
+    if [[ $do_bundle -eq 0 ]]; then
+        warn "agents target ran no steps"
+        printf '\n%sagents %s complete.%s\n' "${BOLD}" "${COMMAND}" "${NC}"
+        return 0
+    fi
+
+    command -v python3 >/dev/null 2>&1 || { err "python3 is required but not found"; exit 1; }
+
+    if [[ ! -d "${AGENTS_PLUGIN_DIR}" ]]; then
+        err "agents plugin source directory not found: ${AGENTS_PLUGIN_DIR}"
+        exit 1
+    fi
+
+    require_scripts "${scripts_dir}/generate-agents-skills.sh" "${scripts_dir}/validate-agents-skills.sh"
+
+    mkdir -p "${agents_dir}"
+
+    printf '\n%s[1/3] Generate agents-native bundle (skills)%s\n' "${BOLD}" "${NC}"
+    info "Running generate-agents-skills.sh"
+    bash "${scripts_dir}/generate-agents-skills.sh"
+
+    printf '\n%s[2/3] Validate generated bundle%s\n' "${BOLD}" "${NC}"
+    info "Running validate-agents-skills.sh"
+    bash "${scripts_dir}/validate-agents-skills.sh"
+
+    printf '\n%s[3/3] Sync skills to ~/.agents/skills (+ ycc-shared/)%s\n' "${BOLD}" "${NC}"
+    # Per-entry slice installs, never rsync --delete: ~/.agents/skills is
+    # shared with other tools and user-authored skills.
+    run_slice agents skills
+
+    agents_duplicate_hint
+
+    printf '\n%sagents %s complete.%s\n' "${BOLD}" "${COMMAND}" "${NC}"
+}
+
+# ---------------------------------------------------------------------------
+# agents remove
+# ---------------------------------------------------------------------------
+remove_agents_target() {
+    validate_only_steps "agents"
+    if step_enabled base || step_enabled skills; then
+        printf '\n%sagents: remove standalone skills%s\n' "${BOLD}" "${NC}"
+        run_slice agents skills
+    else
+        warn "agents target ran no steps"
+    fi
+    printf '\n%sagents remove complete.%s\n' "${BOLD}" "${NC}"
+}

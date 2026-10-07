@@ -28,6 +28,10 @@ This repository's source of truth is the Claude-facing `ycc/` tree.
   - agents under `.opencode-plugin/agents/` → `~/.config/opencode/agents/`
   - commands under `.opencode-plugin/commands/` → `~/.config/opencode/commands/`
   - config + rules (`opencode.json`, `AGENTS.md`) → `~/.config/opencode/` via `install.sh install --target opencode --settings`
+- For the cross-tool `agents` target (skills only), the install surface is:
+  - skills under `.agents-plugin/skills/` → `~/.agents/skills/`
+  - shared helpers under `.agents-plugin/ycc-shared/` → `~/.agents/ycc-shared/`
+  - never write `~/.agents/plugins/` (owned by the Codex target)
 - Do not introduce new top-level plugins; extend the existing `ycc` bundle.
 
 ## Sync policy

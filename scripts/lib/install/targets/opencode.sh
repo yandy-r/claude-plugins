@@ -2,7 +2,7 @@
 # opencode.sh — the opencode target: implements the per-target contract that install.sh
 # dispatches through (see scripts/lib/install/steps.sh):
 #   opencode_valid_steps, opencode_intent_steps <intent>, opencode_config_groups,
-#   opencode_supports_repo_mode, sync_opencode_target, remove_opencode_target
+#   opencode_supports_repo_mode, opencode_reads_agents_skills, sync_opencode_target, remove_opencode_target
 #
 # Sourced by install.sh (never run directly); inherits SCRIPT_DIR and the
 # shared helpers from core.sh / steps.sh / bundle.sh.
@@ -43,6 +43,11 @@ opencode_config_groups() { echo "settings,plugins"; }
 # opencode reads bundles from local directories only.
 opencode_supports_repo_mode() { return 1; }
 
+# opencode reads ~/.agents/skills plus its own skills dir; installing both duplicates them.
+opencode_reads_agents_skills() { return 0; }
+# opencode_native_skills_dirs — where this target installs ycc skills natively.
+opencode_native_skills_dirs() { printf '%s\n' "${HOME}/.config/opencode/skills"; }
+
 # ---------------------------------------------------------------------------
 # opencode sync (base: skills + agents + commands; settings: config + rules)
 # ---------------------------------------------------------------------------
@@ -56,7 +61,7 @@ sync_opencode_target() {
     # shared/ helpers skill bodies reference), 'agents' and 'commands' ship
     # one each.
     local -a units=()
-    read -r -a units <<< "$(selected_bundle_units "${OPENCODE_BUNDLE_UNITS[@]}")"
+    read -r -a units <<< "$(skills_filter opencode "$(selected_bundle_units "${OPENCODE_BUNDLE_UNITS[@]}")")"
     local do_base=0 do_bundle=0 do_settings=0 do_rules=0 do_mcp=0
     step_enabled base && do_base=1
     [[ ${#units[@]} -gt 0 ]] && do_bundle=1
@@ -126,7 +131,7 @@ sync_opencode_target() {
             sync_bundle_units "${OPENCODE_PLUGIN_DIR}" "${opencode_dir}" "${units[@]}"
         fi
         local slice
-        for slice in $(selected_slices skills agents commands); do
+        for slice in $(skills_filter opencode "$(selected_slices skills agents commands)"); do
             run_slice opencode "${slice}"
         done
 

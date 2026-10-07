@@ -174,6 +174,7 @@ Dedicated guides:
 | Cursor                       | [`docs/install/cursor.md`](docs/install/cursor.md)     |
 | Codex / Codex Desktop        | [`docs/install/codex.md`](docs/install/codex.md)       |
 | opencode                     | [`docs/install/opencode.md`](docs/install/opencode.md) |
+| `~/.agents/skills` (Zed etc) | [`docs/install/agents.md`](docs/install/agents.md)     |
 | Shared installer concepts    | [`docs/install/README.md`](docs/install/README.md)     |
 
 ## Workflow composition
@@ -206,6 +207,7 @@ Both accept `--only <targets>` with comma-separated values. Valid targets:
 - `cursor` — `.cursor-plugin/` agents, skills, and rules
 - `codex` — `.codex-plugin/` skills, agents, and plugin metadata
 - `opencode` — `.opencode-plugin/` skills, agents, commands, and plugin metadata (opencode.json + AGENTS.md)
+- `agents` — `.agents-plugin/` cross-tool skills for `~/.agents/skills` (+ `ycc-shared/`)
 - `json` — JSON-lint `.claude-plugin/marketplace.json` and `ycc/.claude-plugin/plugin.json` (validate only)
 
 Examples:

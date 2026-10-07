@@ -59,6 +59,12 @@ SPECS: dict[tuple[str, str], tuple[Unit, ...]] = {
         Unit(".opencode-plugin/skills", ".config/opencode/skills"),
         Unit(".opencode-plugin", ".config/opencode", only=("shared",)),
     ),
+    # Cross-tool ~/.agents/skills (skills only). The shared helpers sit beside
+    # skills/ as ~/.agents/ycc-shared; ~/.agents/plugins (Codex) is never listed.
+    ("agents", "skills"): (
+        Unit(".agents-plugin/skills", ".agents/skills"),
+        Unit(".agents-plugin", ".agents", only=("ycc-shared",)),
+    ),
     ("opencode", "agents"): (Unit(".opencode-plugin/agents", ".config/opencode/agents"),),
     ("opencode", "commands"): (Unit(".opencode-plugin/commands", ".config/opencode/commands"),),
 }
@@ -84,7 +90,7 @@ def rewrites_for(target: str, home: Path) -> list[tuple[str, str]]:
             ("~/.codex/plugins/ycc/shared/", "~/.codex/skills/_shared/"),
             ("../../../shared/", "../../_shared/"),
         ]
-    # cursor / opencode bundles already target the directories slices use.
+    # cursor / opencode / agents bundles already target the directories slices use.
     return []
 
 

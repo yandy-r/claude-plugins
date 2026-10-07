@@ -7,7 +7,7 @@
 #   ./scripts/validate.sh --only inventory      # single target
 #   ./scripts/validate.sh --only cursor,codex   # comma-separated subset
 #
-# Targets: inventory, cursor, codex, opencode, json, config, release, mods
+# Targets: inventory, cursor, codex, opencode, agents, json, config, release, mods
 #   - inventory  validates ycc skill↔command pairing and the shared inventory
 #   - json       validates .claude-plugin/marketplace.json plus ycc/.claude-plugin/plugin.json
 #   - config     tests the managed-config merge helper and install.sh sync CLI
@@ -19,7 +19,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-VALID_TARGETS=(inventory cursor codex opencode json config release mods)
+VALID_TARGETS=(inventory cursor codex opencode agents json config release mods)
 TARGETS=("${VALID_TARGETS[@]}")
 
 usage() {
@@ -118,6 +118,12 @@ run_target() {
             echo "== validate: opencode V2 config rules =="
             (cd "${REPO_ROOT}/scripts" && python3 test_validate_opencode_config.py) \
                 || fail "test_validate_opencode_config.py"
+            ;;
+        agents)
+            echo "== validate: agents skills =="
+            "${REPO_ROOT}/scripts/validate-agents-skills.sh" || fail "validate-agents-skills.sh"
+            echo "== validate: agents install coverage =="
+            "${REPO_ROOT}/scripts/validate-agents-install-coverage.sh" || fail "validate-agents-install-coverage.sh"
             ;;
         config)
             echo "== validate: model/effort declarations =="

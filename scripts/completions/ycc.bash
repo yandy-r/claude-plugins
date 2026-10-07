@@ -6,7 +6,8 @@ _ycc() {
     [[ ${COMP_CWORD} -gt 1 ]] && sub="${COMP_WORDS[1]}"
 
     case "${prev}" in
-        --target) values="claude cursor codex opencode all" ;;
+        --target) values="claude cursor codex opencode agents all" ;;
+        --skills-home) mapfile -t COMPREPLY < <(compgen -W "agents native" -- "${cur}"); return ;;
         --intent) values="base skills agents commands settings rules mcp hooks plugins mods" ;;
         --only)   values="base skills agents commands settings rules mcp hooks mods" ;;
         --mode)   mapfile -t COMPREPLY < <(compgen -W "local repo" -- "${cur}"); return ;;
@@ -33,8 +34,8 @@ _ycc() {
         case "${sub}" in
             cli)        words="--dir --force --help" ;;
             completion) words="--shell --install --force --help" ;;
-            install)    words="--target --only --mode --settings --rules --mcp --hooks --project --global --force --help" ;;
-            sync)       words="--target --intent --mode --project --global --force --help" ;;
+            install)    words="--target --only --mode --skills-home --settings --rules --mcp --hooks --project --global --force --help" ;;
+            sync)       words="--target --intent --mode --skills-home --project --global --force --help" ;;
             remove)     words="--target --only --intent --project --global --force --help" ;;
             *)          words="" ;;
         esac

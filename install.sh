@@ -9,7 +9,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 CLI_NAME="ycc"
 # shellcheck disable=SC2034  # read by steps.sh (target resolution).
-ALL_TARGETS=(claude cursor codex opencode)
+ALL_TARGETS=(claude cursor codex opencode agents)
 
 # shellcheck source=scripts/lib/install/core.sh
 source "${SCRIPT_DIR}/scripts/lib/install/core.sh"
@@ -89,6 +89,9 @@ plugins, mods):
     cursor    ~/.cursor/{skills,agents}/<name>
     codex     ~/.codex/skills/<name> (+ _shared), ~/.codex/agents/<name>.toml
     opencode  ~/.config/opencode/{skills,agents,commands}/<name> (+ shared/)
+  The agents target ships ycc skills ONLY, once, into the cross-tool dir:
+    agents    ~/.agents/skills/<name> (+ ~/.agents/ycc-shared/), read by Zed,
+              Codex, opencode, Cursor, Gemini CLI, Copilot, Amp, Goose, Windsurf
   settings  Merge repo-managed config keys (models, effort levels, ...).
   rules     Symlink the shared CLAUDE.md / AGENTS.md ruleset.
   mcp       Merge MCP server definitions.
@@ -113,6 +116,8 @@ plugins, mods):
     opencode  base→base  skills→skills  agents→agents  commands→commands
               settings→settings  rules→rules  mcp→mcp
               plugins → settings (opencode.json)  hooks, mods → no-op
+    agents    base→skills  skills→skills  everything else → no-op
+              (~/.agents/skills + ycc-shared/ is the whole target)
 
 Remove ('remove' subcommand):
   Undoes what the selected steps installed, for every target and intent (same
@@ -163,7 +168,7 @@ Merge semantics (all structured config files):
 
 Options:
   --target <targets>  Comma-separated targets: claude, cursor, codex, opencode,
-                      or all (which must stand alone). Every target is
+                      agents, or all (which must stand alone). Every target is
                       validated before any of them runs.
   --mode <mode>       Marketplace source mode (default: local). Supported:
                         local — register the local repo checkout as the
@@ -182,10 +187,10 @@ Options:
                                 {source: github, repo: yandy-r/claude-plugins,
                                 ref: main} marketplace entry and skips
                                 local generation/symlink/agents-sync.
-                                cursor and opencode REJECT --mode repo
+                                cursor, opencode and agents REJECT --mode repo
                                 (they have no remote-source concept).
-                                With --target all + --mode repo, cursor and
-                                opencode are skipped with a warning.
+                                With --target all + --mode repo, cursor,
+                                opencode and agents are skipped with a warning.
   --settings          Additive: MERGE repo-managed keys into per-machine config
                       files while preserving local model choices, tokens,
                       marketplace entries written by the CLI, trusted-project
@@ -223,6 +228,17 @@ Options:
                       Overrides defaults and --settings/--rules/--mcp/--hooks.
                       A skills/agents/commands step a target has no home for
                       is skipped with a notice (e.g. commands on cursor).
+  --skills-home <dir> Resolve duplicate skills when ycc skills would land in
+                      several of codex/opencode/cursor's own skills dirs (all
+                      read ~/.agents/skills too):
+                        agents — skills once in ~/.agents/skills (agents
+                                 target); each tool keeps only its non-skill
+                                 pieces natively (codex: ~/.codex/agents slice
+                                 instead of plugin registration).
+                        native — keep per-tool native skills (duplicates
+                                 possible). Without the flag, an interactive
+                                 prompt offers the choice (non-TTY: warn and
+                                 proceed as requested).
   --intent <intents>  'sync' / 'remove' subcommands only. Comma-separated intents (see
                       above). Cannot be combined with --only or the additive
                       --settings/--rules/--mcp/--hooks flags.
@@ -319,7 +335,13 @@ Target steps:
                       ~/.config/opencode/ (generator-produced from
                       ycc/settings/rules/CLAUDE.md — the same user-global
                       ruleset as every other target).
-  all       Run claude then cursor then codex then opencode; step flags propagate.
+  agents    base | skills (both run the same thing)
+            base/skills:  generate + validate the .agents-plugin bundle, then
+                      install each skill into ~/.agents/skills/ (+ shared
+                      helpers in ~/.agents/ycc-shared/). Foreign skills and
+                      ~/.agents/plugins/ are never touched.
+  all       Run claude then cursor then codex then opencode then agents; step
+            flags propagate.
 
 Examples:
   $(basename "$0") install --target claude                         # base only (register local marketplace)
@@ -343,6 +365,8 @@ Examples:
   $(basename "$0") install --target opencode                       # base only
   $(basename "$0") install --target opencode --settings --rules    # base + merge opencode.json + link AGENTS.md
   $(basename "$0") install --target opencode --only skills,agents  # just skills + agents
+  $(basename "$0") install --target agents                         # ycc skills → ~/.agents/skills
+  $(basename "$0") install --target codex,opencode --skills-home agents  # skills shared via ~/.agents/skills
   $(basename "$0") install --target codex --only agents            # just ~/.codex/agents
   $(basename "$0") install --target all --only agents              # agents everywhere, no plugins
   $(basename "$0") install --target all --settings --rules --mcp
@@ -372,6 +396,7 @@ TARGET=""
 TARGETS=()
 MODE="local"
 MODE_SET=0
+SKILLS_HOME=""
 COMMAND=""
 MCP=0
 SETTINGS=0
@@ -421,6 +446,15 @@ while [[ $# -gt 0 ]]; do
             IFS=',' read -r -a ONLY_STEPS <<< "$2"
             if [[ ${#ONLY_STEPS[@]} -eq 0 ]]; then
                 err "--only requires at least one step"
+                exit 1
+            fi
+            shift 2
+            ;;
+        --skills-home)
+            [[ $# -lt 2 ]] && { err "--skills-home requires an argument (agents|native)"; exit 1; }
+            SKILLS_HOME="$2"
+            if [[ ! "${SKILLS_HOME}" =~ ^(agents|native)$ ]]; then
+                err "Invalid --skills-home: ${SKILLS_HOME} (supported: agents, native)"
                 exit 1
             fi
             shift 2
@@ -544,6 +578,7 @@ if [[ ${#ONLY_STEPS[@]} -gt 0 ]]; then
 fi
 
 resolve_targets "${TARGET}"
+resolve_skills_home
 preflight_targets
 action="sync"
 [[ "${COMMAND}" == "remove" ]] && action="remove"

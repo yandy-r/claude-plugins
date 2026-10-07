@@ -4,7 +4,8 @@
 _ycc() {
     local -a common
     common=(
-        '--target[targets to sync]:targets:_values -s , target claude cursor codex opencode all'
+        '--target[targets to sync]:targets:_values -s , target claude cursor codex opencode agents all'
+        '--skills-home[resolve duplicate skills]:dir:(agents native)'
         '(--global)--project[write into the current project]'
         '(--project)--global[write into user-global config]'
         '--force[let repo values win]'

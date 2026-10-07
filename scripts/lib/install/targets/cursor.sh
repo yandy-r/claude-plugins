@@ -2,7 +2,7 @@
 # cursor.sh — the Cursor target: implements the per-target contract that install.sh
 # dispatches through (see scripts/lib/install/steps.sh):
 #   cursor_valid_steps, cursor_intent_steps <intent>, cursor_config_groups,
-#   cursor_supports_repo_mode, sync_cursor_target, remove_cursor_target
+#   cursor_supports_repo_mode, cursor_reads_agents_skills, sync_cursor_target, remove_cursor_target
 #
 # Sourced by install.sh (never run directly); inherits SCRIPT_DIR and the
 # shared helpers from core.sh / steps.sh / bundle.sh.
@@ -36,6 +36,11 @@ cursor_config_groups() { echo "settings"; }
 # Cursor reads bundles from local directories only.
 cursor_supports_repo_mode() { return 1; }
 
+# Cursor reads ~/.agents/skills plus ~/.cursor/skills; installing both duplicates them.
+cursor_reads_agents_skills() { return 0; }
+# cursor_native_skills_dirs — where this target installs ycc skills natively.
+cursor_native_skills_dirs() { printf '%s\n' "${HOME}/.cursor/skills"; }
+
 # ---------------------------------------------------------------------------
 # Cursor sync (base + optional MCP + optional settings/rules)
 # ---------------------------------------------------------------------------
@@ -51,7 +56,7 @@ sync_cursor_target() {
 
     # 'base' ships every bundle unit; 'skills' / 'agents' ship one each.
     local -a units=()
-    read -r -a units <<< "$(selected_bundle_units skills agents rules)"
+    read -r -a units <<< "$(skills_filter cursor "$(selected_bundle_units skills agents rules)")"
     local do_bundle=0 do_settings=0 do_mcp=0 do_rules=0
     [[ ${#units[@]} -gt 0 ]] && do_bundle=1
     step_enabled settings && do_settings=1
@@ -110,7 +115,7 @@ sync_cursor_target() {
             sync_bundle_units "${CURSOR_PLUGIN_DIR}" "${cursor_dir}" "${units[@]}"
         fi
         local slice
-        for slice in $(selected_slices skills agents); do
+        for slice in $(skills_filter cursor "$(selected_slices skills agents)"); do
             run_slice cursor "${slice}"
         done
     fi
