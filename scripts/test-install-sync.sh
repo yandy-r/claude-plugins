@@ -598,10 +598,10 @@ mkdir -p "${home}/.codex/plugins/cache/local-ycc-plugins/ycc/.codex-plugin" "${h
 echo '{ "name": "local-ycc-plugins", "plugins": [] }' > "${home}/.agents/plugins/marketplace.json"
 out="$(cd "${home}" && HOME="${home}" PATH="${STUB_BIN}:${PATH}" CLAUDE_STUB_LOG="${home}/claude-calls.log" bash -c '
     info() { echo "[ok] $1"; }; warn() { echo "[!!] $1"; }; err() { echo "[err] $1"; }
-    source "$1/scripts/lib/install-codex.sh"; install_codex_plugin' _ "${REPO_ROOT}" 2>&1)"
+    SCRIPT_DIR="$1"; source "$1/scripts/lib/install/targets/codex.sh"; install_codex_plugin' _ "${REPO_ROOT}" 2>&1)"
 assert_contains "$(cat "${home}/claude-calls.log" 2>/dev/null)" "codex plugin add ycc@local-ycc-plugins" "codex base installs ycc through the codex CLI"
 if [[ ! -e "${home}/.codex/plugins/cache/local-ycc-plugins/ycc" ]]; then ok "codex base drops the legacy flat cache"; else ko "codex base drops the legacy flat cache" "${out}"; fi
-assert_contains "$(cat "${INSTALL}")" 'merge_codex_marketplace_json "local" "./.agents/plugins/ycc"' "codex marketplace path resolves from the marketplace root"
+assert_contains "$(cat "${REPO_ROOT}/scripts/lib/install/targets/codex.sh")" 'merge_codex_marketplace_json "local" "./.agents/plugins/ycc"' "codex marketplace path resolves from the marketplace root"
 
 echo
 echo "== install.sh: skills / agents / commands slices =="
