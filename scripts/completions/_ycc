@@ -1,7 +1,19 @@
 #compdef ycc
 # zsh completion for ycc (install.sh) — install: ycc completion --shell zsh --install
 
+# _ycc_mcps — managed MCP servers, from 'ycc list-mcps' for the --target on the line.
+_ycc_mcps() {
+    local targets="all" i
+    for (( i = 1; i < CURRENT; i++ )); do
+        [[ "${words[i]}" == "--target" ]] && targets="${words[i+1]}"
+    done
+    local -a servers
+    servers=(${(f)"$(${_ycc_cmd} list-mcps --target "${targets}" 2>/dev/null)"})
+    (( ${#servers} )) && _values -s , 'MCP server' "${servers[@]}"
+}
+
 _ycc() {
+    local _ycc_cmd="${words[1]}"
     local -a common
     common=(
         '--target[targets to sync]:targets:_values -s , target claude cursor codex opencode agents all'
@@ -13,6 +25,7 @@ _ycc() {
     )
     local mode='--mode[marketplace source mode]:mode:(local repo)'
     local intent='--intent[what to sync]:intents:_values -s , intent base skills agents commands settings rules mcp hooks plugins mods'
+    local mcps='--mcps[only these managed MCP servers]:servers:_ycc_mcps'
     local only='--only[run only these steps]:steps:_values -s , step base skills agents commands settings rules mcp hooks mods'
 
     if (( CURRENT == 2 )); then
@@ -23,6 +36,7 @@ _ycc() {
             'remove:remove installer-managed config'
             'cli:link install.sh onto PATH as ycc'
             'completion:print or install shell completion'
+            'list-mcps:list the managed MCP servers'
         )
         _describe -t commands 'ycc command' subcommands
         return
@@ -36,19 +50,22 @@ _ycc() {
         cli)
             _arguments '--dir[install directory]:directory:_directories' '--force[replace existing]' '--help[show help]'
             ;;
+        list-mcps)
+            _arguments '--target[targets to list for]:targets:_values -s , target claude cursor codex opencode agents all' '--help[show help]'
+            ;;
         completion)
             _arguments '--shell[shell]:shell:(bash zsh fish)' '--install[install for the shell]' '--force[replace existing]' '--help[show help]'
             ;;
         install)
-            _arguments "${common[@]}" "${mode}" "${only}" \
+            _arguments "${common[@]}" "${mode}" "${only}" "${mcps}" \
                 '--settings[also merge settings]' '--rules[also link rules]' \
                 '--mcp[also merge MCP servers]' '--hooks[also link hooks]'
             ;;
         sync)
-            _arguments "${common[@]}" "${mode}" "${intent}"
+            _arguments "${common[@]}" "${mode}" "${intent}" "${mcps}"
             ;;
         remove)
-            _arguments "${common[@]}" "${only}" "${intent}"
+            _arguments "${common[@]}" "${only}" "${intent}" "${mcps}"
             ;;
     esac
 }

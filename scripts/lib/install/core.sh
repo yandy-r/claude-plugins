@@ -3,7 +3,8 @@
 # managed-config merge, scope handling and the MCP step.
 #
 # Sourced by install.sh (never run directly); inherits its shell options and
-# SCRIPT_DIR, and reads its arg globals (FORCE, SCOPE, COMMAND) at call time.
+# SCRIPT_DIR, and reads its arg globals (FORCE, SCOPE, COMMAND, MCP_SERVERS) at
+# call time.
 
 MCP_CONFIG_SRC="${SCRIPT_DIR}/mcp-configs/mcp.json"
 CONFIG_MERGE_HELPER="${SCRIPT_DIR}/scripts/merge_managed_config.py"
@@ -263,25 +264,63 @@ mcp_destination() {
     fi
 }
 
-# run_mcp_step <target> — merge (or, for 'remove', strip) managed MCP servers.
+# mcp_source <target> — echo "<merge profile> <source file>" for <target>'s MCP step.
+mcp_source() {
+    case "$1" in
+        claude)   echo "claude-mcp ${MCP_CONFIG_SRC}" ;;
+        cursor)   echo "cursor-mcp ${MCP_CONFIG_SRC}" ;;
+        codex)    echo "codex-config ${SCRIPT_DIR}/.codex-plugin/config/mcp-servers.json" ;;
+        opencode) echo "opencode-config ${OPENCODE_PLUGIN_DIR}/opencode.json" ;;
+        *) err "mcp_source: unknown target '$1'"; exit 1 ;;
+    esac
+}
+
+# mcp_server_names <target> — MCP servers the repo manages for <target>, one per line.
+mcp_server_names() {
+    local profile src
+    read -r profile src <<< "$(mcp_source "$1")"
+    python3 "${CONFIG_MERGE_HELPER}" --profile "${profile}" --source "${src}" \
+        --destination /dev/null --groups mcp --list-entries
+}
+
+# mcp_selection_for_target <target> — the --mcps names <target> manages, comma-separated.
+mcp_selection_for_target() {
+    local -a managed=() selected=()
+    local name
+    mapfile -t managed < <(mcp_server_names "$1")
+    for name in "${MCP_SERVERS[@]}"; do
+        [[ " ${managed[*]} " == *" ${name} "* ]] && selected+=("${name}")
+    done
+    local IFS=','
+    echo "${selected[*]:-}"
+}
+
+# run_mcp_step <target> — merge (or, for 'remove', strip) managed MCP servers;
+# with --mcps, only the selected servers (others are left untouched).
 run_mcp_step() {
     local target="$1" profile src dest
-    case "${target}" in
-        claude)   profile="claude-mcp";      src="${MCP_CONFIG_SRC}" ;;
-        cursor)   profile="cursor-mcp";      src="${MCP_CONFIG_SRC}" ;;
-        codex)    profile="codex-config";    src="${SCRIPT_DIR}/.codex-plugin/config/config.toml" ;;
-        opencode) profile="opencode-config"; src="${OPENCODE_PLUGIN_DIR}/opencode.json" ;;
-        *) err "run_mcp_step: unknown target '${target}'"; exit 1 ;;
-    esac
+    read -r profile src <<< "$(mcp_source "${target}")"
     dest="$(mcp_destination "${target}")"
+
+    local -a select=()
+    if [[ ${#MCP_SERVERS[@]} -gt 0 ]]; then
+        local selection
+        selection="$(mcp_selection_for_target "${target}")"
+        if [[ -z "${selection}" ]]; then
+            warn "none of the selected MCP servers (${MCP_SERVERS[*]}) is managed for ${target} — skipping"
+            return 0
+        fi
+        select=(--entries "${selection}")
+        info "MCP servers: ${selection//,/, }"
+    fi
 
     if [[ "${COMMAND}" == "remove" ]]; then
         info "Removing managed MCP servers from ${dest}"
-        merge_settings_config "${profile}" "${src}" "${dest}" "mcp" --remove
+        merge_settings_config "${profile}" "${src}" "${dest}" "mcp" --remove "${select[@]}"
         return 0
     fi
     info "Merging MCP servers into ${dest}"
-    merge_settings_config "${profile}" "${src}" "${dest}" "mcp"
+    merge_settings_config "${profile}" "${src}" "${dest}" "mcp" "${select[@]}"
     if [[ "${target}" == "codex" && "${dest}" != "${HOME}/.codex/config.toml" ]]; then
         warn "Codex loads ${dest} only when the project is trusted in ~/.codex/config.toml."
     fi

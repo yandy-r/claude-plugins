@@ -130,6 +130,8 @@ run_target() {
             python3 "${REPO_ROOT}/scripts/validate-model-settings.py" || fail "validate-model-settings.py"
             echo "== validate: managed-config merge helper =="
             python3 "${REPO_ROOT}/scripts/test_merge_managed_config.py" || fail "test_merge_managed_config.py"
+            python3 "${REPO_ROOT}/scripts/test_managed_config_entries.py" || fail "test_managed_config_entries.py"
+            python3 "${REPO_ROOT}/scripts/test_generate_codex_mcp.py" || fail "test_generate_codex_mcp.py"
             echo "== validate: codex marketplace helper =="
             python3 "${REPO_ROOT}/scripts/test_codex_marketplace.py" || fail "test_codex_marketplace.py"
             echo "== validate: install sync CLI =="

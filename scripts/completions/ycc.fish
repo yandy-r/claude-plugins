@@ -8,7 +8,17 @@ function __ycc_csv --argument-names values
     end
 end
 
-set -l subs install sync remove cli completion
+# __ycc_mcps — managed MCP servers, from 'ycc list-mcps' for the --target on the line.
+function __ycc_mcps
+    set -l words (commandline -opc)
+    set -l targets all
+    set -l i (contains -i -- --target $words)
+    and set -q words[(math $i + 1)]
+    and set targets $words[(math $i + 1)]
+    __ycc_csv (string join ' ' -- ($words[1] list-mcps --target $targets 2>/dev/null))
+end
+
+set -l subs install sync remove cli completion list-mcps
 set -l none "not __fish_seen_subcommand_from $subs"
 set -l isr "__fish_seen_subcommand_from install sync remove"
 set -l is "__fish_seen_subcommand_from install sync"
@@ -22,10 +32,13 @@ complete -c ycc -n $none -a sync -d 'Sync intents to targets'
 complete -c ycc -n $none -a remove -d 'Remove installer-managed config'
 complete -c ycc -n $none -a cli -d 'Link install.sh onto PATH as ycc'
 complete -c ycc -n $none -a completion -d 'Print or install shell completion'
+complete -c ycc -n $none -a list-mcps -d 'List the managed MCP servers'
 
 complete -c ycc -n $isr -l target -x -a '(__ycc_csv "claude cursor codex opencode agents all")' -d Targets
 complete -c ycc -n $isr -l skills-home -x -a 'agents native' -d 'Duplicate-skills choice'
 complete -c ycc -n $sr -l intent -x -a '(__ycc_csv "base skills agents commands settings rules mcp hooks plugins mods")' -d Intents
+complete -c ycc -n $isr -l mcps -x -a '(__ycc_mcps)' -d 'Only these managed MCP servers'
+complete -c ycc -n '__fish_seen_subcommand_from list-mcps' -l target -x -a '(__ycc_csv "claude cursor codex opencode agents all")' -d Targets
 complete -c ycc -n $ir -l only -x -a '(__ycc_csv "base skills agents commands settings rules mcp hooks mods")' -d Steps
 complete -c ycc -n $is -l mode -x -a 'local repo' -d 'Marketplace source mode'
 complete -c ycc -n $inst -l settings -d 'Also merge settings'

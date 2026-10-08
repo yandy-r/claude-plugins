@@ -21,6 +21,7 @@ from generate_codex_common import (
     SOURCE_MCP_PATH,
     SOURCE_PLUGIN_PATH,
 )
+from generate_codex_mcp import CODEX_MCP_PATH, write_codex_mcp_config
 
 REPOSITORY_URL = "https://github.com/yandy-r/claude-plugins"
 
@@ -104,8 +105,10 @@ def write_all(dest_root: Path, dry_run: bool) -> set[Path]:
     manifest_path = dest_root / PLUGIN_MANIFEST_PATH.relative_to(CODEX_PLUGIN_CONTAINER.parent)
     mcp_path = dest_root / PLUGIN_MCP_PATH.relative_to(CODEX_PLUGIN_CONTAINER.parent)
     marketplace_path = dest_root / REPO_MARKETPLACE_PATH.relative_to(CODEX_PLUGIN_CONTAINER.parent)
+    codex_mcp_path = dest_root / CODEX_MCP_PATH.relative_to(CODEX_PLUGIN_CONTAINER.parent)
 
     files.add(manifest_path.relative_to(dest_root))
+    files.add(codex_mcp_path.relative_to(dest_root))
     files.add(mcp_path.relative_to(dest_root))
     files.add(marketplace_path.relative_to(dest_root))
 
@@ -118,6 +121,7 @@ def write_all(dest_root: Path, dry_run: bool) -> set[Path]:
     mcp_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(SOURCE_MCP_PATH, mcp_path)
     write_json(marketplace_path, build_repo_marketplace())
+    write_codex_mcp_config(codex_mcp_path)
     return files
 
 

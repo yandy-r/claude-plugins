@@ -32,15 +32,17 @@ Usage: $(basename "$0") <command> [options]
 
 Commands:
   install     Initial setup: base step plus opt-in steps (flags below).
-              $(basename "$0") install --target <targets> [--mode <mode>] [--settings] [--rules] [--mcp] [--hooks] [--only <steps>] [--project|--global] [--force]
+              $(basename "$0") install --target <targets> [--mode <mode>] [--settings] [--rules] [--mcp] [--hooks] [--only <steps>] [--mcps <servers>] [--project|--global] [--force]
   sync        Sync what you name, nothing else.
-              $(basename "$0") sync --target <targets> --intent <intents> [--mode <mode>] [--project|--global] [--force]
+              $(basename "$0") sync --target <targets> --intent <intents> [--mcps <servers>] [--mode <mode>] [--project|--global] [--force]
   remove      Strip installer-managed config.
-              $(basename "$0") remove --target <targets> (--only <steps> | --intent <intents>) [--project|--global] [--force]
+              $(basename "$0") remove --target <targets> (--only <steps> | --intent <intents>) [--mcps <servers>] [--project|--global] [--force]
   cli         Put this installer on PATH as '${CLI_NAME}'.
               $(basename "$0") cli [--dir <dir>] [--force]
   completion  Print or install shell completion.
               $(basename "$0") completion [--shell bash|zsh|fish] [--install [--force]]
+  list-mcps   Print the MCP servers the repo manages (names for --mcps).
+              $(basename "$0") list-mcps [--target <targets>]
 
 A command is required; a bare '$(basename "$0") install --target ...' is rejected.
 
@@ -69,6 +71,7 @@ step-flag form used for first-time setup.
 
   $(basename "$0") sync --target claude --intent hooks,settings,mcp,plugins
   $(basename "$0") sync --target codex,claude,opencode --intent mcp
+  $(basename "$0") sync --target opencode --intent mcp --mcps github,linear
   $(basename "$0") sync --target claude --intent mods
   $(basename "$0") sync --target claude,codex --intent skills,agents
 
@@ -214,6 +217,12 @@ Options:
                         opencode — AGENTS.md at ~/.config/opencode/
   --mcp               Additive: also run the target's 'mcp' step. Mode-agnostic.
                       Scope follows --project (default) / --global.
+  --mcps <servers>    Comma-separated MCP servers to merge (or remove) instead
+                      of every managed one; requires the mcp step. Servers not
+                      named are left untouched. A target that manages none of
+                      them skips its MCP step; a name no selected target
+                      manages is an error. Names: '$(basename "$0") list-mcps'
+                      (shell completion offers them).
   --project           Scope-capable steps (today: mcp) write into the current
                       project. Default when neither flag is given.
   --global            Scope-capable steps write into user-global config.
@@ -406,11 +415,13 @@ FORCE=0
 EXCLUSIVE_STEPS=0
 ONLY_STEPS=()
 INTENTS=()
+MCP_SERVERS=()
 SCOPE=""
 
 case "${1:-}" in
     cli)        shift; run_cli_command "$@"; exit 0 ;;
     completion) shift; run_completion_command "$@"; exit 0 ;;
+    list-mcps)  shift; run_list_mcps_command "$@"; exit 0 ;;
 esac
 
 case "${1:-}" in
@@ -418,7 +429,7 @@ case "${1:-}" in
     --help|-h) usage; exit 0 ;;
     "") usage; exit 1 ;;
     *)
-        err "missing or unknown command '$1' (expected: install, sync, remove, cli, completion)"
+        err "missing or unknown command '$1' (expected: install, sync, remove, cli, completion, list-mcps)"
         err "  e.g. $(basename "$0") install $*"
         exit 1
         ;;
@@ -467,6 +478,11 @@ while [[ $# -gt 0 ]]; do
         --mcp)
             MCP=1
             shift
+            ;;
+        --mcps)
+            [[ $# -lt 2 ]] && { err "--mcps requires a comma-separated list of MCP servers"; exit 1; }
+            parse_mcp_servers "$2"
+            shift 2
             ;;
         --settings)
             SETTINGS=1

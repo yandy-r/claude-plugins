@@ -234,6 +234,10 @@
         "type": "remote",
         "url": "https://mcp.linear.app/mcp"
       },
+      "linear-personal": {
+        "type": "remote",
+        "url": "https://mcp.linear.app/mcp"
+      },
       "vercel": {
         "type": "remote",
         "url": "https://mcp.vercel.com"
@@ -249,6 +253,10 @@
           "-y",
           "@playwright/mcp@latest"
         ]
+      },
+      "openaiDeveloperDocs": {
+        "type": "remote",
+        "url": "https://developers.openai.com/mcp"
       }
     }
   }

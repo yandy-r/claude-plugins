@@ -163,6 +163,37 @@ that has no project scope (for example `--only settings,mcp --project`) is
 rejected before anything runs: the error is about `settings`, not `mcp`. Drop
 `--project` to get project MCP plus global settings in one run.
 
+### Selecting MCP Servers
+
+By default the `mcp` step merges every server the repo manages for a target.
+`--mcps <names>` (comma-separated) narrows `install`, `sync`, and `remove` to
+just those servers, for every MCP-capable target (claude, cursor, codex,
+opencode):
+
+```bash
+ycc list-mcps                                   # every managed server
+ycc list-mcps --target codex                    # just codex's
+ycc sync --target opencode --intent mcp --mcps github,linear
+ycc sync --target all --intent mcp --mcps playwright --global
+ycc install --target claude --only mcp --mcps github
+ycc remove --target cursor --intent mcp --mcps stripe
+```
+
+- Servers not named are left alone: a partial sync never removes the other
+  managed servers, and a partial remove takes only the named ones.
+- Each name must be a managed server, else the run stops before writing
+  anything. A target that manages none of the named servers skips its MCP step
+  with a warning.
+- Every MCP-capable target manages the same servers: `mcp-configs/mcp.json` is
+  the single list. Codex gets a generated translation
+  (`.codex-plugin/config/mcp-servers.json`); a server defined under
+  `[mcp_servers.*]` in `.codex-plugin/config/config.toml` replaces its
+  translation (Codex-only extras such as `bearer_token_env_var` and per-tool
+  `approval_mode`).
+- `--mcps` requires the `mcp` step (`--intent mcp`, `--mcp`, or `--only mcp`).
+- Shell completion offers the managed server names after `--mcps`, narrowed to
+  the `--target` already on the command line (via `ycc list-mcps`).
+
 > **Behavior change:** the `mcp` step used to write only user-global files.
 > Pass `--global` to keep that. Cursor MCP is now merged instead of symlinked,
 > and Codex/opencode MCP servers moved from the `settings` step to the `mcp`

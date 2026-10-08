@@ -43,6 +43,7 @@ from pathlib import Path
 from typing import Any
 
 import tomllib
+from managed_config_entries import available_entries, select_source_entries, selected_state
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -244,6 +245,16 @@ class MergeError(RuntimeError):
     """Raised for user-facing failures that must abort before any write."""
 
 
+def load_source(path: Path, profile: dict[str, Any]) -> dict[str, Any]:
+    """Parse the repo-managed source config (JSON or TOML by suffix, else the profile's format)."""
+    text = path.read_text(encoding="utf-8")
+    is_json = path.suffix == ".json" or (path.suffix != ".toml" and profile["format"] == "json")
+    source = json.loads(text) if is_json else tomllib.loads(text)
+    if not isinstance(source, dict):
+        raise MergeError(f"{path}: expected an object at the root")
+    return source
+
+
 def value_hash(value: Any) -> str:
     """Stable hash of a value; identity only, never the value itself."""
     serialized = json.dumps(value, sort_keys=True, ensure_ascii=False, default=str)
@@ -318,7 +329,7 @@ def save_state(state: dict[str, Any]) -> None:
 def adopt_matching_values(
     profile: dict[str, Any],
     groups: list[str],
-    source_path: Path,
+    source: dict[str, Any],
     destination_path: Path,
     state_entry: dict[str, Any],
 ) -> bool:
@@ -329,10 +340,8 @@ def adopt_matching_values(
     conservatively skipped forever.
     """
     if profile["format"] == "json":
-        source = json.loads(source_path.read_text(encoding="utf-8"))
         destination = load_json_config(destination_path.read_text(encoding="utf-8"), destination_path, profile)
     else:
-        source = tomllib.loads(source_path.read_text(encoding="utf-8"))
         destination = tomllib.loads(destination_path.read_text(encoding="utf-8"))
 
     changed = False
@@ -942,16 +951,13 @@ def plan_remove(
 
 
 def remove_json(
-    source_path: Path,
+    source: dict[str, Any],
     destination_path: Path,
     profile: dict[str, Any],
     groups: list[str],
     state_entry: dict[str, Any],
     force: bool,
 ) -> tuple[str | None, list[list[str]], list[str], list[str]]:
-    source = json.loads(source_path.read_text(encoding="utf-8"))
-    if not isinstance(source, dict):
-        raise MergeError(f"{source_path}: expected a JSON object at the root")
     if not destination_path.exists():
         return None, [], [], []
     raw = destination_path.read_text(encoding="utf-8").strip()
@@ -999,14 +1005,13 @@ def delete_toml_entries(text: str, entries: list[list[str]]) -> str:
 
 
 def remove_toml(
-    source_path: Path,
+    source: dict[str, Any],
     destination_path: Path,
     profile: dict[str, Any],
     groups: list[str],
     state_entry: dict[str, Any],
     force: bool,
 ) -> tuple[str | None, list[list[str]], list[str], list[str]]:
-    source = tomllib.loads(source_path.read_text(encoding="utf-8"))
     if not destination_path.exists():
         return None, [], [], []
     destination_text = destination_path.read_text(encoding="utf-8")
@@ -1053,16 +1058,13 @@ def rendered_is_empty(profile: dict[str, Any], rendered: str) -> bool:
 
 
 def merge_json(
-    source_path: Path,
+    source: dict[str, Any],
     destination_path: Path,
     profile: dict[str, Any],
     groups: list[str],
     state_entry: dict[str, Any],
     force: bool,
 ) -> tuple[str | None, list[tuple[list[str], Any]], list[str], list[list[str]], dict[str, list[str]]]:
-    source = json.loads(source_path.read_text(encoding="utf-8"))
-    if not isinstance(source, dict):
-        raise MergeError(f"{source_path}: expected a JSON object at the root")
 
     if destination_path.exists():
         raw = destination_path.read_text(encoding="utf-8").strip()
@@ -1085,14 +1087,13 @@ def merge_json(
 
 
 def merge_toml(
-    source_path: Path,
+    source: dict[str, Any],
     destination_path: Path,
     profile: dict[str, Any],
     groups: list[str],
     state_entry: dict[str, Any],
     force: bool,
 ) -> tuple[str | None, list[tuple[list[str], Any]], list[str], list[list[str]], dict[str, list[str]]]:
-    source = tomllib.loads(source_path.read_text(encoding="utf-8"))
 
     if destination_path.exists():
         destination_text = destination_path.read_text(encoding="utf-8")
@@ -1128,18 +1129,19 @@ def run_remove(
     args: argparse.Namespace,
     profile: dict[str, Any],
     groups: list[str],
-    source_path: Path,
+    source: dict[str, Any],
     destination_path: Path,
     state: dict[str, Any],
     state_key: str,
     state_entry: dict[str, Any],
+    plan_state: dict[str, Any],
 ) -> int:
     """Remove tool-owned managed entries; user-edited entries need --force."""
     label = f"({args.profile}: {', '.join(groups)})"
     remove = remove_json if profile["format"] == "json" else remove_toml
     try:
         rendered, removed, conflicts, stale_keys = remove(
-            source_path, destination_path, profile, groups, state_entry, args.force
+            source, destination_path, profile, groups, plan_state, args.force
         )
     except (MergeError, json.JSONDecodeError, tomllib.TOMLDecodeError) as error:
         print(f"merge_managed_config: {error}", file=sys.stderr)
@@ -1201,6 +1203,15 @@ def main() -> int:
     parser.add_argument("--force", action="store_true", help="Let repo values win over conflicting local edits")
     parser.add_argument("--dry-run", action="store_true", help="Report the merge without writing anything")
     parser.add_argument("--remove", action="store_true", help="Remove managed entries instead of merging them")
+    parser.add_argument(
+        "--entries",
+        help="Comma-separated entry names (e.g. MCP servers) to restrict the run to; other entries are left alone",
+    )
+    parser.add_argument(
+        "--list-entries",
+        action="store_true",
+        help="Print the entry names the source manages for --groups, one per line, and exit",
+    )
     args = parser.parse_args()
 
     profile = PROFILES[args.profile]
@@ -1215,6 +1226,29 @@ def main() -> int:
     if not source_path.is_file():
         print(f"merge_managed_config: source not found: {source_path}", file=sys.stderr)
         return 1
+    try:
+        source = load_source(source_path, profile)
+    except (MergeError, json.JSONDecodeError, tomllib.TOMLDecodeError) as error:
+        print(f"merge_managed_config: {error}", file=sys.stderr)
+        return 1
+
+    managed_entries = available_entries(profile, groups, source)
+    if args.list_entries:
+        for name in managed_entries:
+            print(name)
+        return 0
+    entries: list[str] | None = None
+    if args.entries is not None:
+        entries = [name.strip() for name in args.entries.split(",") if name.strip()]
+        unknown = [name for name in entries if name not in managed_entries]
+        if not entries or unknown:
+            print(
+                f"merge_managed_config: unknown entries {', '.join(unknown) or '(none given)'} "
+                f"(managed: {', '.join(managed_entries) or 'none'})",
+                file=sys.stderr,
+            )
+            return 1
+        source = select_source_entries(profile, groups, source, entries)
 
     # Read a symlinked destination through its target but do not mutate it yet.
     # Validation, merge planning, and --dry-run must remain side-effect free.
@@ -1225,14 +1259,18 @@ def main() -> int:
     state_entry = state.get(state_key, {})
     if not isinstance(state_entry, dict):
         state_entry = {}
+    # Plan against the selected entries only; writes still go to the full entry.
+    plan_state = (
+        state_entry if entries is None else selected_state(profile, groups, state_entry, entries, parse_pointer)
+    )
 
     if args.remove:
-        return run_remove(args, profile, groups, source_path, destination_path, state, state_key, state_entry)
+        return run_remove(args, profile, groups, source, destination_path, state, state_key, state_entry, plan_state)
 
     merge = merge_json if profile["format"] == "json" else merge_toml
     try:
         rendered, updates, conflicts, deletions, additions = merge(
-            source_path, destination_path, profile, groups, state_entry, args.force
+            source, destination_path, profile, groups, plan_state, args.force
         )
     except (MergeError, json.JSONDecodeError, tomllib.TOMLDecodeError) as error:
         print(f"merge_managed_config: {error}", file=sys.stderr)
@@ -1242,9 +1280,7 @@ def main() -> int:
         print(f"  [!!] kept your local value at {conflict} (re-run with --force to take the repo value)")
 
     if rendered is None:
-        if destination_path.exists() and adopt_matching_values(
-            profile, groups, source_path, destination_path, state_entry
-        ):
+        if destination_path.exists() and adopt_matching_values(profile, groups, source, destination_path, state_entry):
             state[state_key] = state_entry
             save_state(state)
         print(f"  [ok] up-to-date: {destination_path} ({args.profile}: {', '.join(groups)})")
