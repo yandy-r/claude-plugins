@@ -3,12 +3,79 @@ description: 'Implement a SINGLE code-review finding (or same-file group) from a
   artifact. Applies the exact fix specified — nothing more. Scope-disciplined: fixes
   only what the finding specifies.'
 mode: subagent
-tools:
-  read: true
-  grep: true
-  glob: true
-  edit: true
-  bash: true
+permissions:
+- action: '*'
+  resource: '*'
+  effect: deny
+- action: read
+  resource: '*'
+  effect: allow
+- action: grep
+  resource: '*'
+  effect: allow
+- action: glob
+  resource: '*'
+  effect: allow
+- action: edit
+  resource: '*'
+  effect: allow
+- action: shell
+  resource: ls *
+  effect: allow
+- action: shell
+  resource: cat *
+  effect: allow
+- action: shell
+  resource: test *
+  effect: allow
+- action: shell
+  resource: git *
+  effect: allow
+- action: shell
+  resource: npm *
+  effect: allow
+- action: shell
+  resource: pnpm *
+  effect: allow
+- action: shell
+  resource: yarn *
+  effect: allow
+- action: shell
+  resource: bun *
+  effect: allow
+- action: shell
+  resource: npx *
+  effect: allow
+- action: shell
+  resource: cargo *
+  effect: allow
+- action: shell
+  resource: go *
+  effect: allow
+- action: shell
+  resource: pytest *
+  effect: allow
+- action: shell
+  resource: python *
+  effect: allow
+- action: shell
+  resource: python3 *
+  effect: allow
+- action: shell
+  resource: make *
+  effect: allow
+- action: external_directory
+  resource: '*'
+  effect: ask
+- action: read
+  resource: '*.env'
+  effect: ask
+- action: read
+  resource: '*.env.*'
+  effect: ask
+- action: read
+  resource: '*.env.example'
+  effect: allow
 color: '#EAB308'
 ---
 

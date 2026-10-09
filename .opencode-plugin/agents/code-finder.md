@@ -3,6 +3,40 @@ description: Quickly locate specific code files, functions, classes, or patterns
   a codebase. Find implementations, search syntax patterns, and discover related code
   across files.
 mode: subagent
+permissions:
+- action: '*'
+  resource: '*'
+  effect: deny
+- action: shell
+  resource: '*'
+  effect: allow
+- action: glob
+  resource: '*'
+  effect: allow
+- action: grep
+  resource: '*'
+  effect: allow
+- action: read
+  resource: '*'
+  effect: allow
+- action: webfetch
+  resource: '*'
+  effect: allow
+- action: websearch
+  resource: '*'
+  effect: allow
+- action: external_directory
+  resource: '*'
+  effect: ask
+- action: read
+  resource: '*.env'
+  effect: ask
+- action: read
+  resource: '*.env.*'
+  effect: ask
+- action: read
+  resource: '*.env.example'
+  effect: allow
 color: '#EAB308'
 ---
 

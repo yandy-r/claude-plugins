@@ -134,10 +134,10 @@ target with first-class command support. Source: opencode.ai/docs/commands/.
 
 **AGENTS:opencode**
 Native agent support at `.opencode/agents/<name>.md`. Frontmatter: `description` (required),
-`mode` (`primary` | `subagent` | `all`), `model` (`provider/model-id`), `prompt`, `tools`
-(deprecated — prefer `permission`), `permission`, `temperature`, `top_p`, `steps`, `disable`,
-`hidden`, `color`. Two invocation styles: Tab/`switch_agent` for primaries; `@mention` or
-built-in `task` tool for subagents. Source: opencode.ai/docs/agents/.
+`mode` (`primary` | `subagent` | `all`), `model` (`provider/model-id[#variant]`), `system`,
+ordered `permissions` rules, `steps`, `hidden`, `color`, `disabled`, and `request`. Legacy
+fields such as `prompt`, `tools`, `permission`, `temperature`, `top_p`, and `disable` must not
+be generated for V2 agents. Source: opencode.ai/v2/docs/agents/.
 
 **HOOKS.PreToolUse:opencode**
 opencode has a TypeScript plugin system with a `tool.execute.before` event that covers the
@@ -163,8 +163,9 @@ Registration when `clientId` is omitted. Source: opencode.ai/docs/mcp-servers/.
 
 **DANGEROUS_MODE:opencode**
 No equivalent to Claude Code's `--dangerously-skip-permissions` flag exists in opencode. The
-opencode permission model uses per-agent `permission.{edit,bash,webfetch}` fields with
-`allow` / `deny` / `ask` values; there is no global override.
+OpenCode V2 permission model uses ordered `{action, resource, effect}` rules. Native actions
+include `edit`, `shell`, `subagent`, `read`, `glob`, `grep`, `webfetch`, and `websearch`; the
+last matching rule wins. Source: opencode.ai/v2/docs/permissions/.
 
 **WORKTREE:claude**
 Full support. Worktree isolation is **on by default** for the 9 worktree-aware skills; pass

@@ -4,12 +4,37 @@ description: 'Resolve the conflicts of ONE in-progress cherry-pick in a backport
   surrounding code and apply only the fix''s intent. Never commits, never pushes,
   never continues the cherry-pick, never touches files outside the conflicted set.'
 mode: subagent
-tools:
-  read: true
-  grep: true
-  glob: true
-  edit: true
-  bash: true
+permissions:
+- action: '*'
+  resource: '*'
+  effect: deny
+- action: read
+  resource: '*'
+  effect: allow
+- action: grep
+  resource: '*'
+  effect: allow
+- action: glob
+  resource: '*'
+  effect: allow
+- action: edit
+  resource: '*'
+  effect: allow
+- action: shell
+  resource: git *
+  effect: allow
+- action: external_directory
+  resource: '*'
+  effect: ask
+- action: read
+  resource: '*.env'
+  effect: ask
+- action: read
+  resource: '*.env.*'
+  effect: ask
+- action: read
+  resource: '*.env.example'
+  effect: allow
 color: '#F97316'
 ---
 

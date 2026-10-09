@@ -2,13 +2,52 @@
 description: Analyze codebase architecture and create documentation in docs/architecture/
   with system overviews, component maps, and Mermaid data flow diagrams.
 mode: subagent
-tools:
-  read: true
-  grep: true
-  glob: true
-  write: true
-  edit: true
-  bash: true
+permissions:
+- action: '*'
+  resource: '*'
+  effect: deny
+- action: read
+  resource: '*'
+  effect: allow
+- action: grep
+  resource: '*'
+  effect: allow
+- action: glob
+  resource: '*'
+  effect: allow
+- action: edit
+  resource: '*'
+  effect: allow
+- action: shell
+  resource: ls *
+  effect: allow
+- action: shell
+  resource: find *
+  effect: allow
+- action: shell
+  resource: tree *
+  effect: allow
+- action: shell
+  resource: wc *
+  effect: allow
+- action: shell
+  resource: test *
+  effect: allow
+- action: shell
+  resource: mkdir *
+  effect: allow
+- action: external_directory
+  resource: '*'
+  effect: ask
+- action: read
+  resource: '*.env'
+  effect: ask
+- action: read
+  resource: '*.env.*'
+  effect: ask
+- action: read
+  resource: '*.env.example'
+  effect: allow
 color: '#3B82F6'
 ---
 

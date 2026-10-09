@@ -2,11 +2,34 @@
 description: Deeply analyze codebase features by tracing execution paths, mapping
   architecture layers, and documenting dependencies to inform new development.
 mode: subagent
-tools:
-  read: true
-  grep: true
-  glob: true
-  bash: true
+permissions:
+- action: '*'
+  resource: '*'
+  effect: deny
+- action: read
+  resource: '*'
+  effect: allow
+- action: grep
+  resource: '*'
+  effect: allow
+- action: glob
+  resource: '*'
+  effect: allow
+- action: shell
+  resource: '*'
+  effect: allow
+- action: external_directory
+  resource: '*'
+  effect: ask
+- action: read
+  resource: '*.env'
+  effect: ask
+- action: read
+  resource: '*.env.*'
+  effect: ask
+- action: read
+  resource: '*.env.example'
+  effect: allow
 ---
 
 # Code Explorer Agent

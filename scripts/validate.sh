@@ -118,6 +118,9 @@ run_target() {
             echo "== validate: opencode V2 config rules =="
             (cd "${REPO_ROOT}/scripts" && python3 test_validate_opencode_config.py) \
                 || fail "test_validate_opencode_config.py"
+            echo "== validate: opencode V2 agent permission generation =="
+            (cd "${REPO_ROOT}/scripts" && python3 test_generate_opencode_agents.py) \
+                || fail "test_generate_opencode_agents.py"
             ;;
         agents)
             echo "== validate: agents skills =="

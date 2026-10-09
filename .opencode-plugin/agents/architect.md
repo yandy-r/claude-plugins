@@ -3,10 +3,31 @@ description: Software architecture specialist for system design, scalability, an
   technical decision-making. Use when planning new features, refactoring large systems,
   or making architectural decisions.
 mode: subagent
-tools:
-  read: true
-  grep: true
-  glob: true
+permissions:
+- action: '*'
+  resource: '*'
+  effect: deny
+- action: read
+  resource: '*'
+  effect: allow
+- action: grep
+  resource: '*'
+  effect: allow
+- action: glob
+  resource: '*'
+  effect: allow
+- action: external_directory
+  resource: '*'
+  effect: ask
+- action: read
+  resource: '*.env'
+  effect: ask
+- action: read
+  resource: '*.env.*'
+  effect: ask
+- action: read
+  resource: '*.env.example'
+  effect: allow
 ---
 
 You are a senior software architect specializing in scalable, maintainable system design.

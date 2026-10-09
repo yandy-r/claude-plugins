@@ -10,26 +10,19 @@ echo "== Sync check (generator --check) =="
 python3 "${REPO_ROOT}/scripts/generate_opencode_agents.py" --check
 
 echo "== Frontmatter lint =="
-python3 - <<'PY' "${AGENTS_DIR}"
+python3 - <<'PY' "${REPO_ROOT}" "${AGENTS_DIR}"
 import re
 import sys
 from pathlib import Path
 
 import yaml
 
-root = Path(sys.argv[1])
-# opencode agent frontmatter keys (per opencode.ai/v2/docs/agents). `name` and
-# `title` are intentionally absent — opencode uses the filename as the agent
-# identifier. `model` is absent by policy: see the model check below.
-ALLOWED = {
-    "description",
-    "mode",
-    "tools",
-    "permission",
-    "steps",
-    "hidden",
-    "color",
-}
+repo_root = Path(sys.argv[1])
+root = Path(sys.argv[2])
+sys.path.insert(0, str(repo_root / "scripts"))
+
+from opencode_v2_agent_schema import validate_agent_schema
+
 THEME_COLORS = {
     "primary",
     "secondary",
@@ -48,21 +41,25 @@ for path in sorted(root.glob("*.md")):
         errors += 1
         continue
     data = yaml.safe_load(match.group(1)) or {}
-    unknown = set(data) - ALLOWED
-    if unknown:
-        print(f"UNEXPECTED frontmatter keys in {path}: {sorted(unknown)}", file=sys.stderr)
+    if not isinstance(data, dict):
+        print(f"FRONTMATTER must be an object in {path}", file=sys.stderr)
         errors += 1
+        continue
+    for message in validate_agent_schema(str(path), data):
+        print(message, file=sys.stderr)
+        errors += 1
+    for index, rule in enumerate(data.get("permissions", [])):
+        if isinstance(rule, dict) and rule.get("action") in {"bash", "task", "write"}:
+            print(
+                f"LEGACY permission action {rule['action']!r} in {path} permissions[{index}]",
+                file=sys.stderr,
+            )
+            errors += 1
     description = str(data.get("description") or "").strip()
     if not description:
         print(f"MISSING required 'description' in {path}", file=sys.stderr)
         errors += 1
-    mode = data.get("mode")
-    if mode is not None and mode not in {"primary", "subagent", "all"}:
-        print(f"INVALID mode {mode!r} in {path} (expected primary|subagent|all)", file=sys.stderr)
-        errors += 1
-    # Every generated ycc agent is launched through the subagent tool. Without
-    # an explicit mode, opencode would register it as a primary agent.
-    elif mode is None:
+    if data.get("mode") != "subagent":
         print(f"MISSING 'mode: subagent' in {path}", file=sys.stderr)
         errors += 1
     # These files must stay provider-agnostic: a pinned model here would bake
@@ -74,10 +71,6 @@ for path in sorted(root.glob("*.md")):
             "(set per-agent models in opencode.json, not in generated agent files)",
             file=sys.stderr,
         )
-        errors += 1
-    tools = data.get("tools")
-    if tools is not None and not isinstance(tools, dict):
-        print(f"TOOLS must be an object (got {type(tools).__name__}) in {path}", file=sys.stderr)
         errors += 1
     color = data.get("color")
     if color is not None:

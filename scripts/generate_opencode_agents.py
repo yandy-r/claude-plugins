@@ -13,8 +13,7 @@ Authoritative opencode agent frontmatter (per opencode.ai/v2/docs/agents):
 This generator performs:
 1. Strips `name` / `title` / unknown Claude-specific fields.
 2. Drops `model` entirely (see below).
-3. Converts `tools: [PascalCase, ...]` to `tools: {lowercase: bool, ...}`,
-   dropping Claude-only tools (Task, TodoWrite, TeamCreate, ...).
+3. Converts Claude tool allowlists to ordered OpenCode V2 `permissions` rules.
 4. Rewrites body text with opencode-native phrasing via
    apply_opencode_text_transforms.
 5. Normalizes Claude color names to opencode-valid hex colors.
@@ -36,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import filecmp
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -46,48 +46,171 @@ from generate_opencode_common import (
     apply_opencode_text_transforms,
     dump_frontmatter,
     load_agent_aliases,
-    map_tool_name,
     normalize_agent_color,
     parse_frontmatter,
 )
 
+PermissionRule = dict[str, str]
 
-def convert_tools(value: object) -> dict[str, bool]:
-    """Convert Claude ``tools`` into opencode's lowercase-keyed mapping.
+NATIVE_ACTIONS: dict[str, str] = {
+    "read": "read",
+    "notebookread": "read",
+    "write": "edit",
+    "edit": "edit",
+    "multiedit": "edit",
+    "notebookedit": "edit",
+    "grep": "grep",
+    "glob": "glob",
+    "ls": "glob",
+    "bash": "shell",
+    "shell": "shell",
+    "webfetch": "webfetch",
+    "websearch": "websearch",
+    "task": "subagent",
+    "agent": "subagent",
+    "subagent": "subagent",
+    "askuserquestion": "question",
+    "question": "question",
+}
 
-    - List form (``[Read, Grep, Bash(ls:*)]``) → ``{read: true, grep: true, bash: true}``.
-    - Dict form already keyed lowercase → preserved.
-    - Anything else → empty dict (nothing is allowed by default).
+IGNORED_TOOLS: frozenset[str] = frozenset(
+    {
+        "bashoutput",
+        "exitplanmode",
+        "killbash",
+        "sendmessage",
+        "slashcommand",
+        "taskcreate",
+        "taskget",
+        "tasklist",
+        "taskupdate",
+        "teamcreate",
+        "teamdelete",
+        "todowrite",
+    }
+)
 
-    Claude-only tool names (Task, TodoWrite, ...) are dropped entirely.
-    """
-    resolved: dict[str, bool] = {}
+DENY_ALL: PermissionRule = {"action": "*", "resource": "*", "effect": "deny"}
+EXTERNAL_DIRECTORY_ASK: PermissionRule = {
+    "action": "external_directory",
+    "resource": "*",
+    "effect": "ask",
+}
+FILESYSTEM_ACTIONS: frozenset[str] = frozenset({"read", "edit", "glob", "grep", "shell"})
+SENSITIVE_READ_GUARDS: tuple[PermissionRule, ...] = (
+    {"action": "read", "resource": "*.env", "effect": "ask"},
+    {"action": "read", "resource": "*.env.*", "effect": "ask"},
+    {"action": "read", "resource": "*.env.example", "effect": "allow"},
+)
 
+
+def _split_tool_specs(value: str) -> list[str]:
+    """Split a comma-delimited Claude tool list without splitting scopes."""
+    specs: list[str] = []
+    start = 0
+    depth = 0
+    for index, character in enumerate(value):
+        if character == "(":
+            depth += 1
+        elif character == ")":
+            depth -= 1
+            if depth < 0:
+                raise ValueError(f"unbalanced tool scope: {value!r}")
+        elif character == "," and depth == 0:
+            if spec := value[start:index].strip():
+                specs.append(spec)
+            start = index + 1
+    if depth != 0:
+        raise ValueError(f"unbalanced tool scope: {value!r}")
+    if spec := value[start:].strip():
+        specs.append(spec)
+    return specs
+
+
+def _enabled_tool_specs(value: object) -> list[str]:
+    if isinstance(value, str):
+        return _split_tool_specs(value)
     if isinstance(value, list):
-        for item in value:
-            if not isinstance(item, str):
-                continue
-            mapped = map_tool_name(item)
-            if mapped is None:
-                continue
-            # Permit: later occurrences of the same tool cannot *disable* an
-            # earlier allow, and we have no need for wildcards here.
-            resolved[mapped] = True
-        return resolved
-
+        if not all(isinstance(item, str) for item in value):
+            raise ValueError("tools list entries must be strings")
+        return [item for item in value if isinstance(item, str)]
     if isinstance(value, dict):
+        specs: list[str] = []
         for key, enabled in value.items():
-            if not isinstance(key, str):
-                continue
-            mapped = map_tool_name(key)
-            if mapped is None:
-                continue
-            # Preserve boolean-like semantics; non-bool values become False
-            # to avoid injecting provider-specific permission grammar here.
-            resolved[mapped] = bool(enabled)
-        return resolved
+            if not isinstance(key, str) or not isinstance(enabled, bool):
+                raise ValueError("tools mapping must use string keys and boolean values")
+            if enabled:
+                specs.append(key)
+        return specs
+    raise ValueError("tools must be a string, list, or boolean mapping")
 
-    return resolved
+
+def _normalize_mcp_action(tool_name: str) -> str:
+    server, separator, tool = tool_name.removeprefix("mcp__").partition("__")
+    if not separator or not server or not tool:
+        raise ValueError(f"invalid Claude MCP tool name: {tool_name!r}")
+
+    def normalize_component(component: str) -> str:
+        # OpenCode keeps case, hyphens, and underscores in MCP action names.
+        # Wildcards are permission selectors rather than literal tool-name
+        # characters, so preserve them while sanitizing the remaining input.
+        return re.sub(r"[^a-zA-Z0-9_*?-]", "_", component)
+
+    return f"{normalize_component(server)}_{normalize_component(tool)}"
+
+
+def _shell_resource(scope: str) -> str:
+    command, separator, arguments = scope.partition(":")
+    command = command.strip()
+    arguments = arguments.strip()
+    if not command:
+        raise ValueError(f"empty Bash scope: {scope!r}")
+    if not separator:
+        return command
+    return f"{command} {arguments}".rstrip()
+
+
+def _rules_for_tool(spec: str) -> list[PermissionRule]:
+    head = spec.split("(", 1)[0].strip()
+    if not head:
+        raise ValueError("tool names must not be empty")
+    normalized_head = head.casefold()
+    if normalized_head in IGNORED_TOOLS:
+        return []
+    has_scope = "(" in spec or ")" in spec
+    if has_scope and normalized_head != "bash":
+        raise ValueError(f"only Bash scopes can be translated without widening access: {spec!r}")
+    if normalized_head == "bash" and has_scope:
+        if not spec.endswith(")"):
+            raise ValueError(f"unbalanced Bash scope: {spec!r}")
+        scope = spec.split("(", 1)[1][:-1].strip()
+        if not scope:
+            raise ValueError(f"empty Bash scope: {spec!r}")
+        return [{"action": "shell", "resource": _shell_resource(scope), "effect": "allow"}]
+
+    action = NATIVE_ACTIONS.get(normalized_head)
+    if action is None:
+        action = _normalize_mcp_action(head) if head.startswith("mcp__") else head.lower()
+    return [{"action": action, "resource": "*", "effect": "allow"}]
+
+
+def convert_tools_to_permissions(value: object) -> list[PermissionRule]:
+    """Translate a Claude tool allowlist to ordered OpenCode V2 rules."""
+    permissions: list[PermissionRule] = [DENY_ALL.copy()]
+    seen: set[tuple[str, str, str]] = {("*", "*", "deny")}
+    for spec in _enabled_tool_specs(value):
+        for rule in _rules_for_tool(spec):
+            key = (rule["action"], rule["resource"], rule["effect"])
+            if key not in seen:
+                permissions.append(rule)
+                seen.add(key)
+
+    allowed_actions = {rule["action"] for rule in permissions if rule["effect"] == "allow"}
+    if allowed_actions & FILESYSTEM_ACTIONS:
+        permissions.append(EXTERNAL_DIRECTORY_ASK.copy())
+    if "read" in allowed_actions:
+        permissions.extend(rule.copy() for rule in SENSITIVE_READ_GUARDS)
+    return permissions
 
 
 def transform_agent(stem: str, raw: str, aliases: dict[str, str]) -> str:
@@ -116,9 +239,7 @@ def transform_agent(stem: str, raw: str, aliases: dict[str, str]) -> str:
     # block, which merges with these definitions by agent ID.
 
     if "tools" in frontmatter:
-        tools_map = convert_tools(frontmatter["tools"])
-        if tools_map:
-            payload["tools"] = tools_map
+        payload["permissions"] = convert_tools_to_permissions(frontmatter["tools"])
 
     raw_color = frontmatter.get("color")
     if raw_color not in (None, "", []):
@@ -127,22 +248,15 @@ def transform_agent(stem: str, raw: str, aliases: dict[str, str]) -> str:
             payload["color"] = color
         else:
             print(
-                f"generate_opencode_agents: WARN unmapped color " f"'{raw_color}' on {stem}.md — dropping color field",
+                f"generate_opencode_agents: WARN unmapped color '{raw_color}' on {stem}.md — dropping color field",
                 file=sys.stderr,
             )
 
-    for passthrough in (
-        "mode",
-        "permission",
-        "prompt",
-        "temperature",
-        "top_p",
-        "steps",
-        "disable",
-        "hidden",
-    ):
+    for passthrough in ("steps", "hidden", "disabled", "request"):
         if passthrough in frontmatter and frontmatter[passthrough] not in (None, "", []):
             payload[passthrough] = frontmatter[passthrough]
+    if "disabled" not in payload and "disable" in frontmatter:
+        payload["disabled"] = bool(frontmatter["disable"])
 
     transformed_body = apply_opencode_text_transforms(body, aliases)
     return dump_frontmatter(payload) + transformed_body

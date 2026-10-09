@@ -3,6 +3,49 @@ description: Make database schema changes, data migrations, or modifications to 
   production Supabase/PostgreSQL database including tables, RLS policies, RPC functions,
   storage buckets, and data updates.
 mode: subagent
+permissions:
+- action: '*'
+  resource: '*'
+  effect: deny
+- action: sql_execute-sql
+  resource: '*'
+  effect: allow
+- action: sql_describe-table
+  resource: '*'
+  effect: allow
+- action: sql_list-tables
+  resource: '*'
+  effect: allow
+- action: sql_describe-functions
+  resource: '*'
+  effect: allow
+- action: sql_get-function-definition
+  resource: '*'
+  effect: allow
+- action: shell
+  resource: '*'
+  effect: allow
+- action: read
+  resource: '*'
+  effect: allow
+- action: grep
+  resource: '*'
+  effect: allow
+- action: glob
+  resource: '*'
+  effect: allow
+- action: external_directory
+  resource: '*'
+  effect: ask
+- action: read
+  resource: '*.env'
+  effect: ask
+- action: read
+  resource: '*.env.*'
+  effect: ask
+- action: read
+  resource: '*.env.example'
+  effect: allow
 color: '#EF4444'
 ---
 
