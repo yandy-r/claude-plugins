@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
 
 from generate_opencode_agents import convert_tools_to_permissions, transform_agent
 from generate_opencode_common import parse_frontmatter
@@ -15,6 +16,7 @@ ENV_READ_GUARDS = [
     {"action": "read", "resource": "*.env.example", "effect": "allow"},
 ]
 EXTERNAL_DIRECTORY_ASK = {"action": "external_directory", "resource": "*", "effect": "ask"}
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 class OpenCodeAgentGenerationTestCase(unittest.TestCase):
@@ -47,6 +49,13 @@ class OpenCodeAgentGenerationTestCase(unittest.TestCase):
         self.assertIn({"action": "shell", "resource": "npm *", "effect": "allow"}, permissions)
         self.assertNotIn({"action": "read", "resource": "ls *", "effect": "allow"}, permissions)
         self.assertIn(EXTERNAL_DIRECTORY_ASK, permissions)
+
+    def test_git_c_scopes_use_native_shell_workdir(self) -> None:
+        permissions = convert_tools_to_permissions(["Bash(git -C * show:*)", "Bash(git -C * diff:*)"])
+
+        self.assertIn({"action": "shell", "resource": "git show *", "effect": "allow"}, permissions)
+        self.assertIn({"action": "shell", "resource": "git diff *", "effect": "allow"}, permissions)
+        self.assertFalse(any(rule["action"] == "shell" and "git -C" in rule["resource"] for rule in permissions))
 
     def test_preserves_commas_inside_one_bash_scope(self) -> None:
         permissions = convert_tools_to_permissions('Bash(python:-c "a,b")')
@@ -130,6 +139,42 @@ Review code.
         self.assertTrue(frontmatter["disabled"])
         for legacy in ("tools", "permission", "prompt", "temperature", "top_p", "disable"):
             self.assertNotIn(legacy, frontmatter)
+
+    def test_transform_allows_skill_only_for_agents_that_reference_one(self) -> None:
+        with_skill = "---\ndescription: Typed\ntools: [Read]\n---\nUse `skill: python-patterns`.\n"
+        without_skill = "---\ndescription: Reader\ntools: [Read]\n---\nRead the relevant code.\n"
+
+        skill_frontmatter, _ = parse_frontmatter(transform_agent("typed", with_skill, {}))
+        reader_frontmatter, _ = parse_frontmatter(transform_agent("reader", without_skill, {}))
+
+        skill_rule = {"action": "skill", "resource": "python-patterns", "effect": "allow"}
+        self.assertIn(skill_rule, skill_frontmatter["permissions"])
+        self.assertNotIn(skill_rule, reader_frontmatter["permissions"])
+
+    def test_sensitive_agents_use_narrow_source_shell_allowlists(self) -> None:
+        source_agents = REPO_ROOT / "ycc" / "agents"
+
+        backport, _ = parse_frontmatter((source_agents / "backport-conflict-resolver.md").read_text(encoding="utf-8"))
+        code_finder, _ = parse_frontmatter((source_agents / "code-finder.md").read_text(encoding="utf-8"))
+        fixer, _ = parse_frontmatter((source_agents / "pr-comment-fixer.md").read_text(encoding="utf-8"))
+
+        self.assertNotIn("Bash(git:*)", backport["tools"])
+        self.assertTrue(all(tool.startswith("Bash(git -C * ") for tool in backport["tools"] if tool.startswith("Bash")))
+        self.assertNotIn("Bash", code_finder["tools"])
+        for broad in ("Bash(cat:*)", "Bash(git:*)", "Bash(ls:*)", "Bash(test:*)"):
+            self.assertNotIn(broad, fixer["tools"])
+
+    def test_backport_open_code_prompt_uses_shell_workdir(self) -> None:
+        source = (REPO_ROOT / "ycc" / "agents" / "backport-conflict-resolver.md").read_text(encoding="utf-8")
+
+        output = transform_agent("backport-conflict-resolver", source, {})
+        frontmatter, body = parse_frontmatter(output)
+
+        self.assertIn("shell call's `workdir` set to `WORKTREE`", body)
+        self.assertNotIn("git -C <WORKTREE>", body)
+        self.assertFalse(
+            any(rule["action"] == "shell" and " -C " in rule["resource"] for rule in frontmatter["permissions"])
+        )
 
 
 if __name__ == "__main__":

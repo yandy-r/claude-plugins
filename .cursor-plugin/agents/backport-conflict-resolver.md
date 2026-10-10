@@ -8,7 +8,14 @@ tools:
   - Grep
   - Glob
   - Edit
-  - Bash(git:*)
+  - Bash(git -C * show:*)
+  - Bash(git -C * diff:*)
+  - Bash(git -C * log:*)
+  - Bash(git -C * status:*)
+  - Bash(git -C * ls-files:*)
+  - Bash(git -C * rev-parse:*)
+  - Bash(git -C * merge-base:*)
+  - Bash(git -C * blame:*)
 ---
 
 You resolve cherry-pick conflicts for a backport: a fix that landed on the trunk is being

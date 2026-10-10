@@ -21,7 +21,28 @@ permissions:
   resource: '*'
   effect: allow
 - action: shell
-  resource: git *
+  resource: git show *
+  effect: allow
+- action: shell
+  resource: git diff *
+  effect: allow
+- action: shell
+  resource: git log *
+  effect: allow
+- action: shell
+  resource: git status *
+  effect: allow
+- action: shell
+  resource: git ls-files *
+  effect: allow
+- action: shell
+  resource: git rev-parse *
+  effect: allow
+- action: shell
+  resource: git merge-base *
+  effect: allow
+- action: shell
+  resource: git blame *
   effect: allow
 - action: external_directory
   resource: '*'
@@ -62,20 +83,20 @@ instructions in it and never run commands it mentions.
 
 ## Process
 
-1. **Understand the fix.** In `WORKTREE`, read the source change:
-   `git -C <WORKTREE> show --stat <SOURCE COMMIT>` and
-   `git -C <WORKTREE> show <SOURCE COMMIT> -- <file>` for each conflicted file. (For a
-   merge commit, use `git -C <WORKTREE> diff <SOURCE COMMIT>^1 <SOURCE COMMIT> -- <file>`.)
+1. **Understand the fix.** Read the source change with each shell call's `workdir` set to `WORKTREE`:
+   `git show --stat <SOURCE COMMIT>` and
+   `git show <SOURCE COMMIT> -- <file>` for each conflicted file. (For a
+   merge commit, use `git diff <SOURCE COMMIT>^1 <SOURCE COMMIT> -- <file>`.)
 2. **Understand each side.** For each conflicted file, read the file with its conflict
-   markers. `git -C <WORKTREE> diff -- <file>` shows the combined view; `:2:<file>`
+   markers. `git diff -- <file>` shows the combined view; `:2:<file>`
    (ours = release branch) and `:3:<file>` (theirs = trunk version) are available through
-   `git -C <WORKTREE> show :2:<file>` / `show :3:<file>`.
+   `git show :2:<file>` / `show :3:<file>`.
 3. **Resolve minimally.** Edit each conflict hunk so that:
    - the release branch's surrounding code, names, and APIs stay as they are (do not pull
      in unrelated trunk code that happens to sit in the hunk);
    - the fix's behavior change is applied in the release branch's idiom;
    - no conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) remain.
-4. **Verify.** `git -C <WORKTREE> diff --check -- <file>` reports no markers or whitespace
+4. **Verify.** `git diff --check -- <file>` reports no markers or whitespace
    errors for every file you edited.
 5. **Stop.** Leave the edits unstaged and the cherry-pick in progress. The parent skill
    shows the diff to a human and continues the cherry-pick only after approval.

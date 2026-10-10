@@ -38,6 +38,7 @@ import filecmp
 import re
 import sys
 import tempfile
+from collections.abc import Iterable
 from pathlib import Path
 
 from generate_opencode_common import (
@@ -97,11 +98,15 @@ EXTERNAL_DIRECTORY_ASK: PermissionRule = {
     "effect": "ask",
 }
 FILESYSTEM_ACTIONS: frozenset[str] = frozenset({"read", "edit", "glob", "grep", "shell"})
+# These restore OpenCode's sensitive-file defaults for the `read` action only.
+# Other discovery actions retain their native V2 semantics and are emitted only
+# when the canonical source agent explicitly requests them.
 SENSITIVE_READ_GUARDS: tuple[PermissionRule, ...] = (
     {"action": "read", "resource": "*.env", "effect": "ask"},
     {"action": "read", "resource": "*.env.*", "effect": "ask"},
     {"action": "read", "resource": "*.env.example", "effect": "allow"},
 )
+SKILL_REFERENCE = re.compile(r"\bskill:\s*([a-z][a-z0-9-]*)", re.IGNORECASE)
 
 
 def _split_tool_specs(value: str) -> list[str]:
@@ -128,6 +133,7 @@ def _split_tool_specs(value: str) -> list[str]:
 
 
 def _enabled_tool_specs(value: object) -> list[str]:
+    """Return enabled Claude tool specifications from every supported form."""
     if isinstance(value, str):
         return _split_tool_specs(value)
     if isinstance(value, list):
@@ -146,6 +152,7 @@ def _enabled_tool_specs(value: object) -> list[str]:
 
 
 def _normalize_mcp_action(tool_name: str) -> str:
+    """Translate a Claude MCP tool identifier to an OpenCode action pattern."""
     server, separator, tool = tool_name.removeprefix("mcp__").partition("__")
     if not separator or not server or not tool:
         raise ValueError(f"invalid Claude MCP tool name: {tool_name!r}")
@@ -160,17 +167,23 @@ def _normalize_mcp_action(tool_name: str) -> str:
 
 
 def _shell_resource(scope: str) -> str:
+    """Translate Claude's command:arguments scope into raw shell text."""
     command, separator, arguments = scope.partition(":")
     command = command.strip()
     arguments = arguments.strip()
     if not command:
         raise ValueError(f"empty Bash scope: {scope!r}")
+    if command.startswith("git -C * "):
+        # OpenCode has a separate workdir input, so represent scoped Git
+        # commands by their native subcommand resources.
+        command = f"git {command.removeprefix('git -C * ')}"
     if not separator:
         return command
     return f"{command} {arguments}".rstrip()
 
 
 def _rules_for_tool(spec: str) -> list[PermissionRule]:
+    """Return native OpenCode allow rules for one Claude tool specification."""
     head = spec.split("(", 1)[0].strip()
     if not head:
         raise ValueError("tool names must not be empty")
@@ -194,7 +207,29 @@ def _rules_for_tool(spec: str) -> list[PermissionRule]:
     return [{"action": action, "resource": "*", "effect": "allow"}]
 
 
-def convert_tools_to_permissions(value: object) -> list[PermissionRule]:
+def _referenced_skill_ids(body: str) -> list[str]:
+    """Return bundle skill IDs explicitly referenced by an agent prompt."""
+    skill_ids: list[str] = []
+    for match in SKILL_REFERENCE.finditer(body):
+        skill_id = match.group(1).lower()
+        if skill_id not in skill_ids:
+            skill_ids.append(skill_id)
+    return skill_ids
+
+
+def _apply_agent_specific_text_transforms(stem: str, body: str) -> str:
+    """Adapt prompts whose safe tool invocation differs on OpenCode."""
+    if stem != "backport-conflict-resolver":
+        return body
+
+    body = body.replace(
+        "In `WORKTREE`, read the source change:",
+        "Read the source change with each shell call's `workdir` set to `WORKTREE`:",
+    )
+    return body.replace("git -C <WORKTREE>", "git")
+
+
+def convert_tools_to_permissions(value: object, *, skill_ids: Iterable[str] = ()) -> list[PermissionRule]:
     """Translate a Claude tool allowlist to ordered OpenCode V2 rules."""
     permissions: list[PermissionRule] = [DENY_ALL.copy()]
     seen: set[tuple[str, str, str]] = {("*", "*", "deny")}
@@ -205,6 +240,13 @@ def convert_tools_to_permissions(value: object) -> list[PermissionRule]:
                 permissions.append(rule)
                 seen.add(key)
 
+    for skill_id in skill_ids:
+        rule = {"action": "skill", "resource": skill_id, "effect": "allow"}
+        key = (rule["action"], rule["resource"], rule["effect"])
+        if key not in seen:
+            permissions.append(rule)
+            seen.add(key)
+
     allowed_actions = {rule["action"] for rule in permissions if rule["effect"] == "allow"}
     if allowed_actions & FILESYSTEM_ACTIONS:
         permissions.append(EXTERNAL_DIRECTORY_ASK.copy())
@@ -214,6 +256,7 @@ def convert_tools_to_permissions(value: object) -> list[PermissionRule]:
 
 
 def transform_agent(stem: str, raw: str, aliases: dict[str, str]) -> str:
+    """Translate one canonical Claude agent into OpenCode Markdown."""
     frontmatter, body = parse_frontmatter(raw)
 
     # Description is required by opencode. Fall back to the filename stem as a
@@ -239,7 +282,9 @@ def transform_agent(stem: str, raw: str, aliases: dict[str, str]) -> str:
     # block, which merges with these definitions by agent ID.
 
     if "tools" in frontmatter:
-        payload["permissions"] = convert_tools_to_permissions(frontmatter["tools"])
+        payload["permissions"] = convert_tools_to_permissions(
+            frontmatter["tools"], skill_ids=_referenced_skill_ids(body)
+        )
 
     raw_color = frontmatter.get("color")
     if raw_color not in (None, "", []):
@@ -259,10 +304,12 @@ def transform_agent(stem: str, raw: str, aliases: dict[str, str]) -> str:
         payload["disabled"] = bool(frontmatter["disable"])
 
     transformed_body = apply_opencode_text_transforms(body, aliases)
+    transformed_body = _apply_agent_specific_text_transforms(stem, transformed_body)
     return dump_frontmatter(payload) + transformed_body
 
 
 def write_all(dest: Path, dry_run: bool) -> set[Path]:
+    """Generate every canonical agent under ``dest`` and return its paths."""
     aliases = load_agent_aliases()
     written: set[Path] = set()
 
@@ -286,6 +333,7 @@ def write_all(dest: Path, dry_run: bool) -> set[Path]:
 
 
 def compare_trees(generated: Path, repo_dest: Path) -> list[str]:
+    """Return generated/committed tree drift descriptions."""
     gen_files = {path.relative_to(generated) for path in generated.glob("*.md")}
     repo_files = {path.relative_to(repo_dest) for path in repo_dest.glob("*.md")} if repo_dest.is_dir() else set()
 
@@ -303,6 +351,7 @@ def compare_trees(generated: Path, repo_dest: Path) -> list[str]:
 
 
 def run_check() -> int:
+    """Return nonzero when committed OpenCode agents differ from generation."""
     with tempfile.TemporaryDirectory() as tmp:
         temp_root = Path(tmp)
         write_all(temp_root, dry_run=False)
@@ -319,6 +368,7 @@ def run_check() -> int:
 
 
 def main() -> None:
+    """Run OpenCode agent generation or drift checking from CLI arguments."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="Exit 1 if generated output drifts")
     parser.add_argument("--dry-run", action="store_true", help="Print what would be written")

@@ -22,6 +22,9 @@ permissions:
 - action: glob
   resource: '*'
   effect: allow
+- action: skill
+  resource: rust-patterns
+  effect: allow
 - action: external_directory
   resource: '*'
   effect: ask

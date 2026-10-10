@@ -43,13 +43,15 @@ def validate_permission_rules(where: str, value: Any) -> list[str]:
         if extra:
             errors.append(f"{label} has unexpected fields: {', '.join(sorted(extra))}")
 
-        for field in ("action", "resource"):
-            value_field = rule.get(field)
-            if value_field is not None and (not isinstance(value_field, str) or not value_field):
+        for field in ("action", "resource", "effect"):
+            if field not in rule:
+                continue
+            value_field = rule[field]
+            if not isinstance(value_field, str) or not value_field:
                 errors.append(f"{label}.{field} must be a non-empty string")
 
         effect = rule.get("effect")
-        if effect is not None and effect not in V2_EFFECTS:
+        if isinstance(effect, str) and effect not in V2_EFFECTS:
             errors.append(f"{label}.effect={effect!r} must be one of allow, deny, ask")
 
     return errors

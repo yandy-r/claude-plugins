@@ -21,18 +21,6 @@ permissions:
   resource: '*'
   effect: allow
 - action: shell
-  resource: ls *
-  effect: allow
-- action: shell
-  resource: cat *
-  effect: allow
-- action: shell
-  resource: test *
-  effect: allow
-- action: shell
-  resource: git *
-  effect: allow
-- action: shell
   resource: npm *
   effect: allow
 - action: shell

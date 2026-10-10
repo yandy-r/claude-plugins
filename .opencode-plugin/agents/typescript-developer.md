@@ -22,6 +22,12 @@ permissions:
 - action: glob
   resource: '*'
   effect: allow
+- action: skill
+  resource: ts-patterns
+  effect: allow
+- action: skill
+  resource: ts-testing
+  effect: allow
 - action: external_directory
   resource: '*'
   effect: ask

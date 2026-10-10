@@ -7,9 +7,6 @@ permissions:
 - action: '*'
   resource: '*'
   effect: deny
-- action: shell
-  resource: '*'
-  effect: allow
 - action: glob
   resource: '*'
   effect: allow
