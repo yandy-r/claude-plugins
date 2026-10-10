@@ -99,7 +99,7 @@ Each cleanup agent must: focus on specific category, execute 10+ diverse searche
 ## Important Notes
 
 - Act as orchestrator - coordinate cleanup agents, don't analyze files directly
-- Deploy all 6 agents in parallel (single message with 6 Task calls)
+- Deploy all 6 agents in parallel (single message with 6 native subagent calls)
 - Safety first - always validate before deletion
 - User confirmation required before any destructive operations
 - Preserve all cleanup reports and removal lists

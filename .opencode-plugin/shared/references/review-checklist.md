@@ -72,13 +72,7 @@ a single finding may touch several.
 
 ## Parallel Reviewer Roster (Path B / Path C)
 
-Three standalone `code-reviewer` sub-agents, dispatched via the blocking `Task`
-tool — never the async `Agent` tool (Path B), or agent-team teammates spawned via
-`Agent`+`team_name` (Path C). See
-[standalone-dispatch.md](~/.config/opencode/shared/references/standalone-dispatch.md)
-for the full `Task` spawn/return contract that Path B MUST follow. The **focus
-split** differs between local/quick and PR modes because local mode has a
-narrower category set.
+Three standalone `code-reviewer` sub-agents use foreground native `subagent` calls with `background=false`. Read [standalone-dispatch.md](~/.config/opencode/shared/references/standalone-dispatch.md) for the complete dispatch, result, artifact, and failure contract.
 
 ### Local / Quick Mode Roster
 
@@ -105,10 +99,7 @@ Each reviewer prompt MUST include:
    above).
 4. The severity rubric.
 5. A directive to return findings in the **Standard Findings Format** below.
-6. (Path B only) A directive that the reviewer is dispatched via the blocking
-   `Task` tool and MUST return its findings inline as that `Task` call's
-   result — never background, poll, or sleep-wait for it (see
-   [standalone-dispatch.md](~/.config/opencode/shared/references/standalone-dispatch.md)).
+6. (Path B only) Require `background=false`, nonempty findings in the Standard Findings Format, and independent scratch-artifact validation before accepting the reviewer result.
 7. (Path B only) A directive that the reviewer must ALSO write its Standard
    Findings Format block to a scratch backstop file before returning, at
    `docs/prps/reviews/.review-scratch/<run-id>/<reviewer-name>.md`, where
@@ -150,11 +141,9 @@ split already implies a category).
 
 ## Merge Procedure (Path B / Path C)
 
-After all 3 reviewers return (Path B only — see
-[standalone-dispatch.md](~/.config/opencode/shared/references/standalone-dispatch.md)
-for the blocking `Task` semantics this relies on):
+After all 3 foreground reviewer calls return candidate reports and their scratch artifacts have been checked:
 
-1. For any reviewer whose `Task` return was empty, missing, or malformed,
+1. For any reviewer whose `subagent` return was empty, missing, or malformed,
    re-read its scratch backstop file at
    `docs/prps/reviews/.review-scratch/<run-id>/<reviewer-name>.md` before
    merging. If both the inline return and the scratch file are unavailable,

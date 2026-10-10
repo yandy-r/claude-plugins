@@ -528,7 +528,7 @@ The monitor wrote one JSONL line to the audit log with the failed run's metadata
 `run_id`, `workflow_name`, `job_name`, `step_name`, `category`, `signature`,
 `log_excerpt_path`, `implicated_files`.
 
-1. **Dispatch the fix agent** via the opencode `task` tool with
+1. **Dispatch the fix agent** via the native `subagent` tool with
    `@release-fix-applier`. Pass the JSONL line verbatim. The
    agent edits ONLY the implicated files, returns the proposed commit message
    (conventional-commit prefix matching the category — `fix`, `ci`, `build`, etc.)

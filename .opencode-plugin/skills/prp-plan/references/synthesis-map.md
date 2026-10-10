@@ -4,7 +4,7 @@
 
 ## Mapping
 
-| Researcher (name)     | Source subagent_type | Primary Plan Section(s)                                  | Secondary Section(s)                                                                                | Output Format                                               |
+| Researcher (name)     | Source agent | Primary Plan Section(s)                                  | Secondary Section(s)                                                                                | Output Format                                               |
 | --------------------- | -------------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
 | api-researcher        | prp-researcher   | External Documentation                                   | Patterns to Mirror (REPOSITORY_PATTERN if API client exists); Files to Change (new client wrappers) | rows for the External Documentation table; IMPORTS in tasks |
 | business-analyzer     | prp-researcher   | User Story; Problem → Solution; Acceptance Criteria      | —                                                                                                   | one user story line + acceptance bullets                    |
@@ -14,7 +14,7 @@
 | practices-researcher  | prp-researcher   | Patterns to Mirror (NAMING_CONVENTION, TEST_STRUCTURE)   | Step-by-Step Tasks (MIRROR field source); NOT Building (over-engineering callouts)                  | seeds MIRROR field on tasks                                 |
 | recommendations-agent | prp-researcher   | Notes; Completion Checklist                              | NOT Building; Risks (cross-cutting)                                                                 | seeds Notes paragraph and confidence score                  |
 
-> **Note**: `subagent_type` is `prp-researcher` for every row. The `name=` field on the Task/subagent call is what differentiates one researcher role from another — all 7 enhanced roles dispatch the same agent type.
+> **Note**: `agent` is `prp-researcher` for every row. The `description` plus the role-specific `prompt` field on the subagent call is what differentiates one researcher role from another — all 7 enhanced roles dispatch the same agent type.
 
 ## Synthesis Rules
 

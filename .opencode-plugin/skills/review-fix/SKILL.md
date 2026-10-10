@@ -10,6 +10,8 @@ description: Plan and apply fixes for findings in a /code-review artifact. Parse
 
 # Review Fix
 
+> **OpenCode V2 compatibility:** `--team` is unsupported. If it is supplied, abort before setup or dispatch and ask the caller to rerun without it. This target uses native standalone `subagent` calls only.
+
 Plan and apply fixes for code-review findings. Reads a review artifact produced by `/code-review`, filters by severity, plans dependency-safe fix batches, dispatches `review-fixer` agents to apply each fix, updates the Status field in the review file in place, and writes a fix report.
 
 > Adapted from PRPs-agentic-eng by Wirasm. Part of the PRP workflow series.
@@ -29,20 +31,16 @@ Extract flags from `$ARGUMENTS` before treating the remainder as the input:
 | Flag                 | Effect                                                                                                                                                                                                                                                                                                                                      |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--parallel`         | Dispatch `review-fixer` agents as **standalone sub-agents** in parallel per batch. Level 1+2 validation between batches. Fail-stop behavior. Works in opencode, Cursor, and Codex.                                                                                                                                                   |
-| `--team`             | (Claude Code only) Same per-batch fixer fan-out as `--parallel`, but dispatched as an **agent team**: `spawn coordinated subagents` once, `track the task` for all eligible findings up front (flat graph — batches are orchestrator-controlled, not task-graph-controlled), per-batch spawn + shutdown via `send follow-up instructions`. Aborts if no eligible findings exist. |
 | `--severity <level>` | Minimum severity to fix: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH` (fixes CRITICAL + HIGH).                                                                                                                                                                                                                                      |
-| `--dry-run`          | Print the fix plan and stop. Do not dispatch fixers, do not modify any files. When combined with `--team`, also print the team name and per-batch teammate roster.                                                                                                                                                                          |
+| `--dry-run` | Print the fix plan and stop. Do not dispatch fixers or modify files. |
 | `--worktree`         | (legacy / now default; safe to omit) Run all fixers inside the feature worktree created by `/code-review`. Worktree mode is on by default; auto-detected from the `## Worktree Setup` section in the artifact. This flag is accepted as a no-op.                                                                                        |
 | `--no-worktree`      | Opt out of worktree isolation. Skip parent-worktree setup; all fixes are applied directly in the current working tree. Use this when running against a non-worktree checkout and no `## Worktree Setup` section exists.                                                                                                                     |
 
-Strip these flags from `$ARGUMENTS` and set `PARALLEL_MODE`, `AGENT_TEAM_MODE`, `MIN_SEVERITY`, `DRY_RUN`, and `WORKTREE_MODE=true` unless `--no-worktree` is present. The remaining text is the input selector.
+Strip the supported flags from `$ARGUMENTS` and set `PARALLEL_MODE`, `MIN_SEVERITY`, `DRY_RUN`, and `WORKTREE_MODE=true` unless `--no-worktree` is present. The remaining text is the input selector.
 
 **Validation**:
 
-- `--parallel` and `--team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --team are mutually exclusive. Pick one.`
-- If `--team` is passed and `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment, abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Use --parallel instead, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your opencode settings if you intentionally want agent-team dispatch.`
 
-**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools). Use `--parallel` instead.
 
 ### Input Resolution
 
@@ -322,14 +320,13 @@ When `--dry-run` is combined with `--worktree`, print this summary and exit. All
 
 ### Dry-run gate
 
-If `DRY_RUN=true` and `AGENT_TEAM_MODE=false`, stop here. Print a reminder:
+If `DRY_RUN=true`, stop here. Print a reminder:
 
 ```
 Dry run complete. To apply fixes, re-run without --dry-run:
-  /review-fix $REVIEW_FILE [--parallel | --team] [--severity <level>]
+  /review-fix $REVIEW_FILE [--parallel] [--severity <level>]
 ```
 
-If `DRY_RUN=true` and `AGENT_TEAM_MODE=true`, defer the final exit to Phase 4 C.2 so the team name and per-batch teammate roster can be printed alongside the fix plan. Do NOT proceed to any team/task/agent tool calls.
 
 **CHECKPOINT**: Plan built. Batches computed. User has seen the plan.
 
@@ -337,17 +334,11 @@ If `DRY_RUN=true` and `AGENT_TEAM_MODE=true`, defer the final exit to Phase 4 C.
 
 ## Phase 4 — EXECUTE
 
-Branch based on `PARALLEL_MODE` and `AGENT_TEAM_MODE`:
-
-| Flags             | Path                                               |
-| ----------------- | -------------------------------------------------- |
-| Neither set       | **Path A** — sequential execution (default)        |
-| `PARALLEL_MODE`   | **Path B** — parallel standalone sub-agent batches |
-| `AGENT_TEAM_MODE` | **Path C** — agent-team batch execution            |
+Use Path B when `PARALLEL_MODE=true`; otherwise use sequential Path A.
 
 ### Worktree-mode lifecycle (`WORKTREE_ACTIVE=true`)
 
-When worktree mode is active, every batch — regardless of Path A / B / C — runs
+When worktree mode is active, every batch — for both Path A and Path B — runs
 inside the single feature worktree from
 `.opencode-plugin/skills/_shared/references/worktree-strategy.md` §1. There are no per-severity
 child worktrees and no fan-in merge.
@@ -410,8 +401,8 @@ Process batches sequentially; within each batch, dispatch all review-fixer agent
 
 For each batch:
 
-1. **Dispatch review-fixer agents in parallel** — Use a **SINGLE message** with **MULTIPLE `Task` tool calls**, one per finding or same-file group in the batch:
-   - `subagent_type`: `"review-fixer"`
+1. **Dispatch review-fixer agents in parallel** — Use a **SINGLE message** with **MULTIPLE native `subagent` calls**, one per finding or same-file group in the batch:
+   - `agent`: `"review-fixer"`
    - `description`: e.g., `"Fix F042: missing null check in payments.ts"`
    - `prompt`: The Finding spec (Shape A or Shape B) plus `SOURCE REVIEW FILE` and `PROJECT TYPE-CHECK COMMAND`
 
@@ -444,145 +435,6 @@ If a `review-fixer` agent returns `STATUS: Failed`:
 - Mark the finding as `Failed` in the review file.
 - Include the agent's `BLOCKER` and `RECOMMENDATION` in the fix report.
 - Continue with remaining findings.
-
-### Path C — Agent Team Execution (`AGENT_TEAM_MODE=true`, Claude Code only)
-
-- When `WORKTREE_ACTIVE=true`: batches are still severity-ordered. Dispatch teammates with `Working directory: ${PARENT_PATH}` only. Do **not** add `isolation: "worktree"`. Before advancing to the next severity batch, send `send follow-up instructions(shutdown)` to all current batch teammates, then run between-batch validation inside `${PARENT_PATH}`. No fan-in merge.
-
-> **MANDATORY — AGENT TEAMS REQUIRED**
->
-> In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
-> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
->
-> 1. `spawn coordinated subagents` ONCE at the start (single team across all batches)
-> 2. `track the task` for **every eligible finding (or same-file group) across all batches**
->    up front. Flat graph — no `addBlockedBy` wiring, because batch ordering is
->    orchestrator-controlled, not task-graph-controlled. Each batch is processed only
->    after the previous one's teammates are shut down.
-> 3. Per batch: spawn teammates (single message, multiple `Agent` calls with
->    `team_name=` + `name=`)
-> 4. `the todo tracker` to confirm batch completion; run between-batch validation
-> 5. `send follow-up instructions({type:"shutdown_request"})` to all teammates of completed batch
->    BEFORE spawning next batch
-> 6. `end the coordinated run` ONCE after final batch (or on abort)
->
-> If `spawn coordinated subagents` or up-front `track the task` fails, abort the skill. Refer to
-> `~/.config/opencode/shared/references/agent-team-dispatch.md`
-> for the full lifecycle contract.
-
-Process batches sequentially under a single team, with per-batch teammate spawn and inter-batch shutdown. Use this when the fix run spans many findings across multiple batches and you want a shared task graph for audit/visibility, or when fixers should be able to cross-reference each other via `send follow-up instructions` (e.g., if fixing F003 reveals the same root cause as F007 in a different file).
-
-#### C.1 Build the team name
-
-Derive `<sanitized-review-name>` from the source review file basename:
-
-- Strip the `.md` extension.
-- Lowercase; replace non-`[a-z0-9-]` with `-`; collapse runs of `-`; trim; truncate to **20 characters** max.
-- Fall back to `untitled` if empty.
-
-Team name: `rfix-<sanitized-review-name>`.
-
-Example: `docs/prps/reviews/pr-42-review.md` → `rfix-pr-42-review`.
-Example: `docs/prps/reviews/local-20260408-143022-review.md` → `rfix-local-20260408-1` (truncated to 20 chars).
-
-#### C.2 Dry-run gate (if `DRY_RUN=true`)
-
-The Phase 3 plan has already been printed. Additionally print:
-
-```
-Team name:    rfix-<sanitized-review-name>
-Total tasks:  <M>  (eligible findings, across <B> batches, max parallel width <W>)
-Dependencies: none  (batches are orchestrator-controlled; task graph is flat)
-
-Per-batch teammate roster:
-  Batch 1 (<severity>, <count> fixes):
-    - <task-id-1>  subagent_type=review-fixer  finding=<F###: short>
-    - <task-id-2>  subagent_type=review-fixer  finding=<F###: short>
-  Batch 2 (...):
-    ...
-```
-
-Do **not** call any team/task/agent tools. Exit the skill.
-
-#### C.3 Create the team
-
-```
-spawn coordinated subagents: team_name="rfix-<sanitized-review-name>", description="Review-fix team for: <source review basename>"
-```
-
-On failure, abort.
-
-#### C.4 Register ALL eligible tasks up front (flat graph)
-
-For **every eligible finding or same-file group across all batches** (from the Phase 3 plan):
-
-```
-track the task: subject="<task-id>: fix <F###> in <file>", description="<full Finding spec — Shape A for single finding, Shape B for same-file group — plus SOURCE REVIEW FILE and PROJECT TYPE-CHECK COMMAND>"
-```
-
-Use stable task IDs derived from the primary finding ID, e.g.:
-
-- Single finding `F042` in `src/api.ts` → task id `f042`
-- Same-file group `F004, F005` in `src/utils/fmt.ts` → task id `f004-f005`
-
-**No `addBlockedBy` wiring.** Batch ordering is enforced by the orchestrator (per-batch spawn + shutdown), not by the shared task graph. The shared task list's role in Path C is observability and inter-fixer communication, not dependency resolution.
-
-If any `track the task` fails → `end the coordinated run`, then abort.
-
-#### C.5 Per-batch loop
-
-For each batch `B1, B2, ... BN` in order (from the Phase 3 plan):
-
-1. **Identify batch tasks** — Extract all task IDs for findings (or same-file groups) in this batch.
-
-2. **Spawn batch teammates** — Single message, multiple `Agent` tool calls, one per finding or same-file group in the batch. Every call MUST include:
-   - `team_name`: `"rfix-<sanitized-review-name>"`
-   - `name`: the task ID (e.g., `"f042"`, `"f004-f005"`) — must match the `track the task` subject prefix
-   - `subagent_type`: `"review-fixer"`
-   - `description`: One-line fix title (e.g., `"Fix F042: missing null check in api.ts"`)
-   - `prompt`: The Finding spec (Shape A or Shape B) plus `SOURCE REVIEW FILE`, `PROJECT TYPE-CHECK COMMAND`, and a directive that the teammate shares a task list with sibling fixers (list their task IDs) and may `send follow-up instructions` them if a related finding becomes relevant, and must call `update the todo tracker` to mark its task complete before returning.
-
-3. **Wait for batch completion via `the todo tracker`** — poll until all tasks in this batch are `completed`. If a teammate messages with an issue, respond via `send follow-up instructions` with guidance.
-
-4. **Collect results and update the review file** — For each completed task, the teammate returns `STATUS: Fixed` or `STATUS: Failed`:
-   - For each `STATUS: Fixed` → `Edit` the review file to update that finding's `**Status**: Open` → `**Status**: Fixed`
-   - For each `STATUS: Failed` → `Edit` the review file to update that finding's `**Status**: Open` → `**Status**: Failed`
-
-5. **Between-batch validation (Levels 1 + 2)** — After each batch (except the last), run:
-
-   ```bash
-   $TYPECHECK_CMD
-   $TEST_CMD
-   ```
-
-   - If both pass: log `[done] Batch N: K fixes — validation pass` and proceed.
-   - If either fails: **STOP** the pipeline. Use `ask the user`:
-     - "Resume sequentially from next batch" — shut down current batch, `end the coordinated run`, continue with Path A logic for remaining batches.
-     - "Switch to parallel sub-agents for remaining batches" — shut down current batch, `end the coordinated run`, continue with Path B for remaining batches.
-     - "Abort and leave current state as-is" — shut down current batch, `end the coordinated run`, exit.
-     - "Skip remaining findings and jump to Phase 5 (verify + report)" — shut down current batch, `end the coordinated run`, jump to Phase 5.
-
-6. **Shut down completed-batch teammates** — Send to every teammate of the just-completed batch:
-
-   ```
-   send follow-up instructions(to="<task-id>", message={type:"shutdown_request"})
-   ```
-
-   Wait for shutdowns to complete before spawning the next batch's teammates.
-
-7. **Track progress** in todos per batch, not per finding.
-
-#### C.6 After all batches complete
-
-`end the coordinated run` once. Then proceed to **Phase 5 — VERIFY** as normal.
-
-#### Path C failure handling
-
-Same principles as Path B: do NOT auto-retry failed fixes, do NOT skip a failed batch. Always shut down teammates and `end the coordinated run` before exiting, regardless of success or failure. Review file updates happen incrementally after each batch returns, so an aborted Path C run leaves the source review file reflecting the last completed batch's state.
-
-**CHECKPOINT**: All eligible batches processed. Review file updated with Fixed/Failed statuses. Deviations logged.
-
----
 
 ## Phase 5 — VERIFY
 
@@ -630,7 +482,7 @@ git push
 
 **Source**: <source review path>
 **Applied**: <ISO date>
-**Mode**: Sequential | Parallel sub-agents (N batches, max width W) | Agent team (N batches, max width W)
+**Mode**: Sequential | Parallel sub-agents (N batches, max width W)
 **Severity threshold**: <CRITICAL|HIGH|MEDIUM|LOW>
 
 ## Summary
@@ -723,8 +575,7 @@ Report to the user:
 
 **Source**: <source review path>
 **Report**: docs/prps/reviews/fixes/<name>-fixes.md
-**Mode**: Sequential | Parallel sub-agents (N batches, max width W) | Agent team (N batches, max width W)
-
+**Mode**: Sequential | Parallel sub-agents (N batches, max width W)
 ### This Run
 - Eligible: M
 - Fixed:    X
@@ -856,17 +707,7 @@ The transcript-output contract and shared caveats (worktree cwd, interactive fai
 - **No scope creep**: Each `review-fixer` agent is scope-disciplined — it fixes exactly what the finding specifies. If the fix reveals a larger issue, the agent reports it, but the skill does not chase down related problems.
 - **Resumable**: Re-running on the same review file skips already-processed findings.
 - **Audit trail**: The combination of (a) updated source review file and (b) fix report gives a complete history of what was attempted, what succeeded, and why.
-- **Parallel safety**: Parallel mode (both Path B sub-agents and Path C agent team) never dispatches two agents to the same file concurrently — same-file findings always travel together in one fixer.
 - **Commits in worktree mode**: In worktree mode (the default), the skill commits the fix report alongside fix commits and pushes to the PR branch. In `--no-worktree` mode, no automatic commit is made — run `/git-workflow --commit` when ready.
 - Does NOT automatically open a follow-up PR. After fixes land, the parent worktree's branch already has all commits pushed; the user decides when to request a re-review.
 
 ---
-
-## Agent Team Lifecycle Reference
-
-For Path C's team lifecycle contract (sanitization, shutdown sequence, failure policy,
-multi-batch reuse pattern), refer to:
-
-```
-~/.config/opencode/shared/references/agent-team-dispatch.md
-```

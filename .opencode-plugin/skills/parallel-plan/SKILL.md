@@ -3,9 +3,7 @@ name: parallel-plan
 description: Create detailed parallel implementation plans (alias for plan-workflow
   plan-only). Runs analysis and validation stages, then synthesizes dependency-aware
   tasks into parallel-plan.md. Use after shared-context to prepare implementation-ready
-  planning artifacts. Pass `--team` (Claude Code only) to orchestrate analysis and
-  validation stages as teammates under a shared spawn coordinated subagents/the todo
-  tracker with coordinated shutdown.
+  planning artifacts
 ---
 
 ## MANDATORY FORCED MODE - READ FIRST
@@ -16,7 +14,7 @@ checkpoint), regardless of `$ARGUMENTS`.
 
 **Flag policy (unambiguous):**
 
-- Supported: the feature name, `--team`, `--dry-run`, `--no-worktree`, `--visual`.
+- Supported: the feature name, `--dry-run`, `--no-worktree`, `--visual`.
 - Silent no-op (legacy): `--worktree`.
 - Redundant — silently ignored because already forced: `--plan-only`, `--no-checkpoint`.
 - Every other flag (including `--research-only`, `--optimized`, and any unknown `-`/`--` token) → abort with the usage error below. Do not read the canonical skill or write anything.
@@ -43,6 +41,8 @@ After creating planning artifacts and displaying the summary, **STOP COMPLETELY*
 
 # Parallel Plan (alias)
 
+> **OpenCode V2 compatibility:** `--team` is unsupported. If it is supplied, abort before setup or dispatch and ask the caller to rerun without it. This target uses native standalone `subagent` calls only.
+
 ## Workflow Integration
 
 ```text
@@ -61,7 +61,6 @@ fails fast in plan-only mode. Stop and tell the user to run
 
 **Target**: `$ARGUMENTS`
 
-- **--team**: Optional. (Claude Code only) Deploy analysis and validation stages as teammates. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
 - **--worktree**: Optional. (legacy — now default; safe to omit) Worktree annotations are emitted by default. Accepted as a silent no-op.
 - **--no-worktree**: Optional. Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section.
 - **--visual**: Optional. Render the finished plan as an Agent-Native visual artifact (MDX) via `visual-plan`; local-files by default, hosted link requires `--share`.
@@ -71,7 +70,7 @@ fails fast in plan-only mode. Stop and tell the user to run
 If any unsupported flag is present (see Flag policy above), abort with a usage error and STOP:
 
 ```
-Usage: /parallel-plan [--team] [--no-worktree] [--visual] [feature-name] [--dry-run]
+Usage: /parallel-plan [--no-worktree] [--visual] [feature-name] [--dry-run]
 This alias always runs plan-workflow --plan-only --no-checkpoint.
 Unsupported flag: <flag>
 ```
@@ -81,7 +80,6 @@ If no feature name provided, abort with the same usage plus examples:
 ```
 /parallel-plan user-authentication
 /parallel-plan payment-integration --dry-run
-/parallel-plan --team payment-integration
 /parallel-plan --no-worktree user-authentication
 /parallel-plan --visual user-authentication
 ```
@@ -91,7 +89,7 @@ If no feature name provided, abort with the same usage plus examples:
 Build the **effective `$ARGUMENTS`** for canonical `plan-workflow`:
 
 ```
-<feature-name> --plan-only --no-checkpoint [--team] [--dry-run] [--no-worktree] [--visual]
+<feature-name> --plan-only --no-checkpoint [--dry-run] [--no-worktree] [--visual]
 ```
 
 (optional flags only if the user passed them; `--worktree` maps to nothing —

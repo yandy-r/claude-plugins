@@ -75,7 +75,7 @@ example with flag tables, cross-refs, or agent pinning.
 | Path                 | `.opencode-plugin/agents/<kebab-name>.md`                      |
 | Required frontmatter | `name`, `description`                             |
 | Optional frontmatter | `tools`, `model`                                  |
-| Invocation           | Invoked by skills and commands via the opencode `task` tool |
+| Invocation           | Invoked by skills and commands via the native `subagent` tool |
 
 The agent body is the system prompt. Agents are invoked by skills or commands, not
 directly by users. Always ensure a skill or command will consume the agent before

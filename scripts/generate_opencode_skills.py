@@ -30,6 +30,10 @@ from generate_opencode_common import (
     parse_frontmatter,
     rewrite_plugin_paths,
 )
+from generate_opencode_dispatch import (
+    project_opencode_dispatch,
+    project_opencode_dispatch_description,
+)
 
 TEXT_SUFFIXES = frozenset(
     {
@@ -57,6 +61,11 @@ TEXT_NAMES = frozenset({"SKILL.md", "LICENSE", "Makefile"})
 OPENCODE_SKILLS_DST = OPENCODE_PLUGIN_ROOT / "skills"
 OPENCODE_SHARED_DST = OPENCODE_PLUGIN_ROOT / "shared"
 
+# OpenCode V2 has no Claude agent-team lifecycle. The standalone projection
+# removes every operational reference, so shipping this reference would only
+# advertise unsupported tools.
+OPENCODE_OMITTED_FILES = frozenset({"_shared/references/agent-team-dispatch.md"})
+
 
 def should_transform_text(path: Path) -> bool:
     if path.name in TEXT_NAMES:
@@ -70,7 +79,7 @@ def plugin_output_path(rel: Path) -> Path:
     return OPENCODE_SKILLS_DST / rel
 
 
-def transform_skill_markdown(raw: str, aliases: dict[str, str]) -> str:
+def transform_skill_markdown(raw: str, aliases: dict[str, str], source_path: str | Path = "SKILL.md") -> str:
     """Rewrite a SKILL.md with opencode-strict frontmatter (`name` + required
     `description`, plus optional `license`, `compatibility`, `metadata`).
 
@@ -85,11 +94,13 @@ def transform_skill_markdown(raw: str, aliases: dict[str, str]) -> str:
         rewrite_plugin_paths(description),
         aliases,
     ).strip()
+    transformed_description = project_opencode_dispatch_description(transformed_description)
     transformed_description = compress_skill_description(transformed_description)
     transformed_body = apply_opencode_text_transforms(
         rewrite_plugin_paths(body),
         aliases,
     )
+    transformed_body = project_opencode_dispatch(transformed_body, source_path)
 
     payload: dict[str, object] = {
         "name": name,
@@ -155,6 +166,8 @@ def write_tree(dest_root: Path, dry_run: bool) -> set[Path]:
     written: set[Path] = set()
     for src in iter_source_files():
         rel = src.relative_to(SRC_SKILLS_DIR)
+        if rel.as_posix() in OPENCODE_OMITTED_FILES:
+            continue
         dst = plugin_output_path(rel)
         out = dest_root / dst.relative_to(OPENCODE_PLUGIN_ROOT)
         written.add(out.relative_to(dest_root))
@@ -173,12 +186,13 @@ def write_tree(dest_root: Path, dry_run: bool) -> set[Path]:
         if should_transform_text(src):
             text = src.read_text(encoding="utf-8")
             if src.name == "SKILL.md":
-                transformed = transform_skill_markdown(text, aliases)
+                transformed = transform_skill_markdown(text, aliases, rel)
             else:
                 transformed = apply_opencode_text_transforms(
                     rewrite_plugin_paths(text),
                     aliases,
                 )
+                transformed = project_opencode_dispatch(transformed, rel)
             if rel.parts and rel.parts[0] == "bundle-release":
                 transformed = restore_bundle_release_source_paths(transformed)
             out.write_text(transformed, encoding="utf-8")

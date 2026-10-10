@@ -10,6 +10,9 @@ SKILLS_DIR="${BUNDLE_ROOT}/skills"
 echo "== Sync check (generator --check) =="
 python3 "${REPO_ROOT}/scripts/generate_opencode_skills.py" --check
 
+echo "== Native V2 dispatch projection regressions =="
+python3 "${REPO_ROOT}/scripts/test_generate_opencode_dispatch.py"
+
 echo "== Frontmatter lint =="
 python3 - <<'PY' "${SKILLS_DIR}"
 import re
@@ -114,5 +117,9 @@ if [[ "$BAD" -ne 0 ]]; then
   echo "validate-opencode-skills.sh: content policy failed." >&2
   exit 1
 fi
+
+echo "== Native V2 dispatch content policy =="
+python3 "${REPO_ROOT}/scripts/validate_opencode_dispatch.py" \
+  "${SKILLS_DIR}" "${BUNDLE_ROOT}/shared"
 
 echo "OK: .opencode-plugin/skills is in sync and passes opencode-native lint."

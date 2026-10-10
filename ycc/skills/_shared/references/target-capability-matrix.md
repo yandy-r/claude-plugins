@@ -137,7 +137,9 @@ Native agent support at `.opencode/agents/<name>.md`. Frontmatter: `description`
 `mode` (`primary` | `subagent` | `all`), `model` (`provider/model-id[#variant]`), `system`,
 ordered `permissions` rules, `steps`, `hidden`, `color`, `disabled`, and `request`. Legacy
 fields such as `prompt`, `tools`, `permission`, `temperature`, `top_p`, and `disable` must not
-be generated for V2 agents. Source: opencode.ai/v2/docs/agents/.
+be generated for V2 agents. Invoke subagents via `@mention` or the native
+`subagent(agent, description, prompt, sessionID?, background?)` tool. Sources:
+opencode.ai/v2/docs/agents/ and opencode.ai/v2/docs/tools/.
 
 **HOOKS.PreToolUse:opencode**
 opencode has a TypeScript plugin system with a `tool.execute.before` event that covers the

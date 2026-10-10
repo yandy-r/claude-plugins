@@ -263,7 +263,7 @@ For each group in order, dispatch one `pr-comment-fixer` agent. Wait for its `ST
 
 ### Parallel dispatch (`--parallel`)
 
-Per batch, dispatch all fixers in a **single message with multiple `Task` tool calls** (blocking, standalone dispatch — see `~/.config/opencode/shared/references/standalone-dispatch.md`). Wait for all to return before moving to the next batch.
+Per batch, dispatch all fixers in a **single message with multiple native `subagent` calls** (foreground standalone dispatch with explicit `background=false`; see `~/.config/opencode/shared/references/standalone-dispatch.md`). Wait for all to return before moving to the next batch.
 
 ### Fixer agent input (Shape A — single comment)
 

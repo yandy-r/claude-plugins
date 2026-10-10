@@ -1,6 +1,6 @@
 # Validation Agent Prompts
 
-These prompts are used to spawn validation sub-agents or teammates after creating a parallel plan. This is Phase 9 of the unified planning workflow.
+These prompts are used to spawn validation sub-agents or sub-agents after creating a parallel plan. This is Phase 9 of the unified planning workflow.
 
 ## Global Output Contract
 
@@ -9,16 +9,15 @@ Apply this contract to every prompt in this file:
 - Validators **report** findings; they never write or edit any artifact file (the orchestrator applies fixes to `parallel-plan.md`).
 - Do not touch files under `{{FEATURE_DIR}}` or anywhere else.
 - Read only `{{FEATURE_DIR}}/parallel-plan.md` (and `shared.md` where listed).
-- **Path A (standalone, default)**: no `send follow-up instructions`, `the todo tracker`, `update the todo tracker` — report all findings in your final response.
-- **Path B (`--team`)**: share cross-check findings with teammates via `send follow-up instructions` and coordinate via `the todo tracker`/`update the todo tracker` (sections marked Path B only).
+- **Path A (standalone, default)**: no `re-dispatch the affected sub-agent with the needed guidance`, `the todo tracker`, `update the todo tracker` — report all findings in your final response.
 
 ---
 
-## Standard Mode: 3 Validation Teammates
+## Standard Mode: 3 Validation Sub-agents
 
 ### Agent 1: File Path Validator
 
-**Teammate Name**: `path-validator`
+**Sub-agent Role**: `path-validator`
 
 **Subagent Type**: `explore`
 
@@ -49,28 +48,13 @@ Scan the plan and check:
 3. **Documentation References**
    - Check any /docs/ references are valid
 
-## Team Communication
-
-> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `send follow-up instructions`, `update the todo tracker`, or `the todo tracker`, ignore this section entirely and just report your findings in your final response.
-
-You are part of a validation team. Your teammates are:
-
-- **dependency-validator**: Checking the task dependency graph
-- **completeness-validator**: Evaluating task quality and completeness
-
-**Share these findings via send follow-up instructions:**
-
-- Message `dependency-validator` with: any tasks that reference files that don't exist (this may indicate dependency issues)
-- Message `completeness-validator` with: any tasks with placeholder file paths or ambiguous references
-
 ## Task Coordination
 
-> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `the todo tracker` / `update the todo tracker`, ignore this section entirely; report your findings in your final response.
 
 1. Check the todo tracker for your assigned task
 2. Claim your task with update the todo tracker (set status to in_progress, owner to your name)
 3. Do your validation
-4. Share findings with teammates
+4. Share findings with sub-agents
 5. Mark your task complete with update the todo tracker
 
 ## Output Format
@@ -100,7 +84,7 @@ Focus on accuracy - verify each path exists before marking valid.
 
 ### Agent 2: Dependency Graph Validator
 
-**Teammate Name**: `dependency-validator`
+**Sub-agent Role**: `dependency-validator`
 
 **Subagent Type**: `explore`
 
@@ -134,30 +118,13 @@ Extract all tasks and their dependencies, then check for:
    - Tasks marked as dependent that could actually run in parallel
    - Tasks that share no file modifications or data dependencies
 
-## Team Communication
-
-> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `send follow-up instructions`, `update the todo tracker`, or `the todo tracker`, ignore this section entirely and just report your findings in your final response.
-
-You are part of a validation team. Your teammates are:
-
-- **path-validator**: Verifying file paths exist
-- **completeness-validator**: Evaluating task quality and completeness
-
-**Share these findings via send follow-up instructions:**
-
-- Message `path-validator` with: any tasks that create files used by dependent tasks (so path-validator can verify those files don't already exist)
-- Message `completeness-validator` with: any orphaned tasks or bottleneck tasks that may need scope adjustment
-
-**Listen for messages from teammates** — `path-validator` may report missing files that indicate dependency issues.
-
 ## Task Coordination
 
-> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `the todo tracker` / `update the todo tracker`, ignore this section entirely; report your findings in your final response.
 
 1. Check the todo tracker for your assigned task
 2. Claim your task with update the todo tracker (set status to in_progress, owner to your name)
 3. Do your validation
-4. Share findings with teammates
+4. Share findings with sub-agents
 5. Mark your task complete with update the todo tracker
 
 ## Output Format
@@ -201,7 +168,7 @@ Potential additional parallel tasks: [count]
 
 ### Agent 3: Task Completeness Validator
 
-**Teammate Name**: `completeness-validator`
+**Sub-agent Role**: `completeness-validator`
 
 **Subagent Type**: `codebase-research-analyst`
 
@@ -244,30 +211,13 @@ For each task, evaluate:
    - Is the task small enough (1-3 files)?
    - Should it be broken into subtasks?
 
-## Team Communication
-
-> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `send follow-up instructions`, `update the todo tracker`, or `the todo tracker`, ignore this section entirely and just report your findings in your final response.
-
-You are part of a validation team. Your teammates are:
-
-- **path-validator**: Verifying file paths exist
-- **dependency-validator**: Checking the task dependency graph
-
-**Share these findings via send follow-up instructions:**
-
-- Message `path-validator` with: any tasks you find with placeholder or suspicious file paths
-- Message `dependency-validator` with: any tasks whose scope suggests they should have additional dependencies
-
-**Listen for messages from teammates** — `path-validator` may report tasks with missing file references, and `dependency-validator` may report orphaned tasks that need scope review.
-
 ## Task Coordination
 
-> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `the todo tracker` / `update the todo tracker`, ignore this section entirely; report your findings in your final response.
 
 1. Check the todo tracker for your assigned task
 2. Claim your task with update the todo tracker (set status to in_progress, owner to your name)
 3. Do your validation
-4. Share findings with teammates
+4. Share findings with sub-agents
 5. Mark your task complete with update the todo tracker
 
 ## Output Format
@@ -311,11 +261,11 @@ Overall Assessment:
 
 ---
 
-## Optimized Mode: 2 Validation Teammates
+## Optimized Mode: 2 Validation Sub-agents
 
 ### Agent 1: Path and Dependency Validator (Combined)
 
-**Teammate Name**: `path-dep-validator`
+**Sub-agent Role**: `path-dep-validator`
 
 **Subagent Type**: `explore`
 
@@ -338,17 +288,8 @@ Verify all paths in: Critically Relevant Files, READ THESE BEFORE TASK, Files to
 ### Part 2: Dependency Analysis
 Extract tasks and dependencies. Check for: circular dependencies, missing dependencies, orphaned tasks, parallelization opportunities.
 
-## Team Communication
-
-> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `send follow-up instructions`, `update the todo tracker`, or `the todo tracker`, ignore this section entirely and just report your findings in your final response.
-
-Your teammate is: **completeness-validator**
-
-Share tasks with path issues or dependency problems for their quality assessment.
-
 ## Task Coordination
 
-> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `the todo tracker` / `update the todo tracker`, ignore this section entirely; report your findings in your final response.
 
 Claim your task, do validation, share findings, mark complete.
 
@@ -361,7 +302,7 @@ File Path Validation summary, Dependency Graph, Combined Issues, Recommendations
 
 ### Agent 2: Task Quality Validator
 
-**Teammate Name**: `completeness-validator`
+**Sub-agent Role**: `completeness-validator`
 
 **Subagent Type**: `codebase-research-analyst`
 
@@ -382,17 +323,8 @@ Read:
 
 For each task evaluate: Clear Purpose, Specific Files, Actionable Instructions, Gotchas Documented, Appropriate Scope (1-3 files).
 
-## Team Communication
-
-> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `send follow-up instructions`, `update the todo tracker`, or `the todo tracker`, ignore this section entirely and just report your findings in your final response.
-
-Your teammate is: **path-dep-validator**
-
-Listen for path/dependency issues they find and factor into your quality assessment.
-
 ## Task Coordination
 
-> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `the todo tracker` / `update the todo tracker`, ignore this section entirely; report your findings in your final response.
 
 Claim your task, do validation, share findings, mark complete.
 
@@ -414,30 +346,10 @@ Common to both paths:
 
 **Path A — standalone sub-agents (default)**:
 
-3. **Spawn in parallel** with the Task/opencode `task` tool, one sub-agent per prompt; strip the Path B sections' `send follow-up instructions`/`the todo tracker`/`update the todo tracker` instructions — agents report findings in their final response only
 4. **Collect results** from each sub-agent's final response
 5. **Review results** - Address issues found before finalizing plan
 
-**Path B — `--team` (validation teammates)**:
 
 3. **Create tasks** - Use track the task for validation tasks
-4. **Spawn in parallel** - Use a single message with parallel subagent invocations, each with `team_name` and `name`
 5. **Monitor progress** - Use the todo tracker to check when all tasks complete
 6. **Review results** - Address issues found before finalizing plan
-
-## Teammate Configuration
-
-### Standard Mode
-
-| Teammate               | Type                        | Focus             | Model  |
-| ---------------------- | --------------------------- | ----------------- | ------ |
-| path-validator         | `explore`                   | Path verification | haiku  |
-| dependency-validator   | `explore`                   | Dependency graph  | haiku  |
-| completeness-validator | `codebase-research-analyst` | Task quality      | sonnet |
-
-### Optimized Mode
-
-| Teammate               | Type                        | Focus                  | Model  |
-| ---------------------- | --------------------------- | ---------------------- | ------ |
-| path-dep-validator     | `explore`                   | Paths and dependencies | haiku  |
-| completeness-validator | `codebase-research-analyst` | Completeness           | sonnet |

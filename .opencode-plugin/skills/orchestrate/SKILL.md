@@ -2,21 +2,20 @@
 name: orchestrate
 description: Orchestrate multiple specialized agents in parallel to accomplish complex
   tasks. Decomposes the task, deploys implementor agents in dependency-resolved batches,
-  and synthesizes results. Defaults to standalone sub-agents; pass --team (Claude
-  Code only) to dispatch via an agent team with shared the todo tracker, up-front
-  track the task/addBlockedBy dependency wiring, and coordinated inter-batch shutdown
-  via send follow-up instructions. Worktree isolation is ON by default; all parallel
-  and sequential agents share one feature worktree. Pass --no-worktree to opt out.
+  and synthesizes results. Defaults to standalone sub-agents. Worktree isolation is
+  ON by default; all parallel and sequential agents share one feature worktree. Pass
+  --no-worktree to opt out.
 ---
 
 # Multi-Agent Orchestration Skill
+
+> **OpenCode V2 compatibility:** `--team` is unsupported. If it is supplied, abort before setup or dispatch and ask the caller to rerun without it. This target uses native standalone `subagent` calls only.
 
 You are an orchestration expert coordinating multiple specialized agents to accomplish complex tasks. **Your role is to coordinate agents, not do the work yourself.**
 
 Parallelism is the baseline of this skill — every batch's tasks dispatch concurrently. The only choice is **how** the implementor agents are dispatched:
 
-- **Standalone sub-agents** (default) — plain `Task` calls per batch, no shared task list. Works in opencode, Cursor, and Codex.
-- **Agent team** (`--team`, Claude Code only) — single `spawn coordinated subagents` with all subtasks registered up front (`track the task` + `addBlockedBy` for dependency wiring), per-batch teammate spawn, coordinated inter-batch shutdown via `send follow-up instructions`, and `end the coordinated run` at the end. Adds shared task-graph observability across all batches.
+- **Standalone sub-agents** (default) — plain native `subagent` calls per batch, no shared task list. Works in opencode, Cursor, and Codex.
 
 ## Current Task
 
@@ -24,45 +23,37 @@ Parallelism is the baseline of this skill — every batch's tasks dispatch concu
 
 Parse flags first, then treat the remainder as the task description:
 
-- `--team` — (Claude Code only) Dispatch each batch's agents under a shared `spawn coordinated subagents` with up-front `track the task` + `addBlockedBy` dependency wiring and per-batch shutdown via `send follow-up instructions`. Aborts if invoked from a Cursor or Codex bundle (team tools are absent there).
-- `--dry-run` — Show the orchestration plan without deploying agents. With `--team`, also prints the team name and per-batch teammate roster. Prints a `Worktrees:` line when worktree mode is active (no scripts called).
 - `--plan-only` — Create orchestration plan file at `docs/orchestration/[sanitized-task].md` without execution. When worktree mode is active, the plan gains a `## Worktree Setup` section.
 - `--sequential` — Force sequential execution (single-task batches, for tightly dependent tasks). When worktree mode is active, all sequential tasks run in the single feature worktree.
 - `--worktree` — (legacy — now default; safe to omit) Accepted as a silent no-op. Worktree isolation is on by default; this flag matches the new default and has no additional effect.
 - `--no-worktree` — Force worktree mode **OFF** regardless of task structure. All tasks run directly in the current checkout; no feature worktree is created.
 - `<task-description>`: The complex task to orchestrate (required, can be multi-word).
 
-Strip flags from `$ARGUMENTS` and set `TEAM_FLAG=true|false`, `DRY_RUN=true|false`, `PLAN_ONLY=true|false`, `SEQUENTIAL=true|false`, `WORKTREE_MODE=true|false`. Join the remaining non-flag tokens into `TASK_DESCRIPTION`.
+Strip flags from `$ARGUMENTS` and set ``, `DRY_RUN=true|false`, `PLAN_ONLY=true|false`, `SEQUENTIAL=true|false`, `WORKTREE_MODE=true|false`. Join the remaining non-flag tokens into `TASK_DESCRIPTION`.
 
-**Feature slug derivation**: after `TASK_DESCRIPTION` is set, always sanitize it to produce `FEATURE_SLUG` before any `WORKTREE_MODE` branching — lowercase, replace `[^a-z0-9-]` with `-`, collapse runs of `-`, trim leading/trailing `-`, truncate to 20 characters. Fall back to `untitled` if empty. This is the same sanitization used for team-name context in `agent-team-dispatch.md` §1.
 
 If no task description is provided after stripping flags, abort with usage instructions:
 
 ```
-Usage: /orchestrate [--team] [--dry-run] [--plan-only] [--sequential] [--worktree] [--no-worktree] <task-description>
+Usage: /orchestrate [--dry-run] [--plan-only] [--sequential] [--worktree] [--no-worktree] <task-description>
 
 Examples:
   /orchestrate "Implement user authentication with tests and docs"
     # default: all parallel and sequential tasks share one feature worktree
 
-  /orchestrate --team "Implement user authentication with tests and docs"
     # agent-team dispatch (worktree still on by default for parallel tasks)
 
   /orchestrate --dry-run "Debug payment processing failure"
   /orchestrate --plan-only "Refactor database layer"
   /orchestrate --sequential "Migrate legacy config"
-  /orchestrate --team --dry-run "Update API documentation across all services"
 
   /orchestrate --no-worktree "Refactor the auth middleware"
     # opt out of worktree isolation; all tasks run in the current checkout
 
-  /orchestrate --team --no-worktree "Implement user authentication with tests and docs"
     # agent-team dispatch without worktrees
 ```
 
-**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must abort with a clear message. Those bundles ship without team tools (`spawn coordinated subagents`, `track the task`, `send follow-up instructions`, etc.). The default standalone sub-agent path is the only execution mode available there. `--worktree` is supported on all targets via the Bash-fallback path (`git worktree add`); on Cursor, emit the `git worktree add` commands as instructions rather than auto-creating.
 
-**Team opt-in note**: If `--team` is passed and `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment, abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Use --parallel instead, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your opencode settings if you intentionally want agent-team dispatch.`
 
 ---
 
@@ -118,10 +109,9 @@ This template provides patterns for breaking down tasks by feature area, technic
 
 ### Step 5: Register Subtasks
 
-Branch on `TEAM_FLAG`:
+Use standalone execution:
 
-- `TEAM_FLAG=false` → **Path A (default)**: register subtasks locally via `the todo tracker`. No team is created. Skip to Step 6.
-- `TEAM_FLAG=true` → **Path B**: create the team and register all subtasks up front with dependency wiring (5a–5c below).
+- `STANDALONE_MODE=true` → **Path A (default)**: register subtasks locally via `the todo tracker`. No team is created. Skip to Step 6.
 
 #### Path A — Local todos (default)
 
@@ -132,39 +122,7 @@ Using **the todo tracker**, register each subtask as a todo item:
 - id: "subtask-2", content: "[Subtask 2 title] — agent: [agent-type] — depends: [subtask-1]", status: "pending"
 ```
 
-Track batch completion in-context after each batch's `Agent` calls return.
-
-#### Path B — Agent team (`--team` only)
-
-> If `DRY_RUN=true` or `PLAN_ONLY=true`, **skip 5a–5c and proceed directly to Step 10**. Team creation is not needed for dry-run or plan-only output; compute the sanitized team name in-memory only.
-
-**5a: Create the orchestration team:**
-
-Sanitize the task description to create a team name (lowercase, replace non-alphanumeric with `-`, collapse runs, trim, cap at **20 chars**, fall back to `untitled` if empty). Team name: `orch-<sanitized-task>`.
-
-```
-spawn coordinated subagents: team_name="orch-<sanitized-task>", description="Orchestration team for: <task description>"
-```
-
-On failure, abort.
-
-**5b: Create subtasks in the shared task list:**
-
-For **every subtask across all batches**, use **track the task**:
-
-```
-track the task: subject="[subtask-N]: [Description]", description="Agent: [agent-type]. Scope: [details]. Expected output: [deliverables]."
-```
-
-**5c: Wire up dependencies up front:**
-
-For each subtask `T` with dependencies `[X, Y, Z]`, use **update the todo tracker** with `addBlockedBy`:
-
-```
-update the todo tracker: taskId="<T-id>", addBlockedBy=["<X-id>", "<Y-id>", "<Z-id>"]
-```
-
-This populates the shared task graph **once**, not per batch. If any `track the task` or `update the todo tracker` fails → `end the coordinated run`, then abort.
+Track batch completion in-context after each batch's native `subagent` calls return.
 
 ### Step 6: Validate Task Decomposition
 
@@ -274,7 +232,6 @@ When `WORKTREE_MODE=true` and `PLAN_ONLY=true`: skip all script calls. Include t
 
 If `--dry-run` is present:
 
-**Default dry-run (no `--team`)** — display the batch roster only:
 
 ```markdown
 # Dry Run: Orchestration Plan for [Task]
@@ -318,32 +275,14 @@ If `--dry-run` is present:
 Remove --dry-run flag to execute the orchestration.
 ```
 
-**`--team --dry-run`** — also print the team name and per-batch teammate roster:
 
-```
-Team name:    orch-<sanitized-task>
-Total subtasks: <N>  (across <M> batches, max parallel width <X>)
-Dependencies: <K edges>
 
-Batch 1: <comma-separated subtask IDs>
-Batch 2: <comma-separated subtask IDs>  (depends on Batch 1)
-...
-Batch M: <comma-separated subtask IDs>  (depends on Batch M-1)
-
-Per-batch teammate roster:
-  Batch 1:
-    - subtask-1  subagent_type=<agent-type>  focus=<short>
-    - subtask-2  subagent_type=<agent-type>  focus=<short>
-  ...
-```
-
-**`--worktree --dry-run`** — append a `Worktree:` line to the dry-run output (both the default and `--team` variants). No `setup-worktree.sh` or `list-worktrees.sh` calls are made in dry-run mode:
 
 ```
 Worktree:   feature=<repo-root>/.config/opencode/worktrees/<repo>-<FEATURE_SLUG>/  (all subtasks)
 ```
 
-Do **not** call `spawn coordinated subagents`, `track the task`, `Agent`, `send follow-up instructions`, or `end the coordinated run` in dry-run mode. **STOP HERE**.
+Do not dispatch any `subagent` calls in dry-run mode.
 
 If `--plan-only` is present:
 
@@ -371,46 +310,48 @@ If `--sequential` flag is present, create single-task batches.
 
 ### Step 12: Deploy Batch
 
-Branch on `TEAM_FLAG`:
+Use standalone execution:
 
-- `TEAM_FLAG=false` → **Path A — Standalone sub-agent batches** (default).
-- `TEAM_FLAG=true` → **Path B — Agent team batches**.
+- `STANDALONE_MODE=true` → **Path A — Standalone sub-agent batches** (default).
 
 ---
 
 #### Path A — Standalone Sub-Agent Batches (default)
 
-See `~/.config/opencode/shared/references/standalone-dispatch.md` for the full `Task`-vs-`Agent` dispatch contract and anti-patterns this path follows.
+See `~/.config/opencode/shared/references/standalone-dispatch.md` for the full native standalone dispatch, result, and failure contract this path follows.
 
 For each batch, do the following **in order**:
 
 **1. Build the per-batch agent list** — determine each subtask's name, agent type, focus, and deliverables.
 
-**2. Spawn ALL batch agents in a SINGLE message** using MULTIPLE `Task` tool calls. **No `team_name`, no `name`, no `track the task`** — standalone sub-agent semantics. Each prompt must use the **Path A coordination block** from `agent-prompts.md` (standalone implementor — no inter-agent coordination).
+**2. Spawn ALL batch agents in a SINGLE message** using multiple native `subagent` calls with `background=false`. Use only `agent`, `description`, and the complete `prompt`; validate every candidate report and owned artifact before accepting it.
 
-When `WORKTREE_MODE=true`, each Task call includes `Working directory: <PARENT_WORKTREE_PATH>` in the prompt. Do **not** pass `isolation: "worktree"` here: that creates a distinct harness worktree per agent and breaks the single-worktree contract. Add a coordination note: `All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.`:
+When `WORKTREE_MODE=true`, each native subagent call includes `Working directory: <PARENT_WORKTREE_PATH>` in the prompt. Do **not** pass `isolation: "worktree"` here: that creates a distinct harness worktree per agent and breaks the single-worktree contract. Add a coordination note: `All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.`:
 
 ```
-Task(
-  subagent_type = "nodejs-backend-architect",
+subagent(
+  agent = "nodejs-backend-architect",
   description = "Implement auth system",
-  prompt = "Working directory: <repo-root>/.config/opencode/worktrees/<repo>-<FEATURE_SLUG>/\nAll parallel agents in this batch share this path; batching guarantees no two agents touch the same file.\n\n[substituted template with Path A coordination block]"
+  prompt = "Working directory: <repo-root>/.config/opencode/worktrees/<repo>-<FEATURE_SLUG>/\nAll parallel agents in this batch share this path; batching guarantees no two agents touch the same file.\n\n[substituted template with Path A coordination block]",
+  background = false
 )
-Task(
-  subagent_type = "test-strategy-planner",
+subagent(
+  agent = "test-strategy-planner",
   description = "Create auth test plan",
-  prompt = "Working directory: <repo-root>/.config/opencode/worktrees/<repo>-<FEATURE_SLUG>/\nAll parallel agents in this batch share this path; batching guarantees no two agents touch the same file.\n\n[substituted template with Path A coordination block]"
+  prompt = "Working directory: <repo-root>/.config/opencode/worktrees/<repo>-<FEATURE_SLUG>/\nAll parallel agents in this batch share this path; batching guarantees no two agents touch the same file.\n\n[substituted template with Path A coordination block]",
+  background = false
 )
-Task(
-  subagent_type = "documentation-writer",
+subagent(
+  agent = "documentation-writer",
   description = "Document auth API",
-  prompt = "Working directory: <repo-root>/.config/opencode/worktrees/<repo>-<FEATURE_SLUG>/\nAll parallel agents in this batch share this path; batching guarantees no two agents touch the same file.\n\n[substituted template with Path A coordination block]"
+  prompt = "Working directory: <repo-root>/.config/opencode/worktrees/<repo>-<FEATURE_SLUG>/\nAll parallel agents in this batch share this path; batching guarantees no two agents touch the same file.\n\n[substituted template with Path A coordination block]",
+  background = false
 )
 ```
 
 When `WORKTREE_MODE=false` (--no-worktree), omit the `Working directory:` line — standard Path A semantics.
 
-**4. Wait for batch completion** — `Task` calls block until each sub-agent returns. Completion is implicit when all parallel calls in the single message return.
+**4. Wait for batch completion** — every native `subagent` call sets `background=false`. Process the batch after all calls return candidate reports, then validate each report and owned artifact before marking completion.
 
 **5. Process results** — review each returned summary. Update the corresponding `the todo tracker` items to `completed`.
 
@@ -418,54 +359,9 @@ When `WORKTREE_MODE=false` (--no-worktree), omit the `Working directory:` line �
 
 **7. Identify next batch** — scan the `the todo tracker` list for pending subtasks whose dependencies are now all `completed`. If subtasks remain but none are unblocked, report deadlock and stop.
 
-No `send follow-up instructions` shutdown needed in Path A — there are no teammates to shut down.
+Foreground child calls require no separate shutdown; every child has already returned its candidate report.
 
 ---
-
-#### Path B — Agent Team Batches (`--team`)
-
-For each batch, do the following **in order** (follows `agent-team-dispatch.md` §7 lifecycle):
-
-**1. Build the teammate list** for this batch — list each subtask's name and description so teammates know who else is working in parallel. Substitute into `{{BATCH_TEAMMATES}}`.
-
-**2. Spawn ALL batch teammates in a SINGLE message** using MULTIPLE `Agent` tool calls. Every call MUST include `team_name` AND `name`. When `WORKTREE_MODE=true`, each call also includes a `Working directory: <PARENT_WORKTREE_PATH>` line in the prompt. Do **not** pass `isolation: "worktree"` here: that creates a distinct harness worktree per teammate and breaks the single-worktree contract. Add the coordination note: `All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.`:
-
-```
-Agent(
-  team_name = "orch-<sanitized-task>",
-  name = "subtask-1",
-  subagent_type = "nodejs-backend-architect",
-  description = "Implement auth system",
-  isolation = "worktree",
-  prompt = "Working directory: <repo-root>/.config/opencode/worktrees/<repo>-<FEATURE_SLUG>/\nAll parallel agents in this batch share this path; batching guarantees no two agents touch the same file.\n\n[substituted template with Path B Team Communication section]"
-)
-Agent(
-  team_name = "orch-<sanitized-task>",
-  name = "subtask-2",
-  subagent_type = "test-strategy-planner",
-  description = "Create auth test plan",
-  isolation = "worktree",
-  prompt = "Working directory: <repo-root>/.config/opencode/worktrees/<repo>-<FEATURE_SLUG>/\nAll parallel agents in this batch share this path; batching guarantees no two agents touch the same file.\n\n[substituted template with Path B Team Communication section]"
-)
-Agent(
-  team_name = "orch-<sanitized-task>",
-  name = "subtask-3",
-  subagent_type = "documentation-writer",
-  description = "Document auth API",
-  isolation = "worktree",
-  prompt = "Working directory: <repo-root>/.config/opencode/worktrees/<repo>-<FEATURE_SLUG>/\nAll parallel agents in this batch share this path; batching guarantees no two agents touch the same file.\n\n[substituted template with Path B Team Communication section]"
-)
-```
-
-When `WORKTREE_MODE=false` (--no-worktree), omit `isolation` and `Working directory:` — standard Path B semantics. Each prompt MUST include the Path B Team Communication section from `agent-prompts.md`, with `{{BATCH_NUMBER}}` and `{{BATCH_TEAMMATES}}` substituted.
-
-**4. Monitor progress** — use `the todo tracker` to check when all batch tasks are complete. If a teammate messages you with an issue, respond via `send follow-up instructions` with guidance.
-
-**5. Handle failures** — if a subtask fails, note the failure, determine if dependent subtasks can proceed, and continue with independent subtasks.
-
-**6. Shut down batch teammates** — send `send follow-up instructions(to="subtask-<N>", a shutdown request)` to each teammate of the just-completed batch. Wait for all shutdowns to complete before proceeding.
-
-**7. Identify next batch** — check `the todo tracker` for pending tasks with all blockers completed. If tasks remain but none are unblocked, report deadlock and stop.
 
 ### Step 13: Repeat Until Complete
 
@@ -500,17 +396,6 @@ Verify that agent outputs work together:
 - [ ] Cross-references between components valid
 - [ ] Consistent patterns and conventions used
 
-### Step 16: Clean Up Team
-
-Gated on `TEAM_FLAG`:
-
-- `TEAM_FLAG=false` → No team was created. Skip this step.
-- `TEAM_FLAG=true` → Delete the team and its resources:
-
-  ```
-  end the coordinated run
-  ```
-
 ### Step 17: Final Summary
 
 When `WORKTREE_MODE=true`, call `list-worktrees.sh` and append its output to the summary:
@@ -528,14 +413,13 @@ Provide comprehensive completion summary:
 
 ## Execution Mode
 
-[Standalone sub-agents | Agent team (team: orch-<sanitized-task>)]
+[Standalone sub-agents]
 
-## Team Summary (Path B only)
 
 - Team: orch-<sanitized-task>
-- Total teammates spawned: [count across all batches]
+- Total sub-agents spawned: [count across all batches]
 - Batches executed: [count]
-- Inter-agent sharing: Enabled (teammates shared findings within batches via send follow-up instructions)
+- Inter-agent sharing: Enabled (sub-agents shared findings within batches via re-dispatch the affected sub-agent with the needed guidance)
 
 ## Execution Summary
 
@@ -625,14 +509,13 @@ Each agent assignment must have:
 
 The orchestration must:
 
-- [ ] Parse flags and set `TEAM_FLAG`, `DRY_RUN`, `PLAN_ONLY`, `SEQUENTIAL`, `WORKTREE_MODE` before any side effects (default: `WORKTREE_MODE=true` unless `--no-worktree` is passed)
-- [ ] Deploy independent tasks in parallel (single message, multiple `Agent` calls)
+- [ ] Parse flags and set ``, `DRY_RUN`, `PLAN_ONLY`, `SEQUENTIAL`, `WORKTREE_MODE` before any side effects (default: `WORKTREE_MODE=true` unless `--no-worktree` is passed)
+- [ ] Deploy independent tasks in parallel (single message, multiple native `subagent` calls)
 - [ ] Respect dependency ordering between batches
 - [ ] Track progress via `the todo tracker` (Path A) or `the todo tracker` (Path B)
 - [ ] Handle failures gracefully
 - [ ] Synthesize results on completion
 - [ ] Verify integration between agent outputs
-- [ ] In Path B: create team before spawning agents, include `team_name` + `name` on every `Agent` call, shut down teammates between batches via `send follow-up instructions`, and clean up with `end the coordinated run`
 
 ### Result Quality Checklist
 
@@ -657,7 +540,6 @@ The final result must have:
 4. **Single Goal**: Keep all agents aligned to the main objective
 5. **Track Progress**: `the todo tracker` in Path A, `the todo tracker` in Path B
 6. **Synthesize Results**: Integrate outputs into coherent whole
-7. **Path B additions**: `spawn coordinated subagents` before spawning; every `Agent` call with `team_name=` and `name=`; `send follow-up instructions` shutdown between batches; `end the coordinated run` on completion
 
 ### When to Use Sequential Mode
 
@@ -701,12 +583,10 @@ Use `--plan-only` flag when:
 
 - **You are the orchestrator** — coordinate agents, don't implement
 - **Parallelism is the baseline** — every batch dispatches concurrently regardless of path
-- **Default dispatch is standalone sub-agents** — `--team` is an opt-in for shared task-graph observability in opencode
-- **Deploy in batches** — single message with multiple `Agent` calls per batch
+- **Deploy in batches** — single message with multiple native `subagent` calls per batch
 - **Respect dependencies** — never start a subtask before its dependencies complete
 - **Handle failures** — continue with independent subtasks if one fails
 - **Track progress** — `the todo tracker` updates (Path A) or `the todo tracker` (Path B)
-- **Path B only** — create team first, include `team_name` + `name` on every spawn, shut down teammates between batches via `send follow-up instructions`, and call `end the coordinated run` on completion
 - **Quality over speed** — ensure proper coordination and integration
 
 ---
@@ -734,12 +614,3 @@ Use `--plan-only` flag when:
 **Solution**: Ask clarifying questions before decomposition, use dry-run to preview, iterate on plan
 
 ---
-
-## Agent Team Lifecycle Reference
-
-For Path B's team lifecycle contract (sanitization, shutdown sequence, failure policy,
-multi-batch reuse pattern), refer to:
-
-```
-~/.config/opencode/shared/references/agent-team-dispatch.md
-```

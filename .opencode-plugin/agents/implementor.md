@@ -94,8 +94,7 @@ Only stop if the problem points to a deeper issue outside your assigned scope bu
 
 ### 5. Required Final `STATUS:` Line
 
-You are dispatched via the blocking `Task` tool — your entire response is returned
-inline to the orchestrator in the same turn, so it must be mechanically parseable.
+You are dispatched through OpenCode V2's native `subagent` tool. Return a nonempty, mechanically parseable report; the parent validates your report and on-disk work separately, and a host lifecycle state alone does not prove completion.
 **Always end your response** with a final line in exactly one of these two forms:
 
 ```

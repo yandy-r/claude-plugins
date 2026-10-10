@@ -103,4 +103,7 @@ if [[ "$BAD" -ne 0 ]]; then
   exit 1
 fi
 
+echo "== Native V2 dispatch content policy =="
+python3 "${REPO_ROOT}/scripts/validate_opencode_dispatch.py" "${AGENTS_DIR}"
+
 echo "OK: .opencode-plugin/agents is in sync and passes opencode-native lint."

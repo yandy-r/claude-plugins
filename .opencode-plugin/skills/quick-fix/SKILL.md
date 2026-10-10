@@ -209,9 +209,9 @@ artifact status lines.
 ### Parallel mode
 
 Process one batch containing all same-file groups. Dispatch all groups in a
-single message with multiple `Task` calls, one call per file group:
+single message with multiple native `subagent` calls, one call per file group:
 
-- `subagent_type`: `review-fixer`
+- `agent`: `review-fixer`
 - `description`: `Quick-fix <ids> in <file>`
 - `prompt`: Shape A or Shape B as above
 

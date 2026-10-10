@@ -11,16 +11,18 @@ for the separate `Agent`+`team_name` lifecycle used by `--team`/Path C runs.
 
 ## 1. What `Task` Is
 
-`Task` is the cross-target (Claude Code, Cursor, Codex, opencode) primitive for spawning
-one or more sub-agents that run to completion and hand their result back to the caller in
-the **same turn**, as the tool's return value. There is no roster, no shared task list, and
-no `team_name` — each `Task` call is an independent, self-contained dispatch.
+`Task` is Claude Code's primitive for spawning one or more standalone sub-agents that run
+to completion and hand their result back to the caller in the **same turn**, as the tool's
+return value. There is no roster, no shared task list, and no `team_name` — each `Task`
+call is an independent, self-contained dispatch. Compatibility generators must translate
+this Claude-facing source contract into each target's native dispatch and result vocabulary;
+generated bundles must not describe `Task` as a universal host API.
 
 This is a fundamentally different mechanism from `Agent`+`team_name`:
 
 |                 | `Task` (standalone)                        | `Agent` + `team_name` (Path C / `--team`)                               |
 | --------------- | ------------------------------------------ | ----------------------------------------------------------------------- |
-| Availability    | Claude Code, Cursor, Codex, opencode       | Claude Code only                                                        |
+| Availability    | Claude Code                                | Claude Code only                                                        |
 | Execution model | Blocking — caller waits for the result     | Async — spawns a background teammate                                    |
 | Result delivery | Returned inline as the tool's return value | A "finished" notification only; output is **not** returned inline       |
 | Coordination    | None — no shared task list                 | `TaskCreate`/`TaskList`/`SendMessage` against the shared team           |
@@ -155,12 +157,10 @@ the gap — a quietly missing finding is worse than a reported one.
 
 ## 7. Cross-Target Portability
 
-`Task` works identically on all four ycc deployment targets — Claude Code, Cursor, Codex,
-and opencode. `Agent`+`team_name` does not: it is a Claude-Code-only primitive. Per the
-`AGENTS:cursor` note in
-[target-capability-matrix.md](./target-capability-matrix.md), Cursor (and, by the same
-constraint, the Codex and opencode bundles) does not consume Claude Code agent-team
-definitions directly — there is no team-tool surface (`TeamCreate`/`TaskCreate`/
-`SendMessage`/`TeamDelete`) on those targets. Any skill that needs to run on all four
-targets must use `Task` for its standalone fan-out path; `Agent`+`team_name` is reserved
-for the Claude-Code-only `--team`/Path C path.
+This file is the Claude-facing source contract. Cursor, Codex, and opencode generators
+must project it onto the target's actual tools and lifecycle rather than copying Claude
+identifiers or return assumptions. `Agent`+`team_name` remains Claude-Code-only. Per the
+`AGENTS:cursor` note in [target-capability-matrix.md](./target-capability-matrix.md), those
+generated targets have no Claude agent-team surface (`TeamCreate`/`TaskCreate`/
+`SendMessage`/`TeamDelete`); their standalone path must use the target-native dispatch
+primitive, and their generated `--team` path must fail closed when no equivalent exists.

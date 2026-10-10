@@ -1,6 +1,6 @@
 # Enhanced Researcher Prompts (7-agent fan-out for prp-plan --enhanced)
 
-> **Contract**: Each of these 7 researchers feeds the `prp-plan` synthesizer in Phase 6. They are dispatched standalone via the blocking `Task` tool (see `~/.config/opencode/shared/references/standalone-dispatch.md`). Each researcher returns its findings inline as structured rows that map directly to a section of the PRP plan template at `~/.config/opencode/skills/prp-plan/references/plan-template.md`, **AND** additionally writes the same discovery table to a backstop file at `docs/prps/plans/.prp-research/<feature-slug>/<role-name>.md` using the `Write` tool, so the findings are never lost even if the inline return is interrupted or truncated. All 7 use `@prp-researcher`, distinguished only by `name=` and the role-specific prompt below.
+> **Contract**: Each of these 7 researchers feeds the `prp-plan` synthesizer in Phase 6. They are dispatched standalone via the foreground native `subagent` call (`background=false`) (see `~/.config/opencode/shared/references/standalone-dispatch.md`). Each researcher returns its findings inline as structured rows that map directly to a section of the PRP plan template at `~/.config/opencode/skills/prp-plan/references/plan-template.md`, **AND** additionally writes the same discovery table to a backstop file at `docs/prps/plans/.prp-research/<feature-slug>/<role-name>.md` using the `Write` tool, so the findings are never lost even if the inline return is interrupted or truncated. All 7 use `@prp-researcher`, distinguished only by `description` plus the role-specific `prompt` and the role-specific prompt below.
 
 ## Roster
 
@@ -62,7 +62,7 @@ Constraints:
 - Code snippets: 5 lines max per finding
 - Discovery table format only — no prose summaries
 - Write your full output to the backstop file `docs/prps/plans/.prp-research/<feature-slug>/api-researcher.md` using the Write tool, AND also return the same content inline in your final response.
-- Do NOT reference send follow-up instructions or inter-teammate coordination
+- Do NOT reference re-dispatch the affected sub-agent with the needed guidance or inter-sub-agent coordination
 ```
 
 ---
@@ -110,7 +110,7 @@ Constraints:
 - Code snippets: 5 lines max per finding (cite file:line for any codebase evidence)
 - Discovery table format only — no prose summaries
 - Write your full output to the backstop file `docs/prps/plans/.prp-research/<feature-slug>/business-analyzer.md` using the Write tool, AND also return the same content inline in your final response.
-- Do NOT reference send follow-up instructions or inter-teammate coordination
+- Do NOT reference re-dispatch the affected sub-agent with the needed guidance or inter-sub-agent coordination
 ```
 
 ---
@@ -169,7 +169,7 @@ Constraints:
 - Code snippets: 5 lines max per finding
 - Discovery table format only — no prose summaries
 - Write your full output to the backstop file `docs/prps/plans/.prp-research/<feature-slug>/tech-designer.md` using the Write tool, AND also return the same content inline in your final response.
-- Do NOT reference send follow-up instructions or inter-teammate coordination
+- Do NOT reference re-dispatch the affected sub-agent with the needed guidance or inter-sub-agent coordination
 ```
 
 ---
@@ -222,7 +222,7 @@ Constraints:
 - Code snippets: 5 lines max per finding
 - Discovery table format only — no prose summaries
 - Write your full output to the backstop file `docs/prps/plans/.prp-research/<feature-slug>/ux-researcher.md` using the Write tool, AND also return the same content inline in your final response.
-- Do NOT reference send follow-up instructions or inter-teammate coordination
+- Do NOT reference re-dispatch the affected sub-agent with the needed guidance or inter-sub-agent coordination
 ```
 
 ---
@@ -280,7 +280,7 @@ Constraints:
 - Code snippets: 5 lines max per finding
 - Discovery table format only — no prose summaries
 - Write your full output to the backstop file `docs/prps/plans/.prp-research/<feature-slug>/security-researcher.md` using the Write tool, AND also return the same content inline in your final response.
-- Do NOT reference send follow-up instructions or inter-teammate coordination
+- Do NOT reference re-dispatch the affected sub-agent with the needed guidance or inter-sub-agent coordination
 ```
 
 ---
@@ -342,7 +342,7 @@ Constraints:
 - Code snippets: 5 lines max per finding
 - Discovery table format only — no prose summaries
 - Write your full output to the backstop file `docs/prps/plans/.prp-research/<feature-slug>/practices-researcher.md` using the Write tool, AND also return the same content inline in your final response.
-- Do NOT reference send follow-up instructions or inter-teammate coordination
+- Do NOT reference re-dispatch the affected sub-agent with the needed guidance or inter-sub-agent coordination
 ```
 
 ---
@@ -410,5 +410,5 @@ Constraints:
 - Code snippets: 5 lines max per finding (cite file:line for any codebase evidence)
 - Discovery table format only — no prose summaries
 - Write your full output to the backstop file `docs/prps/plans/.prp-research/<feature-slug>/recommendations-agent.md` using the Write tool, AND also return the same content inline in your final response.
-- Do NOT reference send follow-up instructions or inter-teammate coordination
+- Do NOT reference re-dispatch the affected sub-agent with the needed guidance or inter-sub-agent coordination
 ```

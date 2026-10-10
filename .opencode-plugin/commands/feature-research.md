@@ -1,14 +1,14 @@
 ---
 description: 'Research a feature comprehensively before implementation — analyzes
   requirements, gathers external API context, and produces a feature-spec.md ready
-  for plan-workflow. Defaults to standalone parallel sub-agents; pass --team (Claude
-  Code only) to deploy the 7 researchers as teammates under a shared spawn coordinated
-  subagents/the todo tracker with coordinated shutdown. Use when starting a new feature
-  and you need structured research before coding. Usage: [--team] [--description "..."]
-  [--dry-run] [feature-name]'
+  for plan-workflow. Defaults to standalone parallel sub-agents. Use when starting
+  a new feature and you need structured research before coding. Usage: [--description
+  "..."] [--dry-run] [feature-name]'
 ---
 
 # Feature Research Command
+
+> **OpenCode V2 compatibility:** `--team` is unsupported. If it is supplied, abort before setup or dispatch and ask the caller to rerun without it. This target uses native standalone `subagent` calls only.
 
 Research the specified feature and produce a `feature-spec.md`.
 
@@ -18,6 +18,4 @@ The skill deploys 7 parallel researchers (api, business, tech, UX, security, pra
 
 **Flags** (pass before the feature name):
 
-- `--team` — (Claude Code only) Dispatch the 7 researchers as teammates under a shared `spawn coordinated subagents`/`the todo tracker` with coordinated shutdown and inter-teammate `send follow-up instructions` coordination. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
 - `--description "..."` — Brief description of the feature; guides the researchers.
-- `--dry-run` — Preview the execution plan without deploying agents. With `--team`, also prints the team name and 7-teammate roster.

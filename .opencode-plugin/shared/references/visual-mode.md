@@ -12,9 +12,7 @@ change how a plan is researched, dispatched, or written — it only runs once,
 **after** the plan exists and has been validated, to produce a visual rendering
 of that plan.
 
-See [worktree-strategy.md](./worktree-strategy.md) for where plan artifacts live
-and [agent-team-dispatch.md](./agent-team-dispatch.md) for the team lifecycle
-that `--team` layers on top of planning.
+See [worktree-strategy.md](./worktree-strategy.md) for where plan artifacts live.
 
 ---
 
@@ -62,15 +60,11 @@ flags. It is applied once, at the end, regardless of which of these are present:
 | Flag            | Interaction with `--visual`                                                                      |
 | --------------- | ------------------------------------------------------------------------------------------------ |
 | `--parallel`    | Independent. Parallel dispatch finishes, plan is written + validated, then `--visual` runs once. |
-| `--team`        | Independent. Team lifecycle completes first; `--visual` decorates the final plan.                |
 | `--enhanced`    | Independent. Enhancement affects plan content; `--visual` renders the enhanced result.           |
 | `--no-worktree` | Independent. Worktree opt-out does not affect whether or how `--visual` runs.                    |
 | `--dry-run`     | **Short-circuits** `--visual` (see §2.1).                                                        |
 
-Because `--visual` is a terminal decorator, the combination
-`--parallel --team --visual` (etc.) means: do the parallel/team planning, write
-
-- validate the plan, then run the single `--visual` step on the result.
+Because `--visual` is a terminal decorator, `--parallel --visual` means: finish standalone planning, write and validate the plan, then run the single `--visual` step.
 
 ### 2.1 `--dry-run` short-circuit
 

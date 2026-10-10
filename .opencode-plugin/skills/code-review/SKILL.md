@@ -10,6 +10,8 @@ description: Dual-mode code review — local uncommitted changes or a GitHub PR.
 
 # Code Review
 
+> **OpenCode V2 compatibility:** `--team` is unsupported. If it is supplied, abort before setup or dispatch and ask the caller to rerun without it. This target uses native standalone `subagent` calls only.
+
 > PR review mode adapted from PRPs-agentic-eng by Wirasm. Part of the PRP workflow series.
 
 **Input**: `$ARGUMENTS`
@@ -25,28 +27,21 @@ Before selecting mode, extract flags from `$ARGUMENTS`:
 | `--approve`         | Force the final decision to APPROVE regardless of findings (still reports all findings)                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `--request-changes` | Force the final decision to REQUEST CHANGES regardless of findings                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `--parallel`        | Fan out the REVIEW phase across 3 **standalone** `code-reviewer` sub-agents (correctness, security, quality) dispatched in parallel and merge findings. Works in opencode, Cursor, and Codex.                                                                                                                                                                                                                                                                                                   |
-| `--team`            | (Claude Code only) Fan out the REVIEW phase across the same 3 `code-reviewer` reviewers, but dispatched as an **agent team** with up-front `track the task`, shared `the todo tracker` observability, inter-reviewer coordination via `send follow-up instructions`, and coordinated shutdown before merge. Heavier dispatch, richer communication.                                                                                                                                                                            |
 | `--worktree`        | (legacy / now default; safe to omit) Check out the PR head branch into an isolated worktree at `<repo-root>/.config/opencode/worktrees/<repo>-pr-<N>/`. Worktree mode is on by default in PR mode; pass `--no-worktree` to opt out.                                                                                                                                                                                                                                                                             |
 | `--no-worktree`     | Opt out of worktree isolation in PR mode. Skip worktree creation, artifact commit+push, and cleanup. Files are read directly from the main checkout.                                                                                                                                                                                                                                                                                                                                                   |
 | `--keep-draft`      | Skip the automatic draft→ready promotion in PR mode. Default: PR is promoted to Ready for Review before posting the review.                                                                                                                                                                                                                                                                                                                                                                            |
 | `--keep-worktree`   | Skip removal of the PR worktree after the review is posted. The artifact is still committed and pushed to the PR branch. Default: worktree is removed via `git worktree remove <path>` after a clean review post.                                                                                                                                                                                                                                                                                      |
-| `--quick`           | **Alias for `/quick-review`.** Fast interactive review of uncommitted changes — prints findings inline and asks Apply fixes / Save to file / Discard. Writes only on confirmation. Compatible with `--parallel` and `--team`. Mutually exclusive with a PR argument, `--approve`, and `--request-changes`. This skill validates the combination and then delegates to `/quick-review` with the remaining flags. See that skill's `--yes`, `--save`, and `--severity` options for scripted use. |
+| `--quick`           | **Alias for `/quick-review`.** Fast interactive review of uncommitted changes — prints findings inline and asks Apply fixes / Save to file / Discard. Writes only on confirmation. Compatible with `--parallel`. Mutually exclusive with a PR argument, `--approve`, and `--request-changes`. This skill validates the combination and then delegates to `/quick-review` with the remaining flags. See that skill's `--yes`, `--save`, and `--severity` options for scripted use. |
 
-Strip these from `$ARGUMENTS` and set `QUICK_MODE=true|false`, `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `NO_WORKTREE_MODE=true|false`, `KEEP_DRAFT=true|false`, and `KEEP_WORKTREE=true|false`. Compute `WORKTREE_MODE=true` unless `--no-worktree` is present (default-on in PR mode; ignored for local mode as before). The remaining text is the mode selector (PR number/URL or blank for local).
+Strip the supported flags from `$ARGUMENTS` and set `QUICK_MODE=true|false`, `PARALLEL_MODE=true|false`, `NO_WORKTREE_MODE=true|false`, `KEEP_DRAFT=true|false`, and `KEEP_WORKTREE=true|false`. Compute `WORKTREE_MODE=true` unless `--no-worktree` is present. The remaining text is the mode selector (PR number/URL or blank for local).
 
 **Validation**:
 
-- `--parallel` and `--team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --team are mutually exclusive. Pick one.`
-- If `--team` is set during a bundle invocation (Cursor/Codex), abort with: `--team is not supported in bundle invocations; use --parallel instead.`
-- If `--team` is passed and `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment, abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Use --parallel instead, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your opencode settings if you intentionally want agent-team dispatch.`
 - `--quick` with a PR number/URL is **not allowed**. If both are passed → abort with: `--quick only reviews uncommitted local changes; remove the PR argument or drop --quick.`
 - `--quick` with `--approve` or `--request-changes` is **not allowed**. Quick mode does not publish a GitHub review, so these flags have no meaning. Abort with: `--approve / --request-changes have no meaning in quick mode (no GitHub review is posted). Drop the flag or use PR mode.`
 - `--quick` with `--no-worktree`, `--keep-draft`, or `--keep-worktree` is accepted as a **no-op** (quick mode never creates a worktree or touches GitHub). Emit a note: `<flag> has no effect in quick mode.`
-- `--quick` with `--parallel` or `--team` is **allowed**. Quick mode honors the 3-reviewer fan-out for its REVIEW phase. `--team` still requires opencode (same compatibility gate as today).
 
-**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools — `spawn coordinated subagents`, `send follow-up instructions`, etc.). Use `--parallel` instead.
 
-Parallel mode and team mode both apply to **both** Local Review Mode (Phase 2) and PR Review Mode (Phase 3). All other phases are unchanged.
 
 ---
 
@@ -135,13 +130,12 @@ If no changed files, stop: "Nothing to review."
 
 ### Phase 2 — REVIEW
 
-The shape of this phase depends on `PARALLEL_MODE` and `AGENT_TEAM_MODE`:
+The shape of this phase depends on `PARALLEL_MODE`:
 
 | Flags             | Path                                        |
 | ----------------- | ------------------------------------------- |
 | Neither set       | **Path A** — single-pass review (default)   |
 | `PARALLEL_MODE`   | **Path B** — 3 parallel sub-agent reviewers |
-| `AGENT_TEAM_MODE` | **Path C** — 3-reviewer agent team          |
 
 #### Path A — Single-Pass Review (default, neither flag set)
 
@@ -159,18 +153,17 @@ Generate `TIMESTAMP=$(date +%Y%m%d-%H%M%S)` once, here, and reuse the same
 variable for the Phase 3 review filename (`local-<TIMESTAMP>-review.md`) — one
 canonical timestamp per invocation. Set `run-id = local-<TIMESTAMP>`.
 
-> **Standalone dispatch rule**: Dispatch the 3 reviewers via the blocking
-> `Task` tool in ONE message — never the async `Agent` tool, and never with
-> `name`, `team_name`, or `run_in_background` set. In the normal case `Task`
-> blocks and its return value IS each reviewer's findings, delivered inline in
-> the same turn. If a batch doesn't return inline (async fallback), don't
-> `sleep`-loop or poll — yield/end the turn so the completion notification can
-> flush, then resume. See
-> [standalone-dispatch.md](~/.config/opencode/shared/references/standalone-dispatch.md)
-> for the full contract.
+> **OpenCode V2 standalone dispatch:** Issue the independent calls in one
+> parallel tool batch and set `background=false` on every call. Each call waits
+> for a candidate report. Require nonempty report text, validate the declared
+> artifact or diff independently, and do not treat a terminal lifecycle state
+> as proof of the deliverable. Apply the contentless-completion and bounded
+> retry policy from
+> [standalone-dispatch.md](~/.config/opencode/shared/references/standalone-dispatch.md).
+
 
 Dispatch **3 standalone `code-reviewer` sub-agents in parallel** in a SINGLE
-message with MULTIPLE `Task` tool calls. Use the **Local / Quick Mode Roster**
+message with MULTIPLE native `subagent` calls. Use the **Local / Quick Mode Roster**
 (`correctness-reviewer`, `security-reviewer`, `quality-reviewer`) and
 **Standard Findings Format** from:
 
@@ -183,90 +176,12 @@ its own scratch path — `docs/prps/reviews/.review-scratch/local-<TIMESTAMP>/<r
 (e.g. `.../correctness-reviewer.md`) — alongside the changed files, its focus +
 checklist items, the severity rubric, and the findings-format directive.
 
-After all 3 `Task` calls return: for any reviewer whose inline return is
+After all 3 native `subagent` calls return: for any reviewer whose inline return is
 empty, missing, or malformed, re-read its scratch file at that path before
 merging (Merge Procedure in the reference). Pass the merged findings to
 Phase 3 (REPORT) as if they came from a single-pass review. Phase 3 removes
 the `docs/prps/reviews/.review-scratch/local-<TIMESTAMP>/` directory once the
 review artifact has been written successfully.
-
-#### Path C — Agent Team Review (`AGENT_TEAM_MODE=true`, Claude Code only)
-
-> **MANDATORY — AGENT TEAMS REQUIRED**
->
-> In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
-> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
->
-> 1. `spawn coordinated subagents` once at the start
-> 2. `track the task` for all 3 reviewer subtasks up front (flat graph — no dependencies)
-> 3. Spawn 3 teammates: single message, three `Agent` calls with `team_name=` + `name=`
-> 4. `the todo tracker` to monitor until all reviewers mark complete
-> 5. `send follow-up instructions({type:"shutdown_request"})` to all 3 teammates
-> 6. `end the coordinated run` before merging
->
-> If `spawn coordinated subagents` or `track the task` fails, abort the skill. Refer to
-> `~/.config/opencode/shared/references/agent-team-dispatch.md`
-> for the full lifecycle contract.
-
-Same 3-reviewer roster as Path B, but dispatched as a coordinated team with a shared task list. Use this when reviewers may surface overlapping findings (e.g., a security hole that's also a correctness bug) and you want them to cross-reference each other via `send follow-up instructions` during review.
-
-##### C.1 Build the team name
-
-Team name: `crev-local-<YYYYMMDD-HHMMSS>`. Use the same timestamp you will use later when writing the review artifact so the team name and the output filename share a traceable identifier.
-
-##### C.2 Create the team
-
-```
-spawn coordinated subagents: team_name="crev-local-<timestamp>", description="Code review team for uncommitted local changes"
-```
-
-On failure, abort.
-
-##### C.3 Register subtasks
-
-Create 3 tasks in the shared task list (flat graph — reviewers are independent):
-
-```
-track the task: subject="correctness-reviewer: code-quality review of uncommitted changes", description="<full reviewer prompt>"
-track the task: subject="security-reviewer: security review of uncommitted changes",        description="<full reviewer prompt>"
-track the task: subject="quality-reviewer: best-practices review of uncommitted changes",   description="<full reviewer prompt>"
-```
-
-If any `track the task` fails → `end the coordinated run`, then abort.
-
-##### C.4 Spawn the 3 reviewers (single message, three Agent calls)
-
-Dispatch all three teammates in **ONE message** with **THREE `Agent` tool calls**. Every call MUST include:
-
-- `team_name`: `"crev-local-<timestamp>"`
-- `name`: the reviewer name (`correctness-reviewer`, `security-reviewer`, `quality-reviewer`) — must match the `track the task` subject prefix
-- `subagent_type`: `"code-reviewer"`
-- `description`: One-line task title (e.g., `"Code-quality review of local changes"`)
-- `prompt`: The same reviewer prompt used in Path B (changed files, focus + checklist items, severity rubric, expected findings format) PLUS a note that the teammate shares a task list with two sibling reviewers (name them) and may `send follow-up instructions` them if it discovers a finding that overlaps their scope, and must call `update the todo tracker` to mark its task complete before returning.
-
-##### C.5 Monitor and collect results
-
-Use `the todo tracker` to confirm all 3 tasks are `completed` before merging. If a teammate messages the orchestrator, respond via `send follow-up instructions`. Failure policy:
-
-- All 3 error → `end the coordinated run`, abort with a clear error.
-- 1 or 2 error → record "partial review — {role} did not complete" and proceed with the remaining reviewers' findings. Note the gap in the Phase 3 artifact Summary.
-
-##### C.6 Shutdown and cleanup
-
-After all teammates have marked their tasks complete (or been recorded as failed):
-
-```
-send follow-up instructions(to="correctness-reviewer", message={type:"shutdown_request"})
-send follow-up instructions(to="security-reviewer",    message={type:"shutdown_request"})
-send follow-up instructions(to="quality-reviewer",     message={type:"shutdown_request"})
-end the coordinated run
-```
-
-Always `end the coordinated run` — even on abort or partial failure.
-
-##### C.7 Merge findings
-
-Apply the same merge procedure as Path B (combine by severity, de-dupe at `file:line`, sort by file path, attach reviewer source tags). Pass the merged findings to Phase 3 (REPORT).
 
 ### Phase 3 — REPORT
 
@@ -321,14 +236,14 @@ Never approve code with security vulnerabilities.
 ### Delegation
 
 Invoke the `quick-review` skill via the `Skill` tool. Forward the
-remaining flags — `--parallel` or `--team`, plus anything quick-review
+remaining flags — `--parallel`, plus anything quick-review
 accepts — but drop the flags this skill owns (`--quick`, `--approve`,
 `--request-changes`, `--no-worktree`, `--keep-draft`, `--keep-worktree`;
 Phase 0 already consumed them).
 
 ```
 Skill: quick-review
-  args: "<stripped flags: --parallel | --team | --yes | --save | --severity <level>>"
+  args: "<stripped flags: --parallel | --yes | --save | --severity <level>>"
 ```
 
 Print a single one-line notice before delegating so the user sees what
@@ -406,13 +321,12 @@ gh pr diff <NUMBER> --name-only | while IFS= read -r file; do
 done
 ```
 
-The shape of this phase depends on `PARALLEL_MODE` and `AGENT_TEAM_MODE`:
+The shape of this phase depends on `PARALLEL_MODE`:
 
 | Flags             | Path                                        |
 | ----------------- | ------------------------------------------- |
 | Neither set       | **Path A** — single-pass review (default)   |
 | `PARALLEL_MODE`   | **Path B** — 3 parallel sub-agent reviewers |
-| `AGENT_TEAM_MODE` | **Path C** — 3-reviewer agent team          |
 
 #### Path A — Single-Pass Review (default, neither flag set)
 
@@ -428,18 +342,17 @@ Maintainability) and the **Severity Rubric** from:
 
 Set `run-id = pr-<NUMBER>` (PR numbers are unique, so no timestamp is needed).
 
-> **Standalone dispatch rule**: Dispatch the 3 reviewers via the blocking
-> `Task` tool in ONE message — never the async `Agent` tool, and never with
-> `name`, `team_name`, or `run_in_background` set. In the normal case `Task`
-> blocks and its return value IS each reviewer's findings, delivered inline in
-> the same turn. If a batch doesn't return inline (async fallback), don't
-> `sleep`-loop or poll — yield/end the turn so the completion notification can
-> flush, then resume. See
-> [standalone-dispatch.md](~/.config/opencode/shared/references/standalone-dispatch.md)
-> for the full contract.
+> **OpenCode V2 standalone dispatch:** Issue the independent calls in one
+> parallel tool batch and set `background=false` on every call. Each call waits
+> for a candidate report. Require nonempty report text, validate the declared
+> artifact or diff independently, and do not treat a terminal lifecycle state
+> as proof of the deliverable. Apply the contentless-completion and bounded
+> retry policy from
+> [standalone-dispatch.md](~/.config/opencode/shared/references/standalone-dispatch.md).
+
 
 Dispatch **3 standalone `code-reviewer` sub-agents in parallel** in a SINGLE
-message with MULTIPLE `Task` tool calls. Use the **PR Mode Roster**
+message with MULTIPLE native `subagent` calls. Use the **PR Mode Roster**
 (`correctness-reviewer`, `security-reviewer`, `quality-reviewer`) and
 **Standard Findings Format** from:
 
@@ -456,7 +369,7 @@ Each reviewer prompt must additionally include:
 
 The reviewer-prompt contract (focus + categories, severity rubric, findings
 format directive) and the **Merge Procedure** are defined in that reference.
-After all 3 `Task` calls return: for any reviewer whose inline return is
+After all 3 native `subagent` calls return: for any reviewer whose inline return is
 empty, missing, or malformed, re-read its scratch file at that path before
 merging. Pass the merged findings to Phase 4 (VALIDATE) and downstream phases
 as if they came from a single-pass review. Phase 6 removes the
@@ -465,95 +378,6 @@ artifact has been written and (when applicable) committed successfully.
 
 **Note**: Validation commands (Phase 4) still run sequentially in the main
 skill — parallelization here only applies to the review pass.
-
-#### Path C — Agent Team Review (`AGENT_TEAM_MODE=true`, Claude Code only)
-
-> **MANDATORY — AGENT TEAMS REQUIRED**
->
-> In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
-> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
->
-> 1. `spawn coordinated subagents` once at the start
-> 2. `track the task` for all 3 reviewer subtasks up front (flat graph — no dependencies)
-> 3. Spawn 3 teammates: single message, three `Agent` calls with `team_name=` + `name=`
-> 4. `the todo tracker` to monitor until all reviewers mark complete
-> 5. `send follow-up instructions({type:"shutdown_request"})` to all 3 teammates
-> 6. `end the coordinated run` before merging
->
-> If `spawn coordinated subagents` or `track the task` fails, abort the skill. Refer to
-> `~/.config/opencode/shared/references/agent-team-dispatch.md`
-> for the full lifecycle contract.
-
-Same 3-reviewer roster and category split as Path B, but dispatched as a coordinated team with a shared task list. Use this for larger PRs where reviewers will likely surface overlapping findings (e.g., a security hole that's also a correctness bug, or a performance issue that stems from a pattern violation) and you want them to cross-reference via `send follow-up instructions` during review.
-
-##### C.1 Build the team name
-
-Team name: `crev-pr-<NUMBER>`. Use the PR number directly (no sanitization needed since PR numbers are always digits).
-
-##### C.2 Create the team
-
-```
-spawn coordinated subagents: team_name="crev-pr-<NUMBER>", description="Code review team for PR #<NUMBER>: <PR title>"
-```
-
-On failure, abort.
-
-##### C.3 Register subtasks
-
-Create 3 tasks in the shared task list (flat graph — reviewers are independent):
-
-```
-track the task: subject="correctness-reviewer: correctness/type-safety/completeness review for PR #<NUMBER>", description="<full reviewer prompt>"
-track the task: subject="security-reviewer: security/performance review for PR #<NUMBER>",                    description="<full reviewer prompt>"
-track the task: subject="quality-reviewer: pattern-compliance/maintainability review for PR #<NUMBER>",       description="<full reviewer prompt>"
-```
-
-If any `track the task` fails → `end the coordinated run`, then abort.
-
-##### C.4 Spawn the 3 reviewers (single message, three Agent calls)
-
-Dispatch all three teammates in **ONE message** with **THREE `Agent` tool calls**. Every call MUST include:
-
-- `team_name`: `"crev-pr-<NUMBER>"`
-- `name`: the reviewer name (`correctness-reviewer`, `security-reviewer`, `quality-reviewer`) — must match the `track the task` subject prefix
-- `subagent_type`: `"code-reviewer"`
-- `description`: One-line task title (e.g., `"Correctness review for PR #42"`)
-- `prompt`: The same reviewer prompt used in Path B (PR number, head revision, list of changed files, Phase 2 context — AGENTS.md rules, PRP artifacts, PR description, assigned categories, severity rubric, expected findings format) PLUS a note that the teammate shares a task list with two sibling reviewers (name them) and may `send follow-up instructions` them if it discovers a finding that overlaps their scope, and must call `update the todo tracker` to mark its task complete before returning.
-
-##### C.5 Monitor and collect results
-
-Use `the todo tracker` to confirm all 3 tasks are `completed` before merging. If a teammate messages the orchestrator, respond via `send follow-up instructions`. Failure policy:
-
-- All 3 error → `end the coordinated run`, abort with a clear error.
-- 1 or 2 error → record "partial review — {role} did not complete" and proceed with the remaining reviewers' findings. Note the gap in the Phase 6 artifact Summary.
-
-##### C.6 Shutdown and cleanup
-
-After all teammates have marked their tasks complete (or been recorded as failed):
-
-```
-send follow-up instructions(to="correctness-reviewer", message={type:"shutdown_request"})
-send follow-up instructions(to="security-reviewer",    message={type:"shutdown_request"})
-send follow-up instructions(to="quality-reviewer",     message={type:"shutdown_request"})
-end the coordinated run
-```
-
-Always `end the coordinated run` — even on abort or partial failure.
-
-##### C.7 Merge findings
-
-Apply the same merge procedure as Path B (combine by severity, de-dupe at `file:line`, sort by file path, attach reviewer source tags). Pass the merged findings to Phase 4 (VALIDATE).
-
-**Note**: Validation commands (Phase 4), decision (Phase 5), report (Phase 6), and publish (Phase 7) all still run sequentially in the main skill — team-based coordination applies only to the review pass.
-
-Assign severity to each finding:
-
-| Severity     | Meaning                                     | Action                  |
-| ------------ | ------------------------------------------- | ----------------------- |
-| **CRITICAL** | Security vulnerability or data loss risk    | Must fix before merge   |
-| **HIGH**     | Bug or logic error likely to cause issues   | Should fix before merge |
-| **MEDIUM**   | Code quality issue or missing best practice | Fix recommended         |
-| **LOW**      | Style nit or minor suggestion               | Optional                |
 
 ### Phase 4 — VALIDATE
 
@@ -909,12 +733,3 @@ Findings missing a `Suggested fix` line are valid but will be **skipped** by `/r
 - **Cleanup**: worktrees are removed automatically after the review is posted (Phase 7 Worktree Cleanup). Pass `--keep-worktree` to retain the worktree. If the worktree is dirty, cleanup is skipped and you are told where to inspect. Use `--no-worktree` for the previous behavior (no worktree created or removed).
 
 ---
-
-## Agent Team Lifecycle Reference
-
-For Path C's team lifecycle contract (sanitization, shutdown sequence, failure policy),
-refer to:
-
-```
-~/.config/opencode/shared/references/agent-team-dispatch.md
-```

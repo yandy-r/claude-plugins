@@ -10,6 +10,8 @@ description: Execute a PRP plan file with per-task validation loops. Detects pac
 
 # PRP Implement
 
+> **OpenCode V2 compatibility:** `--team` is unsupported. If it is supplied, abort before setup or dispatch and ask the caller to rerun without it. This target uses native standalone `subagent` calls only.
+
 Execute a plan file step-by-step with continuous validation. Every change is verified immediately — never accumulate broken state.
 
 > Adapted from PRPs-agentic-eng by Wirasm. Part of the PRP workflow series.
@@ -29,22 +31,16 @@ Extract flags from `$ARGUMENTS` before treating the remainder as a plan path:
 | Flag            | Effect                                                                                                                                                                                                                                                                                                                                             |
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--parallel`    | Force parallel execution via **standalone sub-agents** when the plan is parallel-capable. Skips the interactive prompt. Falls back to sequential with a warning if the plan has no `Batches` section. Works in opencode, Cursor, and Codex.                                                                                                     |
-| `--team`        | (Claude Code only) Force parallel execution via an **agent team** with up-front `track the task` + `addBlockedBy` dependency wiring, per-batch teammate spawn, and inter-batch shutdown via `send follow-up instructions`. Aborts (does NOT fall back) if the plan has no `Batches` section. Heavier dispatch with shared task-graph observability across all batches. |
 | `--worktree`    | (legacy — now default; safe to omit) Accepted as a silent no-op. Worktree isolation is on by default; this flag matches the new default and has no additional effect.                                                                                                                                                                              |
 | `--no-worktree` | Force worktree mode **OFF** regardless of plan annotations. Tasks run directly in the current checkout. No feature worktree is created.                                                                                                                                                                                                            |
-| `--dry-run`     | Only valid with `--team`. Prints the team name, full task graph (with dependencies), and per-batch teammate roster, then exits without spawning any teammates.                                                                                                                                                                                     |
 
-Strip the flags from `$ARGUMENTS` and set `PARALLEL_FLAG=true|false`, `AGENT_TEAM_FLAG=true|false`, `WORKTREE_MODE=true|false`, `DRY_RUN=true|false`. The remaining text is the plan file path.
+Strip the flags from `$ARGUMENTS` and set `PARALLEL_FLAG=true|false`, ``, `WORKTREE_MODE=true|false`, `DRY_RUN=true|false`. The remaining text is the plan file path.
 
 **Validation**:
 
-- `--parallel` and `--team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --team are mutually exclusive. Pick one.`
-- If `--team` is passed and `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment, abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Use --parallel instead, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your opencode settings if you intentionally want agent-team dispatch.`
-- `--dry-run` requires `--team`. If `DRY_RUN=true` and `AGENT_TEAM_FLAG=false` → abort with: `--dry-run requires --team.`
-- `--no-worktree` combines freely with `--parallel` and `--team`. No exclusivity rules.
+- `--no-worktree` combines freely with `--parallel`. No exclusivity rules.
 - `--worktree` and `--no-worktree` together → abort with: `--worktree and --no-worktree are mutually exclusive. Use --no-worktree to opt out of the default.`
 
-**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools). Use `--parallel` instead.
 
 ### Package Manager Detection
 
@@ -141,15 +137,13 @@ Set `WORKTREE_ACTIVE=true` if the plan contains the `## Worktree Setup` section 
 
 ### Execution Mode Decision
 
-Decide between **Path A (Sequential)**, **Path B (Parallel sub-agents)**, and **Path C (Agent team)** based on the flags and plan capability:
+Decide between **Path A (Sequential)**, **Path B (Parallel sub-agents)** based on the flags and plan capability:
 
 | Flags        | Parallel-capable plan | Action                                                                                                                                                                                                                                                     |
 | ------------ | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--team`     | Yes                   | Proceed with **Path C** (agent-team batch execution) — no prompt                                                                                                                                                                                           |
-| `--team`     | No                    | **Abort** with: _"`--team` requires a parallel-capable plan (with `## Batches` section). This plan is sequential — re-run with `--parallel` to fall back to standalone sub-agents, or omit the flag for sequential execution."_ Do NOT silently fall back. |
 | `--parallel` | Yes                   | Proceed with **Path B** (parallel sub-agent batch execution) — no prompt                                                                                                                                                                                   |
 | `--parallel` | No                    | Warn: _"Plan has no `Batches` section — cannot run in parallel. Falling back to sequential execution."_ → **Path A**                                                                                                                                       |
-| (none)       | Yes                   | Use `ask the user` to prompt: _"This plan is parallel-capable ({N} tasks in {M} batches, max width {X}). Run sequential / parallel sub-agents / agent team?"_. Accept user's choice → **Path A**, **Path B**, or **Path C**.                            |
+| (none)       | Yes                   | Use `ask the user` to prompt: _"This plan is parallel-capable ({N} tasks in {M} batches, max width {X}). Run sequential / parallel sub-agents?"_. Accept user's choice → **Path A**, **Path B**.                            |
 | (none)       | No                    | Proceed with **Path A** (sequential) — default, no prompt                                                                                                                                                                                                  |
 
 Record the chosen mode as `EXECUTION_MODE=sequential|parallel|agent_team` for use in Phase 3.
@@ -255,8 +249,8 @@ For each batch `B1, B2, ... BN` in order (from the plan's `Batches` table):
 
 1. **Identify batch tasks** — Extract all tasks with `BATCH: BN` from the Step-by-Step Tasks section.
 
-2. **Dispatch implementor agents in parallel** — Use a **SINGLE message** with **MULTIPLE `Task` tool calls**, one per task in the batch. Each call:
-   - `subagent_type`: `"implementor"`
+2. **Dispatch implementor agents in parallel** — Use a **SINGLE message** with **MULTIPLE native `subagent` calls**, one per task in the batch. Each call:
+   - `agent`: `"implementor"`
    - `description`: The task title (e.g., `"Task 1.1: add rate limiter middleware"`)
    - `prompt`: The complete task spec (ACTION, IMPLEMENT, MIRROR, IMPORTS, GOTCHA, VALIDATE) plus the relevant excerpt from the plan's **Patterns to Mirror** section. Include a directive that the agent must read the MIRROR source file before writing code and must run its own type-check on modified files before reporting complete.
    - **When `WORKTREE_ACTIVE=true`**: append `Working directory: ${WT_PARENT_PATH}` and `All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.` to every agent prompt (parallel and sequential). Do **not** request per-agent worktree isolation here: `Agent(isolation: "worktree")` creates distinct harness worktrees and breaks the single-worktree contract. The agent must treat `${WT_PARENT_PATH}` as its repo root for all Read / Write / Edit / Bash calls.
@@ -294,146 +288,6 @@ If a batch fails validation:
 
 Proceed to **Phase 4 — VALIDATE** and run the full 5-level validation as normal. Between-batch validation only covered Levels 1 + 2; Phase 4 still runs Levels 3 (build), 4 (integration), and 5 (edge cases).
 
-### Path C — Agent Team Batch Execution (`EXECUTION_MODE=agent_team`)
-
-> **MANDATORY — AGENT TEAMS REQUIRED**
->
-> In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
-> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
->
-> 1. `spawn coordinated subagents` ONCE at the start (single team across all batches)
-> 2. `track the task` for **every task across all batches** up front, with `addBlockedBy`
->    wiring the dependency graph from the plan's `Depends on` annotations
-> 3. Per batch: spawn teammates (single message, multiple `Agent` calls with
->    `team_name=` + `name=`)
-> 4. `the todo tracker` to monitor batch completion; run between-batch validation
-> 5. `send follow-up instructions({type:"shutdown_request"})` to all teammates of completed batch
->    BEFORE spawning next batch
-> 6. `end the coordinated run` ONCE after final batch (or on abort)
->
-> If `spawn coordinated subagents` or up-front `track the task` fails, abort the skill. Refer to
-> `~/.config/opencode/shared/references/agent-team-dispatch.md`
-> for the full lifecycle contract.
-
-Process batches sequentially under a single team, with per-batch teammate spawn and
-inter-batch shutdown.
-
-#### C.1 Build the team name
-
-Sanitize the plan basename (strip `.plan.md`, lowercase, kebab, max **20 chars**, fall
-back to `untitled`). Team name: `prpi-<sanitized-plan-basename>`.
-
-#### C.2 Dry-run gate (if `DRY_RUN=true`)
-
-Print:
-
-```
-Team name:    prpi-<sanitized-plan-basename>
-Total tasks:  <N>  (across <M> batches, max parallel width <X>)
-Dependencies: <K edges>  (from plan's `Depends on` annotations)
-
-Batch 1: <comma-separated task IDs>
-Batch 2: <comma-separated task IDs>  (depends on Batch 1)
-...
-Batch M: <comma-separated task IDs>  (depends on Batch M-1)
-
-Per-batch teammate roster:
-  Batch 1:
-    - <task-id-1>  subagent_type=implementor  task=<short>
-    - <task-id-2>  subagent_type=implementor  task=<short>
-  ...
-```
-
-Do **not** call any team/task/agent tools. Exit the skill.
-
-#### C.3 Create the team
-
-```
-spawn coordinated subagents: team_name="prpi-<sanitized-plan-basename>", description="PRP-implement team for: <plan basename>"
-```
-
-On failure, abort.
-
-#### C.4 Register ALL tasks up front with dependency graph
-
-For **every task across all batches** in the plan's Step-by-Step Tasks section:
-
-```
-track the task: subject="<task-id>: <task title>", description="<full spec — ACTION, IMPLEMENT, MIRROR, IMPORTS, GOTCHA, VALIDATE>"
-```
-
-Then wire dependencies — for each task `T` with a `Depends on [X, Y, Z]` annotation:
-
-```
-update the todo tracker: taskId="<T-id>", addBlockedBy=["<X-id>", "<Y-id>", "<Z-id>"]
-```
-
-This populates the shared task graph **once**, not per batch. Subsequent batches can
-read `the todo tracker` to confirm prerequisites are complete.
-
-If any `track the task` or `update the todo tracker` fails → `end the coordinated run`, then abort.
-
-#### C.5 Per-batch loop
-
-For each batch `B1, B2, ... BN` in order (from the plan's `Batches` table):
-
-1. **Identify batch tasks** — Extract all tasks with `BATCH: BN` from the
-   Step-by-Step Tasks section.
-
-2. **Spawn batch teammates** — Single message, multiple `Agent` tool calls, one per
-   task in the batch. Every call MUST include:
-   - `team_name`: `"prpi-<sanitized-plan-basename>"`
-   - `name`: the task ID (e.g., `"1.1"`, `"2.3"`) — must match the `track the task`
-     subject prefix
-   - `subagent_type`: `"implementor"`
-   - `description`: The task title
-   - `prompt`: The complete task spec (ACTION, IMPLEMENT, MIRROR, IMPORTS, GOTCHA,
-     VALIDATE) plus the relevant excerpt from the plan's **Patterns to Mirror**
-     section. Include a directive that the agent must read the MIRROR source file
-     before writing code, must run its own type-check on modified files before
-     reporting complete, and must call `update the todo tracker` to mark its task complete.
-   - **When `WORKTREE_ACTIVE=true`**: append `Working directory: ${WT_PARENT_PATH}` and `All parallel agents in this batch share this path; batching guarantees no two agents touch the same file.` to every teammate's prompt (parallel and sequential). Do **not** request per-agent worktree isolation here: `Agent(isolation: "worktree")` creates distinct harness worktrees and breaks the single-worktree contract. Agents must treat `${WT_PARENT_PATH}` as their repo root for all Read / Write / Edit / Bash calls.
-
-3. **Wait for batch completion via `the todo tracker`** — poll until all tasks in this batch
-   are `completed`. If a teammate messages with an issue, respond via `send follow-up instructions`
-   with guidance.
-
-4. **Between-batch validation (Levels 1 + 2)** — Run the same type-check and unit-test
-   commands as Path B. On failure, **STOP** the parallel pipeline and ask the user via
-   `ask the user`: _"Batch {BN} validation failed. Choose: (1) fix manually and
-   resume from batch {BN+1}, (2) switch to sequential mode for remaining batches,
-   (3) abort."_
-   - If user picks (2) **switch to sequential**: send `send follow-up instructions(shutdown)` to all
-     teammates of the failed batch, `end the coordinated run`, then continue with Path A logic
-     for remaining batches.
-   - If user picks (3) **abort**: send `send follow-up instructions(shutdown)` to all teammates,
-     `end the coordinated run`, then exit.
-   - If user picks (1) **resume**: wait for the user to fix; on resume, send
-     `send follow-up instructions(shutdown)` to current batch teammates and proceed to Step 5.
-   - When fixing and resuming, work within the same feature worktree at `${WT_PARENT_PATH}` — no child branches to merge or clean up.
-
-5. **Shut down completed-batch teammates** — Send to every teammate of the
-   just-completed batch:
-
-   ```
-   send follow-up instructions(to="<task-id>", message={type:"shutdown_request"})
-   ```
-
-   Wait for shutdowns to complete before proceeding to the next batch.
-
-6. **Track progress** — Log: `[done] Batch BN: K tasks — complete (type-check + tests pass)`
-
-#### C.6 After all batches complete
-
-`end the coordinated run` once. Then proceed to **Phase 4 — VALIDATE** and run the full 5-level
-validation as normal. Between-batch validation only covered Levels 1 + 2; Phase 4 still
-runs Levels 3 (build), 4 (integration), and 5 (edge cases).
-
-#### Path C failure handling
-
-Same principles as Path B: do NOT auto-retry, do NOT skip a failed batch. Always
-shut down teammates and `end the coordinated run` before exiting, regardless of success or failure.
-
 ### Handling Deviations
 
 If implementation must deviate from the plan:
@@ -442,7 +296,6 @@ If implementation must deviate from the plan:
 - Note **WHY** it changed
 - Continue with the corrected approach
 - These deviations will be captured in the report
-- In parallel and agent-team modes, deviations reported by individual implementor agents are collected and included verbatim in the final report
 
 **CHECKPOINT**: All tasks executed. Deviations logged.
 
@@ -635,7 +488,7 @@ Report to user:
 
 - **Plan**: [plan file path] → archived to completed/
 - **Branch**: [current branch name]
-- **Mode**: [Sequential | Parallel sub-agents (N batches, max width X) | Agent team (N batches, max width X)]
+- **Mode**: [Sequential | Parallel sub-agents (N batches, max width X)]
 - **Status**: [done] All tasks complete
 
 ### Validation Summary
@@ -779,12 +632,3 @@ prompts, platform availability) live in the shared reference — read it before 
 - Run `/prp-plan <next-phase>` if the PRD has more phases
 
 ---
-
-## Agent Team Lifecycle Reference
-
-For Path C's team lifecycle contract (sanitization, shutdown sequence, failure policy,
-multi-batch reuse pattern), refer to:
-
-```
-~/.config/opencode/shared/references/agent-team-dispatch.md
-```

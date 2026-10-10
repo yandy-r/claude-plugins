@@ -3,14 +3,14 @@ name: deep-research
 description: Conduct strategic multi-perspective research using the Asymmetric Research
   Squad methodology with 8 specialized personas. Deploys parallel research agents
   covering historical, contrarian, analogical, systems, journalistic, archaeological,
-  futurist, and negative-space perspectives. Pass `--team` (Claude Code only) to deploy
-  the 14 research agents as teammates under a shared `spawn coordinated subagents`/`the
-  todo tracker` with coordinated shutdown; default is standalone parallel sub-agents.
-  Use for comprehensive research on complex topics requiring diverse viewpoints, competitive
-  analysis, or strategic intelligence gathering.
+  futurist, and negative-space perspectives. Use for comprehensive research on complex
+  topics requiring diverse viewpoints, competitive analysis, or strategic intelligence
+  gathering.
 ---
 
 # Deep Research - Asymmetric Research Squad
+
+> **OpenCode V2 compatibility:** `--team` is unsupported. If it is supplied, abort before setup or dispatch and ask the caller to rerun without it. This target uses native standalone `subagent` calls only.
 
 Strategic, multi-perspective research skill using the Asymmetric Research Squad methodology. Deploys 8 specialized persona agents to uncover insights from diverse viewpoints, followed by crucible analysis and emergent insight generation.
 
@@ -20,22 +20,18 @@ Strategic, multi-perspective research skill using the Asymmetric Research Squad 
 
 Parse arguments (flags first, then the research subject):
 
-- **--team**: Optional. (Claude Code only) Deploy all 14 research agents as teammates under a single shared `spawn coordinated subagents`/`the todo tracker` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
 - **--output-dir "..."**: Custom output directory (default: `research/[sanitized-subject]`)
-- **--dry-run**: Show research plan without deploying agents. With `--team`, also prints the team name and 14-teammate roster.
 - **research-subject**: Required. The topic to research (can be multi-word)
 
 If no research subject provided, abort with usage instructions:
 
 ```
-Usage: /deep-research [--team] [--output-dir "..."] [--dry-run] <research-subject>
+Usage: /deep-research [--output-dir "..."] [--dry-run] <research-subject>
 
 Examples:
   /deep-research "AI model deployment strategies"
   /deep-research --output-dir docs/research/quantum "quantum computing applications"
   /deep-research --dry-run "cryptocurrency market dynamics"
-  /deep-research --team "AI model deployment strategies"
-  /deep-research --team --dry-run "cryptocurrency market dynamics"
 ```
 
 ---
@@ -46,7 +42,6 @@ Examples:
 
 Extract from `$ARGUMENTS`:
 
-1. **--team**: Boolean flag. Set `AGENT_TEAM_MODE=true` if present, else `false`.
 2. **--output-dir**: Quoted string after flag (optional)
 3. **--dry-run**: Boolean flag. Set `DRY_RUN=true` if present, else `false`.
 4. **research-subject**: Remaining non-flag text (required)
@@ -57,9 +52,7 @@ Validate the research subject:
 - Should be a clear, focused topic
 - Not too broad (e.g., "technology") or too narrow (e.g., "one specific bug")
 
-**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools).
 
-**Team opt-in note**: If `--team` is passed and `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment, abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Use --parallel instead, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your opencode settings if you intentionally want agent-team dispatch.`
 
 ### Step 2: Determine Output Directory
 
@@ -140,33 +133,9 @@ Final report consolidating all research into actionable intelligence.
 Remove --dry-run flag to execute the research.
 ```
 
-If `AGENT_TEAM_MODE=true`, additionally print the team roster block:
 
-```
-Team name:      drpr-<sanitized-subject>
-Teammates:      14
-  Batch 1 (Phase 1 — personas):
-    - historian                subagent_type=research-specialist      task=Historical evolution
-    - contrarian               subagent_type=research-specialist      task=Disconfirming evidence
-    - analogist                subagent_type=research-specialist      task=Cross-domain parallels
-    - systems-thinker          subagent_type=research-specialist      task=Second-order effects
-    - journalist               subagent_type=research-specialist      task=Current state
-    - archaeologist            subagent_type=research-specialist      task=Past solutions
-    - futurist                 subagent_type=research-specialist      task=Speculative futures
-    - negative-space-explorer  subagent_type=research-specialist      task=What's NOT discussed
-  Batch 2 (Phase 2 — crucible):
-    - ach-analyst              subagent_type=general-purpose          task=Analysis of Competing Hypotheses
-    - contradiction-mapper     subagent_type=codebase-research-analyst task=Map persona disagreements
-  Batch 3 (Phase 3 — strategic):
-    - tension-mapper           subagent_type=codebase-research-analyst task=Maximum disagreement points
-    - pattern-recognizer       subagent_type=general-purpose          task=Unexpected historical echoes
-    - negative-space-analyst   subagent_type=codebase-research-analyst task=Unanswered questions
-    - innovation-agent         subagent_type=general-purpose          task=Novel hypotheses
-Batches:        3  (Batch 1 → Batch 2 → Batch 3)
-Dependencies:   Batch 2 blocked by Batch 1; Batch 3 blocked by Batch 2
-```
 
-Do **not** call `spawn coordinated subagents`, `track the task`, `Agent`, `send follow-up instructions`, or `end the coordinated run` in dry-run mode.
+Do not dispatch any `subagent` calls in dry-run mode.
 
 **STOP HERE** - do not run prerequisite checks, create directories, write files, or deploy agents.
 
@@ -232,70 +201,6 @@ Write the research objective document to `$OUTPUT_DIR/objective.md`:
 
 ---
 
-### Step 5.5: Team Setup (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step entirely.
-
-If `AGENT_TEAM_MODE=true`, follow the universal lifecycle contract at
-`~/.config/opencode/shared/references/agent-team-dispatch.md`.
-
-**Team name sanitization** — apply the rules from the shared reference:
-
-1. Lowercase the research subject.
-2. Replace any character matching `[^a-z0-9-]` with `-`.
-3. Collapse runs of `-` to a single `-`.
-4. Trim leading/trailing `-`.
-5. Truncate the sanitized context to **20 chars max**.
-6. If empty, fall back to `untitled`.
-
-Team name: `drpr-<sanitized-subject>`.
-
-**Create the team** (single `spawn coordinated subagents` call for the whole skill run):
-
-```
-spawn coordinated subagents: team_name="drpr-<sanitized-subject>", description="Deep-research squad for: <research-subject>"
-```
-
-On failure, abort the skill with the `spawn coordinated subagents` error message. Do NOT silently fall back to sub-agent mode.
-
-**Register all 14 tasks up front** (per the shared contract's multi-batch guidance — dependencies preserved across batches):
-
-```
-# Batch 1 — Phase 1 personas (flat, no deps)
-track the task: subject="historian: Historical evolution of <subject>",              description="Historical evolution, failed attempts, forgotten alternatives."
-track the task: subject="contrarian: Disconfirming evidence on <subject>",           description="Expert critiques, documented failures, disconfirming evidence."
-track the task: subject="analogist: Cross-domain parallels for <subject>",           description="Biological/military/economic analogies and cross-domain transfers."
-track the task: subject="systems-thinker: Second-order effects of <subject>",        description="Stakeholder mapping, causal chains, feedback loops."
-track the task: subject="journalist: Current state of <subject>",                    description="Key players, latest developments, present-day dynamics."
-track the task: subject="archaeologist: Past solutions for <subject>",               description="Obsolete approaches, 10-50 year old attempts, forgotten lineages."
-track the task: subject="futurist: Speculative futures for <subject>",               description="Patents, speculative research, 2030+ predictions."
-track the task: subject="negative-space-explorer: What's NOT discussed about <subject>", description="Adoption barriers, silent assumptions, omissions."
-
-# Batch 2 — Phase 2 crucible (blocked by all Batch 1 tasks)
-track the task: subject="ach-analyst: Analysis of Competing Hypotheses",             description="Generate 5+ mutually exclusive hypotheses and seek disconfirming evidence."
-track the task: subject="contradiction-mapper: Cross-persona disagreements",         description="Map contradictions between the 8 persona findings."
-update the todo tracker: addBlockedBy=[<historianTaskId>, <contrarianTaskId>, <analogistTaskId>, <systemsThinkerTaskId>, <journalistTaskId>, <archaeologistTaskId>, <futuristTaskId>, <negativeSpaceExplorerTaskId>]
-update the todo tracker: addBlockedBy=[<historianTaskId>, <contrarianTaskId>, <analogistTaskId>, <systemsThinkerTaskId>, <journalistTaskId>, <archaeologistTaskId>, <futuristTaskId>, <negativeSpaceExplorerTaskId>]
-
-# Batch 3 — Phase 3 strategic (blocked by all Batch 2 tasks)
-track the task: subject="tension-mapper: Maximum disagreement points",               description="Identify highest-tension disagreements from crucible output."
-update the todo tracker: addBlockedBy=[<achAnalystTaskId>, <contradictionMapperTaskId>]
-track the task: subject="pattern-recognizer: Unexpected historical echoes",          description="Find surprising pattern matches across persona findings and crucible."
-update the todo tracker: addBlockedBy=[<achAnalystTaskId>, <contradictionMapperTaskId>]
-track the task: subject="negative-space-analyst: Unanswered questions",              description="Document research gaps and what remains unresolved after crucible."
-update the todo tracker: addBlockedBy=[<achAnalystTaskId>, <contradictionMapperTaskId>]
-track the task: subject="innovation-agent: Novel hypotheses from combinations",      description="Synthesize novel hypotheses by recombining persona viewpoints."
-update the todo tracker: addBlockedBy=[<achAnalystTaskId>, <contradictionMapperTaskId>]
-```
-
-Capture the concrete IDs returned by the preceding `track the task` calls (`historianTaskId`, `achAnalystTaskId`, etc.) and substitute them directly into each `addBlockedBy` list before running `update the todo tracker`.
-
-The team persists across all three phases; teammates are spawned per phase (Steps 7, 11, 13) and shut down after each phase completes (Steps 8.5, 12.5, 13.5). `end the coordinated run` runs inside Step 13.5 — after the final shutdown — before Phase 4 synthesis.
-
-If `track the task` fails for any task, call `end the coordinated run` and abort.
-
----
-
 ## Phase 1: Asymmetric Persona Deployment
 
 ### Step 6: Read Persona Prompts
@@ -308,7 +213,7 @@ cat ~/.config/opencode/skills/deep-research/templates/persona-prompts.md
 
 ### Step 7: Deploy 8 Persona Agents in Parallel
 
-| Persona                 | Subagent Type         | Teammate `name`           | Output File                           | Search Depth |
+| Persona                 | Subagent Type         | Sub-agent role           | Output File                           | Search Depth |
 | ----------------------- | --------------------- | ------------------------- | ------------------------------------- | ------------ |
 | Historian               | `research-specialist` | `historian`               | `persona-findings/historian.md`       | 8-10 queries |
 | Contrarian              | `research-specialist` | `contrarian`              | `persona-findings/contrarian.md`      | 8-10 queries |
@@ -332,32 +237,13 @@ Use the prompts from `persona-prompts.md` with variables substituted:
 - `{{RESEARCH_SUBJECT}}` - The research topic
 - `{{OUTPUT_DIR}}` - The output directory path
 
-#### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
+#### Path A — Standalone sub-agents (`STANDALONE_MODE=true`, default)
 
 See `~/.config/opencode/shared/references/standalone-dispatch.md` for the full standalone-dispatch contract (Task vs Agent+team, anti-patterns, backstop policy).
 
-**CRITICAL**: Deploy all 8 persona agents in a **SINGLE message** with **MULTIPLE `Task` tool calls**. `Task` is the blocking standalone-dispatch primitive — no team coordination, no `team_name`.
+**CRITICAL**: Deploy all 8 persona agents in a **SINGLE message** with **MULTIPLE native `subagent` calls**. Every call sets `background=false`, uses the configured agent model, and follows the shared result policy below.
 
-If a `Task` call's inline return is empty or truncated, re-read the corresponding `persona-findings/*.md` artifact from disk as the source of truth before treating it as a failure.
-
-#### Path B — Agent team (`AGENT_TEAM_MODE=true`)
-
-> **MANDATORY — AGENT TEAMS REQUIRED**
->
-> In Path B you MUST follow the agent-team lifecycle at
-> `~/.config/opencode/shared/references/agent-team-dispatch.md`.
-> Do NOT mix standalone `Task` calls with team dispatch.
-
-All 8 `track the task` entries were registered up front in Step 5.5 — do not re-create them here.
-
-Spawn all 8 teammates in **ONE message** with **EIGHT `Agent` tool calls**. Every call MUST include:
-
-- `team_name = "drpr-<sanitized-subject>"`
-- `name = "<teammate-name>"` (from the table above — must match the `track the task` subject prefix)
-- `subagent_type = "research-specialist"`
-- The persona-specific prompt from `persona-prompts.md`
-
-After spawning, use `the todo tracker` to confirm all 8 Batch 1 tasks are `completed` before proceeding to Step 8. Do not rely on agent return values alone — check the shared task state.
+If a child report is empty or contentless, record its `sessionID`, inspect the declared artifact or working-tree edits, preserve valid work, and make at most one retry before reporting the child result incomplete. An artifact can preserve work but does not prove a child response. Follow `~/.config/opencode/shared/references/standalone-dispatch.md`.
 
 ### Step 8: Monitor Persona Research Progress
 
@@ -373,27 +259,6 @@ Update todos to track persona deployment:
 - [ ] Futurist research completed
 - [ ] Negative Space Explorer research completed
 ```
-
-### Step 8.5: Shut Down Phase 1 Teammates (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step.
-
-Otherwise, per the shared lifecycle (Section 2 Step 5), send shutdown requests to all 8 persona teammates before advancing to Phase 2:
-
-```
-send follow-up instructions(to="historian",                message={type:"shutdown_request"})
-send follow-up instructions(to="contrarian",               message={type:"shutdown_request"})
-send follow-up instructions(to="analogist",                message={type:"shutdown_request"})
-send follow-up instructions(to="systems-thinker",          message={type:"shutdown_request"})
-send follow-up instructions(to="journalist",               message={type:"shutdown_request"})
-send follow-up instructions(to="archaeologist",            message={type:"shutdown_request"})
-send follow-up instructions(to="futurist",                 message={type:"shutdown_request"})
-send follow-up instructions(to="negative-space-explorer",  message={type:"shutdown_request"})
-```
-
-Do NOT `end the coordinated run` — the team persists for Phases 2 and 3.
-
----
 
 ## Phase 2: The Crucible - Structured Analysis
 
@@ -423,7 +288,7 @@ cat ~/.config/opencode/skills/deep-research/templates/analysis-prompts.md
 
 ### Step 11: Deploy Crucible Analysis Agents
 
-| Agent                | Subagent Type               | Teammate `name`        | Output File                          | Task                               |
+| Agent                | Subagent Type               | Sub-agent role        | Output File                          | Task                               |
 | -------------------- | --------------------------- | ---------------------- | ------------------------------------ | ---------------------------------- |
 | ACH Analyst          | `general-purpose`           | `ach-analyst`          | `synthesis/crucible-analysis.md`     | Analysis of Competing Hypotheses   |
 | Contradiction Mapper | `codebase-research-analyst` | `contradiction-mapper` | `synthesis/contradiction-mapping.md` | Map disagreements between personas |
@@ -435,24 +300,11 @@ Both agents receive:
 - Their specific analysis mandate
 - Output file path
 
-#### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
+#### Path A — Standalone sub-agents (`STANDALONE_MODE=true`, default)
 
-**CRITICAL**: Deploy both analysis agents in a **SINGLE message** with **MULTIPLE `Task` tool calls**. `Task` is the blocking standalone-dispatch primitive — no team coordination, no `team_name`.
+**CRITICAL**: Deploy both analysis agents in a **SINGLE message** with **MULTIPLE native `subagent` calls**. Every call sets `background=false`, uses the configured agent model, and follows the shared result policy below.
 
-If a `Task` call's inline return is empty or truncated, re-read the corresponding `synthesis/crucible-analysis.md` or `synthesis/contradiction-mapping.md` artifact from disk as the source of truth before treating it as a failure.
-
-#### Path B — Agent team (`AGENT_TEAM_MODE=true`)
-
-Both `track the task` entries were registered up front in Step 5.5 (blocked by all Batch 1 tasks — they become eligible once Phase 1 completes).
-
-Spawn both teammates in **ONE message** with **TWO `Agent` tool calls**. Every call MUST include:
-
-- `team_name = "drpr-<sanitized-subject>"`
-- `name = "ach-analyst"` or `"contradiction-mapper"`
-- The corresponding `subagent_type` from the table above
-- The analysis prompt from `analysis-prompts.md`
-
-After spawning, use `the todo tracker` to confirm both Batch 2 tasks are `completed` before proceeding to Step 12.
+If a child report is empty or contentless, record its `sessionID`, inspect the declared artifact or working-tree edits, preserve valid work, and make at most one retry before reporting the child result incomplete. An artifact can preserve work but does not prove a child response. Follow `~/.config/opencode/shared/references/standalone-dispatch.md`.
 
 ### Step 12: Evidence Triangulation
 
@@ -493,26 +345,11 @@ After crucible analysis completes, verify critical findings:
 - **Resolution**: [Assessment]
 ```
 
-### Step 12.5: Shut Down Phase 2 Teammates (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step.
-
-Otherwise, send shutdown requests to both crucible teammates before advancing to Phase 3:
-
-```
-send follow-up instructions(to="ach-analyst",           message={type:"shutdown_request"})
-send follow-up instructions(to="contradiction-mapper",  message={type:"shutdown_request"})
-```
-
-Do NOT `end the coordinated run` — the team persists for Phase 3.
-
----
-
 ## Phase 3: Emergent Insight Generation
 
 ### Step 13: Deploy Strategic Analysis Agents
 
-| Agent                  | Subagent Type               | Teammate `name`          | Output File                        | Focus                              |
+| Agent                  | Subagent Type               | Sub-agent role          | Output File                        | Focus                              |
 | ---------------------- | --------------------------- | ------------------------ | ---------------------------------- | ---------------------------------- |
 | Tension Mapper         | `codebase-research-analyst` | `tension-mapper`         | `synthesis/tension-mapping.md`     | Maximum disagreement points        |
 | Pattern Recognizer     | `general-purpose`           | `pattern-recognizer`     | `synthesis/pattern-recognition.md` | Unexpected historical echoes       |
@@ -520,8 +357,7 @@ Do NOT `end the coordinated run` — the team persists for Phase 3.
 | Innovation Agent       | `general-purpose`           | `innovation-agent`       | `synthesis/innovation.md`          | Novel hypotheses from combinations |
 
 > **Note on naming**: `negative-space-analyst` is deliberately distinct from Phase 1's
-> `negative-space-explorer` to keep teammate `name=` values unique across the full
-> team lifecycle.
+> `negative-space-explorer` to keep sub-agent `description` plus the role-specific `prompt` values unique across the full
 
 All agents receive:
 
@@ -530,48 +366,11 @@ All agents receive:
 - Evidence verification log
 - Their specific analysis mandate
 
-#### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
+#### Path A — Standalone sub-agents (`STANDALONE_MODE=true`, default)
 
-**CRITICAL**: Deploy all 4 strategic analysis agents in a **SINGLE message** with **MULTIPLE `Task` tool calls**. `Task` is the blocking standalone-dispatch primitive — no team coordination, no `team_name`.
+**CRITICAL**: Deploy all 4 strategic analysis agents in a **SINGLE message** with **MULTIPLE native `subagent` calls**. Every call sets `background=false`, uses the configured agent model, and follows the shared result policy below.
 
-If a `Task` call's inline return is empty or truncated, re-read the corresponding `synthesis/tension-mapping.md`, `synthesis/pattern-recognition.md`, `synthesis/negative-space.md`, or `synthesis/innovation.md` artifact from disk as the source of truth before treating it as a failure.
-
-#### Path B — Agent team (`AGENT_TEAM_MODE=true`)
-
-All 4 `track the task` entries were registered up front in Step 5.5 (blocked by all Batch 2 tasks).
-
-Spawn all 4 teammates in **ONE message** with **FOUR `Agent` tool calls**. Every call MUST include:
-
-- `team_name = "drpr-<sanitized-subject>"`
-- `name = "<teammate-name>"` (from the table above)
-- The corresponding `subagent_type`
-- The strategic analysis prompt
-
-After spawning, use `the todo tracker` to confirm all 4 Batch 3 tasks are `completed` before proceeding to Step 13.5.
-
-### Step 13.5: Shut Down Phase 3 Teammates and Delete Team (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step.
-
-Otherwise, send shutdown requests to all 4 strategic teammates, then tear down the team:
-
-```
-send follow-up instructions(to="tension-mapper",          message={type:"shutdown_request"})
-send follow-up instructions(to="pattern-recognizer",      message={type:"shutdown_request"})
-send follow-up instructions(to="negative-space-analyst",  message={type:"shutdown_request"})
-send follow-up instructions(to="innovation-agent",        message={type:"shutdown_request"})
-end the coordinated run
-```
-
-**ALWAYS** `end the coordinated run` before Phase 4 — Phase 4 is orchestrator-only synthesis work and the team is no longer needed. Leaving the team live pollutes the workspace across skill invocations.
-
-**Failure policy for the team lifecycle** (applies to Steps 7, 11, 13):
-
-- **Single teammate failure**: Record the gap in the corresponding output file (e.g., a stub note in `persona-findings/<name>.md`) and continue. Downstream phases will adapt.
-- **Majority failure in a batch** (≥50% failed): Abort the skill. Send `shutdown_request` to any still-active teammates, call `end the coordinated run`, and report to the user. Suggest retrying without `--team` (standalone sub-agent fallback).
-- **Mid-run user abort**: `send follow-up instructions(shutdown)` to every active teammate, then `end the coordinated run`. Never exit the skill with the team still live.
-
----
+If a child report is empty or contentless, record its `sessionID`, inspect the declared artifact or working-tree edits, preserve valid work, and make at most one retry before reporting the child result incomplete. An artifact can preserve work but does not prove a child response. Follow `~/.config/opencode/shared/references/standalone-dispatch.md`.
 
 ## Phase 4: Strategic Report Synthesis
 
@@ -830,7 +629,8 @@ Ensure research spans:
 ## Important Notes
 
 - **You are the research orchestrator** - coordinate persona agents, synthesize findings
-- **Deploy in parallel** - single message per phase. Default uses multiple `Task` calls (standalone sub-agents). With `--team`, use multiple `Agent` calls with `team_name=` + `name=` under a shared `spawn coordinated subagents`/`the todo tracker` (Claude Code only).
+- **Deploy in parallel** - single message per phase. Default uses multiple native `subagent` calls (standalone sub-agents).
+
 - **Preserve contradictions** - don't smooth over disagreements
 - **Evidence quality matters** - prioritize primary sources
 - **Temporal coverage** - past, present, future perspectives

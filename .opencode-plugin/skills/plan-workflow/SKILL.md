@@ -2,15 +2,14 @@
 name: plan-workflow
 description: Unified planning workflow - research, analyze, and generate parallel
   implementation plans in one command. Combines shared-context and parallel-plan with
-  checkpoint support. Default is standalone parallel sub-agents via the opencode `task`
-  tool. Pass `--team` (Claude Code only) to orchestrate research, analysis, and validation
-  stages as teammates under a shared spawn coordinated subagents/the todo tracker
-  with coordinated shutdown.
+  checkpoint support. Default is standalone parallel sub-agents via the native `subagent`
+  tool
 ---
 
 # Unified Planning Workflow
 
-Single command to research, analyze, and plan feature implementation. Default dispatch is standalone parallel sub-agents via the `Task` tool; pass `--team` (Claude Code only) to run each stage as teammates under a shared `spawn coordinated subagents`/`the todo tracker` with coordinated shutdown and inter-teammate `send follow-up instructions` coordination. This skill combines the functionality of `shared-context` and `parallel-plan` with optimizations and checkpoint support.
+> **OpenCode V2 compatibility:** `--team` is unsupported. If it is supplied, abort before setup or dispatch and ask the caller to rerun without it. This target uses native standalone `subagent` calls only.
+
 
 ## Workflow Overview
 
@@ -35,12 +34,10 @@ Single command to research, analyze, and plan feature implementation. Default di
 
 Parse arguments (flags first, then the feature name):
 
-- **--team**: Optional. (Claude Code only) Deploy research, analysis, and validation stages as teammates under a shared `spawn coordinated subagents`/`the todo tracker` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
 - **--research-only**: Stop after research phase (creates shared.md only)
 - **--plan-only**: Skip research, use existing shared.md
 - **--no-checkpoint**: No pause between research and planning
 - **--optimized**: Use 7-agent optimized deployment (default: 10-agent standard)
-- **--dry-run**: Show execution plan without running. With `--team`, also prints the team name and teammate roster.
 - **--worktree**: Optional. (legacy — now default; safe to omit) Worktree annotations are emitted in the generated `parallel-plan.md` by default. Accepted as a silent no-op so existing pipelines continue to work.
 - **--no-worktree**: Optional. Opt out of worktree annotations in the generated `parallel-plan.md`. No effect when `--research-only` is passed (no plan file is generated). Honored with `--plan-only`.
 - **--visual**: Render the finished plan as an Agent-Native visual artifact (MDX) via `visual-plan`; local-files by default, hosted link requires `--share`.
@@ -49,10 +46,9 @@ Parse arguments (flags first, then the feature name):
 If no feature name provided, abort with usage instructions:
 
 ```
-Usage: /plan-workflow [--team] [options] [--visual] [feature-name]
+Usage: /plan-workflow [options] [--visual] [feature-name]
 
 Options:
-  --team            (Claude Code only) Dispatch stages as agent team (default: standalone sub-agents)
   --research-only   Stop after research phase (creates shared.md only)
   --plan-only       Skip research, use existing shared.md
   --no-checkpoint   No pause between research and planning (default: checkpoint enabled)
@@ -67,8 +63,6 @@ Examples:
   /plan-workflow payment-integration --no-checkpoint
   /plan-workflow api-refactor --research-only
   /plan-workflow user-auth --plan-only
-  /plan-workflow --team new-feature --optimized
-  /plan-workflow --team --dry-run new-feature
   /plan-workflow add-billing-dashboard                 # worktree annotations included by default
   /plan-workflow --no-worktree add-billing-dashboard   # skip worktree annotations
   /plan-workflow --visual add-billing-dashboard        # render the finished plan as a visual artifact
@@ -80,7 +74,6 @@ Examples:
 
 See `~/.config/opencode/shared/references/visual-mode.md` for the canonical `--visual` contract shared by all planning skills.
 
-`--visual` is a **terminal decorator step**, not a dispatch mode. It is orthogonal to and composes with `--team`, `--optimized`, and `--no-worktree`, and runs once at the very end.
 
 When `VISUAL_MODE=true` and `--dry-run` is **not** set, after the final phase (the plan has been written and validated) the workflow invokes:
 
@@ -100,7 +93,6 @@ When `--dry-run` is set, `--visual` is **short-circuited**: print `visual genera
 
 Extract from `$ARGUMENTS`:
 
-1. **--team**: Boolean flag. Set `AGENT_TEAM_MODE=true` if present, else `false`.
 2. **--research-only / --plan-only / --no-checkpoint / --optimized / --dry-run**: Boolean flags. Set each corresponding variable if present.
 3. **--no-worktree / --worktree**: Default `WORKTREE_MODE=true`. Set `WORKTREE_MODE=false` if `--no-worktree` is present. `--worktree` is accepted as a legacy no-op (matches the default). Has no effect when `--research-only` is set (no plan file is generated). Honored with `--plan-only`.
 
@@ -127,7 +119,7 @@ ARGUMENTS="${ARGUMENTS//--visual/}"
 
 ```
 Error: --research-only and --plan-only are mutually exclusive
-Usage: /plan-workflow [--team] [--research-only | --plan-only] [--no-checkpoint] [--optimized] [--dry-run] [--no-worktree] [--visual] [feature-name]
+Usage: /plan-workflow [--research-only | --plan-only] [--no-checkpoint] [--optimized] [--dry-run] [--no-worktree] [--visual] [feature-name]
 ```
 
 Validate the feature name:
@@ -136,9 +128,7 @@ Validate the feature name:
 - Should use kebab-case (lowercase with hyphens)
 - No special characters except hyphens
 
-**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools).
 
-**Team opt-in note**: If `--team` is passed and `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment, abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Omit --team for standalone dispatch, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your opencode settings if you intentionally want agent-team dispatch.`
 
 ### Step 2: Resolve Plans Directory
 
@@ -194,7 +184,6 @@ cat ~/.config/opencode/skills/plan-workflow/templates/checkpoint-messages.md
 ```
 
 Display the "Dry Run" section with values substituted, then **STOP**. Dry run writes
-nothing, dispatches no agents (`Task`/`Agent`/`spawn coordinated subagents`), renders nothing, and never
 prompts. If `--plan-only` is also set and `check-state.sh` shows no `shared.md`, state
 in the preview that a real run would fail fast at Step 4B (missing prerequisite —
 see the fail-fast message there) and STOP.
@@ -239,21 +228,6 @@ mkdir -p "${feature_dir}"
 
 ## Phase 1: Research Stage (unless --plan-only)
 
-### Step 7: Team Setup (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step entirely — the default path dispatches standalone sub-agents in Step 10.
-
-If `AGENT_TEAM_MODE=true`, follow the universal lifecycle contract at
-`~/.config/opencode/shared/references/agent-team-dispatch.md`.
-
-Create an agent team for the entire workflow:
-
-```
-spawn coordinated subagents: team_name="pw-[feature-name]", description="Planning workflow team for [feature-name]"
-```
-
-On failure, abort the skill with the `spawn coordinated subagents` error message. Do NOT silently fall back to sub-agent mode.
-
 ### Step 8: Read Research Prompts
 
 Read the research prompts template:
@@ -262,29 +236,15 @@ Read the research prompts template:
 cat ~/.config/opencode/skills/plan-workflow/templates/research-agents.md
 ```
 
-### Step 9: Create Research Tasks (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step entirely — standalone `Task` dispatch does not use the shared task list.
-
-If `AGENT_TEAM_MODE=true`, create 4 tasks in the shared task list:
-
-1. **"Research architecture for [feature-name]"**
-2. **"Research patterns for [feature-name]"**
-3. **"Research integrations for [feature-name]"**
-4. **"Research documentation for [feature-name]"**
-
-If `track the task` fails for any task, call `end the coordinated run` and abort.
-
 ### Step 10: Spawn Research Agents
 
-| Name / Teammate `name`    | Subagent Type               | Output File                | Model  | Focus                                    |
+| Name / Sub-agent role    | Subagent Type               | Output File                | Model  | Focus                                    |
 | ------------------------- | --------------------------- | -------------------------- | ------ | ---------------------------------------- |
-| `architecture-researcher` | `codebase-research-analyst` | `research-architecture.md` | sonnet | System structure, components, data flow  |
-| `patterns-researcher`     | `codebase-research-analyst` | `research-patterns.md`     | sonnet | Existing patterns, conventions, examples |
-| `integration-researcher`  | `codebase-research-analyst` | `research-integration.md`  | sonnet | APIs, databases, external systems        |
-| `docs-researcher`         | `codebase-research-analyst` | `research-docs.md`         | sonnet | Relevant documentation files             |
+| `architecture-researcher` | `codebase-research-analyst` | `research-architecture.md` | configured | System structure, components, data flow  |
+| `patterns-researcher`     | `codebase-research-analyst` | `research-patterns.md`     | configured | Existing patterns, conventions, examples |
+| `integration-researcher`  | `codebase-research-analyst` | `research-integration.md`  | configured | APIs, databases, external systems        |
+| `docs-researcher`         | `codebase-research-analyst` | `research-docs.md`         | configured | Relevant documentation files             |
 
-**Model Assignment**: Pass `model: "sonnet"` for all research agents.
 
 Each agent writes findings to `${feature_dir}/[output-file]`.
 
@@ -293,32 +253,11 @@ Use the prompts from `research-agents.md` with variables substituted:
 - `{{FEATURE_NAME}}` - The feature directory name
 - `{{FEATURE_DIR}}` - Full output directory path (`${feature_dir}`, resolved in Step 2)
 
-#### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
+#### Path A — Standalone sub-agents (`STANDALONE_MODE=true`, default)
 
-**CRITICAL**: Deploy all 4 research agents in a **SINGLE message** with **MULTIPLE `Task` tool calls**. No `team_name` — standalone dispatch. Each `Task` call uses the `subagent_type` and `model` from the table above and the corresponding prompt from `research-agents.md`.
+**CRITICAL**: Deploy all 4 research agents in a **SINGLE message** with **MULTIPLE native `subagent` calls**. Every call sets `background=false`, uses the configured agent model, and follows the shared result policy below.
 
-In this mode there is no shared task list; rely on each `Task`'s return value plus the artifact check in Step 11 to confirm completion. Inter-agent `send follow-up instructions` coordination is not available — each sub-agent works independently from the prompt alone.
-
-#### Path B — Agent team (`AGENT_TEAM_MODE=true`)
-
-> **MANDATORY — AGENT TEAMS REQUIRED**
->
-> In Path B you MUST follow the agent-team lifecycle at
-> `~/.config/opencode/shared/references/agent-team-dispatch.md`.
-> Do NOT mix standalone `Task` calls with team dispatch.
-
-All 4 `track the task` entries were registered up front in Step 9 — do not re-create them here.
-
-Spawn all 4 teammates in **ONE message** with **FOUR `Agent` tool calls**. Every call MUST include:
-
-- `team_name = "pw-[feature-name]"`
-- `name = "<teammate-name>"` (from the table above — must match the `track the task` subject prefix)
-- `subagent_type` and `model` from the table above
-- The researcher-specific prompt from `research-agents.md`
-
-After spawning, use `the todo tracker` to confirm all 4 tasks are `completed` before proceeding to Step 11.
-
----
+If a child report is empty or contentless, record its `sessionID`, inspect the declared artifact or working-tree edits, preserve valid work, and make at most one retry before reporting the child result incomplete. An artifact can preserve work but does not prove a child response. Follow `~/.config/opencode/shared/references/standalone-dispatch.md`.
 
 ## Phase 2: Validate Research Artifacts
 
@@ -326,8 +265,7 @@ After spawning, use `the todo tracker` to confirm all 4 tasks are `completed` be
 
 After all research agents complete, validate all research files:
 
-- **Path A (standalone, default)**: rely on `Task` return values; each sub-agent writes its `research-*.md` (or, in `--optimized`, `analysis-*.md`) artifact before returning.
-- **Path B (`--team`)**: check via `the todo tracker` that all 4 research tasks are `completed`.
+If a child report is empty or contentless, record its `sessionID`, inspect the declared artifact or working-tree edits, preserve valid work, and make at most one retry before reporting the child result incomplete. An artifact can preserve work but does not prove a child response. Follow `~/.config/opencode/shared/references/standalone-dispatch.md`.
 
 Then run:
 
@@ -341,21 +279,9 @@ Then run:
 
 If `--optimized` was passed, you MUST append `--optimized` to this validator. The validator's default file set (`research-*.md`) does not exist in optimized mode.
 
-If validation fails: in Path B, message the relevant teammate to fix their output; in Path A, re-dispatch the failing sub-agent via `Task`. Wait for correction, rerun validation until pass. Do NOT have the orchestrator write the missing file itself from a captured agent summary — that bypasses the contract and produces fragile output.
+If validation fails, re-dispatch the failing sub-agent via `subagent` with the validation error. Wait for correction, rerun validation until pass. Do NOT have the orchestrator write the missing file itself from a captured agent summary — that bypasses the contract and produces fragile output.
 
 **Do not proceed to shared.md synthesis until validation passes.**
-
-### Step 12: Shut Down Research Teammates (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step — standalone sub-agents return on their own.
-
-Otherwise, send shutdown requests to all research teammates:
-
-```
-send follow-up instructions to each teammate: a shutdown request
-```
-
----
 
 ## Phase 3: Consolidate Research
 
@@ -402,7 +328,6 @@ Fix any errors before proceeding.
 
 If `RESEARCH_ONLY=true`, **STOP here** once `shared.md` exists and `validate-shared.sh` passed. Skip Phases 4–9.5 entirely (checkpoint, analysis, planning, validation, visual).
 
-1. If `AGENT_TEAM_MODE=true`, shut down any remaining teammates and call `end the coordinated run` (same cleanup as Step 33). Standalone mode has no team.
 2. Print the research-only summary: use "Research Complete Summary" from `templates/checkpoint-messages.md` (standard or optimized variant), listing the artifacts this run actually created — standard: `research-*.md` (4) + `shared.md`; `--optimized`: the five unified `analysis-*.md` files (`analysis-architecture.md`, `analysis-patterns.md`, `analysis-integration.md`, `analysis-docs.md`, `analysis-tasks.md`) + `shared.md` — plus dispatch mode.
 3. Next step line: `/parallel-plan <feature>` or `/plan-workflow <feature> --plan-only`.
 4. **STOP** — do not write or dispatch anything further.
@@ -436,7 +361,6 @@ If user chooses "Review shared.md first":
 
 If user chooses "Stop here":
 
-- If `AGENT_TEAM_MODE=true`, clean up team (`end the coordinated run`). In standalone mode there is no team to tear down.
 - Display completion summary for research phase only
 - **STOP** - do not proceed to planning
 
@@ -448,16 +372,6 @@ If user chooses "Stop here":
 > The `--plan-only` flag skips Research (Phases 1-4), NOT Analysis. Analysis agents produce
 > the `analysis-*.md` files required by Phase 8 (Plan Generation).
 
-### Step 17: Create Team (if `--team` and --plan-only)
-
-If `AGENT_TEAM_MODE=false`, skip this step entirely — standalone mode has no team.
-
-If `AGENT_TEAM_MODE=true` and `--plan-only` was used (team doesn't exist yet):
-
-```
-spawn coordinated subagents: team_name="pw-[feature-name]", description="Planning workflow team for [feature-name]"
-```
-
 ### Step 18: Read Analysis Prompts
 
 In standard mode (not --optimized), read analysis prompts:
@@ -466,25 +380,14 @@ In standard mode (not --optimized), read analysis prompts:
 cat ~/.config/opencode/skills/plan-workflow/templates/planning-agents.md
 ```
 
-### Step 19: Create Analysis Tasks (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step entirely — standalone `Task` dispatch does not use the shared task list.
-
-If `AGENT_TEAM_MODE=true`, create 3 analysis tasks in the shared task list:
-
-1. **"Synthesize planning context for [feature-name]"**
-2. **"Analyze code patterns for [feature-name]"**
-3. **"Suggest task structure for [feature-name]"**
-
 ### Step 20: Spawn Analysis Agents
 
-| Name / Teammate `name` | Subagent Type               | Output File           | Model  | Focus                  |
+| Name / Sub-agent role | Subagent Type               | Output File           | Model  | Focus                  |
 | ---------------------- | --------------------------- | --------------------- | ------ | ---------------------- |
-| `context-synthesizer`  | `codebase-research-analyst` | `analysis-context.md` | sonnet | Condense planning docs |
-| `code-analyzer`        | `codebase-research-analyst` | `analysis-code.md`    | sonnet | Extract code patterns  |
-| `task-structurer`      | `codebase-research-analyst` | `analysis-tasks.md`   | sonnet | Suggest task breakdown |
+| `context-synthesizer`  | `codebase-research-analyst` | `analysis-context.md` | configured | Condense planning docs |
+| `code-analyzer`        | `codebase-research-analyst` | `analysis-code.md`    | configured | Extract code patterns  |
+| `task-structurer`      | `codebase-research-analyst` | `analysis-tasks.md`   | configured | Suggest task breakdown |
 
-**Model Assignment**: Pass `model: "sonnet"` for all analysis agents.
 
 Each agent writes to `${feature_dir}/[output-file]`.
 
@@ -493,15 +396,9 @@ Use the prompts from `planning-agents.md` with variables substituted:
 - `{{FEATURE_NAME}}` - The feature directory name
 - `{{FEATURE_DIR}}` - Full output directory path (`${feature_dir}`, resolved in Step 2)
 
-#### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
+#### Path A — Standalone sub-agents (`STANDALONE_MODE=true`, default)
 
-**CRITICAL**: Deploy all 3 analysis agents in a **SINGLE message** with **MULTIPLE `Task` tool calls**. No `team_name`. Each `Task` call uses the `subagent_type` and `model` from the table above and the corresponding prompt from `planning-agents.md`.
-
-#### Path B — Agent team (`AGENT_TEAM_MODE=true`)
-
-Spawn all 3 teammates in **ONE message** with **THREE `Agent` tool calls** and the matching `name=` from the table above. The 3 analysis tasks registered in Step 19 are used here. After spawning, use `the todo tracker` to confirm all 3 tasks are `completed`.
-
----
+**CRITICAL**: Deploy all 3 analysis agents in a **SINGLE message** with **MULTIPLE native `subagent` calls**. Every call sets `background=false`, uses the configured agent model, and follows the shared result policy below.
 
 ## Phase 6: Validate and Persist Analysis Artifacts
 
@@ -509,8 +406,7 @@ Spawn all 3 teammates in **ONE message** with **THREE `Agent` tool calls** and t
 
 After analysis agents complete, validate all analysis files:
 
-- **Path A (standalone, default)**: rely on `Task` return values; each sub-agent writes its `analysis-*.md` artifact before returning.
-- **Path B (`--team`)**: check via `the todo tracker` that all 3 (standard) or 5 (optimized) analysis tasks are `completed`.
+If a child report is empty or contentless, record its `sessionID`, inspect the declared artifact or working-tree edits, preserve valid work, and make at most one retry before reporting the child result incomplete. An artifact can preserve work but does not prove a child response. Follow `~/.config/opencode/shared/references/standalone-dispatch.md`.
 
 Then run:
 
@@ -525,7 +421,7 @@ Then run:
 If `--optimized` was passed, you MUST append `--optimized` to this validator.
 
 If validation passes → skip to Step 22 (Pre-Generation Gate).
-If validation fails → in Path B, message the relevant teammate; in Path A, re-dispatch the failing sub-agent via `Task`. Wait, re-validate. Do NOT have the orchestrator write the missing file itself.
+If validation fails, re-dispatch the failing sub-agent via `subagent`. Wait, re-validate. Do NOT have the orchestrator write the missing file itself.
 
 ### Step 22: Pre-Generation Gate (MANDATORY — cannot be skipped)
 
@@ -542,17 +438,9 @@ Run the pre-generation gate script:
 If `--optimized` was passed, you MUST append `--optimized` to the gate script. Without the flag, the gate looks for the standard 3-file set and will incorrectly fail in optimized mode.
 
 - **Exit 0** → proceed to Phase 7
-- **Exit 1** → the script prints `MISSING_FILES` and `ACTION_REQUIRED`. Re-dispatch the failing teammate (Path B) or sub-agent (Path A) to write the missing file(s), then re-run this gate until it passes (exit 0).
+- **Exit 1** → the script prints `MISSING_FILES` and `ACTION_REQUIRED`. Re-dispatch the failing sub-agent (Path B) or sub-agent (Path A) to write the missing file(s), then re-run this gate until it passes (exit 0).
 
 **Do NOT proceed to plan generation until `persist-or-fail.sh` exits 0. Do NOT have the orchestrator ad-hoc write the missing files from captured agent summaries — that bypasses the contract and was the root cause of the May 2026 reproducer where 3 of 5 unified-analyst files were missing on disk.**
-
-### Step 23: Shut Down Analysis Teammates (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step — standalone sub-agents return on their own.
-
-Otherwise, send shutdown requests to all analysis teammates.
-
----
 
 ## Phase 7: Read Analysis Results
 
@@ -616,7 +504,7 @@ add a `**Children**:` list. Do **not** add per-task `**Worktree**:` lines.
 
 > **Plan-file handoff**: leave `parallel-plan.md` and `shared.md` in `docs/plans/<feature-slug>/` (main checkout). The implementor (`implement-plan` / `prp-implement`) will **move** them into the feature worktree once created — never copied or synced. See `worktree-strategy.md` §7.
 
-**Plan-generation agent prompt** (both standalone Path A and `--team` Path B): by default (`WORKTREE_MODE=true`), append the following directive to the plan-generation prompt. Omit when `--no-worktree` was passed (`WORKTREE_MODE=false`):
+**Plan-generation agent prompt** (both standalone Path A Path B): by default (`WORKTREE_MODE=true`), append the following directive to the plan-generation prompt. Omit when `--no-worktree` was passed (`WORKTREE_MODE=false`):
 
 > WORKTREE MODE: Annotate the generated `parallel-plan.md` with a single
 > `## Worktree Setup` section (containing only the `**Parent**:` line) placed
@@ -625,10 +513,6 @@ add a `**Children**:` list. Do **not** add per-task `**Worktree**:` lines.
 > All tasks — parallel and sequential — share this one feature worktree path.
 > Do NOT add a `**Children**:` list. Do NOT add per-task `**Worktree**:` lines.
 
-In the `--team` Path B additionally cross-reference
-`~/.config/opencode/shared/references/agent-team-dispatch.md` §7 for
-shared-worktree team dispatch: all parallel teammates operate against the same
-feature worktree path, not separate per-task paths.
 
 ### Step 27: Plan Structure Check (deferred)
 
@@ -644,56 +528,33 @@ Structural validation (`validate-workflow-plan.sh`) runs **once**, on the final 
 cat ~/.config/opencode/skills/plan-workflow/templates/validation-agents.md
 ```
 
-### Step 29: Create Validation Tasks (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step entirely — standalone `Task` dispatch does not use the shared task list.
-
-If `AGENT_TEAM_MODE=true`:
-
-**Standard Mode**: Create 3 validation tasks:
-
-1. **"Validate file paths in [feature-name] plan"**
-2. **"Validate dependency graph in [feature-name] plan"**
-3. **"Validate task completeness in [feature-name] plan"**
-
-**Optimized Mode**: Create 2 validation tasks:
-
-1. **"Validate paths and dependencies in [feature-name] plan"**
-2. **"Validate task completeness in [feature-name] plan"**
-
 ### Step 30: Spawn Validation Agents
 
 **Standard Mode**: 3 agents:
 
-| Name / Teammate `name`   | Subagent Type               | Model  | Focus                                   |
+| Name / Sub-agent role   | Subagent Type               | Model  | Focus                                   |
 | ------------------------ | --------------------------- | ------ | --------------------------------------- |
-| `path-validator`         | `explore`                   | haiku  | Verify all referenced files exist       |
-| `dependency-validator`   | `explore`                   | haiku  | Check for circular/invalid dependencies |
-| `completeness-validator` | `codebase-research-analyst` | sonnet | Ensure tasks are actionable             |
+| `path-validator`         | `explore`                   | configured | Verify all referenced files exist       |
+| `dependency-validator`   | `explore`                   | configured | Check for circular/invalid dependencies |
+| `completeness-validator` | `codebase-research-analyst` | configured | Ensure tasks are actionable             |
 
 **Optimized Mode**: 2 agents:
 
-| Name / Teammate `name`   | Subagent Type               | Model  | Focus                           |
+| Name / Sub-agent role   | Subagent Type               | Model  | Focus                           |
 | ------------------------ | --------------------------- | ------ | ------------------------------- |
-| `path-dep-validator`     | `explore`                   | haiku  | Verify paths + dependency graph |
-| `completeness-validator` | `codebase-research-analyst` | sonnet | Task quality + completeness     |
+| `path-dep-validator`     | `explore`                   | configured | Verify paths + dependency graph |
+| `completeness-validator` | `codebase-research-analyst` | configured | Task quality + completeness     |
 
-**Model Assignment**: Pass `model: "haiku"` for path/dependency validators, `model: "sonnet"` for completeness-validator.
 
-#### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
+#### Path A — Standalone sub-agents (`STANDALONE_MODE=true`, default)
 
-**CRITICAL**: Deploy all validation agents (3 in standard, 2 in optimized) in a **SINGLE message** with **MULTIPLE `Task` tool calls**. No `team_name`. Each `Task` call uses the `subagent_type` and `model` from the relevant table above and the corresponding prompt from `validation-agents.md`. Rely on each `Task`'s return value for validator findings.
-
-#### Path B — Agent team (`AGENT_TEAM_MODE=true`)
-
-Spawn all validation teammates in **ONE message** with matching `Agent` tool calls and the matching `name=` from the table above. The validation tasks registered in Step 29 are used here. After spawning, use `the todo tracker` to confirm all tasks are `completed`.
+**CRITICAL**: Deploy all validation agents (3 in standard, 2 in optimized) in a **SINGLE message** with **MULTIPLE native `subagent` calls**. Every call sets `background=false`, uses the configured agent model, and follows the shared result policy below.
 
 ### Step 31: Review and Fix Issues
 
 After validators complete:
 
-- **Path A (standalone, default)**: review each `Task` return value for validator findings.
-- **Path B (`--team`)**: review findings via `the todo tracker` and teammate messages.
+- **Path A (standalone, default)**: review each `subagent` return value for validator findings.
 - Fix any issues identified:
   - Correct invalid file paths
   - Resolve circular dependencies
@@ -708,14 +569,6 @@ After all fixes, run once on the final artifact (before visual/completion):
 ```
 
 Fix any structural errors it reports (missing `### Phase` is an error); do not proceed until it exits 0.
-
-### Step 32: Shut Down Validation Teammates (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step — standalone sub-agents return on their own.
-
-Otherwise, send shutdown requests to all validation teammates.
-
----
 
 ## Phase 9.5: Visual Mode (if --visual)
 
@@ -738,16 +591,6 @@ visual-plan "${feature_dir}/parallel-plan.md"
 ---
 
 ## Phase 10: Summary
-
-### Step 33: Clean Up Team (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step — there is no team to tear down.
-
-Otherwise, delete the team and its resources:
-
-```
-end the coordinated run
-```
 
 ### Step 34: Display Completion Summary
 
@@ -788,13 +631,12 @@ Optimized set: `analysis-architecture.md`, `analysis-patterns.md`, `analysis-int
 
 ## Dispatch Summary
 
-- Dispatch Mode: [standalone sub-agents | agent team pw-[feature-name]]
+- Dispatch Mode: [standalone sub-agents]
 - Execution Mode: [standard/optimized]
 - Research agents: [4 standard / 0 optimized (unified agents counted under Analysis)]
 - Analysis agents: [3 standard / 5 optimized (unified)]
 - Validation agents: [3 standard / 2 optimized]
 - Total agents: [10 standard / 7 optimized]
-- Inter-agent sharing: [Disabled (Path A) | Enabled — teammates shared findings within each phase (Path B)]
 
 ## Plan Overview
 
@@ -830,13 +672,12 @@ Instead of separate research (4) + analysis (3) agents, deploy 5 unified agents:
 
 | Unified Agent         | Combines                            | Output                     | Model  |
 | --------------------- | ----------------------------------- | -------------------------- | ------ |
-| `arch-analyst`        | Arch Research + Context Synthesizer | `analysis-architecture.md` | sonnet |
-| `pattern-analyst`     | Pattern Research + Code Analyzer    | `analysis-patterns.md`     | sonnet |
-| `integration-analyst` | Integration Research                | `analysis-integration.md`  | sonnet |
-| `docs-analyst`        | Doc Research                        | `analysis-docs.md`         | sonnet |
-| `task-planner`        | Task Structure Agent                | `analysis-tasks.md`        | sonnet |
+| `arch-analyst`        | Arch Research + Context Synthesizer | `analysis-architecture.md` | configured |
+| `pattern-analyst`     | Pattern Research + Code Analyzer    | `analysis-patterns.md`     | configured |
+| `integration-analyst` | Integration Research                | `analysis-integration.md`  | configured |
+| `docs-analyst`        | Doc Research                        | `analysis-docs.md`         | configured |
+| `task-planner`        | Task Structure Agent                | `analysis-tasks.md`        | configured |
 
-**Model Assignment**: Pass `model: "sonnet"` for all unified agents.
 
 These agents produce combined research+analysis output, skipping Phase 5 entirely.
 
@@ -844,8 +685,7 @@ Validation uses 2 agents instead of 3 (Path + Dependency merged).
 
 Dispatch follows the same Path A / Path B split as standard mode:
 
-- **Path A (standalone, default)**: spawn all 5 unified agents in a single message with 5 `Task` calls.
-- **Path B (`--team`)**: register 5 unified tasks up front, then spawn 5 teammates in a single message with `team_name="pw-[feature-name]"`.
+- **Path A (standalone, default)**: spawn all 5 unified agents in one parallel batch; every native `subagent` call sets `background=false` and inherits the configured agent model.
 
 **Total**: 7 agents instead of 10, 2 stages instead of 3.
 
@@ -906,19 +746,19 @@ All files are written to `${feature_dir}/` (resolved via `resolve-plans-dir.sh`)
 
 | File                       | Producer                         | Required Before     |
 | -------------------------- | -------------------------------- | ------------------- |
-| `research-architecture.md` | architecture-researcher teammate | shared.md synthesis |
-| `research-patterns.md`     | patterns-researcher teammate     | shared.md synthesis |
-| `research-integration.md`  | integration-researcher teammate  | shared.md synthesis |
-| `research-docs.md`         | docs-researcher teammate         | shared.md synthesis |
+| `research-architecture.md` | architecture-researcher sub-agent | shared.md synthesis |
+| `research-patterns.md`     | patterns-researcher sub-agent     | shared.md synthesis |
+| `research-integration.md`  | integration-researcher sub-agent  | shared.md synthesis |
+| `research-docs.md`         | docs-researcher sub-agent         | shared.md synthesis |
 | `shared.md`                | Team lead (this skill)           | Analysis phase      |
 
 ### Analysis Phase Artifacts (Standard Mode)
 
 | File                  | Producer                     | Required Before             |
 | --------------------- | ---------------------------- | --------------------------- |
-| `analysis-context.md` | context-synthesizer teammate | parallel-plan.md generation |
-| `analysis-code.md`    | code-analyzer teammate       | parallel-plan.md generation |
-| `analysis-tasks.md`   | task-structurer teammate     | parallel-plan.md generation |
+| `analysis-context.md` | context-synthesizer sub-agent | parallel-plan.md generation |
+| `analysis-code.md`    | code-analyzer sub-agent       | parallel-plan.md generation |
+| `analysis-tasks.md`   | task-structurer sub-agent     | parallel-plan.md generation |
 
 ### Planning Phase Artifacts
 
@@ -929,13 +769,12 @@ All files are written to `${feature_dir}/` (resolved via `resolve-plans-dir.sh`)
 **Contract Rules**:
 
 1. Each agent MUST write its own output file using the Write tool
-2. In Path B (`--team`), each teammate MUST share key findings with relevant teammates via send follow-up instructions. In Path A (standalone), inter-agent sharing is unavailable — each sub-agent works independently.
+2. Standalone sub-agents work independently; include all required context in each prompt.
 3. The orchestrator MUST run `validate-research-artifacts.sh` before generating shared.md (Step 11)
 4. The orchestrator MUST run `validate-analysis-artifacts.sh` after analysis agents complete (Step 21)
 5. The orchestrator MUST run `persist-or-fail.sh` as a mandatory pre-generation gate (Step 22)
-6. If validation fails, the orchestrator MUST message the failing teammate (Path B) or re-dispatch the sub-agent (Path A)
+6. If validation fails, the orchestrator MUST re-dispatch the failing sub-agent with the validation error
 7. No file may be skipped or deferred — `persist-or-fail.sh` must exit 0 before plan generation
-8. In Path B, the team MUST be cleaned up (end the coordinated run) before skill completion
 
 ---
 
@@ -972,15 +811,7 @@ scope: local
 ## Important Notes
 
 - **You are the planning orchestrator** - coordinate all phases of the workflow
-- **Choose dispatch mode from `$ARGUMENTS`** - default is standalone sub-agents via `Task`; `--team` switches to teammates under `spawn coordinated subagents`/`the todo tracker`
-- **One team for entire workflow (Path B only)** - create once, use across all phases
-- **Spawn in parallel** - a single message per phase with multiple `Task` calls (Path A) or multiple `Agent` calls with `team_name=` + `name=` (Path B)
-- **Pass model parameters** - use `model: "sonnet"` for research/analysis agents, `model: "haiku"` for path/dependency validators, `model: "sonnet"` for completeness-validator
-- **Teammates share findings (Path B only)** - inter-teammate `send follow-up instructions` coordination is unavailable to standalone sub-agents
-- **Shut down between phases (Path B only)** - shut down teammates before spawning new ones for next phase
 - **Validate with scripts** - run validation scripts after agents complete
-- **Message on failure (Path B)** - if validation fails, message the relevant teammate; in Path A, re-dispatch a sub-agent
 - **Preserve context** - read condensed analysis, not raw files
 - **Validate thoroughly** - multiple validation passes ensure quality
-- **Clean up team (Path B only)** - always `end the coordinated run` before completing when a team was created
 - **Monorepo aware** - automatically resolves correct plans directory via `resolve-plans-dir.sh`

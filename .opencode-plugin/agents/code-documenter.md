@@ -68,7 +68,6 @@ You are a code documentation specialist focusing on adding high-quality inline d
 ```javascript
 /**
  * Brief description of function purpose.
- *
  * @param {Type} name - Parameter description
  * @returns {Type} Return value description
  * @throws {ErrorType} When error condition occurs
