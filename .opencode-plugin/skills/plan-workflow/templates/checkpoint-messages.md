@@ -13,7 +13,7 @@ Use this template when `--dry-run` flag is present:
 
 ## Dispatch Mode
 
-[standalone sub-agents | agent team pw-{{FEATURE_NAME}}]
+[standalone sub-agents]
 
 ## Execution Mode
 
@@ -82,12 +82,11 @@ Agents to deploy:
 
 ## Execution Model
 
-- Default (`AGENT_TEAM_MODE=false`): each stage deploys its agents as standalone sub-agents in a single message with multiple `Task` calls. No team coordination; each sub-agent writes its assigned artifact and returns. Orchestrator validates and synthesizes between stages.
-- With `--team` (`AGENT_TEAM_MODE=true`): create team `pw-{{FEATURE_NAME}}` once up front, register each stage's tasks, spawn teammates per stage (research → analysis → validation) with `send follow-up instructions` coordination and `the todo tracker` progress tracking, shut down between stages, then `end the coordinated run` at the end.
+- Default (`STANDALONE_MODE=true`): each stage deploys its agents as standalone sub-agents in a single message with multiple native `subagent` calls. No team coordination; each sub-agent writes its assigned artifact and returns. Orchestrator validates and synthesizes between stages.
 
-If `--team` was passed, the above plan additionally includes team `pw-{{FEATURE_NAME}}` with the corresponding teammate roster.
 
-Do **not** call `spawn coordinated subagents`, `track the task`, `Agent`, `Task`, `send follow-up instructions`, or `end the coordinated run` in dry-run mode.
+
+Do not dispatch any `subagent` calls in dry-run mode.
 
 ## Next Steps
 

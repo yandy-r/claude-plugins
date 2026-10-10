@@ -110,7 +110,8 @@ the global instructions file. The config's `instructions` array is deliberately
 unused: V2 parses the field but does not resolve its files, globs, or URLs.
 
 Invoke skills with the built-in `skill` tool, agents with `@agent-name` mentions
-or the built-in `task` tool, and commands as `/<name>` in the TUI.
+or the native v2 `subagent(agent, description, prompt, sessionID?, background?)`
+tool, and commands as `/<name>` in the TUI.
 
 ## Model Configuration
 

@@ -10,6 +10,8 @@ description: Fast interactive review of uncommitted changes — prints findings 
 
 # Quick Review
 
+> **OpenCode V2 compatibility:** `--team` is unsupported. If it is supplied, abort before setup or dispatch and ask the caller to rerun without it. This target uses native standalone `subagent` calls only.
+
 Interactive low-friction review of uncommitted changes. Output is **inline**.
 The default fix path is artifact-free.
 
@@ -28,14 +30,13 @@ Extract flags from `$ARGUMENTS`:
 | Flag                 | Effect                                                                                                                                                                                                    |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--parallel`         | Fan out REVIEW across 3 standalone `code-reviewer` sub-agents (correctness, security, quality) and merge findings. Works in opencode, Cursor, and Codex bundles.                                   |
-| `--team`             | (Claude Code only) Same 3-reviewer fan-out as a coordinated agent team with `spawn coordinated subagents`, shared `the todo tracker`, per-reviewer `track the task`, and coordinated shutdown. Heavier dispatch, richer communication. |
 | `--yes`              | Skip the confirmation prompt and behave as "Apply fixes" through `/quick-fix`. Mutually exclusive with `--save` and `--write-and-apply`.                                                              |
 | `--save`             | Skip the confirmation prompt and behave as "Save to file" (write artifact, print Next steps, exit). Mutually exclusive with `--yes` and `--write-and-apply`.                                              |
 | `--write-and-apply`  | Skip the confirmation prompt, write the review artifact, then hand off to `/review-fix`. Mutually exclusive with `--yes` and `--save`.                                                                |
 | `--severity <level>` | Forwarded to `/quick-fix` or `/review-fix` during hand-off. Valid: `CRITICAL`, `HIGH`, `MEDIUM`, `LOW`. Default: `HIGH`. Ignored on "Save to file" / "Discard".                                   |
 | `--no-worktree`      | Accepted as a **no-op**. Quick mode never creates a worktree. Emit a note: `--no-worktree has no effect in quick mode.`                                                                                   |
 
-Strip these from `$ARGUMENTS` and set `PARALLEL_MODE`, `AGENT_TEAM_MODE`,
+Strip these from `$ARGUMENTS` and set `PARALLEL_MODE`, ``,
 `AUTO_YES`, `AUTO_SAVE`, `AUTO_WRITE_AND_APPLY`, and `MIN_SEVERITY` (default
 `HIGH`). The remaining text MUST be empty; if not, abort with:
 
@@ -45,10 +46,7 @@ Error: /quick-review takes no positional argument (only flags).
 
 **Validation**:
 
-- `--parallel` and `--team` mutually exclusive -> abort with: `--parallel and --team are mutually exclusive. Pick one.`
 - More than one of `--yes`, `--save`, `--write-and-apply` present -> abort with: `--yes, --save, and --write-and-apply are mutually exclusive. Pick one.`
-- `--team` in a Cursor/Codex bundle (no `spawn coordinated subagents` tool) -> abort with: `--team is not supported in bundle invocations; use --parallel instead.`
-- `--team` passed while `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment -> abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Use --parallel instead, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your opencode settings if you intentionally want agent-team dispatch.`
 - `--severity` value not one of `CRITICAL|HIGH|MEDIUM|LOW` -> abort with: `Invalid --severity value. Use CRITICAL, HIGH, MEDIUM, or LOW.`
 
 ---
@@ -68,13 +66,12 @@ Capture the list of changed files as `CHANGED_FILES` for the REVIEW phase.
 
 ## Phase 2 — REVIEW
 
-The shape of this phase depends on `PARALLEL_MODE` and `AGENT_TEAM_MODE`:
+The shape of this phase depends on `PARALLEL_MODE`:
 
 | Flags             | Path                                        |
 | ----------------- | ------------------------------------------- |
 | Neither set       | **Path A** — single-pass review (default)   |
 | `PARALLEL_MODE`   | **Path B** — 3 parallel sub-agent reviewers |
-| `AGENT_TEAM_MODE` | **Path C** — 3-reviewer agent team          |
 
 Findings from all paths stay **in memory**. Do not write to disk here.
 
@@ -96,18 +93,17 @@ filename — one canonical timestamp per invocation (the same pattern Path C
 uses for its team name when that path runs instead). Set
 `run-id = quick-<TIMESTAMP>`.
 
-> **Standalone dispatch rule**: Dispatch the 3 reviewers via the blocking
-> `Task` tool in ONE message — never the async `Agent` tool, and never with
-> `name`, `team_name`, or `run_in_background` set. In the normal case `Task`
-> blocks and its return value IS each reviewer's findings, delivered inline in
-> the same turn. If a batch doesn't return inline (async fallback), don't
-> `sleep`-loop or poll — yield/end the turn so the completion notification can
-> flush, then resume. See
-> [standalone-dispatch.md](~/.config/opencode/shared/references/standalone-dispatch.md)
-> for the full contract.
+> **OpenCode V2 standalone dispatch:** Issue the independent calls in one
+> parallel tool batch and set `background=false` on every call. Each call waits
+> for a candidate report. Require nonempty report text, validate the declared
+> artifact or diff independently, and do not treat a terminal lifecycle state
+> as proof of the deliverable. Apply the contentless-completion and bounded
+> retry policy from
+> [standalone-dispatch.md](~/.config/opencode/shared/references/standalone-dispatch.md).
+
 
 Dispatch **3 standalone `code-reviewer` sub-agents in parallel** in a SINGLE
-message with MULTIPLE `Task` tool calls. Use the **Local / Quick Mode Roster**
+message with MULTIPLE native `subagent` calls. Use the **Local / Quick Mode Roster**
 and **Standard Findings Format** from:
 
 ```
@@ -123,7 +119,7 @@ Each reviewer prompt must include:
 5. Its own scratch backstop path — `docs/prps/reviews/.review-scratch/quick-<TIMESTAMP>/<reviewer-name>.md`
    — per the scratch-backstop contract in that reference
 
-After all 3 `Task` calls return: for any reviewer whose inline return is
+After all 3 native `subagent` calls return: for any reviewer whose inline return is
 empty, missing, or malformed, re-read its scratch file at that path before
 merging. Apply the **Merge Procedure** defined in the reference to produce a
 single combined findings list for Phase 3.
@@ -136,76 +132,6 @@ fixes", which never write a permanent artifact. This is the one ephemeral
 exception to quick-review's artifact-free guarantee: the scratch file exists
 only transiently during this Path B dispatch and is gone before the skill
 returns control to the user.
-
-### Path C — Agent Team Review (`AGENT_TEAM_MODE=true`, Claude Code only)
-
-> **MANDATORY — AGENT TEAMS REQUIRED**
->
-> You MUST follow the agent-team lifecycle. Every `Agent` call MUST include
-> `team_name=` AND `name=`. See
-> `~/.config/opencode/shared/references/agent-team-dispatch.md`.
-
-Roster and category split identical to Path B.
-
-#### C.1 Build the team name
-
-Team name: `qrev-local-<YYYYMMDD-HHMMSS>`. Generate the timestamp once at the
-start of Phase 2 and reuse it if the user later selects an artifact-writing
-path.
-
-#### C.2 Create the team
-
-```
-spawn coordinated subagents: team_name="qrev-local-<timestamp>", description="Quick review team for uncommitted local changes"
-```
-
-On failure, abort.
-
-#### C.3 Register subtasks
-
-Create 3 tasks in the shared task list (flat graph — reviewers are independent):
-
-```
-track the task: subject="correctness-reviewer: code-quality review of uncommitted changes", description="<full reviewer prompt>"
-track the task: subject="security-reviewer: security review of uncommitted changes",        description="<full reviewer prompt>"
-track the task: subject="quality-reviewer: best-practices review of uncommitted changes",   description="<full reviewer prompt>"
-```
-
-If any `track the task` fails -> `end the coordinated run`, abort.
-
-#### C.4 Spawn the 3 reviewers
-
-Single message, three `Agent` calls. Every call MUST include `team_name`, `name`
-(matching the `track the task` subject prefix), `subagent_type="code-reviewer"`,
-description, and a prompt equivalent to Path B's reviewer prompt plus a note
-that the teammate shares a task list with two siblings (name them) and may
-`send follow-up instructions` them on overlaps, and must call `update the todo tracker` to mark its task
-complete before returning.
-
-#### C.5 Monitor and collect results
-
-Use `the todo tracker` until all 3 tasks are `completed`. Failure policy:
-
-- All 3 error -> `end the coordinated run`, abort with a clear error.
-- 1 or 2 error -> record "partial review — {role} did not complete" and proceed
-  with the remaining findings. Note the gap when printing inline.
-
-#### C.6 Shutdown and cleanup
-
-```
-send follow-up instructions(to="correctness-reviewer", message={type:"shutdown_request"})
-send follow-up instructions(to="security-reviewer",    message={type:"shutdown_request"})
-send follow-up instructions(to="quality-reviewer",     message={type:"shutdown_request"})
-end the coordinated run
-```
-
-Always `end the coordinated run` — even on abort or partial failure.
-
-#### C.7 Merge findings
-
-Apply the reference's Merge Procedure and pass the combined findings to Phase 3.
-
----
 
 ## Phase 3 — REPORT (inline)
 
@@ -436,7 +362,6 @@ Fixes complete. Review artifact updated in place: docs/prps/reviews/quick-<TIMES
 
 Step 4 — exit.
 
-**Note**: `--team` from quick-review is NOT forwarded to either fix workflow
 automatically. The review-phase fan-out is about finding issues quickly; the
 fix phase has its own execution decision.
 
@@ -449,7 +374,7 @@ fix phase has its own execution decision.
 - **Scratch is the one ephemeral exception**: when Path B (`--parallel`) is
   used, a transient scratch backstop file exists per reviewer at
   `docs/prps/reviews/.review-scratch/quick-<TIMESTAMP>/<reviewer-name>.md`
-  during the `Task` dispatch in Phase 2. It is always deleted at the end of
+  during the `subagent` dispatch in Phase 2. It is always deleted at the end of
   Phase 5 before the skill returns control to the user — including on
   "Discard" and "Apply fixes" — so the "no file written" guarantee still
   holds for anything the user can observe afterward.

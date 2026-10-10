@@ -50,6 +50,10 @@ from generate_opencode_common import (
     map_model,
     parse_frontmatter,
 )
+from generate_opencode_dispatch import (
+    project_opencode_dispatch,
+    project_opencode_dispatch_description,
+)
 
 
 def _stringify_argument_hint(value: object) -> str:
@@ -84,6 +88,7 @@ def transform_command(
     argument_hint = _stringify_argument_hint(frontmatter.get("argument-hint"))
     if argument_hint and argument_hint not in transformed_description:
         transformed_description = f"{transformed_description} Usage: {argument_hint}".strip()
+    transformed_description = project_opencode_dispatch_description(transformed_description)
 
     payload: dict[str, object] = {"description": transformed_description}
 
@@ -97,7 +102,7 @@ def transform_command(
         payload["model"] = model_value
     elif raw_model and not is_model_drop_sentinel(str(raw_model)):
         print(
-            f"generate_opencode_commands: WARN unmapped model " f"'{raw_model}' on {stem}.md — dropping model field",
+            f"generate_opencode_commands: WARN unmapped model '{raw_model}' on {stem}.md — dropping model field",
             file=sys.stderr,
         )
 
@@ -106,6 +111,7 @@ def transform_command(
         payload["subtask"] = subtask
 
     transformed_body = apply_opencode_text_transforms(body, aliases)
+    transformed_body = project_opencode_dispatch(transformed_body, f"commands/{stem}.md")
     return dump_frontmatter(payload) + transformed_body
 
 

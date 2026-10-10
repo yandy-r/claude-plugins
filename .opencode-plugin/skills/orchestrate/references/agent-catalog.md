@@ -591,4 +591,4 @@ Complete reference of all available agents for orchestration.
 
 ---
 
-_This catalog is based on available agents in the opencode `task` tool. Refer to opencode `task` tool description for latest updates._
+_This catalog is based on available agents in the native `subagent` tool. Refer to native `subagent` tool description for latest updates._

@@ -24,7 +24,7 @@ Single source of truth for the session-file store, filename, discovery rules, an
 
 - **No argument:** the most recently modified `*-session.tmp` file in `~/.config/opencode/session-data/` only. If the folder does not exist or has no matching files, report that none were found and stop.
 - **Date argument (`YYYY-MM-DD`):** search `~/.config/opencode/session-data/` first, then the legacy `~/.config/opencode/sessions/`, for `YYYY-MM-DD-session.tmp` (legacy format) or `YYYY-MM-DD-<shortid>-session.tmp` (current format). Load the most recently modified matching variant for that date, regardless of format. This is not a global newest-across-both-stores search.
-- **File path argument:** read that file directly (e.g., forwarded from a teammate). The format is the same regardless of source.
+- **File path argument:** read that file directly (e.g., forwarded from a sub-agent). The format is the same regardless of source.
 - If not found, report clearly and stop.
 
 ## Interpretation Rules

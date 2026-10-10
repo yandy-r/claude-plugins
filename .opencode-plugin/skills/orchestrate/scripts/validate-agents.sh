@@ -7,7 +7,7 @@ set -euo pipefail
 echo "# Agent Assignment Validation"
 echo ""
 
-# List of all valid agent types from opencode `task` tool
+# List of all valid agent types from native `subagent` tool
 VALID_AGENTS=(
   "generalPurpose"
   "explore"

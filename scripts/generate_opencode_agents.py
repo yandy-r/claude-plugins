@@ -50,6 +50,10 @@ from generate_opencode_common import (
     normalize_agent_color,
     parse_frontmatter,
 )
+from generate_opencode_dispatch import (
+    project_opencode_dispatch,
+    project_opencode_dispatch_description,
+)
 
 PermissionRule = dict[str, str]
 
@@ -264,6 +268,7 @@ def transform_agent(stem: str, raw: str, aliases: dict[str, str]) -> str:
     # missing the required field — a validator flags empty descriptions.
     description = str(frontmatter.get("description") or "").strip()
     transformed_description = apply_opencode_text_transforms(description, aliases).strip()
+    transformed_description = project_opencode_dispatch_description(transformed_description)
     if not transformed_description:
         transformed_description = f"{stem} agent"
 
@@ -305,6 +310,7 @@ def transform_agent(stem: str, raw: str, aliases: dict[str, str]) -> str:
 
     transformed_body = apply_opencode_text_transforms(body, aliases)
     transformed_body = _apply_agent_specific_text_transforms(stem, transformed_body)
+    transformed_body = project_opencode_dispatch(transformed_body, f"agents/{stem}.md")
     return dump_frontmatter(payload) + transformed_body
 
 

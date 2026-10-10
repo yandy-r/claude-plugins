@@ -1,14 +1,14 @@
 ---
 description: 'Unified planning workflow — research, analyze, and generate parallel
   implementation plans in one command. Combines shared-context and parallel-plan with
-  checkpoint support. Defaults to standalone parallel sub-agents via the opencode
-  `task` tool; pass --team (Claude Code only) to orchestrate research, analysis, and
-  validation stages as teammates under a shared spawn coordinated subagents/the todo
-  tracker with coordinated shutdown. Usage: [--team] [--research-only] [--plan-only]
-  [--no-checkpoint] [--optimized] [--dry-run] [--no-worktree] [--visual] [feature-name]'
+  checkpoint support. Defaults to standalone parallel sub-agents via the native `subagent`
+  tool. Usage: [--research-only] [--plan-only] [--no-checkpoint] [--optimized] [--dry-run]
+  [--no-worktree] [--visual] [feature-name]'
 ---
 
 # Plan Workflow Command
+
+> **OpenCode V2 compatibility:** `--team` is unsupported. If it is supplied, abort before setup or dispatch and ask the caller to rerun without it. This target uses native standalone `subagent` calls only.
 
 Run the unified planning pipeline for the specified feature.
 
@@ -18,12 +18,10 @@ The skill orchestrates research → shared-context → parallel-plan in a single
 
 **Flags** (pass before the feature name):
 
-- `--team` — (Claude Code only) Dispatch the research, analysis, and validation stages as teammates under a shared `spawn coordinated subagents`/`the todo tracker` with coordinated shutdown and inter-teammate `send follow-up instructions` coordination. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
 - `--research-only` — Stop after research phase (creates `shared.md` only).
 - `--plan-only` — Skip research, use existing `shared.md`.
 - `--no-checkpoint` — No pause between research and planning.
 - `--optimized` — Use 7-agent optimized deployment (default: 10-agent standard).
-- `--dry-run` — Preview the execution plan without deploying agents. With `--team`, also prints the team name and teammate roster.
 - `--worktree` — (legacy — now default; pass `--no-worktree` to opt out) Worktree annotations are emitted by default. This flag is accepted as a silent no-op so existing pipelines continue to work.
 - `--no-worktree` — Opt out of worktree annotations in the generated `parallel-plan.md`. No effect with `--research-only`. Honored with `--plan-only`. See `.opencode-plugin/skills/_shared/references/worktree-strategy.md`.
 - `--visual` — Render the finished plan as an Agent-Native visual artifact (MDX) via `visual-plan`; local-files by default, hosted link requires `--share`. Terminal decorator — runs after the plan is written and validated; `--dry-run` short-circuits it. See `.opencode-plugin/skills/_shared/references/visual-mode.md`.
@@ -33,7 +31,5 @@ The skill orchestrates research → shared-context → parallel-plan in a single
 ```
 /plan-workflow add a billing dashboard                       # worktree annotations included by default
 /plan-workflow --no-worktree add a billing dashboard         # skip worktree annotations
-/plan-workflow --team user-authentication                    # team mode with worktree annotations (default)
-/plan-workflow --team --no-worktree user-authentication      # team mode, no worktree annotations
 /plan-workflow --visual add a billing dashboard              # render the finished plan as a visual artifact
 ```

@@ -3,11 +3,13 @@ description: 'Conduct strategic multi-perspective research using the Asymmetric 
   Squad methodology — 8 specialized personas (historical, contrarian, analogical,
   systems, journalistic, archaeological, futurist, negative-space) deployed in parallel.
   For comprehensive research on complex topics requiring diverse viewpoints, competitive
-  analysis, or strategic intelligence gathering. Usage: [--team] [--output-dir "..."]
-  [--dry-run] <research-subject>'
+  analysis, or strategic intelligence gathering. Usage: [--output-dir "..."] [--dry-run]
+  <research-subject>'
 ---
 
 # Deep Research - Asymmetric Research Squad
+
+> **OpenCode V2 compatibility:** `--team` is unsupported. If it is supplied, abort before setup or dispatch and ask the caller to rerun without it. This target uses native standalone `subagent` calls only.
 
 ## User's Request
 
@@ -17,9 +19,7 @@ $ARGUMENTS
 
 1. **Load the deep-research skill** using the Skill tool to get the full workflow
 2. **Parse arguments** from `$ARGUMENTS`:
-   - **--team**: Optional. (Claude Code only) Deploy the 14 research agents as teammates under a shared `spawn coordinated subagents`/`the todo tracker` with coordinated shutdown. Default is standalone parallel sub-agents. Cursor and Codex bundles lack team tools — do not pass `--team` there.
    - **--output-dir "..."**: Optional custom output directory
-   - **--dry-run**: Optional flag to preview research plan. With `--team`, also prints the team name and teammate roster.
    - **research-subject**: Required - the topic to research (can be multi-word)
 3. **Follow the skill workflow** through all 4 phases:
    - Phase 0: Research Definition & Setup

@@ -94,7 +94,7 @@ When deploying an implementor agent:
 2. **Extract all variables** from the task section
 3. **Substitute variables** in this template
 4. **Deploy agent** with:
-   - `subagent_type`: `implementor`
+   - `agent`: `implementor`
    - `description`: "Implement {{TASK_ID}}: {{TASK_TITLE}}"
    - `prompt`: The substituted template
 

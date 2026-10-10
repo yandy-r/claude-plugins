@@ -1,22 +1,22 @@
 # Planning Agent Prompts
 
-These prompts are used to spawn analysis teammates for condensing planning context before generating the parallel implementation plan. This is Phase 5 of the unified planning workflow (standard mode only). Teammates share findings with each other via messages.
+These prompts are used to spawn analysis sub-agents for condensing planning context before generating the parallel implementation plan. This is Phase 5 of the unified planning workflow (standard mode only). Sub-agents share findings with each other via messages.
 
 ## Global Output Contract
 
-Apply this contract to every teammate prompt in this file:
+Apply this contract to every sub-agent prompt in this file:
 
 - Write only your assigned output file under `{{FEATURE_DIR}}`.
 - Do not edit any other files.
 - After writing the file, verify it exists using the Read tool or equivalent.
-- **Share key findings** with relevant teammates using send follow-up instructions.
+- **Share key findings** with relevant sub-agents using re-dispatch the affected sub-agent with the needed guidance.
 - After writing the file and sharing findings, mark your task as complete using update the todo tracker.
 
 ---
 
 ## Agent 1: Context Synthesizer
 
-**Teammate Name**: `context-synthesizer`
+**Sub-agent Role**: `context-synthesizer`
 
 **Subagent Type**: `codebase-research-analyst`
 
@@ -62,30 +62,13 @@ Read and analyze all planning documentation:
    - Identify cross-cutting concerns
    - Highlight potential parallelization opportunities
 
-## Team Communication
-
-> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `send follow-up instructions`, `update the todo tracker`, or `the todo tracker`, ignore this section entirely and just write your output file.
-
-You are part of an analysis team. Your teammates are:
-
-- **code-analyzer**: Extracting code patterns from relevant files
-- **task-structurer**: Suggesting task breakdown and phases
-
-**Share these findings via send follow-up instructions:**
-
-- Message `code-analyzer` with: critical files you identify that they should prioritize reading, and any architectural patterns or conventions that affect code analysis
-- Message `task-structurer` with: cross-cutting concerns, parallelization opportunities, and constraints that should influence task breakdown
-
-**Listen for messages from teammates** — `code-analyzer` may share patterns that affect your synthesis, and `task-structurer` may ask for clarification on scope.
-
 ## Task Coordination
 
-> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `the todo tracker` / `update the todo tracker`, ignore this section entirely; the orchestrator gates on the artifact file existing on disk.
 
 1. Check the todo tracker for your assigned task
 2. Claim your task with update the todo tracker (set status to in_progress, owner to your name)
 3. Do your analysis
-4. Share findings with teammates
+4. Share findings with sub-agents
 5. Write your output file
 6. Mark your task complete with update the todo tracker
 
@@ -145,7 +128,7 @@ You MUST complete ALL of these steps in order:
 
 1. **Write file**: Use the Write tool to create {{FEATURE_DIR}}/analysis-context.md
 2. **Verify file**: Use the Read tool to confirm the file exists and has content
-3. **Share findings**: Message teammates with key insights
+3. **Share findings**: Message sub-agents with key insights
 4. **Mark complete**: Update your task status to completed
 ````
 
@@ -153,7 +136,7 @@ You MUST complete ALL of these steps in order:
 
 ## Agent 2: Code Analyzer
 
-**Teammate Name**: `code-analyzer`
+**Sub-agent Role**: `code-analyzer`
 
 **Subagent Type**: `codebase-research-analyst`
 
@@ -205,30 +188,13 @@ Read and analyze code files identified in the planning documents:
    - Import/export patterns
    - Configuration patterns
 
-## Team Communication
-
-> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `send follow-up instructions`, `update the todo tracker`, or `the todo tracker`, ignore this section entirely and just write your output file.
-
-You are part of an analysis team. Your teammates are:
-
-- **context-synthesizer**: Condensing planning documentation
-- **task-structurer**: Suggesting task breakdown and phases
-
-**Share these findings via send follow-up instructions:**
-
-- Message `context-synthesizer` with: any patterns or architectural insights that should be reflected in the context synthesis
-- Message `task-structurer` with: file-to-task mapping suggestions, files that should be grouped together, and any dependency relationships between code modules
-
-**Listen for messages from teammates** — especially from `context-synthesizer` who may point you to critical files to prioritize.
-
 ## Task Coordination
 
-> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `the todo tracker` / `update the todo tracker`, ignore this section entirely; the orchestrator gates on the artifact file existing on disk.
 
 1. Check the todo tracker for your assigned task
 2. Claim your task with update the todo tracker (set status to in_progress, owner to your name)
 3. Do your analysis
-4. Share findings with teammates
+4. Share findings with sub-agents
 5. Write your output file
 6. Mark your task complete with update the todo tracker
 
@@ -324,7 +290,7 @@ You MUST complete ALL of these steps in order:
 
 1. **Write file**: Use the Write tool to create {{FEATURE_DIR}}/analysis-code.md
 2. **Verify file**: Use the Read tool to confirm the file exists and has content
-3. **Share findings**: Message teammates with key insights
+3. **Share findings**: Message sub-agents with key insights
 4. **Mark complete**: Update your task status to completed
 ````
 
@@ -332,7 +298,7 @@ You MUST complete ALL of these steps in order:
 
 ## Agent 3: Task Structure Agent
 
-**Teammate Name**: `task-structurer`
+**Sub-agent Role**: `task-structurer`
 
 **Subagent Type**: `codebase-research-analyst`
 
@@ -386,30 +352,13 @@ Based on the codebase structure and planning context:
 
 5. **Label Parallel vs Sequential** - In your output, clearly label each task as **parallel** (can run concurrently with siblings) or **sequential** (must follow a predecessor). The orchestrator uses this labeling for batch ordering. Follow `~/.config/opencode/shared/references/worktree-strategy.md` for the single-worktree contract.
 
-## Team Communication
-
-> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `send follow-up instructions`, `update the todo tracker`, or `the todo tracker`, ignore this section entirely and just write your output file.
-
-You are part of an analysis team. Your teammates are:
-
-- **context-synthesizer**: Condensing planning documentation
-- **code-analyzer**: Extracting code patterns from relevant files
-
-**Share these findings via send follow-up instructions:**
-
-- Message `context-synthesizer` with: any scope clarifications or missing context you identify while analyzing the codebase
-- Message `code-analyzer` with: specific files you think are important for pattern analysis that they may not have found yet
-
-**Listen for messages from teammates** — especially from `code-analyzer` who may share file-to-task mapping insights, and from `context-synthesizer` who may share parallelization opportunities and constraints.
-
 ## Task Coordination
 
-> **Path B (`--team`) only — skip in standalone (Path A) mode.** If you do not have access to `the todo tracker` / `update the todo tracker`, ignore this section entirely; the orchestrator gates on the artifact file existing on disk.
 
 1. Check the todo tracker for your assigned task
 2. Claim your task with update the todo tracker (set status to in_progress, owner to your name)
 3. Do your analysis
-4. Share findings with teammates
+4. Share findings with sub-agents
 5. Write your output file
 6. Mark your task complete with update the todo tracker
 
@@ -521,7 +470,7 @@ You MUST complete ALL of these steps in order:
 
 1. **Write file**: Use the Write tool to create {{FEATURE_DIR}}/analysis-tasks.md
 2. **Verify file**: Use the Read tool to confirm the file exists and has content
-3. **Share findings**: Message teammates with key insights
+3. **Share findings**: Message sub-agents with key insights
 4. **Mark complete**: Update your task status to completed
 ````
 
@@ -529,26 +478,17 @@ You MUST complete ALL of these steps in order:
 
 ## Usage Instructions
 
-When spawning analysis teammates:
+When spawning analysis sub-agents:
 
 1. **Read this file** to get the prompt templates
 2. **Substitute variables**:
    - `{{FEATURE_NAME}}` - The feature directory name
    - `{{FEATURE_DIR}}` - Full output directory (`${feature_dir}`, resolved in Step 1)
 3. **Create tasks** - Use track the task to create 3 analysis tasks
-4. **Spawn in parallel** - Use a single message with 3 parallel subagent invocations, each with `team_name` and `name`
 5. **Monitor progress** - Use the todo tracker to check when all tasks complete
 6. **Verify artifacts** - Check all analysis files exist on disk
-7. **Shut down teammates** - Send shutdown requests via send follow-up instructions
+7. **Shut down sub-agents** - Send shutdown requests via re-dispatch the affected sub-agent with the needed guidance
 8. **Read condensed outputs** - Review the 3 analysis files before creating parallel-plan.md
-
-## Teammate Configuration
-
-| Teammate            | Type                        | Output File         | Model  |
-| ------------------- | --------------------------- | ------------------- | ------ |
-| context-synthesizer | `codebase-research-analyst` | analysis-context.md | sonnet |
-| code-analyzer       | `codebase-research-analyst` | analysis-code.md    | sonnet |
-| task-structurer     | `codebase-research-analyst` | analysis-tasks.md   | sonnet |
 
 ## Expected Output Size
 

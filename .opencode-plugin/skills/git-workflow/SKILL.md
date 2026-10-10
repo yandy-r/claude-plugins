@@ -421,7 +421,7 @@ For each feature scope, deploy a `docs-git-committer` agent:
 
 | Field         | Value                                                             |
 | ------------- | ----------------------------------------------------------------- |
-| subagent_type | `docs-git-committer`                                              |
+| agent | `docs-git-committer`                                              |
 | description   | "Commit [feature-name] with docs"                                 |
 | prompt        | Complete instructions including scope, files, documentation needs |
 

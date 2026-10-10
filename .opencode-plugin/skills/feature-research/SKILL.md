@@ -4,17 +4,16 @@ description: Run the 7-agent research pipeline for a new feature — deploys api
   business-analyzer, tech-designer, ux-researcher, security-researcher, practices-researcher,
   and recommendations-agent in parallel to produce 7 research-*.md files and a consolidated
   feature-spec.md under docs/plans/[feature-name]/. Default is standalone parallel
-  sub-agents via the opencode `task` tool. Pass `--team` (Claude Code only) to deploy
-  the 7 researchers as teammates under a shared spawn coordinated subagents/the todo
-  tracker with coordinated shutdown. Outputs to docs/plans/, NOT docs/prps/. Use when
-  the user asks to "research a feature", "run feature research", "deep-dive a feature
-  before planning", or says "/feature-research". For lightweight single-pass specs
-  in the PRP workflow, use prp-spec instead.
+  sub-agents via the native `subagent` tool. Outputs to docs/plans/, NOT docs/prps/.
+  Use when the user asks to "research a feature", "run feature research", "deep-dive
+  a feature before planning", or says "/feature-research". For lightweight single-pass
+  specs in the PRP workflow, use prp-spec instead.
 ---
 
 # Feature Research
 
-Deep research skill for application features. Goes beyond codebase analysis to research external APIs, business logic, technical specifications, UX considerations, and generate actionable recommendations. Dispatches 7 researchers in parallel — standalone sub-agents by default, or an agent team with `--team` (Claude Code only) where teammates share findings with each other.
+> **OpenCode V2 compatibility:** `--team` is unsupported. If it is supplied, abort before setup or dispatch and ask the caller to rerun without it. This target uses native standalone `subagent` calls only.
+
 
 ## Workflow Integration
 
@@ -30,7 +29,6 @@ feature-spec.md        feature-spec.md     parallel-plan.md
 | Skill                     | Agents                            | Output Dir           | Output Files                          | Use When                                       |
 | ------------------------- | --------------------------------- | -------------------- | ------------------------------------- | ---------------------------------------------- |
 | `feature-research` (THIS) | 7 parallel agents                 | `docs/plans/[name]/` | 7 `research-*.md` + `feature-spec.md` | Deep multi-agent research before plan-workflow |
-| `shared-context`          | Agent team                        | `docs/plans/[name]/` | `shared.md`                           | Codebase-focused context for parallel-plan     |
 | `prp-spec`                | Single pass (optional researcher) | `docs/prps/specs/`   | `{name}.spec.md`                      | Lightweight spec for PRP workflow              |
 | `prp-prd`                 | Interactive + researcher          | `docs/prps/prds/`    | `{name}.prd.md`                       | Full PRD with hypothesis-driven questioning    |
 | `prp-plan`                | Single pass + researcher          | `docs/prps/plans/`   | `{name}.plan.md`                      | Implementation plan from PRD or description    |
@@ -40,7 +38,6 @@ feature-spec.md        feature-spec.md     parallel-plan.md
 - Deploys all 7 researchers in parallel (never skips agents)
 - Creates 7 `research-*.md` files + 1 `feature-spec.md`
 - Outputs ONLY to `docs/plans/[feature-name]/`
-- Dispatches via sub-agents by default; via an agent team only when `--team` is passed
 
 **This skill NEVER**:
 
@@ -55,22 +52,18 @@ feature-spec.md        feature-spec.md     parallel-plan.md
 
 Parse arguments (flags first, then the feature name):
 
-- **--team**: Optional. (Claude Code only) Deploy the 7 researchers as teammates under a shared `spawn coordinated subagents`/`the todo tracker` with coordinated shutdown. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
 - **--description "..."**: Brief description of the feature (guides research agents)
-- **--dry-run**: Show execution plan without running. With `--team`, also prints the team name and 7-teammate roster.
 - **feature-name**: Required. Directory name in `docs/plans/`
 
 If no feature name provided, abort with usage instructions:
 
 ```
-Usage: /feature-research [--team] [--description "..."] [--dry-run] [feature-name]
+Usage: /feature-research [--description "..."] [--dry-run] [feature-name]
 
 Examples:
   /feature-research plex-integration --description "Advanced Plex media library integration with filters and playlists"
   /feature-research payment-system --description "Stripe payment integration for subscriptions"
   /feature-research user-dashboard --dry-run
-  /feature-research --team plex-integration --description "Advanced Plex media library integration with filters and playlists"
-  /feature-research --team --dry-run payment-system
 ```
 
 ---
@@ -81,16 +74,13 @@ Examples:
 
 Extract from `$ARGUMENTS`:
 
-1. **--team**: Boolean flag. Set `AGENT_TEAM_MODE=true` if present, else `false`.
 2. **--description**: Quoted string after flag (optional but recommended)
 3. **--dry-run**: Boolean flag. Set `DRY_RUN=true` if present, else `false`.
 4. **feature-name**: First non-flag argument (required)
 
 Validate the feature name: must be kebab-case, no special characters except hyphens.
 
-**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools).
 
-**Team opt-in note**: If `--team` is passed and `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment, abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Use --parallel instead, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your opencode settings if you intentionally want agent-team dispatch.`
 
 ### Step 2: Create Directory
 
@@ -115,7 +105,7 @@ Display:
 
 ## Research Pipeline
 
-Dispatch Mode: [standalone sub-agents | agent team]
+Dispatch Mode: [standalone sub-agents]
 Researchers: 7 (api-researcher, business-analyzer, tech-designer, ux-researcher, security-researcher, practices-researcher, recommendations-agent)
 
 1. api-researcher - External APIs, libraries, integration patterns
@@ -139,73 +129,18 @@ Researchers: 7 (api-researcher, business-analyzer, tech-designer, ux-researcher,
 
 ## Execution Model
 
-- Default (`AGENT_TEAM_MODE=false`): deploy 7 researchers as standalone sub-agents in a single message with multiple `Task` calls. No team coordination; each sub-agent writes its assigned `research-*.md`. Orchestrator validates and synthesizes `feature-spec.md`.
-- With `--team` (`AGENT_TEAM_MODE=true`): create team `fr-[sanitized-feature-name]`, register 7 tasks, spawn 7 teammates with shared task state and inter-teammate `send follow-up instructions`, then shut down and `end the coordinated run` before synthesis.
+- Default (`STANDALONE_MODE=true`): deploy 7 researchers as standalone sub-agents in a single message with multiple native `subagent` calls. No team coordination; each sub-agent writes its assigned `research-*.md`. Orchestrator validates and synthesizes `feature-spec.md`.
 ```
 
-If `AGENT_TEAM_MODE=true`, additionally print the team roster block:
 
-```
-Team name:      fr-<sanitized-feature-name>
-Teammates:      7
-  - api-researcher         subagent_type=research-specialist         task=External APIs, libraries, integration patterns
-  - business-analyzer      subagent_type=codebase-research-analyst   task=Requirements, user stories, business rules
-  - tech-designer          subagent_type=codebase-research-analyst   task=Architecture, data models, API design
-  - ux-researcher          subagent_type=research-specialist         task=User experience, workflows, accessibility
-  - security-researcher    subagent_type=research-specialist         task=Security analysis, dependency risks, secure coding
-  - practices-researcher   subagent_type=codebase-research-analyst   task=Modularity, code reuse, KISS, engineering best practices
-  - recommendations-agent  subagent_type=codebase-research-analyst   task=Ideas, improvements, risks
-```
 
-Do **not** call `spawn coordinated subagents`, `track the task`, `Agent`, `Task`, `send follow-up instructions`, or `end the coordinated run` in dry-run mode.
+Do not dispatch any `subagent` calls in dry-run mode.
 
 **STOP** without creating files or deploying agents.
 
 ---
 
 ## Phase 1: Research Pipeline
-
-### Step 5: Team Setup (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step entirely — the default path dispatches standalone sub-agents in Step 8.
-
-If `AGENT_TEAM_MODE=true`, follow the universal lifecycle contract at
-`~/.config/opencode/shared/references/agent-team-dispatch.md`.
-
-**Team name sanitization** — apply the rules from the shared reference:
-
-1. Lowercase the feature name.
-2. Replace any character matching `[^a-z0-9-]` with `-`.
-3. Collapse runs of `-` to a single `-`.
-4. Trim leading/trailing `-`.
-5. Truncate the sanitized context to **20 chars max**.
-6. If empty, fall back to `untitled`.
-
-Team name: `fr-<sanitized-feature-name>`.
-
-**Create the team** (single `spawn coordinated subagents` call for the whole skill run):
-
-```
-spawn coordinated subagents: team_name="fr-<sanitized-feature-name>", description="Feature research team for <feature-name>"
-```
-
-On failure, abort the skill with the `spawn coordinated subagents` error message. Do NOT silently fall back to sub-agent mode.
-
-### Step 6: Create Research Tasks (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step entirely — standalone `Task` dispatch does not use the shared task list.
-
-If `AGENT_TEAM_MODE=true`, register all 7 tasks up front (flat — all 7 run in a single batch, no `blockedBy`):
-
-1. **"Research external APIs for [feature-name]"** — APIs, libraries, integration patterns
-2. **"Analyze business logic for [feature-name]"** — Requirements, user stories, business rules
-3. **"Design technical specs for [feature-name]"** — Architecture, data models, API design
-4. **"Research UX patterns for [feature-name]"** — User experience, workflows, accessibility
-5. **"Evaluate security for [feature-name]"** — Security implications, dependency risks, secure coding
-6. **"Evaluate engineering practices for [feature-name]"** — Modularity, code reuse, KISS, testability
-7. **"Generate recommendations for [feature-name]"** — Ideas, improvements, risks
-
-If `track the task` fails for any task, call `end the coordinated run` and abort.
 
 ### Step 7: Read Research Prompts
 
@@ -217,17 +152,16 @@ cat ~/.config/opencode/skills/feature-research/templates/research-agents.md
 
 ### Step 8: Deploy the 7 Researchers
 
-| Name / Teammate `name`  | Subagent Type               | Output File                   | Model   | Focus                                                                 |
+| Name / Sub-agent role  | Subagent Type               | Output File                   | Model   | Focus                                                                 |
 | ----------------------- | --------------------------- | ----------------------------- | ------- | --------------------------------------------------------------------- |
-| `api-researcher`        | `research-specialist`       | `research-external.md`        | sonnet  | External APIs, libraries, documentation, integration patterns         |
-| `business-analyzer`     | `codebase-research-analyst` | `research-business.md`        | sonnet  | Requirements, user stories, business rules, domain logic              |
-| `tech-designer`         | `codebase-research-analyst` | `research-technical.md`       | Default | Architecture, data models, API design, system constraints             |
-| `ux-researcher`         | `research-specialist`       | `research-ux.md`              | sonnet  | User experience, workflows, best practices, accessibility             |
-| `security-researcher`   | `research-specialist`       | `research-security.md`        | sonnet  | Security analysis, dependency risks, secure coding (severity-leveled) |
-| `practices-researcher`  | `codebase-research-analyst` | `research-practices.md`       | sonnet  | Modularity, code reuse, KISS, engineering best practices              |
-| `recommendations-agent` | `codebase-research-analyst` | `research-recommendations.md` | Default | Ideas, improvements, related features, risks                          |
+| `api-researcher`        | `research-specialist`       | `research-external.md`        | configured | External APIs, libraries, documentation, integration patterns         |
+| `business-analyzer`     | `codebase-research-analyst` | `research-business.md`        | configured | Requirements, user stories, business rules, domain logic              |
+| `tech-designer`         | `codebase-research-analyst` | `research-technical.md`       | configured | Architecture, data models, API design, system constraints             |
+| `ux-researcher`         | `research-specialist`       | `research-ux.md`              | configured | User experience, workflows, best practices, accessibility             |
+| `security-researcher`   | `research-specialist`       | `research-security.md`        | configured | Security analysis, dependency risks, secure coding (severity-leveled) |
+| `practices-researcher`  | `codebase-research-analyst` | `research-practices.md`       | configured | Modularity, code reuse, KISS, engineering best practices              |
+| `recommendations-agent` | `codebase-research-analyst` | `research-recommendations.md` | configured | Ideas, improvements, related features, risks                          |
 
-**Model Assignment**: Pass the `model` parameter when spawning each researcher. Use `model: "sonnet"` for api-researcher, business-analyzer, ux-researcher, security-researcher, practices-researcher. Omit model (inherit default) for tech-designer and recommendations-agent.
 
 Use the prompts from `research-agents.md` with variables substituted:
 
@@ -235,37 +169,17 @@ Use the prompts from `research-agents.md` with variables substituted:
 - `{{FEATURE_DIR}}` - Full output directory path (`docs/plans/[feature-name]`)
 - `{{FEATURE_DESCRIPTION}}` - The description provided (or feature name if none)
 
-#### Path A — Standalone sub-agents (`AGENT_TEAM_MODE=false`, default)
+#### Path A — Standalone sub-agents (`STANDALONE_MODE=true`, default)
 
-**CRITICAL**: Deploy all 7 researchers in a **SINGLE message** with **MULTIPLE `Task` tool calls**. No `team_name` — standalone dispatch. Each `Task` call uses the `subagent_type` and `model` from the table above and the corresponding prompt from `research-agents.md`.
+**CRITICAL**: Deploy all 7 researchers in a **SINGLE message** with **MULTIPLE native `subagent` calls**. Every call sets `background=false`, uses the configured agent model, and follows the shared result policy below.
 
-In this mode there is no shared task list; rely on each `Task`'s return value plus the artifact check in Step 10 to confirm completion. Inter-teammate `send follow-up instructions` coordination (Step 9) is not available — each sub-agent works independently from the prompt alone.
-
-#### Path B — Agent team (`AGENT_TEAM_MODE=true`)
-
-> **MANDATORY — AGENT TEAMS REQUIRED**
->
-> In Path B you MUST follow the agent-team lifecycle at
-> `~/.config/opencode/shared/references/agent-team-dispatch.md`.
-> Do NOT mix standalone `Task` calls with team dispatch.
-
-All 7 `track the task` entries were registered up front in Step 6 — do not re-create them here.
-
-Spawn all 7 teammates in **ONE message** with **SEVEN `Agent` tool calls**. Every call MUST include:
-
-- `team_name = "fr-<sanitized-feature-name>"`
-- `name = "<teammate-name>"` (from the table above — must match the `track the task` subject prefix)
-- `subagent_type` and `model` from the table above
-- The researcher-specific prompt from `research-agents.md`
-
-After spawning, use `the todo tracker` to confirm all 7 tasks are `completed` before proceeding to Step 10. Do not rely on agent return values alone — check the shared task state.
+If a child report is empty or contentless, record its `sessionID`, inspect the declared artifact or working-tree edits, preserve valid work, and make at most one retry before reporting the child result incomplete. An artifact can preserve work but does not prove a child response. Follow `~/.config/opencode/shared/references/standalone-dispatch.md`.
 
 ### Step 9: Monitor Research Progress
 
 Wait for all 7 researchers to complete their work.
 
-- **Path A (standalone, default)**: rely on `Task` return values; each sub-agent writes its `research-*.md` artifact before returning.
-- **Path B (`--team`)**: use `the todo tracker` to check progress. Teammates will share findings with each other via `send follow-up instructions`:
+If a child report is empty or contentless, record its `sessionID`, inspect the declared artifact or working-tree edits, preserve valid work, and make at most one retry before reporting the child result incomplete. An artifact can preserve work but does not prove a child response. Follow `~/.config/opencode/shared/references/standalone-dispatch.md`.
   - `api-researcher` tells `tech-designer` about discovered API endpoints and auth patterns
   - `api-researcher` tells `security-researcher` about dependency versions and auth methods
   - `api-researcher` tells `practices-researcher` about discovered libraries for build-vs-depend analysis
@@ -277,15 +191,13 @@ Wait for all 7 researchers to complete their work.
   - `security-researcher` tells `recommendations-agent` about full risk summary by severity
   - `practices-researcher` tells `tech-designer` about reusable code discoveries and simplification opportunities
   - `practices-researcher` tells `recommendations-agent` about modularity and reuse findings
-  - `recommendations-agent` synthesizes insights from all teammates including security and practices findings
+  - `recommendations-agent` synthesizes insights from all sub-agents including security and practices findings
 
-  If a teammate gets stuck, send them guidance via `send follow-up instructions`.
+  If a sub-agent gets stuck, send them guidance via `re-dispatch the affected sub-agent with the needed guidance`.
 
 **Failure policy for Path B** (mirrors deep-research):
 
-- **Single teammate failure**: record the gap in the corresponding `research-*.md` (stub note) and continue — downstream synthesis will adapt.
-- **Majority failure** (≥4 of 7 failed): `send follow-up instructions(shutdown)` to any still-active teammates, call `end the coordinated run`, and abort with "retry without `--team` (standalone sub-agent fallback)".
-- **Mid-run user abort**: `send follow-up instructions(shutdown)` to every active teammate, then `end the coordinated run`. Never exit with the team still live.
+- **Single sub-agent failure**: record the gap in the corresponding `research-*.md` (stub note) and continue — downstream synthesis will adapt.
 
 ---
 
@@ -293,31 +205,13 @@ Wait for all 7 researchers to complete their work.
 
 ### Step 10: Validate Research Artifacts
 
-After all 7 teammates complete, validate all `research-*.md` files:
+After all 7 sub-agents complete, validate all `research-*.md` files:
 
 ```bash
 ~/.config/opencode/skills/feature-research/scripts/validate-research.sh docs/plans/[feature-name]
 ```
 
-If validation fails: message the relevant teammate to fix their output, wait for correction, rerun validation until pass.
-
-### Step 11: Shut Down Research Teammates (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step — standalone sub-agents return on their own.
-
-Otherwise, send shutdown requests to all 7 teammates:
-
-```
-send follow-up instructions(to="api-researcher",        message={type:"shutdown_request"})
-send follow-up instructions(to="business-analyzer",     message={type:"shutdown_request"})
-send follow-up instructions(to="tech-designer",         message={type:"shutdown_request"})
-send follow-up instructions(to="ux-researcher",         message={type:"shutdown_request"})
-send follow-up instructions(to="security-researcher",   message={type:"shutdown_request"})
-send follow-up instructions(to="practices-researcher",  message={type:"shutdown_request"})
-send follow-up instructions(to="recommendations-agent", message={type:"shutdown_request"})
-```
-
-Do NOT `end the coordinated run` yet — that runs in Step 16 after spec validation.
+If validation fails: message the relevant sub-agent to fix their output, wait for correction, rerun validation until pass.
 
 ### Step 12: Read Research Results
 
@@ -354,19 +248,9 @@ Create `docs/plans/[feature-name]/feature-spec.md` following the template.
 
 Fix any issues reported (missing sections, empty content, formatting).
 
-### Step 16: Clean Up Team (if `--team`)
-
-If `AGENT_TEAM_MODE=false`, skip this step — there is no team to tear down.
-
-Otherwise, delete the team and its resources:
-
-```
-end the coordinated run
-```
-
 ### Step 17: Display Summary
 
-Provide completion summary with: feature name, description, dispatch mode (standalone sub-agents or agent team `fr-<sanitized>`), files created, research summary counts, key findings, decisions needed, and next steps (review spec, proceed to `/plan-workflow`, or add requirements).
+Provide completion summary with: feature name, description, dispatch mode (standalone sub-agents), files created, research summary counts, key findings, decisions needed, and next steps (review spec, proceed to `/plan-workflow`, or add requirements).
 
 ---
 
@@ -388,7 +272,7 @@ Each research file should: focus on its specific domain, include concrete exampl
 
 ## Anti-patterns — Do NOT Do These
 
-1. **Do NOT skip the multi-agent pipeline**: Never generate `feature-spec.md` directly without first deploying all 7 researchers (standalone sub-agents or teammates, depending on `--team`) and collecting their `research-*.md` files. The spec is a synthesis of research, not a standalone generation. If about to write `feature-spec.md` without the 7 research files already on disk, STOP — the pipeline is off-rails.
+1. **Do NOT skip the multi-agent pipeline**: Never generate `feature-spec.md` directly without first deploying all 7 researchers (standalone sub-agents) and collecting their `research-*.md` files. The spec is a synthesis of research, not a standalone generation. If about to write `feature-spec.md` without the 7 research files already on disk, STOP — the pipeline is off-rails.
 
 2. **Do NOT output to `docs/prps/`**: This skill's output directory is `docs/plans/[feature-name]/`. The `docs/prps/` tree belongs to the PRP workflow (`prp-prd`, `prp-spec`, `prp-plan`, `prp-implement`). Even if the user's working directory is `docs/prps/` or any subdirectory, always create output under `docs/plans/`.
 
@@ -399,14 +283,9 @@ Each research file should: focus on its specific domain, include concrete exampl
 ## Important Notes
 
 - **You are the research orchestrator** — coordinate the 7 researchers and synthesize the spec
-- **Choose dispatch mode from `$ARGUMENTS`** — default is standalone sub-agents via `Task`; `--team` switches to teammates under `spawn coordinated subagents`/`the todo tracker`
-- **Team setup first (Path B only)** — call `spawn coordinated subagents` and register all 7 tasks before spawning teammates
-- **Spawn in parallel** — a single message with 7 `Task` calls (Path A) or 7 `Agent` calls with `team_name=` + `name=` (Path B)
-- **Teammates share findings (Path B only)** — inter-teammate `send follow-up instructions` coordination is unavailable to standalone sub-agents
 - **Single-owner research files** — each researcher writes only its assigned artifact
 - **Gate synthesis with validation** — do not generate `feature-spec.md` before validator pass
 - **Use web search** — external APIs require current documentation
 - **Be thorough but focused** — quality over quantity
 - **Enable plan-workflow** — this spec is the foundation for implementation planning
 - **Preserve uncertainty** — mark areas needing clarification rather than guessing
-- **Clean up team (Path B only)** — always `end the coordinated run` before completing when a team was created

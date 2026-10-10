@@ -5,7 +5,6 @@ Standard prompt templates for common orchestration patterns. Use these to ensure
 Every template contains a coordination section that must be swapped based on the dispatch path chosen by the `orchestrate` skill:
 
 - **Path A — Standalone sub-agents (default)**: replace the embedded `## Team Communication` block with the **Path A Coordination Block** defined below.
-- **Path B — Agent team (`--team`)**: keep the embedded `## Team Communication` block and substitute `{{BATCH_NUMBER}}` + `{{BATCH_TEAMMATES}}`.
 
 ---
 
@@ -22,18 +21,17 @@ All templates support these variables:
 | `{{CONSTRAINTS}}`     | What agent should NOT do         | "Don't modify authentication middleware"   |
 | `{{DEPENDENCIES}}`    | What must be complete first      | "User model (Task 1.1)"                    |
 | `{{BATCH_NUMBER}}`    | Current execution batch number   | "1", "2", "3"                              |
-| `{{BATCH_TEAMMATES}}` | Other teammates in this batch    | "- **subtask-2**: Create test plan"        |
+| `{{BATCH_TEAMMATES}}` | Other sub-agents in this batch    | "- **subtask-2**: Create test plan"        |
 
 ---
 
 ## Path A Coordination Block (default — standalone sub-agents)
 
-When the skill is running **without** `--team`, replace each template's `## Team Communication` section with this block:
 
 ```markdown
 ## Coordination
 
-You are a standalone implementor — no inter-agent coordination, no shared task list, no send follow-up instructions. You are running in parallel with other sub-agents, but you cannot see or communicate with them.
+You are a standalone implementor — no inter-agent coordination, no shared task list, no inter-agent messaging. You are running in parallel with other sub-agents, but you cannot see or communicate with them.
 
 ### Task Execution
 
@@ -49,53 +47,6 @@ You are a standalone implementor — no inter-agent coordination, no shared task
 ```
 
 The orchestrator uses your returned summary to decide how to proceed with dependent subtasks.
-
----
-
-## Path B Team Communication Section (Include ONLY with `--team`)
-
-When the skill is running **with** `--team`, insert this section into every agent prompt template (substituting `{{BATCH_NUMBER}}` and `{{BATCH_TEAMMATES}}`):
-
-```markdown
-## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
-
-You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
-
-### Your Teammates (This Batch)
-
-{{BATCH_TEAMMATES}}
-
-### What to Share (via send follow-up instructions)
-
-After completing your work, share relevant findings with teammates:
-
-- **Utility functions, helpers, or shared code** you created that teammates might need
-- **API patterns, interfaces, or contracts** you established
-- **Unexpected findings or breaking changes** discovered during implementation
-- **Integration points** other teammates should know about
-
-Only share findings that are genuinely useful to specific teammates. Use targeted messages.
-
-### What to Listen For
-
-Your teammates may message you with:
-
-- Shared code or utilities they created
-- Interface contracts or API patterns
-- Warnings about unexpected codebase state
-
-Integrate any relevant information from teammate messages into your work.
-
-### Task Coordination
-
-1. Check the todo tracker for your assigned task
-2. Claim your task with update the todo tracker (set status to in_progress, owner to your name)
-3. Read all context files
-4. Implement your subtask
-5. Share key findings with relevant teammates via send follow-up instructions
-6. Validate your work
-7. Mark your task complete with update the todo tracker (set status to completed)
-```
 
 ---
 
@@ -144,28 +95,6 @@ Create/modify these files:
 
 {{CONSTRAINTS}}
 
-## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
-
-You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
-
-### Your Teammates (This Batch)
-
-{{BATCH_TEAMMATES}}
-
-### What to Share (via send follow-up instructions)
-
-- New utility functions or shared code you created
-- API patterns or interfaces you established
-- Unexpected findings or breaking changes
-- Integration points other teammates should know about
-
-### Task Coordination
-
-1. Check the todo tracker for your assigned task
-2. Claim with update the todo tracker (status=in_progress, owner=your name)
-3. Read context files, implement, share findings, validate
-4. Mark complete with update the todo tracker (status=completed)
-
 ## Output Format
 
 After completing the task, provide:
@@ -209,27 +138,6 @@ Perform systematic root cause analysis to identify WHY this bug is occurring.
 
 {{CONTEXT_FILES}}
 
-## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
-
-You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
-
-### Your Teammates (This Batch)
-
-{{BATCH_TEAMMATES}}
-
-### What to Share (via send follow-up instructions)
-
-- Root cause findings that affect other teammates' work
-- Files in unexpected state that teammates should know about
-- Related bugs or issues you discovered during investigation
-
-### Task Coordination
-
-1. Check the todo tracker for your assigned task
-2. Claim with update the todo tracker (status=in_progress, owner=your name)
-3. Investigate, share findings, write report
-4. Mark complete with update the todo tracker (status=completed)
-
 ## Output Format
 
 Provide a diagnostic report with: Bug Summary, Reproduction Steps, Root Cause Analysis (hypotheses with evidence and likelihood), Conclusion, Recommended Fix, Files That Need Changes.
@@ -267,27 +175,6 @@ Read the diagnostic report: {{DIAGNOSTIC_REPORT_PATH}}
 3. **Add Safety**: Include validation or checks to prevent recurrence
 4. **Follow Patterns**: Match existing error handling patterns
 
-## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
-
-You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
-
-### Your Teammates (This Batch)
-
-{{BATCH_TEAMMATES}}
-
-### What to Share (via send follow-up instructions)
-
-- Details of the fix that affect other teammates' testing or documentation work
-- Any additional issues found during fix implementation
-- Files modified that teammates may also be working with
-
-### Task Coordination
-
-1. Check the todo tracker for your assigned task
-2. Claim with update the todo tracker (status=in_progress, owner=your name)
-3. Implement fix, share findings, validate
-4. Mark complete with update the todo tracker (status=completed)
-
 ## Output Format
 
 Provide: Files modified, description of fix, how it addresses root cause, regression test suggestions.
@@ -321,27 +208,6 @@ Analyze the current implementation for refactoring: {{TASK}}
 3. **Opportunities**: Find areas for improvement
 4. **Risks**: Identify risks in refactoring
 5. **Approach**: Recommend refactoring strategy
-
-## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
-
-You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
-
-### Your Teammates (This Batch)
-
-{{BATCH_TEAMMATES}}
-
-### What to Share (via send follow-up instructions)
-
-- Architectural insights that affect other analysis teammates
-- Risk factors that other teammates should consider
-- Patterns or conventions discovered that should be preserved
-
-### Task Coordination
-
-1. Check the todo tracker for your assigned task
-2. Claim with update the todo tracker (status=in_progress, owner=your name)
-3. Analyze, share findings, write report
-4. Mark complete with update the todo tracker (status=completed)
 
 ## Output Format
 
@@ -378,27 +244,6 @@ The recommended approach is: [Summary from analysis]
 ## Constraints
 
 {{CONSTRAINTS}}
-
-## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
-
-You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
-
-### Your Teammates (This Batch)
-
-{{BATCH_TEAMMATES}}
-
-### What to Share (via send follow-up instructions)
-
-- Files you modified that other refactoring teammates may depend on
-- Shared utilities or patterns you extracted during refactoring
-- Breaking changes that affect other teammates' work areas
-
-### Task Coordination
-
-1. Check the todo tracker for your assigned task
-2. Claim with update the todo tracker (status=in_progress, owner=your name)
-3. Refactor, share findings, validate
-4. Mark complete with update the todo tracker (status=completed)
 
 ## Output Format
 
@@ -448,27 +293,6 @@ Create/update:
 4. **Structure**: Use clear headings and organization
 5. **Cross-References**: Link to related documentation
 
-## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
-
-You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
-
-### Your Teammates (This Batch)
-
-{{BATCH_TEAMMATES}}
-
-### What to Share (via send follow-up instructions)
-
-- Documentation structure decisions that affect cross-linking
-- Undocumented features or APIs you discovered
-- Naming conventions or terminology you established
-
-### Task Coordination
-
-1. Check the todo tracker for your assigned task
-2. Claim with update the todo tracker (status=in_progress, owner=your name)
-3. Document, share findings, validate
-4. Mark complete with update the todo tracker (status=completed)
-
 ## Output Format
 
 After completing documentation: files created/updated, sections added, examples included, cross-references made.
@@ -505,27 +329,6 @@ Create a comprehensive test plan covering:
 3. **End-to-End Tests**: Full user workflows
 4. **Edge Cases**: Boundary conditions and error scenarios
 5. **Performance Tests**: If applicable
-
-## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
-
-You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
-
-### Your Teammates (This Batch)
-
-{{BATCH_TEAMMATES}}
-
-### What to Share (via send follow-up instructions)
-
-- Test coverage gaps you identified that affect other teammates
-- Shared test utilities or fixtures you created
-- Integration test requirements that depend on other teammates' implementations
-
-### Task Coordination
-
-1. Check the todo tracker for your assigned task
-2. Claim with update the todo tracker (status=in_progress, owner=your name)
-3. Create test plan, share findings
-4. Mark complete with update the todo tracker (status=completed)
 
 ## Output Format
 
@@ -576,27 +379,6 @@ For each endpoint:
 4. **Error Handling**: Return proper error responses
 5. **Response Format**: Consistent JSON structure
 6. **Status Codes**: Use appropriate HTTP status codes
-
-## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
-
-You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
-
-### Your Teammates (This Batch)
-
-{{BATCH_TEAMMATES}}
-
-### What to Share (via send follow-up instructions)
-
-- API contracts and response formats you established
-- Shared middleware or validation utilities you created
-- Authentication patterns teammates should follow
-
-### Task Coordination
-
-1. Check the todo tracker for your assigned task
-2. Claim with update the todo tracker (status=in_progress, owner=your name)
-3. Implement endpoints, share findings, validate
-4. Mark complete with update the todo tracker (status=completed)
 
 ## Constraints
 
@@ -657,27 +439,6 @@ Review existing schema:
 -- [Rollback changes]
 ```
 
-## Team Communication (Path B — `--team` only; swap for Path A Coordination Block in default mode)
-
-You are part of an orchestration team working on batch {{BATCH_NUMBER}} for: "{{TASK}}"
-
-### Your Teammates (This Batch)
-
-{{BATCH_TEAMMATES}}
-
-### What to Share (via send follow-up instructions)
-
-- Table names and column definitions teammates need for their code
-- Foreign key relationships that affect other teammates' models
-- Migration order dependencies
-
-### Task Coordination
-
-1. Check the todo tracker for your assigned task
-2. Claim with update the todo tracker (status=in_progress, owner=your name)
-3. Create schema/migrations, share findings, validate
-4. Mark complete with update the todo tracker (status=completed)
-
 ## Constraints
 
 {{CONSTRAINTS}}
@@ -692,8 +453,7 @@ Provide: Migration file created, tables/columns added, indexes created, rollback
 ## Best Practices for Using Templates
 
 1. **Always fill all variables**: Don't leave placeholders like {{TASK}} in the actual prompt
-2. **Select the right coordination block**: Path A (standalone) in default mode, Path B (Team Communication) only when `--team` is passed. Never include the Path B block in Path A prompts — there are no teammates to communicate with.
-3. **Substitute BATCH_TEAMMATES (Path B only)**: List the other teammates in the same batch
+2. **Select the right coordination block**: Use the Path A standalone coordination block. Never include the Path B block in Path A prompts — there are no sub-agents to communicate with.
 4. **Add specific context**: Templates are starting points — add project-specific details
 5. **Adjust scope**: Narrow or expand based on subtask complexity
 6. **Include examples**: Reference actual files from the codebase

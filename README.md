@@ -104,7 +104,7 @@ The plugin bundles **55** specialized agents covering codebase analysis, languag
 - **Claude Code:** reference any of them via `subagent_type: "ycc:{agent-name}"`. Canonical source lives in [`ycc/agents/`](ycc/agents/).
 - **Cursor:** generated, Cursor-native copies live in [`.cursor-plugin/agents/`](.cursor-plugin/agents/) (produced from `ycc/agents/` — see the [Cursor install guide](docs/install/cursor.md)).
 - **Codex:** generated, Codex-native custom-agent TOMLs live in [`.codex-plugin/agents/`](.codex-plugin/agents/) (produced from `ycc/agents/` — see the [Codex install guide](docs/install/codex.md)).
-- **opencode:** generated, opencode-native agent markdown files live in [`.opencode-plugin/agents/`](.opencode-plugin/agents/) (produced from `ycc/agents/` — see the [opencode install guide](docs/install/opencode.md)). Invoke via `@agent-name` mention or the built-in `task` tool.
+- **opencode:** generated, opencode-native agent markdown files live in [`.opencode-plugin/agents/`](.opencode-plugin/agents/) (produced from `ycc/agents/` — see the [opencode install guide](docs/install/opencode.md)). Invoke via `@agent-name` or the native v2 `subagent` tool.
 
 **Contributing:** before proposing a new skill, command, or agent, read the Scope & Guardrails policy in [`CONTRIBUTING.md`](CONTRIBUTING.md#scope--guardrails).
 

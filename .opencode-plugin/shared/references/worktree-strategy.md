@@ -20,8 +20,7 @@ contract. `setup-worktree.sh child` and `merge-children.sh` are **compatibility
 shims** (see shared scripts) until all executors are updated. New planners and
 executors should follow **only** the single-worktree contract below.
 
-See [agent-team-dispatch.md](./agent-team-dispatch.md) for the team lifecycle
-and how a single worktree pairs with parallel teammate dispatch.
+and how a single worktree pairs with parallel sub-agent dispatch.
 
 ---
 
@@ -80,7 +79,7 @@ Every worktree-enabled run uses **exactly one** git worktree for isolated work
 | Removed by | User (never auto-removed by the skill)                                |
 
 All tasks — parallel and sequential — share this **one** worktree. Parallel
-sub-agents or teammates do **not** get separate worktree paths; they use the
+sub-agents or sub-agents do **not** get separate worktree paths; they use the
 same path with coordination rules in their prompt (`Working directory: <path>`)
 so concurrent writers do not corrupt the tree (e.g. file-level batching, no
 two agents on the same file, or serial execution for conflicting edits — see
@@ -190,7 +189,7 @@ need not emit per-task `**Worktree**:` lines for new work.
 | Bash-only agent runtimes    | Bash `git worktree add` via prompt                                                   | same                    |
 | Docs-only / manual runtimes | Docs-only (emit commands; no auto-create)                                            | User runs manually      |
 
-Parallel teammates all target the **same** feature worktree path in prompts.
+Parallel sub-agents all target the **same** feature worktree path in prompts.
 See [target-capability-matrix.md](./target-capability-matrix.md) for the full
 per-target table.
 

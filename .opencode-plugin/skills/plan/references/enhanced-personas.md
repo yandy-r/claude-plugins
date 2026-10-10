@@ -2,14 +2,12 @@
 
 > **Contract**: When `ENHANCED_MODE=true`, the `plan` skill spawns the 3 baseline personas (`architect`, `risk-analyst`, `test-strategist` — prompts inline in `SKILL.md` §B.5 / §C.3) plus the 2 enhanced personas defined here. The roster is identical regardless of dispatch path:
 >
-> - **Path C** (`--enhanced` alone) — 5 standalone parallel sub-agents, no `spawn coordinated subagents`.
-> - **Path B enhanced** (`--enhanced --team`) — 5-persona agent team with shared `the todo tracker`.
 >
-> Both enhanced personas use `@research-specialist` distinguished by `name=`. They contribute slices that the synthesizer folds into the merged plan per `SKILL.md` §B.7 (Path B) or §C.5 (Path C). They do NOT write any files — they return findings inline.
+> Both enhanced personas use `@research-specialist` distinguished by `description` plus the role-specific `prompt`. They contribute slices that the synthesizer folds into the merged plan per `SKILL.md` §B.7 (Path B) or §C.5 (Path C). They do NOT write any files — they return findings inline.
 
 ## Roster
 
-| name                | subagent_type             | Plan section(s) it owns                                                                                                          |
+| name                | agent             | Plan section(s) it owns                                                                                                          |
 | ------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `security-reviewer` | `research-specialist` | `## Security Considerations` (top-level) and per-step `> **Security**:` callouts; risk rows folded into `## Risks & Mitigations` |
 | `ux-reviewer`       | `research-specialist` | `## UX Impact` (Before / After / Interaction Changes); omitted entirely if internal-only                                         |

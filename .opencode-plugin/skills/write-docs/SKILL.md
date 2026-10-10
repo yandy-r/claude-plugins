@@ -348,7 +348,7 @@ Provide completion summary:
 ## Important Notes
 
 - **You are the orchestrator** - delegate writing to agents
-- **Deploy agents in parallel** - single message with multiple Task calls
+- **Deploy agents in parallel** - single message with multiple native subagent calls
 - **Respect existing work** - enhance, don't replace (unless --fresh)
 - **Quality over quantity** - focused docs are better than comprehensive but vague
 - **Verify before completing** - run all checks before marking done

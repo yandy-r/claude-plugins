@@ -2,12 +2,12 @@
 description: 'Build shared context documentation for a feature — gathers files, conventions,
   dependencies, and existing patterns into a single artifact that downstream planning
   stages can reference. Step 1 of the planning workflow. Defaults to standalone parallel
-  sub-agents via the opencode `task` tool; pass --team (Claude Code only) to deploy
-  the 4 researchers as teammates under a shared spawn coordinated subagents/the todo
-  tracker with coordinated shutdown. Usage: [--team] [feature-name] [--dry-run]'
+  sub-agents via the native `subagent` tool. Usage: [feature-name] [--dry-run]'
 ---
 
 # Shared Context Command
+
+> **OpenCode V2 compatibility:** `--team` is unsupported. If it is supplied, abort before setup or dispatch and ask the caller to rerun without it. This target uses native standalone `subagent` calls only.
 
 Thin alias for `plan-workflow --research-only` (research stage with `--no-checkpoint`).
 
@@ -18,6 +18,3 @@ Build the shared context document for the specified feature.
 The skill scans the codebase, surfaces relevant files and conventions, and writes a single context artifact that `parallel-plan` and other downstream stages can consume.
 
 **Flags** (pass before the feature name):
-
-- `--team` — (Claude Code only) Dispatch the 4 researchers as teammates under a shared `spawn coordinated subagents`/`the todo tracker` with coordinated shutdown and inter-teammate `send follow-up instructions` coordination. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
-- `--dry-run` — Preview the execution plan without deploying agents. With `--team`, also prints the team name and 4-teammate roster.

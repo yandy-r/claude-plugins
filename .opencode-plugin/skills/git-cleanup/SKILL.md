@@ -260,7 +260,7 @@ error): abort and report.
 ## Subagent Delegation
 
 For large repos where Phase 2's active-code scan is expensive, delegate to
-`git-cleanup` agent via the opencode `task` tool. The agent performs the read-only
+`git-cleanup` agent via the native `subagent` tool. The agent performs the read-only
 audit (Phases 1-3) and returns a structured report; this skill orchestrates
 Phases 4-6. Pass the Phase 0 `release-state.sh get` output with the other
 options so the agent applies the same protected set and release-model rules

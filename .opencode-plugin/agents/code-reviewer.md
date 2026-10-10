@@ -214,7 +214,7 @@ Organize findings by severity. For each issue:
 path (`docs/prps/reviews/.review-scratch/<run-id>/<reviewer-name>.md`), write
 the findings block to that path via `Write` in addition to returning it as
 your final response — this gives the orchestrator a backstop if the inline
-`Task` return is ever lost.
+`subagent` return is ever lost.
 
 ```
 [CRITICAL] Hardcoded API key in source

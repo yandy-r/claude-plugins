@@ -3,9 +3,7 @@ name: shared-context
 description: Create shared context documentation for a feature (alias for plan-workflow
   research-only). Deploys researchers that write research artifacts, then synthesizes
   verified findings into shared.md. Use as Step 1 before parallel-plan when preparing
-  implementation context. Pass `--team` (Claude Code only) to deploy researchers as
-  teammates under a shared spawn coordinated subagents/the todo tracker with coordinated
-  shutdown.
+  implementation context
 ---
 
 ## MANDATORY FORCED MODE - READ FIRST
@@ -16,7 +14,7 @@ summary, no interactive checkpoint), regardless of `$ARGUMENTS`.
 
 **Flag policy (unambiguous):**
 
-- Supported: the feature name, `--team`, `--dry-run`.
+- Supported: the feature name, `--dry-run`.
 - Redundant — silently ignored because already forced: `--research-only`, `--no-checkpoint`.
 - Every other flag (including `--plan-only`, `--no-worktree`, `--worktree`, `--visual`, `--optimized`, and any unknown `-`/`--` token) → abort with the usage error below. Do not read the canonical skill or write anything.
 
@@ -43,18 +41,19 @@ After creating the shared context files and displaying the summary, **STOP COMPL
 
 # Shared Context (alias)
 
+> **OpenCode V2 compatibility:** `--team` is unsupported. If it is supplied, abort before setup or dispatch and ask the caller to rerun without it. This target uses native standalone `subagent` calls only.
+
 ## Arguments
 
 **Target**: `$ARGUMENTS`
 
-- **--team**: Optional. (Claude Code only) Deploy researchers as teammates. Default is standalone parallel sub-agents via the `Task` tool. Cursor and Codex bundles lack team tools — do not pass `--team` there.
 - **--dry-run**: Show orchestration plan without creating files. Writes nothing.
 - **feature-name**: Required. Directory name under `${PLANS_DIR}` (kebab-case).
 
 If any unsupported flag is present (see Flag policy above), abort with a usage error and STOP:
 
 ```
-Usage: /shared-context [--team] [feature-name] [--dry-run]
+Usage: /shared-context [feature-name] [--dry-run]
 This alias always runs plan-workflow --research-only --no-checkpoint.
 Unsupported flag: <flag>
 ```
@@ -64,7 +63,6 @@ If no feature name provided, abort with the same usage plus examples:
 ```
 /shared-context user-authentication
 /shared-context payment-integration --dry-run
-/shared-context --team payment-integration
 ```
 
 ## Execution
@@ -72,10 +70,9 @@ If no feature name provided, abort with the same usage plus examples:
 Build the **effective `$ARGUMENTS`** for canonical `plan-workflow`:
 
 ```
-<feature-name> --research-only --no-checkpoint [--team] [--dry-run]
+<feature-name> --research-only --no-checkpoint [--dry-run]
 ```
 
-(`--team` / `--dry-run` only if the user passed them; user-supplied redundant `--research-only` / `--no-checkpoint` are dropped, not duplicated.)
 
 1. Read `~/.config/opencode/skills/plan-workflow/SKILL.md`.
 2. Execute as orchestrator with the effective `$ARGUMENTS` above substituted for `$ARGUMENTS`, so the canonical parser itself sets `RESEARCH_ONLY=true` and `NO_CHECKPOINT=true` (those variables are explanatory only — never invocation syntax).

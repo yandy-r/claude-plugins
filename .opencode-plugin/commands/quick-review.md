@@ -2,12 +2,14 @@
 description: 'Fast interactive review of uncommitted changes. Findings print inline
   and writes nothing by default. Apply fixes hands findings directly to /quick-fix.
   Save to file writes an artifact and stops. Write file and apply fixes uses /review-fix.
-  Pass --parallel or --team for 3-reviewer fan-out; --yes, --save, or --write-and-apply
-  for scripted choices. Usage: [--parallel | --team] [--yes | --save | --write-and-apply]
-  [--severity <level>] [--no-worktree]'
+  Pass --parallel for 3-reviewer fan-out; --yes, --save, or --write-and-apply for
+  scripted choices. Usage: [--parallel] [--yes | --save | --write-and-apply] [--severity
+  <level>] [--no-worktree]'
 ---
 
 # Quick Review Command
+
+> **OpenCode V2 compatibility:** `--team` is unsupported. If it is supplied, abort before setup or dispatch and ask the caller to rerun without it. This target uses native standalone `subagent` calls only.
 
 Run a fast, inline, interactive review of uncommitted changes.
 
@@ -31,8 +33,6 @@ Designed for short, low-friction code changes where opening a full
   `code-reviewer` sub-agents (correctness, security, quality) in parallel.
   Works in opencode, Cursor, and Codex bundles.
 
-- `--team` — (Claude Code only) Same 3-reviewer fan-out as `--parallel`,
-  dispatched as a coordinated agent team with `spawn coordinated subagents`, shared `the todo tracker`,
   per-reviewer task tracking, and coordinated shutdown before merge. Cursor and
   Codex bundles lack the team tools — use `--parallel` there instead.
 
@@ -55,12 +55,11 @@ Designed for short, low-friction code changes where opening a full
 - `--no-worktree` — Accepted as a **no-op**. Quick mode never creates a worktree.
 
 ```
-Usage: /quick-review [--parallel | --team] [--yes | --save | --write-and-apply] [--severity <level>] [--no-worktree]
+Usage: /quick-review [--parallel] [--yes | --save | --write-and-apply] [--severity <level>] [--no-worktree]
 
 Examples:
   /quick-review                               # inline review, prompt for confirmation
   /quick-review --parallel                    # 3 parallel sub-agent reviewers, prompt for confirmation
-  /quick-review --team                        # 3-reviewer agent team (Claude Code only), prompt for confirmation
   /quick-review --yes                         # auto-confirm: direct /quick-fix, no artifact
   /quick-review --save                        # auto-confirm: write artifact + exit
   /quick-review --write-and-apply             # write artifact + invoke /review-fix
@@ -71,7 +70,7 @@ Examples:
 The skill will:
 
 1. `git diff --name-only HEAD` — abort if nothing is changed
-2. REVIEW — single-pass, `--parallel`, or `--team` dispatch
+2. REVIEW — single-pass, `--parallel`, dispatch
 3. Print findings **inline** in Review Artifact Format (no file written yet)
 4. Ask for the action, adding an artifact-backed option for large reviews
 5. Invoke `/quick-fix` for direct apply, or `/review-fix` only after an

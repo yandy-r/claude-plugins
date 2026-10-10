@@ -10,6 +10,8 @@ description: Create a self-contained feature implementation plan with codebase p
 
 # PRP Plan
 
+> **OpenCode V2 compatibility:** `--team` is unsupported. If it is supplied, abort before setup or dispatch and ask the caller to rerun without it. This target uses native standalone `subagent` calls only.
+
 Create a detailed, self-contained implementation plan that captures all codebase patterns, conventions, and context needed to implement a feature in a single pass.
 
 > Adapted from PRPs-agentic-eng by Wirasm. Part of the PRP workflow series.
@@ -29,14 +31,12 @@ Extract flags from `$ARGUMENTS`:
 | Flag            | Effect                                                                                                                                                                                                                                                                                                                       |
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--parallel`    | Fan out research into 3 **standalone sub-agent** researchers; emit tasks with batch/dependency annotations. Works in opencode, Cursor, and Codex.                                                                                                                                                                         |
-| `--team`        | (Claude Code only) Fan out the same 3 researchers as **teammates** under a shared `spawn coordinated subagents`/`the todo tracker` with coordinated shutdown via `send follow-up instructions`. Same plan output as `--parallel`, but with shared task-graph observability. Heavier dispatch.                                                                         |
 | `--worktree`    | (legacy — now default; safe to omit) Worktree annotations are emitted by default. Accepted as a silent no-op so existing pipelines continue to work.                                                                                                                                                                         |
 | `--no-worktree` | Opt out of worktree annotations. The plan will not contain a `## Worktree Setup` section or per-task `**Worktree**:` annotations.                                                                                                                                                                                            |
-| `--dry-run`     | Only valid with `--team`. Prints the team name and teammate roster, then exits without spawning any teammates.                                                                                                                                                                                                               |
-| `--enhanced`    | Enhanced research mode: grow the research fan-out from 3 to 7 specialized researchers (api/business/tech/ux/security/practices/recommendations — same coverage as feature-research). Output is still a single PRP-compliant plan file. Composes with --parallel (default), --team (Claude Code only), and --no-worktree. |
+| `--enhanced`    | Enhanced research mode: grow the research fan-out from 3 to 7 specialized researchers (api/business/tech/ux/security/practices/recommendations — same coverage as feature-research). Output is still a single PRP-compliant plan file. Composes with --parallel (default) (Claude Code only), and --no-worktree. |
 | `--visual`      | Render the finished plan as an Agent-Native visual artifact (MDX) via `visual-plan`; local-files by default, hosted shareable link requires `--share`.                                                                                                                                                                   |
 
-Strip the flags. Set `PARALLEL_MODE=true|false`, `AGENT_TEAM_MODE=true|false`, `DRY_RUN=true|false`. Default `WORKTREE_MODE=true`; set `WORKTREE_MODE=false` if `--no-worktree` is present. `--worktree` is accepted as a legacy no-op (matches the default). Remaining text is the feature description or PRD path.
+Strip the flags. Set `PARALLEL_MODE=true|false`, ``, `DRY_RUN=true|false`. Default `WORKTREE_MODE=true`; set `WORKTREE_MODE=false` if `--no-worktree` is present. `--worktree` is accepted as a legacy no-op (matches the default). Remaining text is the feature description or PRD path.
 
 ```bash
 # Default ON; pass --no-worktree to opt out. --worktree accepted as legacy no-op.
@@ -62,14 +62,9 @@ ARGUMENTS="${ARGUMENTS//--visual/}"
 
 **Validation**:
 
-- `--parallel` and `--team` are **mutually exclusive**. If both are passed → abort with: `--parallel and --team are mutually exclusive. Pick one.`
-- If `--team` is passed and `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is not set to `1` in the environment, abort with: `--team requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1. Use --parallel instead, or set CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 in your opencode settings if you intentionally want agent-team dispatch.`
-- `--dry-run` requires `--team`. If `DRY_RUN=true` and `AGENT_TEAM_MODE=false` → abort with: `--dry-run requires --team.`
-- `--no-worktree` is **orthogonal** to `--parallel` and `--team` — it may be combined freely with either flag or used alone to suppress annotations.
-- If `--enhanced` is passed without `--parallel` or `--team`, default to standalone sub-agent dispatch (Path B equivalent at width 7). If `--enhanced --team` is invoked from a Cursor or Codex bundle, abort with the same compatibility message used today for plain `--team`. If `--dry-run` is passed, it requires `--team` (same constraint as today); `--enhanced --dry-run` alone is invalid.
-- `--visual` is orthogonal — it composes with `--parallel`/`--team`/`--enhanced`/`--no-worktree` and runs after the plan is written and validated. `--dry-run` short-circuits it (prints intent only).
+- `--no-worktree` is **orthogonal** to `--parallel` — it may be combined freely with either flag or used alone to suppress annotations.
+- `--visual` is orthogonal — it composes with `--parallel`/`--enhanced`/`--no-worktree` and runs after the plan is written and validated. `--dry-run` short-circuits it (prints intent only).
 
-**Compatibility note**: When this skill is invoked from a Cursor or Codex bundle, `--team` must not be used (those bundles ship without team tools). Use `--parallel` instead.
 
 ### Input Detection
 
@@ -119,11 +114,18 @@ Gather codebase intelligence across 8 categories and 5 traces.
 
 When `ENHANCED_MODE=true`, run `~/.config/opencode/skills/prp-plan/scripts/preflight-enhanced-agents.sh` and abort with the script's stderr if it exits non-zero. This catches missing agent dependencies before any researcher is dispatched. The script auto-derives the plugin root from its own install location; no argument needed at runtime.
 
-> **Standalone dispatch rule (Path A / Path B / Path B-enhanced)**: Standalone research sub-agents — whether a single researcher (Path A) or a parallel fan-out (Path B / Path B-enhanced) — are dispatched via the blocking `Task` tool in ONE message, never via `Agent`, and never with `name`, `team_name`, or `run_in_background` set. In the normal case `Task` blocks the turn and its return value IS the report, delivered inline. If a batch doesn't return inline (async fallback), don't background it or `sleep`-loop/poll waiting on it — yield/end the turn so the completion notification can flush, then resume merging. See `~/.config/opencode/shared/references/standalone-dispatch.md` for the full contract and anti-patterns.
+> **OpenCode V2 standalone dispatch:** Issue the independent calls in one
+> parallel tool batch and set `background=false` on every call. Each call waits
+> for a candidate report. Require nonempty report text, validate the declared
+> artifact or diff independently, and do not treat a terminal lifecycle state
+> as proof of the deliverable. Apply the contentless-completion and bounded
+> retry policy from
+> [standalone-dispatch.md](~/.config/opencode/shared/references/standalone-dispatch.md).
+
 
 ### Path A — Sequential (default)
 
-Dispatch a single `prp-researcher` agent via the blocking `Task` tool, in codebase mode, to cover all 8 categories and 5 traces. Use the discovery table for the plan's Patterns to Mirror section.
+Dispatch a single `prp-researcher` agent via the foreground native `subagent` call (`background=false`), in codebase mode, to cover all 8 categories and 5 traces. Use the discovery table for the plan's Patterns to Mirror section.
 
 **IMPORTANT — Researcher prompt constraints**: Tell the researcher to keep code snippets to **5 lines max** per finding and limit the total response to the discovery table format only — no prose summaries.
 
@@ -131,159 +133,16 @@ By default (`WORKTREE_MODE=true`), append the following directive to the researc
 
 > **WORKTREE MODE:** The plan you are helping to build will include worktree annotations. In the emitted plan, include a `## Worktree Setup` section with a single `**Parent**:` line naming the feature worktree; no `**Children**:` list; no per-task `**Worktree**:` annotations. All tasks (parallel and sequential) share this one feature worktree path. Follow `.opencode-plugin/skills/_shared/references/worktree-strategy.md` for the naming scheme and annotation format.
 
-### Path B — Parallel sub-agents (`PARALLEL_MODE=true`)
+### Path B — Three standalone researchers (`PARALLEL_MODE=true`)
 
-Dispatch **3 `prp-researcher` agents in a SINGLE message** as **standalone
-sub-agents** using the **`Task`** tool (no `team_name`):
-
-| Researcher          | Categories                             | Traces                  |
-| ------------------- | -------------------------------------- | ----------------------- |
-| `patterns-research` | Similar Implementations, Naming, Types | Entry Points, Contracts |
-| `quality-research`  | Error Handling, Logging, Tests         | State Changes, Patterns |
-| `infra-research`    | Configuration, Dependencies            | Data Flow               |
-
-In the normal case `Task` **blocks**: each call's return value IS the researcher's report, delivered inline in the same turn. If a batch doesn't return inline (async fallback), don't `sleep`-loop or poll waiting on it — yield/end the turn so the completion notification can flush, then resume. In addition to the inline return, instruct each researcher to write its discovery table to a backstop file at `docs/prps/plans/.prp-research/<feature-slug>/<role>.md` (`patterns-research.md`, `quality-research.md`, `infra-research.md`) using the `Write` tool, mirroring the phrasing `feature-research`'s researcher prompts use ("Write your findings to: ..."). The backstop guarantees the findings survive even if the inline return is interrupted or truncated. See `~/.config/opencode/shared/references/standalone-dispatch.md` for the full contract.
-
-**IMPORTANT — Researcher prompt constraints**: Tell each researcher to keep code snippets to **5 lines max** per finding and limit the total response to the discovery table format only — no prose summaries.
-
-By default (`WORKTREE_MODE=true`), append the following directive to each researcher prompt. Omit when `--no-worktree` was passed (`WORKTREE_MODE=false`):
-
-> **WORKTREE MODE:** The plan you are helping to build will include worktree annotations. In the emitted plan, include a `## Worktree Setup` section with a single `**Parent**:` line naming the feature worktree; no `**Children**:` list; no per-task `**Worktree**:` annotations. All tasks (parallel and sequential) share this one feature worktree path. Follow `.opencode-plugin/skills/_shared/references/worktree-strategy.md` for the naming scheme and annotation format.
-
-After all 3 return: merge tables, de-duplicate, verify all 8 categories covered.
+Dispatch `patterns-research`, `quality-research`, and `infra-research` in one parallel foreground batch. Each call uses `agent="prp-researcher"`, the role name in `description`, a complete role prompt, and `background=false`. Validate every candidate report against its declared backstop artifact and apply the canonical contentless-result policy before synthesis.
 
 #### Path B (enhanced) — when `ENHANCED_MODE=true`
 
 - Replace the 3-row researcher table above with the 7-row roster from `~/.config/opencode/skills/prp-plan/references/enhanced-researchers.md`.
-- Dispatch in a **SINGLE message** with **SEVEN `Task` tool calls** (still standalone — no `team_name`). Each `Task` call blocks and returns the researcher's report inline as its return value.
-- Each call uses `@prp-researcher` with the `name` field set to the role name (`api-researcher`, `business-analyzer`, `tech-designer`, `ux-researcher`, `security-researcher`, `practices-researcher`, `recommendations-agent`) and the role-specific prompt copied verbatim from `enhanced-researchers.md`. Per `enhanced-researchers.md`, each role-specific prompt also instructs the researcher to write a backstop file at `docs/prps/plans/.prp-research/<feature-slug>/<role-name>.md` (`api-researcher.md`, `business-analyzer.md`, `tech-designer.md`, `ux-researcher.md`, `security-researcher.md`, `practices-researcher.md`, `recommendations-agent.md`) in addition to returning the same content inline.
+- Dispatch in a **SINGLE message** with **SEVEN native `subagent` calls**, each with `background=false`; validate every candidate report against its backstop artifact.
+- Each call uses `agent="prp-researcher"`; put the role name in `description` and the complete role instructions in `prompt`.
 - The 5-line snippet cap and discovery-table-only constraints used in the 3-researcher path apply unchanged.
-
-### Path C — Agent team (`AGENT_TEAM_MODE=true`, Claude Code only)
-
-> **MANDATORY — AGENT TEAMS REQUIRED**
->
-> In Path C you MUST follow the agent-team lifecycle. Do NOT mix standalone sub-agents
-> with team dispatch. Every `Agent` call below MUST include `team_name=` AND `name=`.
->
-> 1. `spawn coordinated subagents` FIRST
-> 2. `track the task` for each researcher
-> 3. `Agent` with `team_name=` — one message, three calls
-> 4. `the todo tracker` — wait for all teammates to complete
-> 5. `send follow-up instructions({type:"shutdown_request"})` — shut down all 3 teammates
-> 6. `end the coordinated run` — clean up
->
-> If `spawn coordinated subagents` fails, abort the skill. Refer to
-> `~/.config/opencode/shared/references/agent-team-dispatch.md`
-> for the full lifecycle contract.
-
-#### C.1 Build the team name
-
-Sanitize the feature name (kebab-case slug; if input is a PRD, use its filename minus
-extension; if free-form text, slugify). Lowercase, kebab, max **20 chars**, fall back
-to `untitled` if empty.
-
-Team name: `prpp-<sanitized-feature>`.
-
-#### C.2 Dry-run gate (if `DRY_RUN=true`)
-
-Print (when `ENHANCED_MODE=false`):
-
-```
-Team name:   prpp-<sanitized-feature>
-Teammates:   3
-  - patterns-research  subagent_type=prp-researcher  task=Similar Implementations, Naming, Types | Entry Points, Contracts
-  - quality-research   subagent_type=prp-researcher  task=Error Handling, Logging, Tests | State Changes, Patterns
-  - infra-research     subagent_type=prp-researcher  task=Configuration, Dependencies | Data Flow
-Batches:     1  (batch 1: patterns-research, quality-research, infra-research)
-Dependencies: none  (flat graph)
-```
-
-Print (when `ENHANCED_MODE=true`):
-
-```
-Team name:      prpp-<sanitized-feature>
-Teammates:      7
-  - api-researcher         subagent_type=prp-researcher  task=External APIs, libraries, integration patterns
-  - business-analyzer      subagent_type=prp-researcher  task=Requirements, user stories, business rules
-  - tech-designer          subagent_type=prp-researcher  task=Architecture, data models, API design
-  - ux-researcher          subagent_type=prp-researcher  task=User experience, workflows, accessibility
-  - security-researcher    subagent_type=prp-researcher  task=Security analysis, dependency risks, secure coding
-  - practices-researcher   subagent_type=prp-researcher  task=Modularity, code reuse, KISS, engineering best practices
-  - recommendations-agent  subagent_type=prp-researcher  task=Ideas, improvements, risks
-Batches:        1  (batch 1: all 7 researchers)
-Dependencies:   none  (flat graph)
-```
-
-Do **not** call any team/task/agent tools. Exit the skill.
-
-#### C.3 Create the team
-
-```
-spawn coordinated subagents: team_name="prpp-<sanitized-feature>", description="PRP-plan research team for: <feature description>"
-```
-
-On failure, abort.
-
-#### C.4 Register subtasks
-
-Create 3 tasks in the shared task list (flat graph — no dependencies between
-researchers):
-
-```
-track the task: subject="patterns-research: codebase patterns for <feature>", description="Categories: Similar Implementations, Naming, Types. Traces: Entry Points, Contracts."
-track the task: subject="quality-research: codebase quality for <feature>",    description="Categories: Error Handling, Logging, Tests. Traces: State Changes, Patterns."
-track the task: subject="infra-research: codebase infrastructure for <feature>", description="Categories: Configuration, Dependencies. Traces: Data Flow."
-```
-
-#### C.5 Spawn the 3 teammates (single message, three Agent calls)
-
-Use the same researcher categories/traces table from Path B. Spawn all three in **ONE
-message** with **THREE `Agent` tool calls**, each with
-`team_name="prpp-<sanitized-feature>"` and the role-specific `name`
-(`patterns-research`, `quality-research`, `infra-research`), all using
-`@prp-researcher` in codebase mode.
-
-Apply the same researcher prompt constraints as Path B: 5-line max snippets, discovery
-table format only, no prose summaries.
-
-By default (`WORKTREE_MODE=true`), append the following directive to each teammate prompt. Omit when `--no-worktree` was passed (`WORKTREE_MODE=false`):
-
-> **WORKTREE MODE:** The plan you are helping to build will include worktree annotations. In the emitted plan, include a `## Worktree Setup` section with a single `**Parent**:` line naming the feature worktree; no `**Children**:` list; no per-task `**Worktree**:` annotations. All tasks (parallel and sequential) share this one feature worktree path. Follow `.opencode-plugin/skills/_shared/references/worktree-strategy.md` for the naming scheme and annotation format.
-
-#### C.6 Monitor and merge
-
-Use `the todo tracker` to confirm all 3 tasks are `completed` before merging. Merge tables,
-de-duplicate, verify all 8 categories covered — same merge logic as Path B.
-
-If a teammate errors:
-
-- One researcher failure → record gap in the merged table; note the missing categories
-  in the plan's Patterns to Mirror section so the implementor knows to look manually.
-- Two or more failures → abort, shut down remaining teammates, `end the coordinated run`, fall
-  through to ask the user whether to retry with `--parallel` (sub-agent mode).
-
-#### C.7 Shutdown and cleanup
-
-```
-send follow-up instructions(to="patterns-research", message={type:"shutdown_request"})
-send follow-up instructions(to="quality-research",  message={type:"shutdown_request"})
-send follow-up instructions(to="infra-research",    message={type:"shutdown_request"})
-end the coordinated run
-```
-
-Always `end the coordinated run` before continuing to Phase 3.
-
-#### Path C (enhanced) — when `ENHANCED_MODE=true`
-
-- Team name stays `prpp-<sanitized-feature>`.
-- Register 7 tasks instead of 3 via `track the task`, using the role names from `~/.config/opencode/skills/prp-plan/references/enhanced-researchers.md` (`api-researcher`, `business-analyzer`, `tech-designer`, `ux-researcher`, `security-researcher`, `practices-researcher`, `recommendations-agent`).
-- Spawn 7 teammates in a **single message** with `team_name="prpp-<sanitized-feature>"` and the role name in `name=`, all using `@prp-researcher` with the role-specific prompt from `enhanced-researchers.md`.
-- Monitor via `the todo tracker` until all 7 complete.
-- Shutdown all 7 via `send follow-up instructions({type:"shutdown_request"})` before `end the coordinated run`.
-- Failure policy: a single teammate failure → continue with a stub note in synthesis ("{role} did not complete — {section} may be incomplete"); ≥4 teammate failures → abort, shutdown survivors, `end the coordinated run`, fall back to suggesting the user re-run with `--enhanced --parallel`.
-
----
 
 ## Phase 3 — RESEARCH
 
@@ -326,9 +185,9 @@ mkdir -p docs/prps/plans
 
 Read the plan template from `~/.config/opencode/skills/prp-plan/references/plan-template.md`.
 
-If `PARALLEL_MODE=true` **or** `AGENT_TEAM_MODE=true`, also read `~/.config/opencode/skills/prp-plan/references/parallel-additions.md`. Both modes emit the same parallel-capable plan format (Batches section, hierarchical task IDs, `Depends on` annotations) — they only differ in how the research phase was dispatched.
 
-If `ENHANCED_MODE=true` or `PARALLEL_MODE=true` was used for research dispatch (Path B / Path B-enhanced via `Task`), **before merging researcher findings** verify each researcher's backstop file exists at `docs/prps/plans/.prp-research/<feature-slug>/<role>.md`. If a `Task` call's inline return was empty, truncated, or otherwise unusable, re-read that researcher's backstop file from disk and treat its contents as the source of truth before concluding the researcher's findings are a gap. Only record a missing-researcher gap in the plan if both the inline return AND the backstop file are absent.
+For parallel or enhanced research, verify every expected backstop file. If a report is empty, record its `sessionID`, inspect the artifact, preserve valid work, retry at most once, and still report the child response incomplete; an artifact preserves work but does not prove a response.
+
 
 If `ENHANCED_MODE=true`, also read `~/.config/opencode/skills/prp-plan/references/synthesis-map.md` and use it to route each researcher's findings into the correct plan section. The plan template is unchanged. Enhanced mode produces a richer plan because each section gets dedicated researcher input, not because new sections are added. Avoid section bloat — if a researcher returns no findings for a section, leave the existing N/A language in place or omit fully optional sections.
 
@@ -402,7 +261,6 @@ Include a brief note in the report: "Plan validated with N warning(s) — see va
 
 ## Phase 7 — VISUALIZE (optional)
 
-This step runs after the plan is written (Phase 6) and validated (Phase 6.5), regardless of the dispatch path taken (`--parallel`, `--team`, or sequential):
 
 - If `VISUAL_MODE=true` and `--dry-run` is NOT set, invoke `visual-plan <plan-path>` — passing the absolute path of the just-written `docs/prps/plans/{name}.plan.md` — and capture its printed link.
 - If `--dry-run` is set, print `visual generation would run` and skip the invocation.
@@ -437,7 +295,7 @@ Update the phase status from `pending` to `in-progress` and add the plan file pa
 - **External Research**: [topics or "none needed"]
 - **Risks**: [top risk or "none identified"]
 - **Confidence Score**: [1-10]
-- **Research Dispatch**: [Sequential | Parallel sub-agents | Agent team | Enhanced (7 researchers)]
+- **Research Dispatch**: [Sequential | Parallel sub-agents| Enhanced (7 researchers)]
 - **Execution Mode**: [Sequential | Parallel (N batches, max width X)]
 - **Worktree Mode**: [Enabled (default) — plan includes ## Worktree Setup (single feature worktree — **Parent**: line only) | Disabled via --no-worktree]
 - **Visual Artifact**: [Generated via visual-plan | n/a (--visual not set)]
@@ -450,18 +308,9 @@ Update the phase status from `pending` to `in-progress` and add the plan file pa
 
 ## Verification
 
-Structural validation is enforced by `validate-prp-plan.sh` in Phase 6.5. The validator
-operates on the written plan file — dispatch mode (`--parallel` vs `--team`) is
-invisible to it, since both modes emit the same plan format.
+Structural validation is enforced by `validate-prp-plan.sh` in Phase 6.5. The validator operates on the written plan file; standalone dispatch details do not change the plan format.
 
-For Path C's team lifecycle contract (sanitization, shutdown sequence, failure policy),
-refer to:
-
-```
-~/.config/opencode/shared/references/agent-team-dispatch.md
-```
-
-The `validate-prp-plan.sh` script The script checks:
+The `validate-prp-plan.sh` script checks:
 
 - Required and recommended sections from the PRP plan template
 - Task field completeness (ACTION, VALIDATE required; MIRROR, IMPLEMENT recommended)
