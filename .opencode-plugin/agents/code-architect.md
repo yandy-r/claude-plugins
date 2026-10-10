@@ -3,11 +3,34 @@ description: Designs feature architectures by analyzing existing codebase patter
   and conventions, then providing implementation blueprints with concrete files, interfaces,
   data flow, and build order.
 mode: subagent
-tools:
-  read: true
-  grep: true
-  glob: true
-  bash: true
+permissions:
+- action: '*'
+  resource: '*'
+  effect: deny
+- action: read
+  resource: '*'
+  effect: allow
+- action: grep
+  resource: '*'
+  effect: allow
+- action: glob
+  resource: '*'
+  effect: allow
+- action: shell
+  resource: '*'
+  effect: allow
+- action: external_directory
+  resource: '*'
+  effect: ask
+- action: read
+  resource: '*.env'
+  effect: ask
+- action: read
+  resource: '*.env.*'
+  effect: ask
+- action: read
+  resource: '*.env.example'
+  effect: allow
 ---
 
 # Code Architect Agent

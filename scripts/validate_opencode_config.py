@@ -24,6 +24,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from opencode_v2_agent_schema import validate_agent_schema, validate_permission_rules
+
 EXPECTED_SCHEMA = "https://opencode.ai/config.json"
 
 # Top-level keys documented for V2 (opencode.ai/v2/docs/config).
@@ -77,7 +79,7 @@ V1_TOP_LEVEL_RENAMES: dict[str, str] = {
 # bundle implies behavior the runtime never delivers.
 INERT_TOP_LEVEL_KEYS: dict[str, str] = {
     "instructions": (
-        "V2 accepts `instructions` but does not resolve its files, globs, or URLs; " "ship rules as AGENTS.md instead"
+        "V2 accepts `instructions` but does not resolve its files, globs, or URLs; ship rules as AGENTS.md instead"
     ),
 }
 
@@ -124,24 +126,6 @@ V1_MODEL_RENAMES: dict[str, str] = {
     "experimental": "(removed in V2)",
     "provider": "package",
 }
-
-V2_AGENT_KEYS: frozenset[str] = frozenset(
-    {"description", "mode", "model", "system", "permissions", "steps", "hidden", "color", "disabled", "request"}
-)
-
-V1_AGENT_RENAMES: dict[str, str] = {
-    "disable": "disabled",
-    "maxSteps": "steps",
-    "options": "request",
-    "permission": "permissions",
-    "prompt": "system",
-    "temperature": "request.body or provider settings",
-    "tools": "permissions",
-    "top_p": "request.body or provider settings",
-}
-
-V2_AGENT_MODES: frozenset[str] = frozenset({"primary", "subagent", "all"})
-V2_EFFECTS: frozenset[str] = frozenset({"allow", "deny", "ask"})
 
 V2_MCP_KEYS: frozenset[str] = frozenset({"servers", "timeout"})
 V2_MCP_LOCAL_KEYS: frozenset[str] = frozenset(
@@ -235,23 +219,8 @@ def validate_model_reference(
 
 
 def validate_permissions(errors: ConfigErrors, where: str, value: Any) -> None:
-    if not isinstance(value, list):
-        errors.add(f"{where} must be an ordered list of rules; the V1 object form is ignored by V2")
-        return
-    for index, rule in enumerate(value):
-        label = f"{where}[{index}]"
-        if not isinstance(rule, dict):
-            errors.add(f"{label} must be an object")
-            continue
-        missing = [field for field in ("action", "resource", "effect") if field not in rule]
-        if missing:
-            errors.add(f"{label} is missing {', '.join(missing)}")
-        extra = set(rule) - {"action", "resource", "effect"}
-        if extra:
-            errors.add(f"{label} has unexpected fields: {', '.join(sorted(extra))}")
-        effect = rule.get("effect")
-        if effect is not None and effect not in V2_EFFECTS:
-            errors.add(f"{label}.effect={effect!r} must be one of allow, deny, ask")
+    for message in validate_permission_rules(where, value):
+        errors.add(message)
 
 
 def validate_providers(errors: ConfigErrors, providers: Any) -> dict[str, Any]:
@@ -332,15 +301,10 @@ def validate_agents(errors: ConfigErrors, agents: Any, providers: dict[str, Any]
         if not isinstance(entry, dict):
             errors.add(f"{where} must be an object")
             continue
-        errors.check_keys(where, entry, V2_AGENT_KEYS, V1_AGENT_RENAMES)
-
-        mode = entry.get("mode")
-        if mode is not None and mode not in V2_AGENT_MODES:
-            errors.add(f"{where}.mode={mode!r} must be one of primary, subagent, all")
+        for message in validate_agent_schema(where, entry):
+            errors.add(message)
         if "model" in entry:
             validate_model_reference(errors, f"{where}.model", entry["model"], providers, allow_variant=True)
-        if "permissions" in entry:
-            validate_permissions(errors, f"{where}.permissions", entry["permissions"])
 
 
 def validate_plugins(errors: ConfigErrors, plugins: Any) -> None:

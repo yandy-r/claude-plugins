@@ -2,13 +2,37 @@
 description: Simplifies and refines code for clarity, consistency, and maintainability
   while preserving behavior. Focus on recently modified code unless instructed otherwise.
 mode: subagent
-tools:
-  read: true
-  write: true
-  edit: true
-  bash: true
-  grep: true
-  glob: true
+permissions:
+- action: '*'
+  resource: '*'
+  effect: deny
+- action: read
+  resource: '*'
+  effect: allow
+- action: edit
+  resource: '*'
+  effect: allow
+- action: shell
+  resource: '*'
+  effect: allow
+- action: grep
+  resource: '*'
+  effect: allow
+- action: glob
+  resource: '*'
+  effect: allow
+- action: external_directory
+  resource: '*'
+  effect: ask
+- action: read
+  resource: '*.env'
+  effect: ask
+- action: read
+  resource: '*.env.*'
+  effect: ask
+- action: read
+  resource: '*.env.example'
+  effect: allow
 ---
 
 # Code Simplifier Agent

@@ -3,13 +3,43 @@ description: Implement TypeScript/JavaScript code including libraries, tsconfig 
   package.json exports, monorepo workspaces, bundler pipelines (vite/tsup/esbuild),
   ESM/CJS dual builds, and Vitest configs.
 mode: subagent
-tools:
-  read: true
-  write: true
-  edit: true
-  bash: true
-  grep: true
-  glob: true
+permissions:
+- action: '*'
+  resource: '*'
+  effect: deny
+- action: read
+  resource: '*'
+  effect: allow
+- action: edit
+  resource: '*'
+  effect: allow
+- action: shell
+  resource: '*'
+  effect: allow
+- action: grep
+  resource: '*'
+  effect: allow
+- action: glob
+  resource: '*'
+  effect: allow
+- action: skill
+  resource: ts-patterns
+  effect: allow
+- action: skill
+  resource: ts-testing
+  effect: allow
+- action: external_directory
+  resource: '*'
+  effect: ask
+- action: read
+  resource: '*.env'
+  effect: ask
+- action: read
+  resource: '*.env.*'
+  effect: ask
+- action: read
+  resource: '*.env.example'
+  effect: allow
 color: '#22C55E'
 ---
 

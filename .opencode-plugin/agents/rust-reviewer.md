@@ -3,11 +3,37 @@ description: Expert Rust code reviewer specializing in ownership, lifetimes, err
   handling, unsafe usage, and idiomatic patterns. Use for all Rust code changes. MUST
   BE USED for Rust projects.
 mode: subagent
-tools:
-  read: true
-  grep: true
-  glob: true
-  bash: true
+permissions:
+- action: '*'
+  resource: '*'
+  effect: deny
+- action: read
+  resource: '*'
+  effect: allow
+- action: grep
+  resource: '*'
+  effect: allow
+- action: glob
+  resource: '*'
+  effect: allow
+- action: shell
+  resource: '*'
+  effect: allow
+- action: skill
+  resource: rust-patterns
+  effect: allow
+- action: external_directory
+  resource: '*'
+  effect: ask
+- action: read
+  resource: '*.env'
+  effect: ask
+- action: read
+  resource: '*.env.*'
+  effect: ask
+- action: read
+  resource: '*.env.example'
+  effect: allow
 ---
 
 You are a senior Rust code reviewer ensuring high standards of safety, idiomatic patterns, and performance.

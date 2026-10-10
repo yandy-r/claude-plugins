@@ -2,6 +2,67 @@
 description: Comprehensive research on non-code topics with fact-checking, current
   information gathering, and authoritative sources with citations.
 mode: subagent
+permissions:
+- action: '*'
+  resource: '*'
+  effect: deny
+- action: shell
+  resource: '*'
+  effect: allow
+- action: glob
+  resource: '*'
+  effect: allow
+- action: grep
+  resource: '*'
+  effect: allow
+- action: read
+  resource: '*'
+  effect: allow
+- action: edit
+  resource: '*'
+  effect: allow
+- action: webfetch
+  resource: '*'
+  effect: allow
+- action: websearch
+  resource: '*'
+  effect: allow
+- action: scrape_get-markdown
+  resource: '*'
+  effect: allow
+- action: perplexity_ask-perplexity
+  resource: '*'
+  effect: allow
+- action: maps-mcp_geocode
+  resource: '*'
+  effect: allow
+- action: maps-mcp_reverse-geocode
+  resource: '*'
+  effect: allow
+- action: maps-mcp_places-search
+  resource: '*'
+  effect: allow
+- action: maps-mcp_distance-matrix
+  resource: '*'
+  effect: allow
+- action: maps-mcp_place-details
+  resource: '*'
+  effect: allow
+- action: subagent
+  resource: '*'
+  effect: allow
+- action: external_directory
+  resource: '*'
+  effect: ask
+- action: read
+  resource: '*.env'
+  effect: ask
+- action: read
+  resource: '*.env.*'
+  effect: ask
+- action: read
+  resource: '*.env.example'
+  effect: allow
 color: '#3B82F6'
 ---
 

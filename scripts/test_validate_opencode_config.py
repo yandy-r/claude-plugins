@@ -125,6 +125,28 @@ class OpenCodeConfigValidationTestCase(unittest.TestCase):
         self.assert_has_error(errors, "mode='worker' must be one of primary, subagent, all")
         self.assert_has_error(errors, "uses a shell placeholder")
 
+    def test_rejects_malformed_v2_permission_rules(self) -> None:
+        config = build_opencode_config()
+        config["agents"]["general"]["permissions"] = [
+            {"action": 42, "resource": "", "effect": "sometimes"},
+            {"action": "read", "effect": "allow"},
+            {"action": None, "resource": "*", "effect": "allow"},
+            {"action": "read", "resource": None, "effect": "allow"},
+            {"action": "read", "resource": "*", "effect": None},
+            {"action": "read", "resource": "*", "effect": ["allow"]},
+        ]
+
+        errors = validate_config(config)
+
+        self.assert_has_error(errors, "agents.general.permissions[0].action must be a non-empty string")
+        self.assert_has_error(errors, "agents.general.permissions[0].resource must be a non-empty string")
+        self.assert_has_error(errors, "effect='sometimes' must be one of allow, deny, ask")
+        self.assert_has_error(errors, "agents.general.permissions[1] is missing resource")
+        self.assert_has_error(errors, "agents.general.permissions[2].action must be a non-empty string")
+        self.assert_has_error(errors, "agents.general.permissions[3].resource must be a non-empty string")
+        self.assert_has_error(errors, "agents.general.permissions[4].effect must be a non-empty string")
+        self.assert_has_error(errors, "agents.general.permissions[5].effect must be a non-empty string")
+
     def test_mcp_translation_uses_v2_disabled_field(self) -> None:
         translated = translate_mcp_servers(
             {

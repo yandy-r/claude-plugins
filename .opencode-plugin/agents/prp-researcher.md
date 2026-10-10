@@ -3,13 +3,52 @@ description: 'Dual-mode research for PRP workflows: codebase exploration (simila
   features, naming, error handling, test patterns, dependencies) and external market/technical
   research (competitors, docs, best practices).'
 mode: subagent
-tools:
-  read: true
-  grep: true
-  glob: true
-  write: true
-  webfetch: true
-  bash: true
+permissions:
+- action: '*'
+  resource: '*'
+  effect: deny
+- action: read
+  resource: '*'
+  effect: allow
+- action: grep
+  resource: '*'
+  effect: allow
+- action: glob
+  resource: '*'
+  effect: allow
+- action: edit
+  resource: '*'
+  effect: allow
+- action: websearch
+  resource: '*'
+  effect: allow
+- action: webfetch
+  resource: '*'
+  effect: allow
+- action: shell
+  resource: ls *
+  effect: allow
+- action: shell
+  resource: cat *
+  effect: allow
+- action: shell
+  resource: test *
+  effect: allow
+- action: shell
+  resource: git *
+  effect: allow
+- action: external_directory
+  resource: '*'
+  effect: ask
+- action: read
+  resource: '*.env'
+  effect: ask
+- action: read
+  resource: '*.env.*'
+  effect: ask
+- action: read
+  resource: '*.env.example'
+  effect: allow
 color: '#06B6D4'
 ---
 

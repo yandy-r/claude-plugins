@@ -9,8 +9,7 @@ rules from AGENTS.md, and config + MCP from opencode.json.
 
 Key porting facts (vs Claude Code):
 - No ${CLAUDE_PLUGIN_ROOT} variable. Generated paths use absolute ~/.config/opencode/...
-- Tool names are lowercase (read, bash, ...) not PascalCase (Read, Bash, ...).
-- Task / TodoWrite / TeamCreate / TaskCreate / SendMessage etc. have no analog.
+- V2 agent permissions use native action names and ordered rules.
 - Slash commands use bare namespace (/foo, not /ycc:foo), same as Cursor.
 - Skill frontmatter is strict: only name, description, license, compatibility, metadata.
 """
@@ -49,8 +48,6 @@ __all__ = [
     "OPENCODE_CONFIG_PATH",
     "OPENCODE_AGENTS_MD_PATH",
     "HOME_INSTALL_OPENCODE_ROOT",
-    "CLAUDE_ONLY_TOOLS",
-    "TOOL_NAME_MAP",
     "VERBATIM_SKILL_FILES",
     "MODEL_ALIASES_PATH",
     "MODEL_ALIASES_LOCAL_PATH",
@@ -64,7 +61,6 @@ __all__ = [
     "is_model_drop_sentinel",
     "load_model_aliases",
     "map_model",
-    "map_tool_name",
     "parse_frontmatter",
     "strip_preamble_before_frontmatter",
     "translate_mcp_servers",
@@ -156,45 +152,6 @@ def normalize_agent_color(value: object) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Tool name map — Claude Code PascalCase -> opencode lowercase.
-# Entries whose value is None are Claude-only tools with no opencode analog
-# (team/task primitives, todo tracker, etc.) — they are dropped from generated
-# frontmatter.
-# ---------------------------------------------------------------------------
-
-TOOL_NAME_MAP: dict[str, str | None] = {
-    # File / shell tools
-    "Read": "read",
-    "Write": "write",
-    "Edit": "edit",
-    "MultiEdit": "edit",
-    "Bash": "bash",
-    "Grep": "grep",
-    "Glob": "glob",
-    "WebFetch": "webfetch",
-    "WebSearch": "webfetch",
-    "NotebookEdit": "edit",
-    "NotebookRead": "read",
-    # Claude-only — dropped entirely
-    "Task": None,
-    "Agent": None,
-    "TodoWrite": None,
-    "TaskCreate": None,
-    "TaskUpdate": None,
-    "TaskList": None,
-    "TaskGet": None,
-    "TeamCreate": None,
-    "TeamDelete": None,
-    "SendMessage": None,
-    "AskUserQuestion": None,
-    "ExitPlanMode": None,
-    "SlashCommand": None,
-}
-
-# Convenience set for quick membership checks in generators.
-CLAUDE_ONLY_TOOLS: frozenset[str] = frozenset(name for name, mapped in TOOL_NAME_MAP.items() if mapped is None)
-
-# ---------------------------------------------------------------------------
 # Skill-tree files copied verbatim. They describe / check all four deployment
 # targets literally, so blind text replacement would corrupt them. Paths are
 # source-relative to ycc/skills/.
@@ -210,43 +167,6 @@ VERBATIM_SKILL_FILES: frozenset[str] = frozenset(
         "compatibility-audit/references/reading-the-report.md",
     }
 )
-
-
-def map_tool_name(name: str) -> str | None:
-    """Map a Claude tool identifier (e.g. ``Read``, ``Bash(ls:*)``) to the
-    opencode equivalent name, or ``None`` if the tool has no analog.
-
-    Parenthesized Claude globs are mapped to the narrowest opencode equivalent
-    when safe (for example, ``Bash(ls:*)`` -> ``read``), otherwise they fall
-    back to ``bash``.
-    """
-    head = name.split("(", 1)[0].strip()
-    if not head:
-        return None
-    if head == "Bash" and "(" in name and ")" in name:
-        scope = name.split("(", 1)[1].rsplit(")", 1)[0].strip()
-        command = scope.split(",", 1)[0].strip()
-        command_head, _, command_tail = command.partition(":")
-        command_head = command_head.strip().lower()
-        command_tail = command_tail.strip().lower()
-
-        if command_head in {"ls", "cat", "head", "tail", "wc", "pwd"}:
-            return "read"
-        if command_head in {"find"}:
-            return "glob"
-        if command_head in {"rg", "grep"}:
-            return "grep"
-        if command_head == "git":
-            if command_tail.startswith(("status", "diff", "log", "show", "branch")):
-                return "read"
-            return "bash"
-        return "bash"
-    if head in TOOL_NAME_MAP:
-        return TOOL_NAME_MAP[head]
-    # Unknown tool (e.g. an MCP-provided tool). Pass the bare head through
-    # lowercased; opencode treats unknown tool names as MCP-prefixed entries
-    # which the per-agent config can still enable/disable via globs.
-    return head.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -299,7 +219,7 @@ def load_model_aliases() -> dict[str, str]:
         except json.JSONDecodeError as exc:
             raise SystemExit(f"{MODEL_ALIASES_LOCAL_PATH} is not valid JSON: {exc}") from exc
         if not isinstance(local, dict):
-            raise SystemExit(f"{MODEL_ALIASES_LOCAL_PATH} must be a JSON object; got " f"{type(local).__name__}.")
+            raise SystemExit(f"{MODEL_ALIASES_LOCAL_PATH} must be a JSON object; got {type(local).__name__}.")
         aliases = {**aliases, **local}
 
     aliases.pop("$comment", None)
@@ -359,7 +279,7 @@ def rewrite_plugin_paths(text: str) -> str:
     def replace(match: re.Match[str]) -> str:
         path_text = match.group(1)
         if path_text.startswith("_shared/"):
-            return f"{HOME_INSTALL_OPENCODE_ROOT}/shared/{path_text[len('_shared/'):]}"
+            return f"{HOME_INSTALL_OPENCODE_ROOT}/shared/{path_text[len('_shared/') :]}"
         return f"{HOME_INSTALL_OPENCODE_ROOT}/skills/{path_text}"
 
     return re.sub(pattern, replace, text)

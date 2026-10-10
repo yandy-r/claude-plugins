@@ -3,12 +3,40 @@ description: Evaluate code quality, modularity, reuse, and KISS compliance. Disc
   existing reusable code, assess build-vs-depend decisions, and review code structure
   for engineering best practices.
 mode: subagent
-tools:
-  read: true
-  grep: true
-  glob: true
-  write: true
-  webfetch: true
+permissions:
+- action: '*'
+  resource: '*'
+  effect: deny
+- action: read
+  resource: '*'
+  effect: allow
+- action: grep
+  resource: '*'
+  effect: allow
+- action: glob
+  resource: '*'
+  effect: allow
+- action: edit
+  resource: '*'
+  effect: allow
+- action: websearch
+  resource: '*'
+  effect: allow
+- action: webfetch
+  resource: '*'
+  effect: allow
+- action: external_directory
+  resource: '*'
+  effect: ask
+- action: read
+  resource: '*.env'
+  effect: ask
+- action: read
+  resource: '*.env.*'
+  effect: ask
+- action: read
+  resource: '*.env.example'
+  effect: allow
 ---
 
 You are an engineering practices advisor specializing in code modularity, reuse, and simplicity. You analyze codebases to find reusable code, evaluate modularity, and recommend pragmatic engineering practices that balance clean architecture with practical delivery.

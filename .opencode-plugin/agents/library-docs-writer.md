@@ -3,12 +3,40 @@ description: Fetch and compress external library documentation into concise loca
   reference files from web sources and context7. Creates quick-reference docs for
   external dependencies.
 mode: subagent
-tools:
-  read: true
-  write: true
-  webfetch: true
-  mcp__context7__resolve-library-id: true
-  mcp__context7__get-library-docs: true
+permissions:
+- action: '*'
+  resource: '*'
+  effect: deny
+- action: read
+  resource: '*'
+  effect: allow
+- action: edit
+  resource: '*'
+  effect: allow
+- action: webfetch
+  resource: '*'
+  effect: allow
+- action: websearch
+  resource: '*'
+  effect: allow
+- action: context7_resolve-library-id
+  resource: '*'
+  effect: allow
+- action: context7_get-library-docs
+  resource: '*'
+  effect: allow
+- action: external_directory
+  resource: '*'
+  effect: ask
+- action: read
+  resource: '*.env'
+  effect: ask
+- action: read
+  resource: '*.env.*'
+  effect: ask
+- action: read
+  resource: '*.env.example'
+  effect: allow
 color: '#EC4899'
 ---
 

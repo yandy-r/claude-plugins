@@ -5,12 +5,79 @@ description: Implement the fix for a SINGLE failed release-CI workflow step disp
   never modifies files outside the failed step's implicated paths, never touches release
   notes or version manifests.
 mode: subagent
-tools:
-  read: true
-  grep: true
-  glob: true
-  edit: true
-  bash: true
+permissions:
+- action: '*'
+  resource: '*'
+  effect: deny
+- action: read
+  resource: '*'
+  effect: allow
+- action: grep
+  resource: '*'
+  effect: allow
+- action: glob
+  resource: '*'
+  effect: allow
+- action: edit
+  resource: '*'
+  effect: allow
+- action: shell
+  resource: ls *
+  effect: allow
+- action: shell
+  resource: cat *
+  effect: allow
+- action: shell
+  resource: test *
+  effect: allow
+- action: shell
+  resource: git *
+  effect: allow
+- action: shell
+  resource: npm *
+  effect: allow
+- action: shell
+  resource: pnpm *
+  effect: allow
+- action: shell
+  resource: yarn *
+  effect: allow
+- action: shell
+  resource: bun *
+  effect: allow
+- action: shell
+  resource: npx *
+  effect: allow
+- action: shell
+  resource: cargo *
+  effect: allow
+- action: shell
+  resource: go *
+  effect: allow
+- action: shell
+  resource: pytest *
+  effect: allow
+- action: shell
+  resource: python *
+  effect: allow
+- action: shell
+  resource: python3 *
+  effect: allow
+- action: shell
+  resource: make *
+  effect: allow
+- action: external_directory
+  resource: '*'
+  effect: ask
+- action: read
+  resource: '*.env'
+  effect: ask
+- action: read
+  resource: '*.env.*'
+  effect: ask
+- action: read
+  resource: '*.env.example'
+  effect: allow
 color: '#EAB308'
 ---
 
